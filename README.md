@@ -79,6 +79,10 @@ nextclaw stop   # stop the service
 
 ![Message Channels](images/screenshots/nextclaw-channels-page.png)
 
+**Cron Jobs** — view and manage scheduled tasks, run now, enable/disable, track last run:
+
+<img src="images/screenshots/nextclaw-cron-job-page.png" width="960" alt="Cron Jobs" />
+
 ---
 
 ## 🔌 Provider examples
