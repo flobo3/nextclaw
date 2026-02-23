@@ -1,0 +1,9 @@
+name = "nextclaw-marketplace-api"
+main = "src/main.ts"
+compatibility_date = "2026-02-23"
+
+[observability]
+enabled = true
+
+[vars]
+MARKETPLACE_CACHE_TTL_SECONDS = "120"

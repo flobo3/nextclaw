@@ -4,14 +4,15 @@
   "packageManager": "pnpm@9.15.1",
   "workspaces": [
     "packages/*",
-    "packages/extensions/*"
+    "packages/extensions/*",
+    "workers/*"
   ],
   "scripts": {
-    "build": "pnpm -C packages/nextclaw-core build && pnpm -C packages/extensions/nextclaw-channel-runtime build && pnpm -C packages/nextclaw-openclaw-compat build && pnpm -C packages/nextclaw-server build && pnpm -C packages/nextclaw-ui build && pnpm -C packages/nextclaw build",
+    "build": "pnpm -C packages/nextclaw-core build && pnpm -C packages/extensions/nextclaw-channel-runtime build && pnpm -C packages/nextclaw-openclaw-compat build && pnpm -C packages/nextclaw-server build && pnpm -C packages/nextclaw-ui build && pnpm -C packages/nextclaw build && pnpm -C workers/marketplace-api build",
     "build:ui": "pnpm -C packages/nextclaw-ui build",
-    "lint": "pnpm -C packages/nextclaw-core lint && pnpm -C packages/extensions/nextclaw-channel-runtime lint && pnpm -C packages/nextclaw-openclaw-compat lint && pnpm -C packages/nextclaw-server lint && pnpm -C packages/nextclaw lint",
+    "lint": "pnpm -C packages/nextclaw-core lint && pnpm -C packages/extensions/nextclaw-channel-runtime lint && pnpm -C packages/nextclaw-openclaw-compat lint && pnpm -C packages/nextclaw-server lint && pnpm -C packages/nextclaw lint && pnpm -C workers/marketplace-api lint",
     "lint:ui": "pnpm -C packages/nextclaw-ui lint",
-    "tsc": "pnpm -C packages/nextclaw-core tsc && pnpm -C packages/extensions/nextclaw-channel-runtime tsc && pnpm -C packages/nextclaw-openclaw-compat tsc && pnpm -C packages/nextclaw-server tsc && pnpm -C packages/nextclaw tsc",
+    "tsc": "pnpm -C packages/nextclaw-core tsc && pnpm -C packages/extensions/nextclaw-channel-runtime tsc && pnpm -C packages/nextclaw-openclaw-compat tsc && pnpm -C packages/nextclaw-server tsc && pnpm -C packages/nextclaw tsc && pnpm -C workers/marketplace-api tsc",
     "tsc:ui": "pnpm -C packages/nextclaw-ui tsc",
     "dev": "node scripts/dev-runner.mjs",
     "dev:backend": "pnpm -C packages/nextclaw dev serve --ui-port 18792",
@@ -23,8 +24,9 @@
     "release:check": "pnpm build && pnpm lint && pnpm tsc",
     "release:version": "pnpm changeset version",
     "release:publish": "pnpm release:check && pnpm changeset publish && pnpm changeset tag",
-    "release":"pnpm changeset && pnpm release:version && pnpm release:publish",
-    "deploy:pages": "pnpm --filter @nextclaw/landing build && npx wrangler pages deploy packages/landing/dist --project-name nextclaw-landing --branch master"
+    "release": "pnpm changeset && pnpm release:version && pnpm release:publish",
+    "deploy:pages": "pnpm --filter @nextclaw/landing build && npx wrangler pages deploy packages/landing/dist --project-name nextclaw-landing --branch master",
+    "deploy:docs": "pnpm --filter @nextclaw/docs build && npx wrangler pages deploy packages/docs/.vitepress/dist --project-name nextclaw-docs --branch master"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8"

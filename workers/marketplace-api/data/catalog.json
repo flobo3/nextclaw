@@ -1,0 +1,177 @@
+{
+  "version": "2026.02.23",
+  "generatedAt": "2026-02-23T14:00:00.000Z",
+  "items": [
+    {
+      "id": "plugin-openclaw-compat",
+      "slug": "openclaw-compat",
+      "type": "plugin",
+      "name": "OpenClaw Compat",
+      "summary": "OpenClaw-compatible plugin runtime bridge for NextClaw.",
+      "description": "Provides compatibility adapters for OpenClaw-style plugins and channels.",
+      "tags": ["plugin", "runtime", "compat"],
+      "author": "NextClaw",
+      "sourceRepo": "https://github.com/nextclaw/nextclaw",
+      "homepage": "https://github.com/nextclaw/nextclaw",
+      "install": {
+        "kind": "npm",
+        "spec": "@nextclaw/openclaw-compat",
+        "command": "nextclaw plugins install @nextclaw/openclaw-compat"
+      },
+      "metrics": {
+        "downloads30d": 1240,
+        "stars": 312
+      },
+      "publishedAt": "2025-12-10T10:00:00.000Z",
+      "updatedAt": "2026-02-22T09:40:00.000Z"
+    },
+    {
+      "id": "plugin-channel-runtime",
+      "slug": "channel-runtime",
+      "type": "plugin",
+      "name": "Channel Runtime",
+      "summary": "Universal channel runtime plugin for multi-channel message routing.",
+      "description": "Provides channel abstraction, lifecycle hooks and runtime routing extensions.",
+      "tags": ["plugin", "channel", "runtime"],
+      "author": "NextClaw",
+      "sourceRepo": "https://github.com/nextclaw/nextclaw",
+      "homepage": "https://github.com/nextclaw/nextclaw",
+      "install": {
+        "kind": "npm",
+        "spec": "@nextclaw/channel-runtime",
+        "command": "nextclaw plugins install @nextclaw/channel-runtime"
+      },
+      "metrics": {
+        "downloads30d": 980,
+        "stars": 287
+      },
+      "publishedAt": "2025-11-18T10:00:00.000Z",
+      "updatedAt": "2026-02-21T13:21:00.000Z"
+    },
+    {
+      "id": "plugin-whatsapp-bridge",
+      "slug": "whatsapp-bridge",
+      "type": "plugin",
+      "name": "WhatsApp Bridge",
+      "summary": "Bridge plugin for WhatsApp message channel integration.",
+      "description": "Adds WhatsApp connector and transport handling for NextClaw channel routing.",
+      "tags": ["plugin", "whatsapp", "bridge"],
+      "author": "Community",
+      "sourceRepo": "https://github.com/nextclaw/nextclaw",
+      "homepage": "https://github.com/nextclaw/nextclaw",
+      "install": {
+        "kind": "npm",
+        "spec": "@nextclaw/bridge",
+        "command": "nextclaw plugins install @nextclaw/bridge"
+      },
+      "metrics": {
+        "downloads30d": 610,
+        "stars": 173
+      },
+      "publishedAt": "2025-10-11T10:00:00.000Z",
+      "updatedAt": "2026-02-20T15:15:00.000Z"
+    },
+    {
+      "id": "skill-project-os",
+      "slug": "project-os",
+      "type": "skill",
+      "name": "Project OS",
+      "summary": "Rule-driven delivery loop for development, validation and release.",
+      "description": "Adds project-level process orchestration with logs, commands and release checks.",
+      "tags": ["skill", "governance", "workflow"],
+      "author": "Peiiii",
+      "sourceRepo": "https://github.com/nextclaw/nextclaw",
+      "homepage": "https://github.com/nextclaw/nextclaw",
+      "install": {
+        "kind": "clawhub",
+        "spec": "project-os",
+        "command": "nextclaw skills install project-os"
+      },
+      "metrics": {
+        "downloads30d": 540,
+        "stars": 145
+      },
+      "publishedAt": "2025-09-16T10:00:00.000Z",
+      "updatedAt": "2026-02-23T07:10:00.000Z"
+    },
+    {
+      "id": "skill-writing-skills",
+      "slug": "writing-skills",
+      "type": "skill",
+      "name": "Writing Skills",
+      "summary": "Toolkit for creating and validating skill packages.",
+      "description": "Provides authoring checklists, templates and validation routines for skills.",
+      "tags": ["skill", "authoring", "tooling"],
+      "author": "Peiiii",
+      "sourceRepo": "https://github.com/nextclaw/nextclaw",
+      "homepage": "https://github.com/nextclaw/nextclaw",
+      "install": {
+        "kind": "clawhub",
+        "spec": "writing-skills",
+        "command": "nextclaw skills install writing-skills"
+      },
+      "metrics": {
+        "downloads30d": 376,
+        "stars": 120
+      },
+      "publishedAt": "2025-08-08T10:00:00.000Z",
+      "updatedAt": "2026-02-18T07:12:00.000Z"
+    },
+    {
+      "id": "skill-skill-creator",
+      "slug": "skill-creator",
+      "type": "skill",
+      "name": "Skill Creator",
+      "summary": "Scaffolding and guidance for designing new skills.",
+      "description": "Helps teams standardize skill metadata, templates and publishing workflow.",
+      "tags": ["skill", "scaffold", "best-practice"],
+      "author": "OpenAI",
+      "sourceRepo": "https://github.com/openai/codex",
+      "homepage": "https://github.com/openai/codex",
+      "install": {
+        "kind": "clawhub",
+        "spec": "skill-creator",
+        "command": "nextclaw skills install skill-creator"
+      },
+      "metrics": {
+        "downloads30d": 302,
+        "stars": 460
+      },
+      "publishedAt": "2025-07-30T10:00:00.000Z",
+      "updatedAt": "2026-02-17T11:55:00.000Z"
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "default",
+      "title": "Default Picks",
+      "description": "General recommendations for most teams.",
+      "itemIds": [
+        "plugin-openclaw-compat",
+        "plugin-channel-runtime",
+        "skill-project-os",
+        "skill-writing-skills"
+      ]
+    },
+    {
+      "id": "channels",
+      "title": "Channel Integration",
+      "description": "Recommended extension stack for multi-channel scenarios.",
+      "itemIds": [
+        "plugin-channel-runtime",
+        "plugin-whatsapp-bridge",
+        "plugin-openclaw-compat"
+      ]
+    },
+    {
+      "id": "builder",
+      "title": "Builder Toolkit",
+      "description": "Recommended skill set for teams building reusable skills.",
+      "itemIds": [
+        "skill-project-os",
+        "skill-writing-skills",
+        "skill-skill-creator"
+      ]
+    }
+  ]
+}

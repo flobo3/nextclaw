@@ -169,6 +169,8 @@ nextclaw stop   # stop the service
 - [Multi-agent architecture: single Gateway, bindings, session isolation](docs/guides/multi-agent-architecture.md)
 - [RFC: Action Schema v1](docs/rfcs/action-schema-v1.md)
 - [Code volume monitoring workflow](docs/workflows/code-volume-monitoring.md)
+- [Marketplace Worker deploy workflow](docs/workflows/marketplace-worker-deploy.md)
+- [Marketplace read-only Worker API](workers/marketplace-api/README.md)
 
 ---
 
