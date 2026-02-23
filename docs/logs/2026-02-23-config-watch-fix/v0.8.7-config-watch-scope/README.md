@@ -15,7 +15,7 @@
   - 观察点：启动输出包含 `✓ Heartbeat: every 30m`，且无 `ENOSPC` 报错；配置目录不写入仓库路径。
 
 ## 发布/部署方式
-- 发布流程（按 `docs/workflows/npm-release-process.md`）：
+- 发布流程（按 [发布流程](../../../../workflows/npm-release-process.md)）：
   - `pnpm release:version`（已完成）
   - `pnpm release:check`（已完成）
   - `pnpm changeset publish`（已完成，发布 `nextclaw@0.8.7`）
