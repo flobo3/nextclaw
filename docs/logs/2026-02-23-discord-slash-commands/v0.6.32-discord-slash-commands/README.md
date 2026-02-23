@@ -26,13 +26,53 @@ const help = await registry.execute('help', {}, ctx);
 const model = await registry.execute('model', { name: 'openai/gpt-4.1' }, ctx);
 console.log(help.content.includes('/help') && model.content.includes('openai/gpt-4.1') ? 'SMOKE_OK' : 'SMOKE_FAIL');
 "
-rm -rf "$TMP_HOME"
+python3 - <<'PY'
+import shutil
+import os
+shutil.rmtree(os.environ["TMP_HOME"], ignore_errors=True)
+PY
+
+# Discord 实际验证（本机 token）
+TMP_HOME=$(mktemp -d /tmp/nextclaw-discord-slash-live.XXXXXX)
+TMP_HOME="$TMP_HOME" PATH=/opt/homebrew/bin:$PATH node -e "const fs=require('fs'); const path=require('path'); const cfg=require(process.env.HOME+'/.nextclaw/config.json'); const token=cfg.channels?.discord?.token; if(!token){console.error('NO_TOKEN'); process.exit(1);} const out={ agents: cfg.agents ?? undefined, providers: cfg.providers ?? undefined, channels: { discord: { ...(cfg.channels?.discord||{}), enabled: true } } }; fs.writeFileSync(path.join(process.env.TMP_HOME,'config.json'), JSON.stringify(out, null, 2));"
+PATH=/opt/homebrew/bin:$PATH NEXTCLAW_HOME="$TMP_HOME" node packages/nextclaw/dist/cli/index.js gateway
+# 等待日志出现 "Discord bot connected" 与 "Discord slash commands registered ..."
+PATH=/opt/homebrew/bin:$PATH node <<'NODE'
+const cfg = require(process.env.TMP_HOME + '/config.json');
+const token = cfg.channels?.discord?.token;
+const headers = { Authorization: `Bot ${token}` };
+(async () => {
+  const appRes = await fetch('https://discord.com/api/v10/oauth2/applications/@me', { headers });
+  const appJson = await appRes.json();
+  const appId = appJson.id;
+  const guildRes = await fetch('https://discord.com/api/v10/users/@me/guilds', { headers });
+  const guilds = await guildRes.json();
+  const firstGuild = Array.isArray(guilds) ? guilds[0] : null;
+  if (!firstGuild) {
+    console.log('NO_GUILD');
+    return;
+  }
+  const cmdRes = await fetch(`https://discord.com/api/v10/applications/${appId}/guilds/${firstGuild.id}/commands`, { headers });
+  const cmds = await cmdRes.json();
+  const names = Array.isArray(cmds) ? cmds.map((cmd) => cmd.name).sort() : [];
+  console.log(JSON.stringify({ guild: { id: firstGuild.id, name: firstGuild.name }, commands: names }, null, 2));
+})().catch((err) => {
+  console.error(String(err));
+});
+NODE
+python3 - <<'PY'
+import shutil
+import os
+shutil.rmtree(os.environ["TMP_HOME"], ignore_errors=True)
+PY
 ```
 
 验收点：
 
 - `build/lint/tsc` 全部通过。
 - `SMOKE_OK` 输出为真。
+- Discord 日志中出现 “Discord bot connected” 与 “Discord slash commands registered ...”。
+- Discord API 列表可见命令：`commands/help/id/model/new/reset/status/whoami`。
 
 ## 发布 / 部署方式
 
