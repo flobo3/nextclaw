@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
-import { Cpu, GitBranch, History, MessageSquare, Sparkles } from 'lucide-react';
+import { Cpu, GitBranch, History, MessageSquare, Sparkles, BookOpen } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useDocBrowser } from '@/components/doc-browser';
 
 const navItems = [
   {
@@ -32,6 +33,8 @@ const navItems = [
 ];
 
 export function Sidebar() {
+  const docBrowser = useDocBrowser();
+
   return (
     <aside className="w-[240px] bg-white border-r border-gray-200 flex flex-col h-full py-6 px-4">
       {/* Logo Area */}
@@ -76,6 +79,25 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
+
+      {/* Help Button */}
+      <div className="pt-2 border-t border-gray-100 mt-2">
+        <button
+          onClick={() => docBrowser.open()}
+          className={cn(
+            'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-base',
+            docBrowser.isOpen
+              ? 'bg-brand-50 text-brand-700'
+              : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
+          )}
+        >
+          <BookOpen className={cn(
+            'h-4 w-4',
+            docBrowser.isOpen ? 'text-primary' : 'text-gray-500'
+          )} />
+          <span className="flex-1 text-left">帮助文档</span>
+        </button>
+      </div>
     </aside>
   );
 }
