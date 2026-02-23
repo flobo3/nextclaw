@@ -23,6 +23,7 @@
     "release:check": "pnpm build && pnpm lint && pnpm tsc",
     "release:version": "pnpm changeset version",
     "release:publish": "pnpm release:check && pnpm changeset publish && pnpm changeset tag",
+    "release":"pnpm changeset && pnpm release:version && pnpm release:publish",
     "deploy:pages": "pnpm --filter @nextclaw/landing build && npx wrangler pages deploy packages/landing/dist --project-name nextclaw-landing --branch master"
   },
   "devDependencies": {
