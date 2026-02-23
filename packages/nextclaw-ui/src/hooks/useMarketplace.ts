@@ -51,6 +51,8 @@ export function useInstallMarketplaceItem() {
     mutationFn: (request: MarketplaceInstallRequest) => installMarketplaceItem(request),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['marketplace-installed'] });
+      queryClient.refetchQueries({ queryKey: ['marketplace-installed'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['marketplace-items'], type: 'active' });
       toast.success(result.message || `${result.type} installed`);
     },
     onError: (error: Error) => {
@@ -67,6 +69,8 @@ export function useManageMarketplaceItem() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['marketplace-installed'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-items'] });
+      queryClient.refetchQueries({ queryKey: ['marketplace-installed'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['marketplace-items'], type: 'active' });
       toast.success(result.message || `${result.action} success`);
     },
     onError: (error: Error) => {
