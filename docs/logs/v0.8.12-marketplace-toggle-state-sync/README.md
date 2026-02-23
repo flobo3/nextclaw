@@ -44,11 +44,12 @@ rm -rf "$TMP_HOME"
 
 ## 发布 / 部署方式
 
-- 本次为 UI 状态同步修复，尚未执行 npm 发布。
-- 若需发布，按流程执行：
-  1. `pnpm changeset`
-  2. `pnpm release:version`
-  3. `pnpm release:publish`
+- 已执行发布：
+  1. `pnpm release:version`
+  2. `pnpm release:publish`
+- 发布结果：
+  - `@nextclaw/ui@0.5.4`
+  - `nextclaw@0.8.8`
 - 本次不涉及数据库变更，无 migration 需求。
 
 ## 用户 / 产品视角的验收步骤
