@@ -15,17 +15,24 @@ This does NOT cover registry/console deployment.
 pnpm changeset
 ```
 
-2) Bump versions + changelogs
+2) Sync package READMEs (source of truth in `docs/npm-readmes`)
+```bash
+pnpm release:sync-readmes
+pnpm release:check-readmes
+```
+
+3) Bump versions + changelogs
 ```bash
 pnpm release:version
 ```
 
-3) Publish
+4) Publish
 ```bash
 pnpm release:publish
 ```
 
 Notes:
+- `release:version` and `release:publish` automatically run README sync/check.
 - `release:publish` should run `release:check` (build + lint + typecheck) before publishing.
 - `release:publish` should create git tags automatically.
 
