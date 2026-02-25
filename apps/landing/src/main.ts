@@ -37,32 +37,32 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       
       <!-- Terminal Block -->
       <div class="w-full max-w-2xl mx-auto mb-10 text-left animate-slide-up opacity-0" style="animation-delay: 0.4s">
-        <div class="rounded-2xl overflow-hidden bg-[#1a1b26] shadow-2xl border border-white/10">
-          <div class="flex items-center justify-between px-4 py-3 bg-[#111219]">
+        <div class="rounded-2xl overflow-hidden bg-[#332c28] shadow-2xl border border-white/5">
+          <div class="flex items-center justify-between px-4 py-3 bg-[#2c2522]">
             <div class="flex gap-2">
               <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
               <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
               <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
             </div>
-            <div class="text-xs text-slate-400 font-mono">bash</div>
-            <button id="copy-btn" class="text-slate-400 hover:text-white transition-colors" title="Copy commands">
+            <div class="text-xs text-[#a0938a] font-mono">bash</div>
+            <button id="copy-btn" class="text-[#a0938a] hover:text-white transition-colors" title="Copy commands">
               <i data-lucide="copy" class="w-4 h-4"></i>
             </button>
           </div>
           <div class="p-6 font-mono text-sm sm:text-base leading-relaxed">
-            <div class="flex items-center text-slate-300">
-              <span class="text-[#f7768e] mr-3 font-bold">$</span>
+            <div class="flex items-center text-[#d4c8be]">
+              <span class="text-[#e29e57] mr-3 font-bold">$</span>
               <span>npm install -g nextclaw</span>
             </div>
-            <div class="flex items-center text-slate-300 mt-2">
-              <span class="text-[#f7768e] mr-3 font-bold">$</span>
+            <div class="flex items-center text-[#d4c8be] mt-2">
+              <span class="text-[#e29e57] mr-3 font-bold">$</span>
               <span>nextclaw start</span>
             </div>
-            <div class="flex items-start text-slate-500 mt-4 italic">
+            <div class="flex items-start text-[#8b7e75] mt-4 italic">
               <span class="mr-3 font-bold">&gt;</span>
               <span>
-                UI:  <span class="text-[#7aa2f7]">http://127.0.0.1:18791</span><br />
-                API: <span class="text-[#7aa2f7]">http://127.0.0.1:18791/api</span>
+                UI:  <span class="text-[#8eb079]">http://127.0.0.1:18791</span><br />
+                API: <span class="text-[#8eb079]">http://127.0.0.1:18791/api</span>
               </span>
             </div>
           </div>
