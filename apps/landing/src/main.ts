@@ -215,8 +215,6 @@ if (terminalContent && installCmd) {
     { text: 'API: http://127.0.0.1:18791/api', icon: '→', color: '#7eb6d4' },
   ];
 
-  let currentLine = 0;
-
   async function typeText(element: HTMLElement, text: string, speed = 50) {
     for (let i = 0; i < text.length; i++) {
       element.textContent += text[i];
@@ -261,8 +259,7 @@ if (terminalContent && installCmd) {
   }
 
   async function runAnimation() {
-    // Type install command
-    await typeText(installCmd, commands[0].text, 40);
+    await typeText(installCmd!, commands[0].text, 40);
     await new Promise(resolve => setTimeout(resolve, 800));
 
     // Run startup sequence
