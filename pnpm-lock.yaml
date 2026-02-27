@@ -48,61 +48,61 @@ importers:
   packages/extensions/nextclaw-channel-plugin-dingtalk:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-discord:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.18
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-email:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-feishu:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-mochat:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-qq:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-slack:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-telegram:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-wecom:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-whatsapp:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.7
+        specifier: ^0.1.16
         version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-runtime:
@@ -111,7 +111,7 @@ importers:
         specifier: ^1.58.0
         version: 1.58.0
       '@nextclaw/core':
-        specifier: ^0.6.27
+        specifier: ^0.6.34
         version: link:../../nextclaw-core
       '@slack/socket-mode':
         specifier: ^1.3.3
@@ -196,13 +196,13 @@ importers:
   packages/nextclaw:
     dependencies:
       '@nextclaw/core':
-        specifier: ^0.6.28
+        specifier: ^0.6.34
         version: link:../nextclaw-core
       '@nextclaw/openclaw-compat':
-        specifier: ^0.1.21
+        specifier: ^0.1.28
         version: link:../nextclaw-openclaw-compat
       '@nextclaw/server':
-        specifier: ^0.5.3
+        specifier: ^0.5.15
         version: link:../nextclaw-server
       chokidar:
         specifier: ^3.6.0
@@ -312,40 +312,40 @@ importers:
   packages/nextclaw-openclaw-compat:
     dependencies:
       '@nextclaw/channel-plugin-dingtalk':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-dingtalk
       '@nextclaw/channel-plugin-discord':
-        specifier: ^0.1.2
+        specifier: ^0.1.6
         version: link:../extensions/nextclaw-channel-plugin-discord
       '@nextclaw/channel-plugin-email':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-email
       '@nextclaw/channel-plugin-feishu':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-feishu
       '@nextclaw/channel-plugin-mochat':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-mochat
       '@nextclaw/channel-plugin-qq':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-qq
       '@nextclaw/channel-plugin-slack':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-slack
       '@nextclaw/channel-plugin-telegram':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-telegram
       '@nextclaw/channel-plugin-wecom':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-wecom
       '@nextclaw/channel-plugin-whatsapp':
-        specifier: ^0.1.2
+        specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-whatsapp
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.13
+        specifier: ^0.1.20
         version: link:../extensions/nextclaw-channel-runtime
       '@nextclaw/core':
-        specifier: ^0.6.27
+        specifier: ^0.6.34
         version: link:../nextclaw-core
       ajv:
         specifier: ^8.17.1
@@ -397,10 +397,10 @@ importers:
         specifier: ^1.13.3
         version: 1.19.9(hono@4.11.9)
       '@nextclaw/core':
-        specifier: ^0.6.28
+        specifier: ^0.6.34
         version: link:../nextclaw-core
       '@nextclaw/openclaw-compat':
-        specifier: ^0.1.21
+        specifier: ^0.1.28
         version: link:../nextclaw-openclaw-compat
       hono:
         specifier: ^4.6.2
