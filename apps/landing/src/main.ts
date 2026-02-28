@@ -19,6 +19,9 @@ type LandingCopy = {
   docsButton: string;
   githubButton: string;
   screenshotAlt: string;
+  screenshotSrc: string;
+  screenshotChannelsAlt: string;
+  screenshotChannelsSrc: string;
   featuresTitle: string;
   featuresSubtitle: string;
   features: FeatureItem[];
@@ -73,6 +76,9 @@ const COPY: Record<Locale, LandingCopy> = {
     docsButton: 'Read the Docs',
     githubButton: 'View on GitHub',
     screenshotAlt: 'NextClaw Web Interface',
+    screenshotSrc: '/nextclaw-providers-page-en.png',
+    screenshotChannelsAlt: 'NextClaw message channels',
+    screenshotChannelsSrc: '/nextclaw-channels-page-en.png',
     featuresTitle: 'Everything you need.',
     featuresSubtitle:
       'A powerful core wrapped in a seamless interface. Run NextClaw locally or expose it safely.',
@@ -130,6 +136,9 @@ const COPY: Record<Locale, LandingCopy> = {
     docsButton: '查看文档',
     githubButton: '查看 GitHub',
     screenshotAlt: 'NextClaw Web 界面',
+    screenshotSrc: '/nextclaw-providers-page-cn.png',
+    screenshotChannelsAlt: 'NextClaw 消息渠道',
+    screenshotChannelsSrc: '/nextclaw-channels-page-cn.png',
     featuresTitle: '你需要的能力都在这里。',
     featuresSubtitle: '强大的核心能力与顺手的交互体验统一在一个入口中。',
     features: [
@@ -316,7 +325,10 @@ class LandingPage {
                   <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
                   <div class="w-3 h-3 rounded-full bg-green-400"></div>
                 </div>
-                <img src="/nextclaw-ui.png" alt="${this.copy.screenshotAlt}" class="w-full h-auto object-cover border-t border-border/40" />
+                <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                  <img src="${this.copy.screenshotSrc}" alt="${this.copy.screenshotAlt}" class="w-full h-auto object-cover border-t border-border/40" />
+                  <img src="${this.copy.screenshotChannelsSrc}" alt="${this.copy.screenshotChannelsAlt}" class="w-full h-auto object-cover border-t border-border/40" />
+                </div>
               </div>
             </div>
           </div>
