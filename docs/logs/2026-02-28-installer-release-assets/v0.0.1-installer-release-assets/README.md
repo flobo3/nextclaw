@@ -9,6 +9,7 @@
   - 安装器构建改为直接使用 `nextclaw@<version>`（npm registry）作为输入，不再依赖仓库内 `pnpm install + pnpm build`，降低 CI 失败面并显著缩短时长。
   - 构建与发布拆分为两阶段：矩阵 job 只产出 artifacts，`publish-release-assets` 单 job 汇总并上传到 Release，避免并发上传冲突。
   - Windows 构建步骤改为 `pwsh` 执行，避免 `bash` 环境下工具链路径兼容问题。
+  - Windows 构建命令参数统一显式字符串化，避免 `@` 字符在 PowerShell 下的解析歧义。
 - 调整安装器脚本 `scripts/installer/build-installer.mjs`：
   - Windows 默认临时工作目录改为短路径（`C:\nci-<timestamp>`），降低长路径导致的依赖安装失败概率。
   - Windows 解压 Runtime 时优先 `pwsh`，失败再回退 `powershell`，提高 runner 兼容性。
