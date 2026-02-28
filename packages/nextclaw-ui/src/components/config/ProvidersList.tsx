@@ -135,7 +135,7 @@ export function ProvidersList() {
                           'h-10 w-10 rounded-lg border',
                           isReady ? 'border-primary/30 bg-white' : 'border-gray-200/70 bg-white'
                         )}
-                        imgClassName="h-5 w-5"
+                        imgClassName="h-5 w-5 object-contain"
                         fallback={<span className="text-sm font-semibold uppercase text-gray-500">{provider.name[0]}</span>}
                       />
                       <div className="min-w-0">
