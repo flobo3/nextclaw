@@ -278,9 +278,12 @@ class InstallerBuilder {
       "utf8"
     );
     try {
+      const installTarget = process.platform === "win32"
+        ? this.packedTgzPath.replace(/\\/g, "/")
+        : this.packedTgzPath;
       this.runner.capture(
         "npm",
-        ["install", "--omit=dev", "--no-audit", "--no-fund", this.packedTgzPath],
+        ["install", "--omit=dev", "--no-audit", "--no-fund", installTarget],
         { cwd: appDir }
       );
     } catch (error) {

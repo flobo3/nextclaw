@@ -11,6 +11,7 @@
   - 命令失败日志增强：安装依赖失败时同时输出 stdout/stderr，保证 CI 能直接看到 npm 错误根因而不是只有 exit code。
   - 当 `npm install` 失败时，自动附带 npm cache 的最新 debug log 末尾内容，进一步提升可诊断性。
   - npm debug log 路径探测兼容 `NPM_CONFIG_CACHE` / `LOCALAPPDATA`，确保 Windows runner 能稳定输出调试日志。
+  - Windows 下安装 tgz 时统一将路径标准化为正斜杠形式，降低 `npm install <local-tgz>` 参数解析歧义风险。
 - 改造 CI 工作流 `.github/workflows/installer-build.yml`：
   - Windows 安装 NSIS 后记录 `makensis` 路径状态（PATH 命中或绝对路径候选），不再因 PATH 未刷新而提前失败。
   - Windows 构建步骤改为 `continue-on-error: true` + 日志落盘（`build-installer-windows.log`），失败时也会上传日志 artifact。
