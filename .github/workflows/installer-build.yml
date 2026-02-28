@@ -70,8 +70,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PACKAGE_VERSION = node -e "console.log(require('./packages/nextclaw/package.json').version)"
-          $PACKAGE_SPEC = "nextclaw@$PACKAGE_VERSION"
-          node scripts/installer/build-installer.mjs "--platform=${{ matrix.platform }}" "--arch=${{ matrix.arch }}" "--package-spec=$PACKAGE_SPEC" "--output-dir=dist/installers"
+          $env:NEXTCLAW_INSTALLER_PACKAGE_SPEC = "nextclaw@$PACKAGE_VERSION"
+          node scripts/installer/build-installer.mjs "--platform=${{ matrix.platform }}" "--arch=${{ matrix.arch }}" "--output-dir=dist/installers"
 
       - name: Upload installer artifacts (macOS)
         if: matrix.platform == 'darwin'
