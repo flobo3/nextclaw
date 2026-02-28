@@ -108,9 +108,12 @@ class InstallerBuilder {
 
   readVersion() {
     if (this.packageSpec) {
-      const resolvedVersion = this.runner
-        .capture("npm", ["view", this.packageSpec, "version"])
-        .trim();
+      const parsedVersion = this.tryParseVersionFromPackageSpec(this.packageSpec);
+      if (parsedVersion) {
+        this.version = parsedVersion;
+        return;
+      }
+      const resolvedVersion = this.runner.capture("npm", ["view", this.packageSpec, "version"]).trim();
       if (!resolvedVersion) {
         throw new Error(`Unable to resolve version for package spec: ${this.packageSpec}`);
       }
@@ -123,6 +126,19 @@ class InstallerBuilder {
     if (!this.version) {
       throw new Error("Unable to read nextclaw version from packages/nextclaw/package.json");
     }
+  }
+
+  tryParseVersionFromPackageSpec(packageSpec) {
+    const trimmed = packageSpec.trim();
+    const versionSeparatorIndex = trimmed.lastIndexOf("@");
+    if (versionSeparatorIndex <= 0 || versionSeparatorIndex === trimmed.length - 1) {
+      return "";
+    }
+    const maybeVersion = trimmed.slice(versionSeparatorIndex + 1).trim();
+    if (/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(maybeVersion)) {
+      return maybeVersion;
+    }
+    return "";
   }
 
   packNextclaw() {
