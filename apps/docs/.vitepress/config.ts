@@ -91,6 +91,7 @@ const enSidebar = [
     text: 'Features',
     items: [
       { text: 'Channels', link: '/en/guide/channels' },
+      { text: 'Secrets Management', link: '/en/guide/secrets' },
       { text: 'Multi-Agent Routing', link: '/en/guide/multi-agent' },
       { text: 'Tools', link: '/en/guide/tools' },
       { text: 'Cron & Heartbeat', link: '/en/guide/cron' },
@@ -123,6 +124,7 @@ const zhSidebar = [
     text: '功能',
     items: [
       { text: '渠道', link: '/zh/guide/channels' },
+      { text: '密钥管理', link: '/zh/guide/secrets' },
       { text: '多 Agent 路由', link: '/zh/guide/multi-agent' },
       { text: '工具', link: '/zh/guide/tools' },
       { text: 'Cron 与 Heartbeat', link: '/zh/guide/cron' },
@@ -172,6 +174,7 @@ export default defineConfig({
         nav: [
           { text: 'Getting Started', link: '/en/guide/getting-started' },
           { text: 'Configuration', link: '/en/guide/configuration' },
+          { text: 'Secrets', link: '/en/guide/secrets' },
           { text: 'Channels', link: '/en/guide/channels' },
           { text: 'Commands', link: '/en/guide/commands' },
           { text: 'Roadmap', link: '/en/guide/roadmap' },
@@ -196,6 +199,7 @@ export default defineConfig({
         nav: [
           { text: '快速开始', link: '/zh/guide/getting-started' },
           { text: '配置', link: '/zh/guide/configuration' },
+          { text: '密钥管理', link: '/zh/guide/secrets' },
           { text: '渠道', link: '/zh/guide/channels' },
           { text: '命令', link: '/zh/guide/commands' },
           { text: '路线图', link: '/zh/guide/roadmap' },

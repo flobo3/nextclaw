@@ -22,6 +22,8 @@
 
 NextClaw 已支持 `openclaw secrets` 风格的秘密引用，支持 `env` / `file` / `exec` 三类来源。
 
+完整流程与实际场景示例见：[密钥管理](/zh/guide/secrets)。
+
 推荐使用 `secrets.refs` 将“配置路径”映射到“secret ref”：
 
 ```json

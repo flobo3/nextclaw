@@ -40,6 +40,8 @@
 | `nextclaw secrets apply ...` | Apply refs/defaults/providers patch (`--file` or single `--path`) |
 | `nextclaw secrets reload` | Trigger runtime secrets reload |
 
+See [Secrets Management](/en/guide/secrets) for step-by-step usage and migration examples.
+
 ## Channel Commands
 
 | Command | Description |

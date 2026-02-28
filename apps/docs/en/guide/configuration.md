@@ -22,6 +22,8 @@
 
 NextClaw supports `openclaw secrets`-style secret references with `env` / `file` / `exec` sources.
 
+For full workflow and real-world examples, see [Secrets Management](/en/guide/secrets).
+
 Use `secrets.refs` to map config paths to secret refs:
 
 ```json

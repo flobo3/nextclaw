@@ -40,6 +40,8 @@
 | `nextclaw secrets apply ...` | 应用 refs/defaults/providers 补丁（`--file` 或单条 `--path`） |
 | `nextclaw secrets reload` | 触发运行时 secrets 重载 |
 
+完整上手与迁移示例见：[密钥管理](/zh/guide/secrets)。
+
 ## 渠道命令
 
 | 命令 | 说明 |

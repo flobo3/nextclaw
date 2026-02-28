@@ -35,5 +35,6 @@ nextclaw stop
 ## What's Next?
 
 - [Configuration](/en/guide/configuration) — Set up providers, models, and workspace
+- [Secrets Management](/en/guide/secrets) — Keep keys out of config and rotate safely
 - [Channels](/en/guide/channels) — Connect to Discord, Telegram, Slack, and more
 - [Commands](/en/guide/commands) — Full CLI reference
