@@ -208,44 +208,38 @@
         </div>
       </section>
 
-      <!-- Option 4: The Origami Phoenix (Polygonal) -->
+      <!-- Option 4: The Minimalist Blade Claw (Mercedes Style) -->
       <section>
-        <h2 class="text-[13px] font-bold text-gray-400 mb-4 uppercase tracking-[0.2em]">Option 4: Polygon / Origami
-          Phoenix Claw</h2>
-        <p class="text-sm text-gray-500 mb-6 max-w-2xl">Constructed from sharp, angled polygons. Gives a sense of
-          structure, mathematics, and code, while retaining the fiery aura.</p>
+        <h2 class="text-[13px] font-bold text-gray-400 mb-4 uppercase tracking-[0.2em]">Option 4: The Minimalist Blade
+          Claw (Mercedes Style)</h2>
+        <p class="text-sm text-gray-500 mb-6 max-w-2xl">A highly minimalist, luxury-tech approach. Three sleek lines
+          starting from the center and curving outwards like blades, all contained within a perfect circle ring.</p>
 
         <div
-          class="p-10 bg-white dark:bg-[#1f1f1f] rounded-2xl border border-gray-200 dark:border-gray-800 flex items-center shadow-lg">
-          <div class="flex items-center space-x-3">
-            <svg width="44" height="44" viewBox="0 0 100 100" fill="none">
-              <!-- Left Talons -->
-              <polygon points="10,10 30,50 40,85 25,60" fill="url(#poly-grad-1)" />
-              <polygon points="10,10 25,60 15,35" fill="url(#poly-grad-2)" opacity="0.8" />
-              <!-- Center Talon -->
-              <polygon points="45,5 50,55 50,95 40,85" fill="url(#poly-grad-1)" />
-              <polygon points="45,5 55,5 60,85 50,95" fill="url(#poly-grad-3)" />
-              <!-- Right Talons -->
-              <polygon points="90,10 70,50 60,85 75,60" fill="url(#poly-grad-2)" />
-              <polygon points="90,10 75,60 85,35" fill="url(#poly-grad-3)" opacity="0.8" />
+          class="p-10 bg-[#f8f9fa] dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-gray-800 flex items-center shadow-sm">
+          <div class="flex items-center space-x-4">
+            <!-- The Logo Mark -->
+            <svg width="48" height="48" viewBox="0 0 100 100" fill="none"
+              class="text-gray-900 dark:text-gray-100 group-hover:rotate-12 transition-transform duration-500">
+              <!-- Outer Ring -->
+              <circle cx="50" cy="50" r="46" stroke="currentColor" stroke-width="4" />
 
-              <defs>
-                <linearGradient id="poly-grad-1" x1="0" y1="0" x2="100" y2="100">
-                  <stop stop-color="#FCD34D" />
-                  <stop offset="1" stop-color="#F97316" />
-                </linearGradient>
-                <linearGradient id="poly-grad-2" x1="0" y1="100" x2="100" y2="0">
-                  <stop stop-color="#DC2626" />
-                  <stop offset="1" stop-color="#F97316" />
-                </linearGradient>
-                <linearGradient id="poly-grad-3" x1="50" y1="0" x2="50" y2="100">
-                  <stop stop-color="#B91C1C" />
-                  <stop offset="1" stop-color="#EA580C" />
-                </linearGradient>
-              </defs>
+              <!-- Top Blade -->
+              <!-- Blade starts thick near center, curves out left and sweeps right ending in a sharp tip at the top inner edge 50,4 -->
+              <path d="M50 50 C 50 30, 40 20, 50 4 C 55 20, 55 30, 50 50 Z" fill="currentColor" />
+
+              <!-- Bottom Right Blade -->
+              <!-- Sweeps down and right -->
+              <path d="M50 50 C 65 60, 80 65, 88 74 C 75 80, 65 70, 50 50 Z" fill="currentColor" />
+
+              <!-- Bottom Left Blade -->
+              <!-- Sweeps down and left -->
+              <path d="M50 50 C 35 60, 20 65, 12 74 C 25 80, 35 70, 50 50 Z" fill="currentColor" />
             </svg>
-            <span class="text-3xl font-black text-gray-800 dark:text-gray-100 font-sans pl-2">
-              NextClaw
+
+            <span
+              class="text-3xl font-light tracking-[0.1em] text-gray-800 dark:text-gray-200 font-sans pl-2 uppercase">
+              Next<span class="font-bold">Claw</span>
             </span>
           </div>
         </div>

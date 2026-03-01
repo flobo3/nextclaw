@@ -609,6 +609,23 @@ class LandingPage {
           </div>
         </section>
 
+        ${this.locale === 'zh' ? `
+        <section class="py-20 px-6 z-10 w-full max-w-5xl mx-auto">
+          <div class="text-center mb-10">
+            <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">一图看懂 NextClaw</h2>
+            <p class="text-muted-foreground text-lg max-w-2xl mx-auto">核心优势、生态定位与技术对比，一目了然。</p>
+          </div>
+          <div class="glass-card rounded-2xl overflow-hidden border border-border/50 shadow-xl">
+            <img
+              src="/nextclaw-omni-assistant-cn.jpg"
+              alt="NextClaw 产品全景：核心优势、生态对比与自动化功能"
+              class="w-full h-auto"
+              loading="lazy"
+            />
+          </div>
+        </section>
+        ` : ''}
+
         <section id="features" class="relative py-24 px-6 z-10 w-full max-w-7xl mx-auto">
           <div class="text-center mb-16 animate-slide-up opacity-0 relative" style="animation-delay: 0.1s">
             <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">${this.copy.featuresTitle}</h2>
