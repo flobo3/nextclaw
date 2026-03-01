@@ -75,7 +75,6 @@ nextclaw stop    # 停止服务
 
 访问 **[docs.nextclaw.io](https://docs.nextclaw.io/zh/)** 查看完整文档，包括：
 
-- [配置与 Provider](https://docs.nextclaw.io/zh/guide/configuration)
 - [模型选择](https://docs.nextclaw.io/zh/guide/model-selection)
 - [命令参考](https://docs.nextclaw.io/zh/guide/commands)
 - [愿景与路线图](https://docs.nextclaw.io/zh/guide/vision)

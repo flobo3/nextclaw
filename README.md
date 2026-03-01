@@ -75,7 +75,6 @@ nextclaw stop    # stop the service
 
 Visit **[docs.nextclaw.io](https://docs.nextclaw.io/en/)** for the full documentation, including:
 
-- [Configuration & Providers](https://docs.nextclaw.io/en/guide/configuration)
 - [Model Selection](https://docs.nextclaw.io/en/guide/model-selection)
 - [Commands](https://docs.nextclaw.io/en/guide/commands)
 - [Vision & Roadmap](https://docs.nextclaw.io/en/guide/vision)
