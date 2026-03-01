@@ -220,9 +220,15 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
 
   // Channel
   channelsPageTitle: { zh: '消息渠道', en: 'Message Channels' },
+  channelsPageDescription: { zh: '在一个页面中连续筛选、切换并配置各个消息渠道。', en: 'Filter, switch, and configure messaging channels in one continuous workspace.' },
   channelsLoading: { zh: '加载渠道中...', en: 'Loading channels...' },
   channelsTabEnabled: { zh: '已启用', en: 'Enabled' },
   channelsTabAll: { zh: '全部渠道', en: 'All Channels' },
+  channelsFilterPlaceholder: { zh: '搜索渠道', en: 'Search channels' },
+  channelsNoMatch: { zh: '没有匹配的渠道', en: 'No matching channels' },
+  channelsSelectTitle: { zh: '选择左侧渠道开始配置', en: 'Select a channel from the left to configure' },
+  channelsSelectDescription: { zh: '你可以连续切换多个渠道并逐个保存配置。', en: 'Switch between channels continuously and save each configuration.' },
+  channelsFormDescription: { zh: '配置消息渠道参数', en: 'Configure message channel parameters' },
   channelsEmptyTitle: { zh: '暂无启用渠道', en: 'No channels enabled' },
   channelsEmptyDescription: { zh: '启用一个消息渠道以开始接收消息。', en: 'Enable a messaging channel to start receiving messages.' },
   channelDescriptionDefault: { zh: '配置该通信渠道', en: 'Configure this communication channel' },

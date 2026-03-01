@@ -14,12 +14,12 @@ export function LogoBadge({ name, src, className, imgClassName, fallback }: Logo
   const showImage = Boolean(src) && !failed;
 
   return (
-    <div className={cn('flex items-center justify-center', className)}>
+    <div className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden', className)}>
       {showImage ? (
         <img
           src={src as string}
           alt={`${name} logo`}
-          className={cn('h-6 w-6 object-contain', imgClassName)}
+          className={cn('block h-6 w-6 object-contain', imgClassName)}
           onError={() => setFailed(true)}
           draggable={false}
         />

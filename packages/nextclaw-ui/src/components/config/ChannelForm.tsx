@@ -1,30 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useConfig, useConfigMeta, useConfigSchema, useUpdateChannel, useExecuteConfigAction } from '@/hooks/useConfig';
-import { useUiStore } from '@/stores/ui.store';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TagInput } from '@/components/common/TagInput';
+import { StatusDot } from '@/components/ui/status-dot';
+import { LogoBadge } from '@/components/common/LogoBadge';
 import { t } from '@/lib/i18n';
 import { hintForPath } from '@/lib/config-hints';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { MessageCircle, Settings, ToggleLeft, Hash, Mail, Globe, KeyRound, BookOpen } from 'lucide-react';
+import { Settings, ToggleLeft, Hash, Mail, Globe, KeyRound, BookOpen } from 'lucide-react';
 import type { ConfigActionManifest } from '@/api/types';
 import { resolveChannelTutorialUrl } from '@/lib/channel-tutorials';
+import { getChannelLogo } from '@/lib/logos';
 
 type ChannelFieldType = 'boolean' | 'text' | 'email' | 'password' | 'number' | 'tags' | 'select' | 'json';
 type ChannelOption = { value: string; label: string };
 type ChannelField = { name: string; type: ChannelFieldType; label: string; options?: ChannelOption[] };
+
+type ChannelFormProps = {
+  channelName?: string;
+};
 
 const DM_POLICY_OPTIONS: ChannelOption[] = [
   { value: 'pairing', label: 'pairing' },
@@ -46,7 +45,6 @@ const STREAMING_MODE_OPTIONS: ChannelOption[] = [
   { value: 'progress', label: 'progress' }
 ];
 
-// Field icon mapping
 const getFieldIcon = (fieldName: string) => {
   if (fieldName.includes('token') || fieldName.includes('secret') || fieldName.includes('password')) {
     return <KeyRound className="h-3.5 w-3.5 text-gray-500" />;
@@ -164,20 +162,6 @@ function buildChannelFields(): Record<string, ChannelField[]> {
   };
 }
 
-const channelIcons: Record<string, typeof MessageCircle> = {
-  telegram: MessageCircle,
-  slack: MessageCircle,
-  email: Mail,
-  default: MessageCircle
-};
-
-const channelColors: Record<string, string> = {
-  telegram: 'from-primary-300 to-primary-600',
-  slack: 'from-primary-200 to-primary-500',
-  email: 'from-primary-100 to-primary-400',
-  default: 'from-gray-300 to-gray-500'
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -208,8 +192,7 @@ function buildScopeDraft(scope: string, value: Record<string, unknown>): Record<
   return output;
 }
 
-export function ChannelForm() {
-  const { channelModal, closeChannelModal } = useUiStore();
+export function ChannelForm({ channelName }: ChannelFormProps) {
   const { data: config } = useConfig();
   const { data: meta } = useConfigMeta();
   const { data: schema } = useConfigSchema();
@@ -220,7 +203,6 @@ export function ChannelForm() {
   const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({});
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
 
-  const channelName = channelModal.channel;
   const channelConfig = channelName ? config?.channels[channelName] : null;
   const fields = channelName ? buildChannelFields()[channelName] ?? [] : [];
   const uiHints = schema?.uiHints;
@@ -282,10 +264,7 @@ export function ChannelForm() {
       }
     }
 
-    updateChannel.mutate(
-      { channel: channelName, data: payload },
-      { onSuccess: () => closeChannelModal() }
-    );
+    updateChannel.mutate({ channel: channelName, data: payload });
   };
 
   const applyActionPatchToForm = (patch?: Record<string, unknown>) => {
@@ -344,172 +323,180 @@ export function ChannelForm() {
     }
   };
 
-  const Icon = channelIcons[channelName || ''] || channelIcons.default;
-  const gradientClass = channelColors[channelName || ''] || channelColors.default;
+  if (!channelName || !channelMeta || !channelConfig) {
+    return (
+      <div className="flex min-h-[520px] items-center justify-center rounded-2xl border border-gray-200/70 bg-white px-6 text-center xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">{t('channelsSelectTitle')}</h3>
+          <p className="mt-2 text-sm text-gray-500">{t('channelsSelectDescription')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const enabled = Boolean(channelConfig.enabled);
 
   return (
-    <Dialog open={channelModal.open} onOpenChange={closeChannelModal}>
-      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
-              <Icon className="h-5 w-5 text-white" />
+    <div className="flex min-h-[520px] flex-col rounded-2xl border border-gray-200/70 bg-white shadow-card xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+      <div className="border-b border-gray-100 px-6 py-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <LogoBadge
+                name={channelName}
+                src={getChannelLogo(channelName)}
+                className={cn(
+                  'h-9 w-9 rounded-lg border',
+                  enabled ? 'border-primary/30 bg-white' : 'border-gray-200/70 bg-white'
+                )}
+                imgClassName="h-5 w-5 object-contain"
+                fallback={<span className="text-sm font-semibold uppercase text-gray-500">{channelName[0]}</span>}
+              />
+              <h3 className="truncate text-lg font-semibold text-gray-900 capitalize">{channelLabel}</h3>
             </div>
-            <div>
-              <DialogTitle className="capitalize">{channelLabel}</DialogTitle>
-              <DialogDescription>{t('configureMessageChannelParameters')}</DialogDescription>
-              {tutorialUrl && (
-                <a
-                  href={tutorialUrl}
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary-hover transition-colors"
-                >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  {t('channelsGuideTitle')}
-                </a>
-              )}
-            </div>
+            <p className="mt-2 text-sm text-gray-500">{t('channelsFormDescription')}</p>
+            {tutorialUrl && (
+              <a
+                href={tutorialUrl}
+                className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary transition-colors hover:text-primary-hover"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                {t('channelsGuideTitle')}
+              </a>
+            )}
           </div>
-        </DialogHeader>
+          <StatusDot status={enabled ? 'active' : 'inactive'} label={enabled ? t('statusActive') : t('statusInactive')} />
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex-1 overflow-y-auto custom-scrollbar py-2 pr-2 space-y-5">
-            {fields.map((field) => {
-              const hint = channelName
-                ? hintForPath(`channels.${channelName}.${field.name}`, uiHints)
-                : undefined;
-              const label = hint?.label ?? field.label;
-              const placeholder = hint?.placeholder;
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          {fields.map((field) => {
+            const hint = channelName
+              ? hintForPath(`channels.${channelName}.${field.name}`, uiHints)
+              : undefined;
+            const label = hint?.label ?? field.label;
+            const placeholder = hint?.placeholder;
 
-              return (
-                <div key={field.name} className="space-y-2.5">
-                  <Label
-                    htmlFor={field.name}
-                    className="text-sm font-medium text-gray-900 flex items-center gap-2"
+            return (
+              <div key={field.name} className="space-y-2.5">
+                <Label
+                  htmlFor={field.name}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-900"
+                >
+                  {getFieldIcon(field.name)}
+                  {label}
+                </Label>
+
+                {field.type === 'boolean' && (
+                  <div className="flex items-center justify-between rounded-xl bg-gray-50 p-3">
+                    <span className="text-sm text-gray-500">
+                      {(formData[field.name] as boolean) ? t('enabled') : t('disabled')}
+                    </span>
+                    <Switch
+                      id={field.name}
+                      checked={(formData[field.name] as boolean) || false}
+                      onCheckedChange={(checked) => updateField(field.name, checked)}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                  </div>
+                )}
+
+                {(field.type === 'text' || field.type === 'email') && (
+                  <Input
+                    id={field.name}
+                    type={field.type}
+                    value={(formData[field.name] as string) || ''}
+                    onChange={(e) => updateField(field.name, e.target.value)}
+                    placeholder={placeholder}
+                    className="rounded-xl"
+                  />
+                )}
+
+                {field.type === 'password' && (
+                  <Input
+                    id={field.name}
+                    type="password"
+                    value={(formData[field.name] as string) || ''}
+                    onChange={(e) => updateField(field.name, e.target.value)}
+                    placeholder={placeholder ?? t('leaveBlankToKeepUnchanged')}
+                    className="rounded-xl"
+                  />
+                )}
+
+                {field.type === 'number' && (
+                  <Input
+                    id={field.name}
+                    type="number"
+                    value={(formData[field.name] as number) || 0}
+                    onChange={(e) => updateField(field.name, parseInt(e.target.value, 10) || 0)}
+                    placeholder={placeholder}
+                    className="rounded-xl"
+                  />
+                )}
+
+                {field.type === 'tags' && (
+                  <TagInput
+                    value={(formData[field.name] as string[]) || []}
+                    onChange={(tags) => updateField(field.name, tags)}
+                  />
+                )}
+
+                {field.type === 'select' && (
+                  <Select
+                    value={(formData[field.name] as string) || ''}
+                    onValueChange={(v) => updateField(field.name, v)}
                   >
-                    {getFieldIcon(field.name)}
-                    {label}
-                  </Label>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(field.options ?? []).map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
-                  {field.type === 'boolean' && (
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                      <span className="text-sm text-gray-500">
-                        {(formData[field.name] as boolean) ? t('enabled') : t('disabled')}
-                      </span>
-                      <Switch
-                        id={field.name}
-                        checked={(formData[field.name] as boolean) || false}
-                        onCheckedChange={(checked) => updateField(field.name, checked)}
-                        className="data-[state=checked]:bg-emerald-500"
-                      />
-                    </div>
-                  )}
+                {field.type === 'json' && (
+                  <textarea
+                    id={field.name}
+                    value={jsonDrafts[field.name] ?? '{}'}
+                    onChange={(event) =>
+                      setJsonDrafts((prev) => ({
+                        ...prev,
+                        [field.name]: event.target.value
+                      }))
+                    }
+                    className="min-h-[120px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-mono"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-                  {(field.type === 'text' || field.type === 'email') && (
-                    <Input
-                      id={field.name}
-                      type={field.type}
-                      value={(formData[field.name] as string) || ''}
-                      onChange={(e) => updateField(field.name, e.target.value)}
-                      placeholder={placeholder}
-                      className="rounded-xl"
-                    />
-                  )}
-
-                  {field.type === 'password' && (
-                    <Input
-                      id={field.name}
-                      type="password"
-                      value={(formData[field.name] as string) || ''}
-                      onChange={(e) => updateField(field.name, e.target.value)}
-                      placeholder={placeholder ?? t('leaveBlankToKeepUnchanged')}
-                      className="rounded-xl"
-                    />
-                  )}
-
-                  {field.type === 'number' && (
-                    <Input
-                      id={field.name}
-                      type="number"
-                      value={(formData[field.name] as number) || 0}
-                      onChange={(e) => updateField(field.name, parseInt(e.target.value) || 0)}
-                      placeholder={placeholder}
-                      className="rounded-xl"
-                    />
-                  )}
-
-                  {field.type === 'tags' && (
-                    <TagInput
-                      value={(formData[field.name] as string[]) || []}
-                      onChange={(tags) => updateField(field.name, tags)}
-                    />
-                  )}
-
-                  {field.type === 'select' && (
-                    <Select
-                      value={(formData[field.name] as string) || ''}
-                      onValueChange={(v) => updateField(field.name, v)}
-                    >
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(field.options ?? []).map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  {field.type === 'json' && (
-                    <textarea
-                      id={field.name}
-                      value={jsonDrafts[field.name] ?? '{}'}
-                      onChange={(event) =>
-                        setJsonDrafts((prev) => ({
-                          ...prev,
-                          [field.name]: event.target.value
-                        }))
-                      }
-                      className="min-h-[120px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-mono"
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <DialogFooter className="pt-4 flex-shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeChannelModal}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              type="submit"
-              disabled={updateChannel.isPending || Boolean(runningActionId)}
-            >
-              {updateChannel.isPending ? t('saving') : t('save')}
-            </Button>
-            {actions
-              .filter((action) => action.trigger === 'manual')
-              .map((action) => (
-                <Button
-                  key={action.id}
-                  type="button"
-                  onClick={() => handleManualAction(action)}
-                  disabled={updateChannel.isPending || Boolean(runningActionId)}
-                  variant="secondary"
-                >
-                  {runningActionId === action.id ? t('connecting') : action.title}
-                </Button>
-              ))}
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 px-6 py-4">
+          {actions
+            .filter((action) => action.trigger === 'manual')
+            .map((action) => (
+              <Button
+                key={action.id}
+                type="button"
+                onClick={() => handleManualAction(action)}
+                disabled={updateChannel.isPending || Boolean(runningActionId)}
+                variant="secondary"
+              >
+                {runningActionId === action.id ? t('connecting') : action.title}
+              </Button>
+            ))}
+          <Button type="submit" disabled={updateChannel.isPending || Boolean(runningActionId)}>
+            {updateChannel.isPending ? t('saving') : t('save')}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }

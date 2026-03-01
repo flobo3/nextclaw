@@ -1,27 +1,17 @@
 import { useConfig, useConfigMeta, useConfigSchema } from '@/hooks/useConfig';
-import { MessageCircle, Mail, MessageSquare, Slack, ExternalLink, Bell } from 'lucide-react';
-import { useState } from 'react';
+import { MessageSquare, ExternalLink, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChannelForm } from './ChannelForm';
-import { useUiStore } from '@/stores/ui.store';
 import { Tabs } from '@/components/ui/tabs-custom';
 import { LogoBadge } from '@/components/common/LogoBadge';
 import { getChannelLogo } from '@/lib/logos';
 import { hintForPath } from '@/lib/config-hints';
-import { ConfigCard, ConfigCardHeader, ConfigCardBody, ConfigCardFooter } from '@/components/ui/config-card';
 import { StatusDot } from '@/components/ui/status-dot';
-import { ActionLink } from '@/components/ui/action-link';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { resolveChannelTutorialUrl } from '@/lib/channel-tutorials';
-
-const channelIcons: Record<string, typeof MessageCircle> = {
-  telegram: MessageCircle,
-  slack: Slack,
-  email: Mail,
-  webhook: Bell,
-  default: MessageSquare
-};
+import { Input } from '@/components/ui/input';
 
 const channelDescriptionKeys: Record<string, string> = {
   telegram: 'channelDescTelegram',
@@ -36,102 +26,149 @@ export function ChannelsList() {
   const { data: config } = useConfig();
   const { data: meta } = useConfigMeta();
   const { data: schema } = useConfigSchema();
-  const { openChannelModal } = useUiStore();
-  const [activeTab, setActiveTab] = useState('active');
+  const [activeTab, setActiveTab] = useState('enabled');
+  const [selectedChannel, setSelectedChannel] = useState<string | undefined>();
+  const [query, setQuery] = useState('');
   const uiHints = schema?.uiHints;
+  const channels = meta?.channels ?? [];
+  const channelConfigs = config?.channels;
+
+  const tabs = [
+    { id: 'enabled', label: t('channelsTabEnabled'), count: channels.filter((c) => channelConfigs?.[c.name]?.enabled).length },
+    { id: 'all', label: t('channelsTabAll'), count: channels.length }
+  ];
+
+  const filteredChannels = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    return channels
+      .filter((channel) => {
+        const enabled = channelConfigs?.[channel.name]?.enabled || false;
+        if (activeTab === 'enabled') {
+          return enabled;
+        }
+        return true;
+      })
+      .filter((channel) => {
+        if (!keyword) {
+          return true;
+        }
+        const display = (channel.displayName || channel.name).toLowerCase();
+        return display.includes(keyword) || channel.name.toLowerCase().includes(keyword);
+      });
+  }, [activeTab, channelConfigs, channels, query]);
+
+  useEffect(() => {
+    if (filteredChannels.length === 0) {
+      setSelectedChannel(undefined);
+      return;
+    }
+    const exists = filteredChannels.some((channel) => channel.name === selectedChannel);
+    if (!exists) {
+      setSelectedChannel(filteredChannels[0].name);
+    }
+  }, [filteredChannels, selectedChannel]);
 
   if (!config || !meta) {
     return <div className="p-8 text-gray-400">{t('channelsLoading')}</div>;
   }
 
-  const tabs = [
-    { id: 'active', label: t('channelsTabEnabled'), count: meta.channels.filter(c => config.channels[c.name]?.enabled).length },
-    { id: 'all', label: t('channelsTabAll'), count: meta.channels.length }
-  ];
-
-  const filteredChannels = meta.channels.filter(channel => {
-    const enabled = config.channels[channel.name]?.enabled || false;
-    return activeTab === 'all' || enabled;
-  });
-
   return (
     <PageLayout>
-      <PageHeader title={t('channelsPageTitle')} />
+      <PageHeader title={t('channelsPageTitle')} description={t('channelsPageDescription')} />
 
-      <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-
-      {/* Channel Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredChannels.map((channel) => {
-          const channelConfig = config.channels[channel.name];
-          const enabled = channelConfig?.enabled || false;
-          const Icon = channelIcons[channel.name] || channelIcons.default;
-          const channelHint = hintForPath(`channels.${channel.name}`, uiHints);
-          const tutorialUrl = resolveChannelTutorialUrl(channel);
-          const description =
-            channelHint?.help ||
-            t(channelDescriptionKeys[channel.name] || 'channelDescriptionDefault');
-
-          return (
-            <ConfigCard key={channel.name} onClick={() => openChannelModal(channel.name)}>
-              <ConfigCardHeader>
-                <LogoBadge
-                  name={channel.name}
-                  src={getChannelLogo(channel.name)}
-                  className={cn(
-                    'h-11 w-11 rounded-xl border transition-all',
-                    enabled
-                      ? 'bg-white border-primary/30'
-                      : 'bg-white border-gray-200/60 group-hover:border-gray-300'
-                  )}
-                  imgClassName="h-5 w-5"
-                  fallback={<Icon className="h-5 w-5" />}
-                />
-                <StatusDot
-                  status={enabled ? 'active' : 'inactive'}
-                  label={enabled ? t('statusActive') : t('statusInactive')}
-                />
-              </ConfigCardHeader>
-
-              <ConfigCardBody
-                title={channel.displayName || channel.name}
-                description={description}
-              />
-
-              <ConfigCardFooter>
-                <ActionLink label={enabled ? t('actionConfigure') : t('actionEnable')} />
-                {tutorialUrl && (
-                  <a
-                    href={tutorialUrl}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center justify-center h-6 w-6 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100/60 transition-colors"
-                    title={t('channelsGuideTitle')}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-              </ConfigCardFooter>
-            </ConfigCard>
-          );
-        })}
-      </div>
-
-      {/* Empty State */}
-      {filteredChannels.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="h-14 w-14 flex items-center justify-center rounded-xl bg-gray-100/80 mb-4">
-            <MessageSquare className="h-6 w-6 text-gray-300" />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+        <section className="flex min-h-[520px] flex-col rounded-2xl border border-gray-200/70 bg-white shadow-card xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+          <div className="border-b border-gray-100 px-4 pt-4">
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-0" />
           </div>
-          <h3 className="text-[14px] font-semibold text-gray-900 mb-1.5">
-            {t('channelsEmptyTitle')}
-          </h3>
-          <p className="text-[13px] text-gray-400 max-w-sm">
-            {t('channelsEmptyDescription')}
-          </p>
-        </div>
-      )}
 
-      <ChannelForm />
+          <div className="border-b border-gray-100 px-4 py-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('channelsFilterPlaceholder')}
+                className="h-10 rounded-xl pl-9"
+              />
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+            {filteredChannels.map((channel) => {
+              const channelConfig = config.channels[channel.name];
+              const enabled = channelConfig?.enabled || false;
+              const channelHint = hintForPath(`channels.${channel.name}`, uiHints);
+              const tutorialUrl = resolveChannelTutorialUrl(channel);
+              const description =
+                channelHint?.help ||
+                t(channelDescriptionKeys[channel.name] || 'channelDescriptionDefault');
+              const isActive = selectedChannel === channel.name;
+
+              return (
+                <button
+                  key={channel.name}
+                  type="button"
+                  onClick={() => setSelectedChannel(channel.name)}
+                  className={cn(
+                    'w-full rounded-xl border p-2.5 text-left transition-all',
+                    isActive
+                      ? 'border-primary/30 bg-primary-50/40 shadow-sm'
+                      : 'border-gray-200/70 bg-white hover:border-gray-300 hover:bg-gray-50/70'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <LogoBadge
+                        name={channel.name}
+                        src={getChannelLogo(channel.name)}
+                        className={cn(
+                          'h-10 w-10 rounded-lg border',
+                          enabled ? 'border-primary/30 bg-white' : 'border-gray-200/70 bg-white'
+                        )}
+                        imgClassName="h-5 w-5 object-contain"
+                        fallback={<span className="text-sm font-semibold uppercase text-gray-500">{channel.name[0]}</span>}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-900">{channel.displayName || channel.name}</p>
+                        <p className="line-clamp-1 text-[11px] text-gray-500">{description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {tutorialUrl && (
+                        <a
+                          href={tutorialUrl}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-300 transition-colors hover:bg-gray-100/70 hover:text-gray-500"
+                          title={t('channelsGuideTitle')}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <StatusDot
+                        status={enabled ? 'active' : 'inactive'}
+                        label={enabled ? t('statusActive') : t('statusInactive')}
+                        className="min-w-[56px] justify-center"
+                      />
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            {filteredChannels.length === 0 && (
+              <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/70 py-10 text-center">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-white">
+                  <MessageSquare className="h-5 w-5 text-gray-300" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">{t('channelsNoMatch')}</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <ChannelForm channelName={selectedChannel} />
+      </div>
     </PageLayout>
   );
 }

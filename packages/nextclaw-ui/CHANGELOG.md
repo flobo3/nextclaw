@@ -1,5 +1,15 @@
 # @nextclaw/ui
 
+## 0.5.36
+
+### Patch Changes
+
+- Align channel configuration UX with provider page paradigm and fix logo badge consistency.
+  - Switch Channels page to a provider-style two-pane workflow with list/filter on the left and persistent form on the right.
+  - Fix hook ordering in `ChannelsList` to avoid render-time hook count mismatch.
+  - Enforce stable logo badge sizing (`shrink-0`, overflow handling) so provider/channel icons keep consistent frame size.
+  - Restrict channel tutorial links to dedicated docs only (currently Feishu).
+
 ## 0.5.35
 
 ### Patch Changes

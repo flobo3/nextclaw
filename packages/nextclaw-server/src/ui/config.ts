@@ -73,22 +73,12 @@ const PREFERRED_PROVIDER_ORDER_INDEX: Map<string, number> = new Map(
 type ChannelTutorialUrls = NonNullable<ConfigMetaView["channels"][number]["tutorialUrls"]>;
 
 const DOCS_BASE_URL = "https://docs.nextclaw.io";
-const CHANNEL_DEFAULT_TUTORIAL_URL = `${DOCS_BASE_URL}/guide/channels`;
 const CHANNEL_TUTORIAL_URLS: Record<string, ChannelTutorialUrls> = {
-  telegram: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
-  whatsapp: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
-  discord: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
   feishu: {
     default: `${DOCS_BASE_URL}/guide/tutorials/feishu`,
     en: `${DOCS_BASE_URL}/en/guide/tutorials/feishu`,
     zh: `${DOCS_BASE_URL}/zh/guide/tutorials/feishu`
-  },
-  mochat: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
-  dingtalk: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
-  wecom: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
-  email: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
-  slack: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
-  qq: { default: CHANNEL_DEFAULT_TUTORIAL_URL }
+  }
 };
 
 type ExecuteActionResult =
@@ -445,8 +435,8 @@ export function buildConfigMeta(config: Config): ConfigMetaView {
     return left.name.localeCompare(right.name);
   });
   const channels = Object.keys(config.channels).map((name) => {
-    const tutorialUrls = CHANNEL_TUTORIAL_URLS[name] ?? { default: CHANNEL_DEFAULT_TUTORIAL_URL };
-    const tutorialUrl = tutorialUrls.default ?? tutorialUrls.en ?? tutorialUrls.zh;
+    const tutorialUrls = CHANNEL_TUTORIAL_URLS[name];
+    const tutorialUrl = tutorialUrls?.default ?? tutorialUrls?.en ?? tutorialUrls?.zh;
     return {
       name,
       displayName: name,
