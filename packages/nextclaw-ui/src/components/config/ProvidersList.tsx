@@ -11,6 +11,7 @@ import { StatusDot } from '@/components/ui/status-dot';
 import { t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { Input } from '@/components/ui/input';
+import { CONFIG_SIDEBAR_CARD_CLASS, CONFIG_SPLIT_GRID_CLASS } from './config-layout';
 
 function formatBasePreview(base?: string | null): string | null {
   if (!base) {
@@ -86,8 +87,8 @@ export function ProvidersList() {
     <PageLayout>
       <PageHeader title={t('providersPageTitle')} description={t('providersPageDescription')} />
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <section className="flex min-h-[520px] flex-col rounded-2xl border border-gray-200/70 bg-white shadow-card xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+      <div className={CONFIG_SPLIT_GRID_CLASS}>
+        <section className={CONFIG_SIDEBAR_CARD_CLASS}>
           <div className="border-b border-gray-100 px-4 pt-4">
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-0" />
           </div>

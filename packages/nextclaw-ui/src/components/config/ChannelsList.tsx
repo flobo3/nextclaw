@@ -12,6 +12,7 @@ import { t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { resolveChannelTutorialUrl } from '@/lib/channel-tutorials';
 import { Input } from '@/components/ui/input';
+import { CONFIG_SIDEBAR_CARD_CLASS, CONFIG_SPLIT_GRID_CLASS } from './config-layout';
 
 const channelDescriptionKeys: Record<string, string> = {
   telegram: 'channelDescTelegram',
@@ -30,17 +31,17 @@ export function ChannelsList() {
   const [selectedChannel, setSelectedChannel] = useState<string | undefined>();
   const [query, setQuery] = useState('');
   const uiHints = schema?.uiHints;
-  const channels = meta?.channels ?? [];
+  const channels = meta?.channels;
   const channelConfigs = config?.channels;
 
   const tabs = [
-    { id: 'enabled', label: t('channelsTabEnabled'), count: channels.filter((c) => channelConfigs?.[c.name]?.enabled).length },
-    { id: 'all', label: t('channelsTabAll'), count: channels.length }
+    { id: 'enabled', label: t('channelsTabEnabled'), count: (channels ?? []).filter((c) => channelConfigs?.[c.name]?.enabled).length },
+    { id: 'all', label: t('channelsTabAll'), count: (channels ?? []).length }
   ];
 
   const filteredChannels = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    return channels
+    return (channels ?? [])
       .filter((channel) => {
         const enabled = channelConfigs?.[channel.name]?.enabled || false;
         if (activeTab === 'enabled') {
@@ -76,8 +77,8 @@ export function ChannelsList() {
     <PageLayout>
       <PageHeader title={t('channelsPageTitle')} description={t('channelsPageDescription')} />
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <section className="flex min-h-[520px] flex-col rounded-2xl border border-gray-200/70 bg-white shadow-card xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+      <div className={CONFIG_SPLIT_GRID_CLASS}>
+        <section className={CONFIG_SIDEBAR_CARD_CLASS}>
           <div className="border-b border-gray-100 px-4 pt-4">
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-0" />
           </div>

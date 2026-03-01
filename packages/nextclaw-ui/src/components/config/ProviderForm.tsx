@@ -12,6 +12,7 @@ import { hintForPath } from '@/lib/config-hints';
 import type { ProviderConfigUpdate, ProviderConnectionTestRequest } from '@/api/types';
 import { KeyRound, Globe, Hash, RotateCcw, CircleDotDashed, Sparkles, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { CONFIG_DETAIL_CARD_CLASS, CONFIG_EMPTY_DETAIL_CARD_CLASS } from './config-layout';
 
 type WireApiType = 'auto' | 'chat' | 'responses';
 
@@ -319,7 +320,7 @@ export function ProviderForm({ providerName }: ProviderFormProps) {
 
   if (!providerName || !providerSpec || !providerConfig) {
     return (
-      <div className="flex min-h-[520px] items-center justify-center rounded-2xl border border-gray-200/70 bg-white px-6 text-center xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+      <div className={CONFIG_EMPTY_DETAIL_CARD_CLASS}>
         <div>
           <h3 className="text-base font-semibold text-gray-900">{t('providersSelectTitle')}</h3>
           <p className="mt-2 text-sm text-gray-500">{t('providersSelectDescription')}</p>
@@ -331,7 +332,7 @@ export function ProviderForm({ providerName }: ProviderFormProps) {
   const statusLabel = providerConfig.apiKeySet ? t('statusReady') : t('statusSetup');
 
   return (
-    <div className="flex min-h-[520px] flex-col rounded-2xl border border-gray-200/70 bg-white shadow-card xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+    <div className={CONFIG_DETAIL_CARD_CLASS}>
       <div className="border-b border-gray-100 px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">

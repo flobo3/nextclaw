@@ -16,6 +16,7 @@ import { Settings, ToggleLeft, Hash, Mail, Globe, KeyRound, BookOpen } from 'luc
 import type { ConfigActionManifest } from '@/api/types';
 import { resolveChannelTutorialUrl } from '@/lib/channel-tutorials';
 import { getChannelLogo } from '@/lib/logos';
+import { CONFIG_DETAIL_CARD_CLASS, CONFIG_EMPTY_DETAIL_CARD_CLASS } from './config-layout';
 
 type ChannelFieldType = 'boolean' | 'text' | 'email' | 'password' | 'number' | 'tags' | 'select' | 'json';
 type ChannelOption = { value: string; label: string };
@@ -325,7 +326,7 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
 
   if (!channelName || !channelMeta || !channelConfig) {
     return (
-      <div className="flex min-h-[520px] items-center justify-center rounded-2xl border border-gray-200/70 bg-white px-6 text-center xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+      <div className={CONFIG_EMPTY_DETAIL_CARD_CLASS}>
         <div>
           <h3 className="text-base font-semibold text-gray-900">{t('channelsSelectTitle')}</h3>
           <p className="mt-2 text-sm text-gray-500">{t('channelsSelectDescription')}</p>
@@ -337,9 +338,9 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
   const enabled = Boolean(channelConfig.enabled);
 
   return (
-    <div className="flex min-h-[520px] flex-col rounded-2xl border border-gray-200/70 bg-white shadow-card xl:h-[calc(100vh-180px)] xl:min-h-[600px] xl:max-h-[860px]">
+    <div className={CONFIG_DETAIL_CARD_CLASS}>
       <div className="border-b border-gray-100 px-6 py-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <LogoBadge
@@ -370,7 +371,7 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
           {fields.map((field) => {
             const hint = channelName
               ? hintForPath(`channels.${channelName}.${field.name}`, uiHints)
@@ -470,7 +471,7 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
                         [field.name]: event.target.value
                       }))
                     }
-                    className="min-h-[120px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-mono"
+                    className="min-h-[120px] w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-mono"
                   />
                 )}
               </div>
@@ -478,20 +479,22 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
           })}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 px-6 py-4">
-          {actions
-            .filter((action) => action.trigger === 'manual')
-            .map((action) => (
-              <Button
-                key={action.id}
-                type="button"
-                onClick={() => handleManualAction(action)}
-                disabled={updateChannel.isPending || Boolean(runningActionId)}
-                variant="secondary"
-              >
-                {runningActionId === action.id ? t('connecting') : action.title}
-              </Button>
-            ))}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-6 py-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {actions
+              .filter((action) => action.trigger === 'manual')
+              .map((action) => (
+                <Button
+                  key={action.id}
+                  type="button"
+                  onClick={() => handleManualAction(action)}
+                  disabled={updateChannel.isPending || Boolean(runningActionId)}
+                  variant="secondary"
+                >
+                  {runningActionId === action.id ? t('connecting') : action.title}
+                </Button>
+              ))}
+          </div>
           <Button type="submit" disabled={updateChannel.isPending || Boolean(runningActionId)}>
             {updateChannel.isPending ? t('saving') : t('save')}
           </Button>
