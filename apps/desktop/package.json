@@ -1,0 +1,71 @@
+{
+  "name": "@nextclaw/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "NextClaw desktop shell powered by Electron.",
+  "main": "dist/main.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node scripts/ensure-runtime.mjs && pnpm build:main && env -u ELECTRON_RUN_AS_NODE electron .",
+    "build": "pnpm build:main",
+    "build:main": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json --outDir dist --noEmit false",
+    "lint": "eslint \"src/**/*.ts\"",
+    "tsc": "tsc -p tsconfig.json --noEmit",
+    "pack": "pnpm build:main && electron-builder --dir",
+    "dist": "pnpm build:main && electron-builder",
+    "smoke": "pnpm build:main && node scripts/smoke-runtime.mjs"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2",
+    "nextclaw": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "electron": "^32.2.1",
+    "electron-builder": "^25.1.8",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  },
+  "build": {
+    "appId": "io.nextclaw.desktop",
+    "productName": "NextClaw Desktop",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Peiiii",
+        "repo": "nextclaw"
+      }
+    ]
+  }
+}
