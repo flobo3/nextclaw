@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-03T03:14:20.335Z",
+  "generatedAt": "2026-03-04T03:09:14.165Z",
   "projectRoot": "/home/runner/work/nextclaw/nextclaw",
   "git": {
-    "sha": "45785675f8ad561944057d3c5a3075fc4296ba8f",
+    "sha": "5e1696c5bd62cc2d9971cf59cd995411cae01799",
     "ref": "master"
   },
   "scope": {
@@ -36,36 +36,36 @@
     ]
   },
   "totals": {
-    "files": 286,
-    "totalLines": 48607,
-    "blankLines": 5102,
-    "commentLines": 271,
-    "codeLines": 43234
+    "files": 303,
+    "totalLines": 51114,
+    "blankLines": 5321,
+    "commentLines": 278,
+    "codeLines": 45515
   },
   "byLanguage": [
     {
       "name": "TypeScript",
-      "files": 196,
-      "totalLines": 37231,
-      "blankLines": 3969,
-      "commentLines": 188,
-      "codeLines": 33074
+      "files": 203,
+      "totalLines": 38929,
+      "blankLines": 4121,
+      "commentLines": 193,
+      "codeLines": 34615
     },
     {
       "name": "TSX",
-      "files": 48,
-      "totalLines": 8101,
-      "blankLines": 740,
+      "files": 53,
+      "totalLines": 8738,
+      "blankLines": 786,
       "commentLines": 58,
-      "codeLines": 7303
+      "codeLines": 7894
     },
     {
       "name": "MJS",
-      "files": 13,
-      "totalLines": 2051,
-      "blankLines": 228,
-      "commentLines": 0,
-      "codeLines": 1823
+      "files": 14,
+      "totalLines": 2131,
+      "blankLines": 241,
+      "commentLines": 2,
+      "codeLines": 1888
     },
     {
       "name": "Shell",
@@ -85,61 +85,61 @@
     },
     {
       "name": "CJS",
-      "files": 7,
-      "totalLines": 157,
-      "blankLines": 7,
+      "files": 11,
+      "totalLines": 249,
+      "blankLines": 15,
       "commentLines": 0,
-      "codeLines": 150
+      "codeLines": 234
     }
   ],
   "byScope": [
     {
       "name": "packages/nextclaw-ui",
-      "files": 73,
-      "totalLines": 11752,
-      "blankLines": 1118,
-      "commentLines": 130,
-      "codeLines": 10504
+      "files": 79,
+      "totalLines": 12600,
+      "blankLines": 1182,
+      "commentLines": 135,
+      "codeLines": 11283
     },
     {
       "name": "packages/nextclaw-core",
-      "files": 68,
-      "totalLines": 10613,
-      "blankLines": 1072,
+      "files": 70,
+      "totalLines": 10796,
+      "blankLines": 1093,
       "commentLines": 16,
-      "codeLines": 9525
+      "codeLines": 9687
     },
     {
       "name": "packages/nextclaw",
       "files": 31,
-      "totalLines": 6946,
-      "blankLines": 761,
+      "totalLines": 7037,
+      "blankLines": 766,
       "commentLines": 48,
-      "codeLines": 6137
+      "codeLines": 6223
+    },
+    {
+      "name": "packages/extensions",
+      "files": 39,
+      "totalLines": 6187,
+      "blankLines": 665,
+      "commentLines": 16,
+      "codeLines": 5506
     },
     {
       "name": "packages/nextclaw-server",
       "files": 10,
-      "totalLines": 5105,
+      "totalLines": 5147,
       "blankLines": 547,
       "commentLines": 1,
-      "codeLines": 4557
-    },
-    {
-      "name": "packages/extensions",
-      "files": 31,
-      "totalLines": 5122,
-      "blankLines": 564,
-      "commentLines": 16,
-      "codeLines": 4542
+      "codeLines": 4599
     },
     {
       "name": "packages/nextclaw-openclaw-compat",
       "files": 17,
-      "totalLines": 3500,
-      "blankLines": 382,
+      "totalLines": 3696,
+      "blankLines": 397,
       "commentLines": 4,
-      "codeLines": 3114
+      "codeLines": 3295
     },
     {
       "name": "scripts",
@@ -167,11 +167,11 @@
     },
     {
       "name": "apps/desktop",
-      "files": 8,
-      "totalLines": 560,
-      "blankLines": 70,
-      "commentLines": 0,
-      "codeLines": 490
+      "files": 9,
+      "totalLines": 640,
+      "blankLines": 83,
+      "commentLines": 2,
+      "codeLines": 555
     },
     {
       "name": "bridge",
@@ -184,15 +184,15 @@
     {
       "name": "apps/docs",
       "files": 1,
-      "totalLines": 243,
+      "totalLines": 245,
       "blankLines": 13,
       "commentLines": 0,
-      "codeLines": 230
+      "codeLines": 232
     }
   ],
   "delta": {
-    "previousCodeLines": 42443,
-    "codeLines": 791,
-    "percent": 1.86
+    "previousCodeLines": 43234,
+    "codeLines": 2281,
+    "percent": 5.28
   }
 }
