@@ -66,6 +66,27 @@ jobs:
           pnpm -C apps/desktop build:main
           pnpm -C apps/desktop exec electron-builder --win nsis --x64 --publish never
 
+      - name: Smoke Desktop (Windows)
+        if: matrix.platform == 'win32'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = (Get-ChildItem "apps/desktop/release/*Setup*.exe" | Select-Object -First 1).FullName
+          if (-not $installer) {
+            throw "Windows installer not found in apps/desktop/release"
+          }
+          & "apps/desktop/scripts/smoke-windows-installer.ps1" -InstallerPath $installer -StartupTimeoutSec 90
+
+      - name: Upload Smoke Logs (Windows)
+        if: matrix.platform == 'win32' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-smoke-logs-win32-x64
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/nextclaw-desktop-smoke-home/logs/**
+            ~\AppData\Roaming\NextClaw Desktop\logs\**
+
       - name: Upload desktop artifacts (macOS)
         if: matrix.platform == 'darwin'
         uses: actions/upload-artifact@v4
