@@ -68,14 +68,13 @@ export function ChatConversationPanel({
   sendError,
   queuedCount,
 }: ChatConversationPanelProps) {
-  const showHistoryLoading =
+  const showWelcome = !selectedSessionKey && mergedEvents.length === 0;
+  const hideEmptyHint =
     isHistoryLoading &&
     mergedEvents.length === 0 &&
     !isSending &&
     !isAwaitingAssistantOutput &&
     !streamingAssistantText.trim();
-
-  const showWelcome = !selectedSessionKey && mergedEvents.length === 0;
 
   return (
     <section className="flex-1 min-h-0 flex flex-col overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
@@ -103,8 +102,8 @@ export function ChatConversationPanel({
       <div ref={threadRef} onScroll={onThreadScroll} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         {showWelcome ? (
           <ChatWelcome onCreateSession={onCreateSession} />
-        ) : showHistoryLoading ? (
-          <div className="px-5 py-5 text-sm text-gray-500">{t('chatHistoryLoading')}</div>
+        ) : hideEmptyHint ? (
+          <div className="h-full" />
         ) : mergedEvents.length === 0 ? (
           <div className="px-5 py-5 text-sm text-gray-500">{t('chatNoMessages')}</div>
         ) : (
