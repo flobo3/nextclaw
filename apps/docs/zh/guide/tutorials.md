@@ -5,5 +5,6 @@
 ## 当前教程
 
 - [飞书配置教程](/zh/guide/tutorials/feishu)
+- [Skills 教程（安装 + 使用）](/zh/guide/tutorials/skills)
 - [本地 Ollama + Qwen3 教程（macOS）](/zh/guide/tutorials/local-ollama-qwen3)
 - [桌面端无签名安装教程（macOS / Windows）](/zh/guide/tutorials/desktop-install-unsigned)

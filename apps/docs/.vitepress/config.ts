@@ -92,6 +92,7 @@ const enSidebar = [
   {
     text: 'Features',
     items: [
+      { text: 'Chat Capabilities', link: '/en/guide/chat' },
       { text: 'Channels', link: '/en/guide/channels' },
       { text: 'Secrets Management', link: '/en/guide/secrets' },
       { text: 'Tools', link: '/en/guide/tools' },
@@ -104,6 +105,7 @@ const enSidebar = [
     items: [
       { text: 'Tutorial Hub', link: '/en/guide/tutorials' },
       { text: 'Feishu Setup', link: '/en/guide/tutorials/feishu' },
+      { text: 'Skills Tutorial', link: '/en/guide/tutorials/skills' },
       { text: 'Local Ollama + Qwen3 (macOS)', link: '/en/guide/tutorials/local-ollama-qwen3' },
       { text: 'Unsigned Desktop Install', link: '/en/guide/tutorials/desktop-install-unsigned' },
       { text: 'Resource Hub', link: '/en/guide/resources' }
@@ -146,6 +148,7 @@ const zhSidebar = [
   {
     text: '功能',
     items: [
+      { text: '对话能力', link: '/zh/guide/chat' },
       { text: '渠道', link: '/zh/guide/channels' },
       { text: '密钥管理', link: '/zh/guide/secrets' },
       { text: '工具', link: '/zh/guide/tools' },
@@ -158,6 +161,7 @@ const zhSidebar = [
     items: [
       { text: '教程总览', link: '/zh/guide/tutorials' },
       { text: '飞书配置教程', link: '/zh/guide/tutorials/feishu' },
+      { text: 'Skills 教程', link: '/zh/guide/tutorials/skills' },
       { text: '本地 Ollama + Qwen3 教程（macOS）', link: '/zh/guide/tutorials/local-ollama-qwen3' },
       { text: '桌面端无签名安装教程', link: '/zh/guide/tutorials/desktop-install-unsigned' },
       { text: '生态资源', link: '/zh/guide/resources' }
