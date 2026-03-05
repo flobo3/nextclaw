@@ -8,13 +8,14 @@
 
 ## 2) 测试/验证/验收方式
 - 开发验证：
-  - `pnpm -C packages/nextclaw-ui build`
-  - `pnpm -C packages/nextclaw-ui lint`
-  - `pnpm -C packages/nextclaw-ui tsc`
+  - `PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-ui build`（通过）
+  - `PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-ui tsc`（通过）
+  - `PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-ui exec eslint src/components/chat/ChatThread.tsx src/lib/i18n.ts`（通过）
+  - `PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-ui lint`（未通过，仓库已有历史错误：`useChatStreamController.ts`、`MaskedInput.tsx`、`ProviderForm.tsx` 等，与本次改动文件无关）
 - 冒烟测试（UI 可运行最小路径）：
-  - 启动预览并检查可访问性：`pnpm -C packages/nextclaw-ui preview --host 127.0.0.1 --port 4174`
-  - 访问 `http://127.0.0.1:4174`，确认返回 200 且页面可加载。
-  - 在会话中发送包含标题/列表/任务列表/表格/代码块/链接的 Markdown，确认渲染和复制行为正确。
+  - `cd packages/nextclaw-ui/dist && python3 -m http.server 4174`（临时启动）
+  - `curl http://127.0.0.1:4174/index.html` 返回 `HTTP 200`（通过）
+  - `rg -n "chat-codeblock|chat-table-wrap|chatCodeCopy|chatCodeCopied" packages/nextclaw-ui/dist/assets -S`（构建产物中可见新增样式与文案）
 
 ## 3) 发布/部署方式
 - 本次为 UI 体验增强，按需执行前端发布闭环：

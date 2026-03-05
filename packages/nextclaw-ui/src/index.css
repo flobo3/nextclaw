@@ -263,7 +263,41 @@
 .chat-markdown ul,
 .chat-markdown ol {
   margin: 0.35rem 0;
-  padding-left: 1.35rem;
+  padding-left: 1.5rem;
+  list-style-position: outside;
+}
+
+.chat-markdown ul {
+  list-style-type: disc;
+}
+
+.chat-markdown ol {
+  list-style-type: decimal;
+}
+
+.chat-markdown ul ul {
+  list-style-type: circle;
+}
+
+.chat-markdown ul ul ul {
+  list-style-type: square;
+}
+
+.chat-markdown ol ol {
+  list-style-type: lower-alpha;
+}
+
+.chat-markdown ol ol ol {
+  list-style-type: lower-roman;
+}
+
+.chat-markdown li {
+  display: list-item;
+}
+
+.chat-markdown li::marker {
+  color: rgba(51, 65, 85, 0.9);
+  font-weight: 600;
 }
 
 .chat-markdown li + li {
@@ -284,6 +318,10 @@
   display: flex;
   align-items: flex-start;
   gap: 0.52rem;
+}
+
+.chat-markdown-user li::marker {
+  color: rgba(219, 234, 254, 0.95);
 }
 
 .chat-markdown .chat-task-checkbox {
