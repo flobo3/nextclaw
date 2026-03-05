@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { SessionEventView, SessionMessageView } from '@/api/types';
 import { cn } from '@/lib/utils';
 import {
@@ -11,10 +11,9 @@ import {
   type ToolCard
 } from '@/lib/chat-message';
 import { formatDateTime, t } from '@/lib/i18n';
-import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, Clock3, FileSearch, Globe, Search, SendHorizontal, Terminal, User, Wrench } from 'lucide-react';
+import { Bot, Check, Clock3, Copy, FileSearch, Globe, Search, SendHorizontal, Terminal, User, Wrench } from 'lucide-react';
 
 type ChatThreadProps = {
   events: SessionEventView[];
@@ -24,6 +23,8 @@ type ChatThreadProps = {
 
 const MARKDOWN_MAX_CHARS = 140_000;
 const TOOL_OUTPUT_PREVIEW_MAX = 220;
+const CODE_LANGUAGE_REGEX = /language-([a-z0-9-]+)/i;
+const SAFE_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 
 type WorkflowToolCard = ToolCard & {
   _workflowStep?: number;
@@ -34,6 +35,91 @@ function trimMarkdown(value: string): string {
     return value;
   }
   return `${value.slice(0, MARKDOWN_MAX_CHARS)}\n\n…`;
+}
+
+function flattenNodeText(value: ReactNode): string {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(flattenNodeText).join('');
+  }
+  return '';
+}
+
+function normalizeCodeText(value: ReactNode): string {
+  const content = flattenNodeText(value);
+  return content.endsWith('\n') ? content.slice(0, -1) : content;
+}
+
+function resolveCodeLanguage(className?: string): string {
+  const match = className ? CODE_LANGUAGE_REGEX.exec(className) : null;
+  return match?.[1]?.toLowerCase() || 'text';
+}
+
+function resolveSafeHref(href?: string): string | null {
+  if (!href) {
+    return null;
+  }
+  if (href.startsWith('#') || href.startsWith('/') || href.startsWith('./') || href.startsWith('../')) {
+    return href;
+  }
+  try {
+    const url = new URL(href);
+    return SAFE_LINK_PROTOCOLS.has(url.protocol) ? href : null;
+  } catch {
+    return null;
+  }
+}
+
+function isExternalHref(href: string): boolean {
+  return /^https?:\/\//i.test(href);
+}
+
+function MarkdownCodeBlock({ className, children }: { className?: string; children: ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const language = useMemo(() => resolveCodeLanguage(className), [className]);
+  const codeText = useMemo(() => normalizeCodeText(children), [children]);
+
+  const handleCopy = useCallback(async () => {
+    if (!codeText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(codeText);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }, [codeText]);
+
+  useEffect(() => {
+    if (!copied || typeof window === 'undefined') {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopied(false), 1300);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  return (
+    <div className="chat-codeblock">
+      <div className="chat-codeblock-toolbar">
+        <span className="chat-codeblock-language">{language}</span>
+        <button
+          type="button"
+          className="chat-codeblock-copy"
+          onClick={handleCopy}
+          aria-label={copied ? t('chatCodeCopied') : t('chatCodeCopy')}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          <span>{copied ? t('chatCodeCopied') : t('chatCodeCopy')}</span>
+        </button>
+      </div>
+      <pre>
+        <code className={className}>{codeText}</code>
+      </pre>
+    </div>
+  );
 }
 
 function roleTitle(role: ChatRole): string {
@@ -91,16 +177,71 @@ function RoleAvatar({ role }: { role: ChatRole }) {
 
 function MarkdownBlock({ text, role }: { text: string; role: ChatRole }) {
   const isUser = role === 'user';
+  const markdownComponents = useMemo<Components>(() => ({
+    a: ({ href, children, ...props }) => {
+      const safeHref = resolveSafeHref(href);
+      if (!safeHref) {
+        return <span className="chat-link-invalid">{children}</span>;
+      }
+      const external = isExternalHref(safeHref);
+      return (
+        <a
+          {...props}
+          href={safeHref}
+          target={external ? '_blank' : undefined}
+          rel={external ? 'noreferrer noopener' : undefined}
+        >
+          {children}
+        </a>
+      );
+    },
+    table: ({ children, ...props }) => (
+      <div className="chat-table-wrap">
+        <table {...props}>{children}</table>
+      </div>
+    ),
+    input: ({ type, checked, ...props }) => {
+      if (type !== 'checkbox') {
+        return <input {...props} type={type} />;
+      }
+      return (
+        <input
+          {...props}
+          type="checkbox"
+          checked={checked}
+          readOnly
+          disabled
+          className="chat-task-checkbox"
+        />
+      );
+    },
+    img: ({ src, alt, ...props }) => {
+      const safeSrc = resolveSafeHref(src);
+      if (!safeSrc) {
+        return null;
+      }
+      return <img {...props} src={safeSrc} alt={alt || ''} loading="lazy" decoding="async" />;
+    },
+    code: ({ className, children, ...props }) => {
+      const plainText = String(children ?? '');
+      const isInlineCode = !className && !plainText.includes('\n');
+      if (isInlineCode) {
+        return (
+          <code {...props} className={cn('chat-inline-code', className)}>
+            {children}
+          </code>
+        );
+      }
+      return <MarkdownCodeBlock className={className}>{children}</MarkdownCodeBlock>;
+    }
+  }), []);
+
   return (
     <div className={cn('chat-markdown', isUser ? 'chat-markdown-user' : 'chat-markdown-assistant')}>
       <ReactMarkdown
+        skipHtml
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
-        components={{
-          a: ({ ...props }) => (
-            <a {...props} target="_blank" rel="noreferrer noopener" />
-          )
-        }}
+        components={markdownComponents}
       >
         {trimMarkdown(text)}
       </ReactMarkdown>

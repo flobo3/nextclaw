@@ -80,12 +80,13 @@ const routeSyncScript = `
 
 const enSidebar = [
   {
-    text: 'Getting Started',
+    text: 'Start Using',
     items: [
       { text: 'Introduction', link: '/en/guide/introduction' },
       { text: 'Quick Start', link: '/en/guide/getting-started' },
       { text: 'Configuration', link: '/en/guide/configuration' },
-      { text: 'Model Selection', link: '/en/guide/model-selection' }
+      { text: 'Model Selection', link: '/en/guide/model-selection' },
+      { text: 'What To Do After Setup', link: '/en/guide/after-setup' },
     ]
   },
   {
@@ -93,25 +94,33 @@ const enSidebar = [
     items: [
       { text: 'Channels', link: '/en/guide/channels' },
       { text: 'Secrets Management', link: '/en/guide/secrets' },
-      { text: 'Multi-Agent Routing', link: '/en/guide/multi-agent' },
       { text: 'Tools', link: '/en/guide/tools' },
       { text: 'Cron & Heartbeat', link: '/en/guide/cron' },
       { text: 'Session Management', link: '/en/guide/sessions' }
     ]
   },
   {
-    text: 'Reference',
+    text: 'Learn & Resources',
+    items: [
+      { text: 'Tutorial Hub', link: '/en/guide/tutorials' },
+      { text: 'Feishu Setup', link: '/en/guide/tutorials/feishu' },
+      { text: 'Local Ollama + Qwen3 (macOS)', link: '/en/guide/tutorials/local-ollama-qwen3' },
+      { text: 'Unsigned Desktop Install', link: '/en/guide/tutorials/desktop-install-unsigned' },
+      { text: 'Resource Hub', link: '/en/guide/resources' }
+    ]
+  },
+  {
+    text: 'Reference & Troubleshooting',
     items: [
       { text: 'Commands', link: '/en/guide/commands' },
       { text: 'Troubleshooting', link: '/en/guide/troubleshooting' }
     ]
   },
   {
-    text: 'Tutorials',
+    text: 'Advanced',
     items: [
-      { text: 'Tutorial Hub', link: '/en/guide/tutorials' },
-      { text: 'Feishu Setup', link: '/en/guide/tutorials/feishu' },
-      { text: 'Unsigned Desktop Install', link: '/en/guide/tutorials/desktop-install-unsigned' }
+      { text: 'Advanced Configuration', link: '/en/guide/advanced' },
+      { text: 'Multi-Agent Routing', link: '/en/guide/multi-agent' }
     ]
   },
   {
@@ -125,12 +134,13 @@ const enSidebar = [
 
 const zhSidebar = [
   {
-    text: '快速开始',
+    text: '开始使用',
     items: [
       { text: '介绍', link: '/zh/guide/introduction' },
       { text: '上手', link: '/zh/guide/getting-started' },
       { text: '配置', link: '/zh/guide/configuration' },
-      { text: '模型选型', link: '/zh/guide/model-selection' }
+      { text: '模型选型', link: '/zh/guide/model-selection' },
+      { text: '配置后做什么', link: '/zh/guide/after-setup' },
     ]
   },
   {
@@ -138,25 +148,33 @@ const zhSidebar = [
     items: [
       { text: '渠道', link: '/zh/guide/channels' },
       { text: '密钥管理', link: '/zh/guide/secrets' },
-      { text: '多 Agent 路由', link: '/zh/guide/multi-agent' },
       { text: '工具', link: '/zh/guide/tools' },
       { text: 'Cron 与 Heartbeat', link: '/zh/guide/cron' },
       { text: '会话管理', link: '/zh/guide/sessions' }
     ]
   },
   {
-    text: '参考',
+    text: '学习与资源',
+    items: [
+      { text: '教程总览', link: '/zh/guide/tutorials' },
+      { text: '飞书配置教程', link: '/zh/guide/tutorials/feishu' },
+      { text: '本地 Ollama + Qwen3 教程（macOS）', link: '/zh/guide/tutorials/local-ollama-qwen3' },
+      { text: '桌面端无签名安装教程', link: '/zh/guide/tutorials/desktop-install-unsigned' },
+      { text: '生态资源', link: '/zh/guide/resources' }
+    ]
+  },
+  {
+    text: '参考与排错',
     items: [
       { text: '命令', link: '/zh/guide/commands' },
       { text: '故障排查', link: '/zh/guide/troubleshooting' }
     ]
   },
   {
-    text: '教程',
+    text: '进阶',
     items: [
-      { text: '教程总览', link: '/zh/guide/tutorials' },
-      { text: '飞书配置教程', link: '/zh/guide/tutorials/feishu' },
-      { text: '桌面端无签名安装教程', link: '/zh/guide/tutorials/desktop-install-unsigned' }
+      { text: '进阶配置', link: '/zh/guide/advanced' },
+      { text: '多 Agent 路由', link: '/zh/guide/multi-agent' }
     ]
   },
   {
@@ -196,13 +214,12 @@ export default defineConfig({
       description: 'Effortlessly Simple Personal AI Assistant — Documentation',
       themeConfig: {
         nav: [
-          { text: 'Getting Started', link: '/en/guide/getting-started' },
-          { text: 'Configuration', link: '/en/guide/configuration' },
-          { text: 'Secrets', link: '/en/guide/secrets' },
-          { text: 'Channels', link: '/en/guide/channels' },
-          { text: 'Tutorials', link: '/en/guide/tutorials' },
-          { text: 'Commands', link: '/en/guide/commands' },
-          { text: 'Roadmap', link: '/en/guide/roadmap' },
+          { text: 'Start Using', link: '/en/guide/getting-started' },
+          { text: 'Features', link: '/en/guide/channels' },
+          { text: 'Learn & Resources', link: '/en/guide/tutorials' },
+          { text: 'Reference', link: '/en/guide/commands' },
+          { text: 'Advanced', link: '/en/guide/advanced' },
+          { text: 'Project', link: '/en/guide/roadmap' },
         ],
         sidebar: {
           '/en/guide/': enSidebar
@@ -222,13 +239,12 @@ export default defineConfig({
       description: '轻量、易用、兼容 OpenClaw 的个人 AI 助手文档',
       themeConfig: {
         nav: [
-          { text: '快速开始', link: '/zh/guide/getting-started' },
-          { text: '配置', link: '/zh/guide/configuration' },
-          { text: '密钥管理', link: '/zh/guide/secrets' },
-          { text: '渠道', link: '/zh/guide/channels' },
-          { text: '教程', link: '/zh/guide/tutorials' },
-          { text: '命令', link: '/zh/guide/commands' },
-          { text: '路线图', link: '/zh/guide/roadmap' },
+          { text: '开始使用', link: '/zh/guide/getting-started' },
+          { text: '功能', link: '/zh/guide/channels' },
+          { text: '学习与资源', link: '/zh/guide/tutorials' },
+          { text: '参考与排错', link: '/zh/guide/commands' },
+          { text: '进阶', link: '/zh/guide/advanced' },
+          { text: '项目', link: '/zh/guide/roadmap' },
         ],
         sidebar: {
           '/zh/guide/': zhSidebar

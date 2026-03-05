@@ -80,6 +80,8 @@ nextclaw start
 
 ## What's Next?
 
+- [What To Do After Setup](/en/guide/after-setup) — First actions after configuration
+- [Resource Hub](/en/guide/resources) — OpenClaw ecosystem projects and curated lists
 - [Configuration](/en/guide/configuration) — Set up providers, models, and workspace
 - [Secrets Management](/en/guide/secrets) — Keep keys out of config and rotate safely
 - [Channels](/en/guide/channels) — Connect to Discord, Telegram, Slack, and more

@@ -80,6 +80,8 @@ nextclaw start
 
 ## 下一步
 
+- [配置后做什么](/zh/guide/after-setup) — 配置完成后的第一批任务建议
+- [生态资源](/zh/guide/resources) — OpenClaw 生态项目与 awesome 资源导航
 - [配置](/zh/guide/configuration) — Provider、模型、工作区
 - [密钥管理](/zh/guide/secrets) — 避免明文密钥，支持安全轮换
 - [渠道](/zh/guide/channels) — 连接 Discord、Telegram、Slack 等

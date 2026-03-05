@@ -1,5 +1,17 @@
 # @nextclaw/ui
 
+## 0.6.5
+
+### Patch Changes
+
+- Release frontend UI changes only.
+
+## 0.6.4
+
+### Patch Changes
+
+- Polish chat UI loading and conversation interaction behaviors, and ship updated built-in UI assets.
+
 ## 0.6.3
 
 ### Patch Changes

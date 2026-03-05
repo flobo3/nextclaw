@@ -525,6 +525,8 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   chatToolOutput: { zh: '查看输出', en: 'View Output' },
   chatToolNoOutput: { zh: '无输出（执行完成）', en: 'No output (completed)' },
   chatReasoning: { zh: '查看推理内容', en: 'Show reasoning' },
+  chatCodeCopy: { zh: '复制代码', en: 'Copy' },
+  chatCodeCopied: { zh: '已复制', en: 'Copied' },
 
   // Chat Sidebar (unified)
   chatSidebarNewTask: { zh: '新任务', en: 'New Task' },

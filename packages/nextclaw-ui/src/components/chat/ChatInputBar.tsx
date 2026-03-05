@@ -13,6 +13,7 @@ export type ChatModelOption = {
 };
 
 type ChatInputBarProps = {
+  isProviderStateResolved: boolean;
   draft: string;
   onDraftChange: (value: string) => void;
   onSend: () => Promise<void> | void;
@@ -33,6 +34,7 @@ type ChatInputBarProps = {
 };
 
 export function ChatInputBar({
+  isProviderStateResolved,
   draft,
   onDraftChange,
   onSend,
@@ -52,7 +54,9 @@ export function ChatInputBar({
   onSelectedSkillsChange
 }: ChatInputBarProps) {
   const hasModelOptions = modelOptions.length > 0;
-  const inputDisabled = !hasModelOptions && !isSending;
+  const isModelOptionsLoading = !isProviderStateResolved && !hasModelOptions;
+  const isModelOptionsEmpty = isProviderStateResolved && !hasModelOptions;
+  const inputDisabled = (isModelOptionsLoading || isModelOptionsEmpty) && !isSending;
   const selectedModelOption = modelOptions.find((option) => option.value === selectedModel);
   const resolvedStopHint =
     stopDisabledReason === '__preparing__'
@@ -86,10 +90,24 @@ export function ChatInputBar({
                 void onSend();
               }
             }}
-            placeholder={hasModelOptions ? t('chatInputPlaceholder') : t('chatModelNoOptions')}
+            placeholder={
+              isModelOptionsLoading
+                ? ''
+                : hasModelOptions
+                  ? t('chatInputPlaceholder')
+                  : t('chatModelNoOptions')
+            }
             className="w-full min-h-[68px] max-h-[220px] resize-y bg-transparent outline-none text-sm px-4 py-3 text-gray-800 placeholder:text-gray-400"
           />
-          {!hasModelOptions && (
+          {isModelOptionsLoading && (
+            <div className="px-4 pb-2">
+              <div className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <span className="h-3 w-28 animate-pulse rounded bg-gray-200" />
+                <span className="h-3 w-16 animate-pulse rounded bg-gray-200" />
+              </div>
+            </div>
+          )}
+          {isModelOptionsEmpty && (
             <div className="px-4 pb-2">
               <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
                 <span>{t('chatModelNoOptions')}</span>
@@ -147,13 +165,23 @@ export function ChatInputBar({
                         {selectedModelOption.providerLabel}/{selectedModelOption.modelLabel}
                       </span>
                     </div>
+                  ) : isModelOptionsLoading ? (
+                    <div className="h-3 w-24 animate-pulse rounded bg-gray-200" />
                   ) : (
                     <SelectValue placeholder={t('chatSelectModel')} />
                   )}
                 </SelectTrigger>
                 <SelectContent className="w-[320px]">
                   {modelOptions.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-gray-500">{t('chatModelNoOptions')}</div>
+                    isModelOptionsLoading ? (
+                      <div className="space-y-2 px-3 py-2">
+                        <div className="h-3 w-36 animate-pulse rounded bg-gray-200" />
+                        <div className="h-3 w-28 animate-pulse rounded bg-gray-200" />
+                        <div className="h-3 w-32 animate-pulse rounded bg-gray-200" />
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2 text-xs text-gray-500">{t('chatModelNoOptions')}</div>
+                    )
                   )}
                   {modelOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value} className="py-2">

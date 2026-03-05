@@ -40,6 +40,34 @@ type ChatConversationPanelProps = {
   queuedCount: number;
 };
 
+function ChatConversationSkeleton() {
+  return (
+    <section className="flex-1 min-h-0 flex flex-col overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
+          <div className="space-y-4">
+            <div className="h-6 w-48 animate-pulse rounded bg-gray-200" />
+            <div className="h-24 w-[78%] animate-pulse rounded-2xl bg-gray-200/80" />
+            <div className="h-20 w-[62%] animate-pulse rounded-2xl bg-gray-200/80" />
+            <div className="h-28 w-[84%] animate-pulse rounded-2xl bg-gray-200/80" />
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-gray-200/80 bg-white p-4">
+        <div className="mx-auto w-full max-w-[min(1120px,100%)]">
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-card p-4">
+            <div className="h-16 w-full animate-pulse rounded-xl bg-gray-200/80" />
+            <div className="mt-3 flex items-center justify-between">
+              <div className="h-8 w-36 animate-pulse rounded-lg bg-gray-200/80" />
+              <div className="h-8 w-20 animate-pulse rounded-lg bg-gray-200/80" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ChatConversationPanel({
   isProviderStateResolved,
   modelOptions,
@@ -81,6 +109,10 @@ export function ChatConversationPanel({
     !isSending &&
     !isAwaitingAssistantOutput &&
     !streamingAssistantText.trim();
+
+  if (!isProviderStateResolved) {
+    return <ChatConversationSkeleton />;
+  }
 
   return (
     <section className="flex-1 min-h-0 flex flex-col overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
@@ -134,6 +166,7 @@ export function ChatConversationPanel({
 
       {/* Enhanced input bar */}
       <ChatInputBar
+        isProviderStateResolved={isProviderStateResolved}
         draft={draft}
         onDraftChange={onDraftChange}
         onSend={onSend}

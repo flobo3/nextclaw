@@ -1,180 +1,55 @@
 # Configuration
 
-## Config File
+This page is beginner-first: you do not need to edit config files to get started.
 
-- **Config file:** `~/.nextclaw/config.json`
-- **Data directory:** Override with `NEXTCLAW_HOME=/path/to/dir` (config path becomes `$NEXTCLAW_HOME/config.json`).
-
-## Minimal Config
-
-```json
-{
-  "providers": {
-    "openrouter": { "apiKey": "sk-or-v1-xxx" }
-  },
-  "agents": {
-    "defaults": { "model": "minimax/MiniMax-M2.5" }
-  }
-}
-```
-
-Need help choosing model ids and format? See [Model Selection Guide](/en/guide/model-selection).
-
-## Secrets (OpenClaw-style)
-
-NextClaw supports `openclaw secrets`-style secret references with `env` / `file` / `exec` sources.
-
-For full workflow and real-world examples, see [Secrets Management](/en/guide/secrets).
-
-Use `secrets.refs` to map config paths to secret refs:
-
-```json
-{
-  "providers": {
-    "openai": { "apiKey": "" }
-  },
-  "secrets": {
-    "providers": {
-      "env-main": { "source": "env" },
-      "file-main": { "source": "file", "path": "~/.nextclaw/secrets.json" },
-      "exec-main": {
-        "source": "exec",
-        "command": "node",
-        "args": ["scripts/secret-snapshot.mjs"],
-        "timeoutMs": 5000
-      }
-    },
-    "refs": {
-      "providers.openai.apiKey": {
-        "source": "env",
-        "provider": "env-main",
-        "id": "OPENAI_API_KEY"
-      }
-    }
-  }
-}
-```
-
-Compatibility note:
-- Inline refs are also accepted on sensitive fields, for example:
-  `{ "providers": { "openai": { "apiKey": { "source": "env", "id": "OPENAI_API_KEY" } } } }`
-- NextClaw normalizes inline refs into `secrets.refs` when loading config.
-
-## Provider Examples
-
-### OpenRouter (recommended)
-
-```json
-{
-  "providers": { "openrouter": { "apiKey": "sk-or-v1-xxx" } },
-  "agents": { "defaults": { "model": "minimax/MiniMax-M2.5" } }
-}
-```
-
-### MiniMax (Mainland China)
-
-```json
-{
-  "providers": {
-    "minimax": {
-      "apiKey": "sk-api-xxx",
-      "apiBase": "https://api.minimaxi.com/v1"
-    }
-  },
-  "agents": { "defaults": { "model": "minimax/MiniMax-M2.5" } }
-}
-```
-
-### Local vLLM (or any OpenAI-compatible server)
-
-Need a full local walkthrough for Ollama + Qwen3? See [Local Ollama + Qwen3 Tutorial (macOS)](/en/guide/tutorials/local-ollama-qwen3).
-
-```json
-{
-  "providers": {
-    "vllm": {
-      "apiKey": "dummy",
-      "apiBase": "http://localhost:8000/v1"
-    }
-  },
-  "agents": { "defaults": { "model": "meta-llama/Llama-3.1-8B-Instruct" } }
-}
-```
-
-Supported providers include OpenRouter, OpenAI, Anthropic, MiniMax, Moonshot, Gemini, DeepSeek, DashScope, Zhipu, Groq, vLLM, and AiHubMix.
-
-## Troubleshooting Test Connection (UI now forwards details)
-
-When UI shows "Connection test failed", it now includes `status / method / endpoint / body` for faster diagnosis:
-
-- `404` + `POST /api/config/providers/<provider>/test`:
-  usually means your local `nextclaw start` runtime is outdated and does not expose this endpoint. Upgrade and retry.
-- `401` / `403`:
-  usually invalid/expired `apiKey` or incorrect `extraHeaders`.
-- `429`:
-  provider rate-limited the request. Retry later or switch model/provider.
-- `5xx`:
-  upstream provider/server error. Retry and check gateway logs.
-- `Non-JSON response`:
-  the response body is not standard JSON; UI now includes a body snippet (for example plain `404 Not Found`) for debugging.
-
-## Runtime Config (No Restart)
-
-When the gateway is already running, config changes from the UI or `nextclaw config set` are hot-applied for:
-
-- `providers.*`
-- `channels.*`
-- `agents.defaults.model`
-- `agents.defaults.maxToolIterations`
-- `agents.defaults.contextTokens`
-- `agents.context.*`
-- `tools.*`
-- `plugins.*`
-
-Restart is still required for:
-- UI bind port (`--port` / `--ui-port`)
-
-## Input Context Budget
-
-NextClaw applies a token-budget input pruner before each model call.
-
-- `agents.defaults.contextTokens`: model input context budget (default `200000`)
-- reserve floor: `20000` tokens
-- soft threshold: `4000` tokens
-- when over budget: trim tool results first, then drop oldest history, then trim oversized prompt/user tail
+## 1. Start and open the UI
 
 ```bash
-nextclaw config set agents.defaults.contextTokens 200000 --json
-nextclaw config set agents.list '[{"id":"engineer","contextTokens":160000}]' --json
+nextclaw start
 ```
 
-## Workspace
+Open `http://127.0.0.1:18791`.
 
-- **Default path:** `~/.nextclaw/workspace`
-- Override in config:
+## 2. Add one provider
 
-```json
-{
-  "agents": { "defaults": { "workspace": "~/my-nextclaw" } }
-}
-```
+Go to `Providers` and add one provider with a key you already have (OpenRouter or OpenAI is a good first choice).
 
-Initialize the workspace (creates template files if missing):
+Start with one provider only. Expand later.
 
-```bash
-nextclaw init
-```
+## 3. Choose a default model
 
-Created under the workspace:
+Go to `Models`, pick a default model, and save.
 
-| File / folder   | Purpose                          |
-|-----------------|----------------------------------|
-| `AGENTS.md`     | System instructions for the agent |
-| `SOUL.md`       | Personality and values            |
-| `USER.md`       | User profile hints                |
-| `IDENTITY.md`   | Identity context                  |
-| `TOOLS.md`      | Tool usage guidelines             |
-| `USAGE.md`      | CLI operation guide               |
-| `HEARTBEAT.md`  | Tasks checked periodically        |
-| `memory/MEMORY.md` | Long-term notes                |
-| `skills/`       | Custom skills                     |
+Need help choosing ids? See [Model Selection](/en/guide/model-selection).
+
+## 4. Test connection and send first message
+
+Use the UI test button, then send your first message once the test passes.
+
+## 5. Add channels when ready
+
+After local UI flow works, connect Discord/Telegram/Slack and others:
+
+- [Channels](/en/guide/channels)
+- [Tutorials](/en/guide/tutorials)
+
+## How to read connection test failures
+
+When UI shows "Connection test failed", check `status / method / endpoint / body` first:
+
+- `404` + `POST /api/config/providers/<provider>/test`: local runtime is outdated; upgrade and retry.
+- `401` / `403`: usually invalid/expired `apiKey` or wrong `extraHeaders`.
+- `429`: provider rate limit; retry later or switch model/provider.
+- `5xx`: upstream service error; retry and check gateway logs.
+- `Non-JSON response`: body is not standard JSON; inspect returned body snippet.
+
+## Advanced entry
+
+If you need config files, secret refs, workspace templates, context budgets, or multi-agent setup:
+
+- [Advanced Configuration](/en/guide/advanced)
+
+## What to do next
+
+- [What To Do After Setup](/en/guide/after-setup)
+- [Resource Hub](/en/guide/resources)

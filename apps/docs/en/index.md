@@ -16,8 +16,8 @@ hero:
 features:
   - title: 🔌 Multi-Channel
     details: Connect to Discord, Telegram, Slack, Feishu, DingTalk, WhatsApp, Email, and more — all from one gateway.
-  - title: 🤖 Multi-Agent
-    details: Run multiple AI agents with routing rules. Assign specialists to specific channels, accounts, or groups.
+  - title: 🚀 Beginner-Friendly
+    details: One-command startup and UI-first setup. You can get value without editing config files first.
   - title: 🛠️ Extensible
     details: Built-in tools for web search, command execution, cron jobs, and an OpenClaw-compatible plugin system.
   - title: ⚡ Zero-Restart Config
