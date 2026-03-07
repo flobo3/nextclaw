@@ -7,7 +7,7 @@ import {
   stopPluginChannelGateways
 } from "@nextclaw/openclaw-compat";
 import { startUiServer, type UiServerEvent } from "@nextclaw/server";
-import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, rmSync } from "node:fs";
+import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
@@ -1210,34 +1210,64 @@ export class ServiceCommands {
     skillName: string;
   }): Promise<{ tempRoot: string; skillDir: string; commandOutput: string }> {
     const parsed = this.parseMarketplaceGitSkillSource(params.source);
-    const gitPath = findExecutableOnPath("git");
-    if (!gitPath) {
-      throw new Error("git is required to install marketplace git skills");
+    const gitPath = this.resolveGitExecutablePath();
+    const fallbackNotes: string[] = [];
+
+    if (gitPath) {
+      try {
+        return await this.materializeMarketplaceGitSkillViaGit({ gitPath, parsed });
+      } catch (error) {
+        fallbackNotes.push(`Git fast path failed: ${String(error)}`);
+      }
+    } else {
+      fallbackNotes.push("Git fast path unavailable: git executable not found");
     }
 
+    const httpResult = await this.materializeMarketplaceGitSkillViaGithubApi(parsed);
+    return {
+      ...httpResult,
+      commandOutput: [...fallbackNotes, httpResult.commandOutput].filter(Boolean).join("\n")
+    };
+  }
+
+  private resolveGitExecutablePath(): string | null {
+    return findExecutableOnPath("git");
+  }
+
+  private async materializeMarketplaceGitSkillViaGit(params: {
+    gitPath: string;
+    parsed: {
+      owner: string;
+      repo: string;
+      repoUrl: string;
+      skillPath: string;
+      ref?: string;
+    };
+  }): Promise<{ tempRoot: string; skillDir: string; commandOutput: string }> {
     const tempRoot = mkdtempSync(join(tmpdir(), "nextclaw-marketplace-skill-"));
     const repoDir = join(tempRoot, "repo");
     try {
       const cloneArgs = ["clone", "--depth", "1", "--filter=blob:none", "--sparse"];
-      if (parsed.ref) {
-        cloneArgs.push("--branch", parsed.ref);
+      if (params.parsed.ref) {
+        cloneArgs.push("--branch", params.parsed.ref);
       }
-      cloneArgs.push(parsed.repoUrl, repoDir);
-      const cloneResult = await this.runCommand(gitPath, cloneArgs, {
+      cloneArgs.push(params.parsed.repoUrl, repoDir);
+      const cloneResult = await this.runCommand(params.gitPath, cloneArgs, {
         cwd: tempRoot,
         timeoutMs: 180_000
       });
-      const sparseResult = await this.runCommand(gitPath, ["-C", repoDir, "sparse-checkout", "set", parsed.skillPath], {
+      const sparseResult = await this.runCommand(params.gitPath, ["-C", repoDir, "sparse-checkout", "set", params.parsed.skillPath], {
         cwd: tempRoot,
         timeoutMs: 60_000
       });
-      const skillDir = join(repoDir, parsed.skillPath);
+      const skillDir = join(repoDir, params.parsed.skillPath);
       return {
         tempRoot,
         skillDir,
         commandOutput: [
-          `Git repository: ${parsed.repoUrl}`,
-          `Git path: ${parsed.skillPath}`,
+          "Installer path: git-sparse",
+          `Git repository: ${params.parsed.repoUrl}`,
+          `Git path: ${params.parsed.skillPath}`,
           this.mergeCommandOutput(cloneResult.stdout, cloneResult.stderr),
           this.mergeCommandOutput(sparseResult.stdout, sparseResult.stderr)
         ].filter(Boolean).join("\n")
@@ -1248,7 +1278,134 @@ export class ServiceCommands {
     }
   }
 
+  private async materializeMarketplaceGitSkillViaGithubApi(parsed: {
+    owner: string;
+    repo: string;
+    repoUrl: string;
+    skillPath: string;
+    ref?: string;
+  }): Promise<{ tempRoot: string; skillDir: string; commandOutput: string }> {
+    const tempRoot = mkdtempSync(join(tmpdir(), "nextclaw-marketplace-skill-"));
+    const skillDir = join(tempRoot, "skill");
+    const downloadedFiles: string[] = [];
+    try {
+      mkdirSync(skillDir, { recursive: true });
+      await this.downloadGithubDirectoryToPath({
+        parsed,
+        remotePath: parsed.skillPath,
+        localDir: skillDir,
+        relativePrefix: "",
+        downloadedFiles
+      });
+      return {
+        tempRoot,
+        skillDir,
+        commandOutput: [
+          "Installer path: github-http",
+          `Git repository: ${parsed.repoUrl}`,
+          `Git path: ${parsed.skillPath}`,
+          `Downloaded files: ${downloadedFiles.length}`
+        ].join("\n")
+      };
+    } catch (error) {
+      rmSync(tempRoot, { recursive: true, force: true });
+      throw error;
+    }
+  }
+
+  private async downloadGithubDirectoryToPath(params: {
+    parsed: {
+      owner: string;
+      repo: string;
+      repoUrl: string;
+      skillPath: string;
+      ref?: string;
+    };
+    remotePath: string;
+    localDir: string;
+    relativePrefix: string;
+    downloadedFiles: string[];
+  }): Promise<void> {
+    const encodedPath = params.remotePath
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    const apiUrl = new URL(`https://api.github.com/repos/${params.parsed.owner}/${params.parsed.repo}/contents/${encodedPath}`);
+    if (params.parsed.ref) {
+      apiUrl.searchParams.set("ref", params.parsed.ref);
+    }
+
+    const payload = await this.fetchJsonWithHeaders<unknown>(apiUrl.toString(), {
+      Accept: "application/vnd.github+json",
+      "User-Agent": `${APP_NAME}/${getPackageVersion()}`
+    });
+    if (!Array.isArray(payload)) {
+      throw new Error(`GitHub path is not a directory: ${params.remotePath}`);
+    }
+
+    for (const entry of payload) {
+      if (!entry || typeof entry !== "object") {
+        continue;
+      }
+      const item = entry as {
+        type?: string;
+        name?: string;
+        path?: string;
+        download_url?: string | null;
+      };
+      const itemName = typeof item.name === "string" ? item.name.trim() : "";
+      const itemPath = typeof item.path === "string" ? item.path.trim() : "";
+      if (!itemName || !itemPath) {
+        continue;
+      }
+      if (item.type === "dir") {
+        const childLocalDir = join(params.localDir, itemName);
+        mkdirSync(childLocalDir, { recursive: true });
+        await this.downloadGithubDirectoryToPath({
+          parsed: params.parsed,
+          remotePath: itemPath,
+          localDir: childLocalDir,
+          relativePrefix: params.relativePrefix ? `${params.relativePrefix}/${itemName}` : itemName,
+          downloadedFiles: params.downloadedFiles
+        });
+        continue;
+      }
+      if (item.type !== "file") {
+        throw new Error(`Unsupported GitHub skill entry type: ${item.type ?? "unknown"}`);
+      }
+      if (!item.download_url) {
+        throw new Error(`GitHub skill file missing download_url: ${itemPath}`);
+      }
+      const content = await this.fetchBinaryWithHeaders(item.download_url, {
+        "User-Agent": `${APP_NAME}/${getPackageVersion()}`
+      });
+      const localFile = join(params.localDir, itemName);
+      writeFileSync(localFile, content);
+      params.downloadedFiles.push(params.relativePrefix ? `${params.relativePrefix}/${itemName}` : itemName);
+    }
+  }
+
+  private async fetchJsonWithHeaders<T>(url: string, headers: Record<string, string>): Promise<T> {
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} when fetching ${url}`);
+    }
+    return await response.json() as T;
+  }
+
+  private async fetchBinaryWithHeaders(url: string, headers: Record<string, string>): Promise<Buffer> {
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} when downloading ${url}`);
+    }
+    const bytes = await response.arrayBuffer();
+    return Buffer.from(bytes);
+  }
+
   private parseMarketplaceGitSkillSource(source: string): {
+    owner: string;
+    repo: string;
     repoUrl: string;
     skillPath: string;
     ref?: string;
@@ -1273,6 +1430,8 @@ export class ServiceCommands {
         throw new Error(`Unsupported GitHub skill source URL: ${source}`);
       }
       return {
+        owner,
+        repo,
         repoUrl: `https://github.com/${owner}/${repo}.git`,
         skillPath: pathParts.join("/"),
         ref
@@ -1295,6 +1454,8 @@ export class ServiceCommands {
     }
 
     return {
+      owner,
+      repo,
       repoUrl: `https://github.com/${owner}/${repo}.git`,
       skillPath: pathParts.join("/"),
       ref: ref && ref.trim().length > 0 ? ref.trim() : undefined

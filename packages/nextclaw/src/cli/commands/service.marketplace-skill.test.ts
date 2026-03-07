@@ -14,11 +14,21 @@ type MaterializedGitSkill = {
   commandOutput: string;
 };
 
+type ParsedGitSkillSource = {
+  owner: string;
+  repo: string;
+  repoUrl: string;
+  skillPath: string;
+  ref?: string;
+};
+
 type ServiceCommandsHarness = {
+  resolveGitExecutablePath: () => string | null;
   materializeMarketplaceGitSkillSource: (params: {
     source: string;
     skillName: string;
   }) => Promise<MaterializedGitSkill>;
+  materializeMarketplaceGitSkillViaGithubApi: (parsed: ParsedGitSkillSource) => Promise<MaterializedGitSkill>;
   installGitMarketplaceSkill: (params: {
     slug: string;
     skill?: string;
@@ -64,6 +74,69 @@ afterEach(() => {
 });
 
 describe("ServiceCommands marketplace git skill install", () => {
+  it("falls back to GitHub HTTP download when git is unavailable", async () => {
+    const service = new ServiceCommands({
+      requestRestart: async () => {}
+    }) as unknown as ServiceCommandsHarness;
+
+    vi.spyOn(service, "resolveGitExecutablePath").mockReturnValue(null);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes("/contents/skills/pdf/assets")) {
+          return new Response(
+            JSON.stringify([
+              {
+                type: "file",
+                name: "guide.txt",
+                path: "skills/pdf/assets/guide.txt",
+                download_url: "https://raw.githubusercontent.com/anthropics/skills/main/skills/pdf/assets/guide.txt"
+              }
+            ]),
+            { status: 200, headers: { "content-type": "application/json" } }
+          );
+        }
+        if (url.includes("/contents/skills/pdf")) {
+          return new Response(
+            JSON.stringify([
+              {
+                type: "file",
+                name: "SKILL.md",
+                path: "skills/pdf/SKILL.md",
+                download_url: "https://raw.githubusercontent.com/anthropics/skills/main/skills/pdf/SKILL.md"
+              },
+              {
+                type: "dir",
+                name: "assets",
+                path: "skills/pdf/assets"
+              }
+            ]),
+            { status: 200, headers: { "content-type": "application/json" } }
+          );
+        }
+        if (url.endsWith("/skills/pdf/SKILL.md")) {
+          return new Response("# PDF skill\n", { status: 200 });
+        }
+        if (url.endsWith("/skills/pdf/assets/guide.txt")) {
+          return new Response("guide\n", { status: 200 });
+        }
+        throw new Error(`Unexpected fetch url: ${url}`);
+      })
+    );
+
+    const result = await service.materializeMarketplaceGitSkillSource({
+      source: "anthropics/skills/skills/pdf",
+      skillName: "pdf"
+    });
+
+    expect(readFileSync(join(result.skillDir, "SKILL.md"), "utf-8")).toContain("PDF skill");
+    expect(readFileSync(join(result.skillDir, "assets", "guide.txt"), "utf-8")).toContain("guide");
+    expect(result.commandOutput).toContain("github-http");
+    expect(result.commandOutput).toContain("git executable not found");
+    rmSync(result.tempRoot, { recursive: true, force: true });
+  });
+
   it("skips reinstall when workspace skill already exists", async () => {
     const { workspaceDir } = setupWorkspaceConfig();
     const installedSkillDir = join(workspaceDir, "skills", "pdf");

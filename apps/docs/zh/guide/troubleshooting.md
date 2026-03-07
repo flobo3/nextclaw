@@ -25,7 +25,7 @@
 ## 诊断命令
 
 ```bash
-nextclaw status --json    # 机器可读状态（0=healthy, 1=degraded, 2=stopped）
+nextclaw status --json    # 机器可读状态；命令成功时退出 0，状态看 JSON 的 level 字段
 nextclaw status --verbose # 详细状态
 nextclaw doctor --json    # 全量诊断
 nextclaw doctor --fix     # 自动修复常见问题

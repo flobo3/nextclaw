@@ -306,8 +306,9 @@ export class ContextBuilder {
       `Current time: ${now}`,
       "",
       `## ${APP_NAME} Self-Management Guide`,
-      `- For ${APP_NAME} runtime operations (status/doctor/channels/config/cron), read \`${this.workspace}/USAGE.md\` first.`,
+      `- For ${APP_NAME} runtime operations (version/status/doctor/channels/config/cron), read \`${this.workspace}/USAGE.md\` first.`,
       `- If \`${this.workspace}/USAGE.md\` is missing, fall back to \`docs/USAGE.md\` in repo dev runs or command help output.`,
+      `- For version lookup, use \`${appLower} --version\` exactly; do not infer version from status output.`,
       `- After mutating operations, validate with \`${appLower} status --json\` (and \`${appLower} doctor --json\` when needed).`,
       ""
     ];

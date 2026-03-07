@@ -12,6 +12,7 @@
 | `nextclaw ui` | Start UI and gateway in the foreground |
 | `nextclaw gateway` | Start gateway only (for channels) |
 | `nextclaw serve` | Run gateway + UI in the foreground |
+| `nextclaw --version` | Show the installed NextClaw version |
 | `nextclaw status` | Show runtime status (`--json`, `--verbose`, `--fix`) |
 | `nextclaw doctor` | Run runtime diagnostics |
 | `nextclaw update` | Self-update the CLI |

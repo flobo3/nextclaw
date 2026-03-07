@@ -6,7 +6,7 @@ metadata: {"nextclaw":{"always":true,"emoji":"🛠️"}}
 
 # NextClaw Self-Management
 
-Use this skill whenever the user asks to manage NextClaw itself (service status, diagnostics, channels, config, cron, update).
+Use this skill whenever the user asks to manage NextClaw itself (version, service status, diagnostics, channels, config, cron, update).
 
 ## Source of Truth
 
@@ -18,6 +18,7 @@ Always use `USAGE.md` as the operation guide.
 
 ## Execution Rules
 
+- Map version lookup directly to `nextclaw --version`; do not substitute `status` for version queries.
 - Prefer machine-readable output: use `--json` when available.
 - Prefer diagnostic closure after mutating operations:
   - run `nextclaw status --json`
@@ -51,6 +52,7 @@ When user asks "what changed in version X", follow:
 
 ## High-frequency Intents
 
+- Version lookup: `nextclaw --version`
 - Service health: `nextclaw status --json` / `nextclaw doctor --json`
 - Lifecycle: `nextclaw start|restart|stop`
 - Channels: `nextclaw channels status|login`

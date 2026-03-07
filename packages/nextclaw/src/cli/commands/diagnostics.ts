@@ -36,7 +36,7 @@ export class DiagnosticsCommands {
 
     if (opts.json) {
       console.log(JSON.stringify(report, null, 2));
-      process.exitCode = report.exitCode;
+      process.exitCode = 0;
       return;
     }
 
@@ -104,7 +104,7 @@ export class DiagnosticsCommands {
       }
     }
 
-    process.exitCode = report.exitCode;
+    process.exitCode = 0;
   }
 
   async doctor(opts: DoctorCommandOptions = {}): Promise<void> {
@@ -329,7 +329,7 @@ export class DiagnosticsCommands {
         : "degraded"
       : "stopped";
 
-    const exitCode: RuntimeStatusReport["exitCode"] = level === "healthy" ? 0 : level === "degraded" ? 1 : 2;
+    const exitCode: RuntimeStatusReport["exitCode"] = 0;
 
     return {
       generatedAt: new Date().toISOString(),

@@ -12,6 +12,7 @@
 | `nextclaw ui` | 前台启动 UI 与网关 |
 | `nextclaw gateway` | 仅启动网关（用于渠道） |
 | `nextclaw serve` | 前台运行网关 + UI |
+| `nextclaw --version` | 查看已安装的 NextClaw 版本 |
 | `nextclaw status` | 查看运行状态（`--json`、`--verbose`、`--fix`） |
 | `nextclaw doctor` | 运行诊断 |
 | `nextclaw update` | 自更新 CLI |

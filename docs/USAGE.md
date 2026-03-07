@@ -6,13 +6,14 @@ This guide covers installation, configuration, channels, tools, automation, and 
 
 ## AI Self-Management Contract
 
-When NextClaw AI needs to operate the product itself (status/doctor/channels/config/cron), follow these rules:
+When NextClaw AI needs to operate the product itself (version/status/doctor/channels/config/cron), follow these rules:
 
 1. **Read this guide first** (`USAGE.md`) before executing management commands.
-2. **Prefer machine-readable output** (`--json`) whenever available.
-3. **Close the loop after changes** with `nextclaw status --json` (and `nextclaw doctor --json` when needed).
-4. **Be explicit about restart semantics** (hot-apply, auto-restart, or manual restart required).
-5. **Never invent commands**; use documented commands or `nextclaw --help` / `nextclaw <subcommand> --help`.
+2. **Use the exact command for the intent**: use `nextclaw --version` for version lookup; do not infer version from `status`.
+3. **Prefer machine-readable output** (`--json`) whenever available.
+4. **Close the loop after changes** with `nextclaw status --json` (and `nextclaw doctor --json` when needed).
+5. **Be explicit about restart semantics** (hot-apply, auto-restart, or manual restart required).
+6. **Never invent commands**; use documented commands or `nextclaw --help` / `nextclaw <subcommand> --help`.
 
 ---
 
@@ -419,6 +420,7 @@ Created under the workspace:
 | `nextclaw ui` | Start UI and gateway in the foreground |
 | `nextclaw gateway` | Start gateway only (for channels) |
 | `nextclaw serve` | Run gateway + UI in the foreground (no background) |
+| `nextclaw --version` | Show the installed NextClaw version |
 | `nextclaw agent -m "message"` | Send a one-off message to the agent |
 | `nextclaw agent` | Interactive chat in the terminal |
 | `nextclaw agent --session <id> --model <model>` | Use a session-specific model/provider route (sticky for that session) |
@@ -458,8 +460,9 @@ If service is already running, new UI port flags do not hot-apply; use `nextclaw
 
 Status/diagnostics tips:
 
+- `nextclaw --version` is the only supported way to query the installed CLI version.
 - `nextclaw status` shows runtime truth (process + health + config summary).
-- `nextclaw status --json` outputs machine-readable status and sets exit code (`0` healthy, `1` degraded, `2` stopped).
+- `nextclaw status --json` outputs machine-readable status and exits `0` when the command itself succeeds; use the JSON `level` field (`healthy` / `degraded` / `stopped`) to interpret runtime state.
 - `nextclaw status --fix` safely clears stale service state if PID is dead.
 - `nextclaw doctor` runs additional checks (state coherence, health, port availability, provider readiness).
 

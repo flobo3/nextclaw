@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.9.12
+
+### Patch Changes
+
+- Add a GitHub HTTP fallback for marketplace git skill installs when git is unavailable.
+
 ## 0.9.11
 
 ### Patch Changes

@@ -25,7 +25,7 @@
 ## Diagnostics
 
 ```bash
-nextclaw status --json    # Machine-readable status (exit 0=healthy, 1=degraded, 2=stopped)
+nextclaw status --json    # Machine-readable status; exits 0 when the command succeeds, inspect JSON level
 nextclaw status --verbose # Detailed output
 nextclaw doctor --json    # Full diagnostics
 nextclaw doctor --fix     # Auto-fix common issues
