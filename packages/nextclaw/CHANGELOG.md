@@ -1,5 +1,14 @@
 # nextclaw
 
+## 0.9.13
+
+### Patch Changes
+
+- Publish marketplace skill install reliability improvements:
+  - Add GitHub HTTP fallback when `git` is unavailable (e.g. Windows without Git in PATH).
+  - Keep marketplace git-skill install target under NextClaw workspace `skills/` only.
+  - Align diagnostics/status guidance with explicit `nextclaw --version` usage.
+
 ## 0.9.12
 
 ### Patch Changes
