@@ -2,6 +2,10 @@
 
 当你已经完成 Provider + 默认模型配置，建议马上做这 5 件事，把 NextClaw 从“可用”变成“真的在用”。
 
+如果你是“刚安装、还没配 Provider”，先看这篇：
+
+- [安装后第一步：先选接入方式（Qwen Portal 或 API Key）](/zh/guide/tutorials/provider-options)
+
 ## 1. 先确认运行健康
 
 ```bash

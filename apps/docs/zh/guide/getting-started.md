@@ -40,7 +40,8 @@ nextclaw start
 
 浏览器访问 **http://127.0.0.1:18791**，按以下顺序完成初始化：
 
-1. 添加 Provider（如 OpenRouter / OpenAI）
+1. 添加 Provider（如 Qwen Portal / MiniMax / OpenRouter / OpenAI）
+   - 如果你安装后不知道先选哪条路，先看：[安装后第一步：先选接入方式（Qwen Portal 或 API Key）](/zh/guide/tutorials/provider-options)
 2. 选择默认模型
 3. 保存配置并发起第一条消息
 

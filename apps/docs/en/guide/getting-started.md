@@ -40,7 +40,8 @@ nextclaw start
 
 Open **http://127.0.0.1:18791** in your browser, then:
 
-1. Add a provider (such as OpenRouter / OpenAI)
+1. Add a provider (such as Qwen Portal / MiniMax / OpenRouter / OpenAI)
+   - If you are unsure which path to choose after install, follow: [First Step After Install: Choose Provider Path (Qwen Portal or API Key)](/en/guide/tutorials/provider-options)
 2. Select a default model
 3. Save and send your first message
 

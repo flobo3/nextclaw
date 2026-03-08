@@ -2,6 +2,10 @@
 
 After you finish provider + default model configuration, do these 5 things to move from "it works" to "I use it every day".
 
+If you just installed NextClaw and have not configured any provider yet, start here first:
+
+- [First Step After Install: Choose Provider Path (Qwen Portal or API Key)](/en/guide/tutorials/provider-options)
+
 ## 1. Confirm runtime health
 
 ```bash
