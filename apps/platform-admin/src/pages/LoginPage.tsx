@@ -31,9 +31,9 @@ export function LoginPage(): JSX.Element {
       <div className="mx-auto flex min-h-screen w-full max-w-md items-center px-6 py-10">
         <Card className="w-full space-y-5 p-6">
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-700">NextClaw Platform</p>
-            <CardTitle>登录平台</CardTitle>
-            <p className="text-sm text-slate-500">平台不开放自助注册，请使用已创建账号登录。</p>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-700">NextClaw Admin</p>
+            <CardTitle>登录管理后台</CardTitle>
+            <p className="text-sm text-slate-500">仅管理员账号可进入本网站。普通用户请使用独立用户前端站点。</p>
           </div>
 
           <div className="space-y-3">
@@ -48,7 +48,7 @@ export function LoginPage(): JSX.Element {
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || email.trim().length === 0 || password.trim().length < 8}
           >
-            {mutation.isPending ? '处理中...' : '登录'}
+            {mutation.isPending ? '处理中...' : '登录管理后台'}
           </Button>
         </Card>
       </div>

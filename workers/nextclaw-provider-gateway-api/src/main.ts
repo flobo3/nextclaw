@@ -6,9 +6,7 @@ type Env = {
   DASHSCOPE_API_BASE?: string;
   AUTH_TOKEN_SECRET?: string;
   GLOBAL_FREE_USD_LIMIT?: string;
-  DEFAULT_USER_FREE_USD_LIMIT?: string;
   REQUEST_FLAT_USD_PER_REQUEST?: string;
-  ALLOW_SELF_SIGNUP?: string;
   NEXTCLAW_PLATFORM_DB: D1Database;
 };
 
@@ -54,6 +52,13 @@ type UserRow = {
   free_used_usd: number;
   paid_balance_usd: number;
   created_at: string;
+  updated_at: string;
+};
+
+type UserSecurityRow = {
+  user_id: string;
+  failed_login_attempts: number;
+  login_locked_until: string | null;
   updated_at: string;
 };
 
@@ -122,12 +127,21 @@ type ChargeResult =
     snapshot: BillingSnapshot;
   };
 
+type CursorPayload = {
+  createdAt: string;
+  id: string;
+};
+
 const DEFAULT_DASHSCOPE_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 const DEFAULT_GLOBAL_FREE_USD_LIMIT = 20;
-const DEFAULT_USER_FREE_USD_LIMIT = 2;
 const DEFAULT_REQUEST_FLAT_USD_PER_REQUEST = 0.0002;
 const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 const PASSWORD_HASH_ITERATIONS = 120_000;
+const MIN_AUTH_SECRET_LENGTH = 32;
+const MAX_FAILED_LOGIN_ATTEMPTS_PER_USER = 5;
+const ACCOUNT_LOCK_MINUTES = 15;
+const MAX_FAILED_LOGIN_ATTEMPTS_PER_IP_WINDOW = 30;
+const IP_FAILED_ATTEMPT_WINDOW_MINUTES = 10;
 
 const SUPPORTED_MODELS: SupportedModelSpec[] = [
   {
@@ -181,13 +195,13 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.use("/platform/*", cors({
   origin: "*",
-  allowHeaders: ["Authorization", "Content-Type"],
+  allowHeaders: ["Authorization", "Content-Type", "X-Idempotency-Key"],
   allowMethods: ["GET", "POST", "PATCH", "OPTIONS"]
 }));
 
 app.use("/v1/*", cors({
   origin: "*",
-  allowHeaders: ["Authorization", "Content-Type"],
+  allowHeaders: ["Authorization", "Content-Type", "X-Idempotency-Key"],
   allowMethods: ["GET", "POST", "OPTIONS"]
 }));
 
@@ -217,92 +231,90 @@ app.get("/v1/models", (c) => {
   });
 });
 
-app.post("/platform/auth/register", async (c) => {
-  await ensurePlatformBootstrap(c.env);
-  if (!allowSelfSignup(c.env)) {
-    return apiError(c, 403, "SELF_SIGNUP_DISABLED", "Self signup is disabled.");
-  }
-
-  const body = await readJson(c);
-  const email = normalizeEmail(readString(body, "email"));
-  const password = readString(body, "password");
-
-  if (!email || !isValidEmail(email)) {
-    return apiError(c, 400, "INVALID_EMAIL", "A valid email is required.");
-  }
-  if (!isStrongPassword(password)) {
-    return apiError(c, 400, "WEAK_PASSWORD", "Password must be at least 8 characters.");
-  }
-
-  const existing = await getUserByEmail(c.env.NEXTCLAW_PLATFORM_DB, email);
-  if (existing) {
-    return apiError(c, 409, "EMAIL_EXISTS", "This email is already registered.");
-  }
-
-  const now = new Date().toISOString();
-  const usersCount = await countUsers(c.env.NEXTCLAW_PLATFORM_DB);
-  const role: UserRole = usersCount === 0 ? "admin" : "user";
-  const passwordDigest = await hashPassword(password);
-  const id = crypto.randomUUID();
-
-  const inserted = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-    `INSERT INTO users (
-      id, email, password_hash, password_salt, role,
-      free_limit_usd, free_used_usd, paid_balance_usd,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`
-  )
-    .bind(
-      id,
-      email,
-      passwordDigest.hash,
-      passwordDigest.salt,
-      role,
-      getDefaultUserFreeLimit(c.env),
-      now,
-      now
-    )
-    .run();
-
-  if (!inserted.success) {
-    return apiError(c, 500, "REGISTER_FAILED", "Failed to create user.");
-  }
-
-  const user = await getUserById(c.env.NEXTCLAW_PLATFORM_DB, id);
-  if (!user) {
-    return apiError(c, 500, "REGISTER_FAILED", "User created but cannot be loaded.");
-  }
-
-  const token = await issueSessionToken(c.env, user);
-  return c.json({
-    ok: true,
-    data: {
-      token,
-      user: toUserPublicView(user)
-    }
-  }, 201);
-});
-
 app.post("/platform/auth/login", async (c) => {
   await ensurePlatformBootstrap(c.env);
 
   const body = await readJson(c);
   const email = normalizeEmail(readString(body, "email"));
   const password = readString(body, "password");
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const clientIp = readClientIp(c.req.header("cf-connecting-ip"), c.req.header("x-forwarded-for"));
+
+  if (clientIp) {
+    const failedCountByIp = await countRecentFailedLoginsByIp(
+      c.env.NEXTCLAW_PLATFORM_DB,
+      clientIp,
+      new Date(now.getTime() - IP_FAILED_ATTEMPT_WINDOW_MINUTES * 60_000).toISOString()
+    );
+    if (failedCountByIp >= MAX_FAILED_LOGIN_ATTEMPTS_PER_IP_WINDOW) {
+      return apiError(c, 429, "TOO_MANY_ATTEMPTS", "Too many failed login attempts from this IP. Please retry later.");
+    }
+  }
 
   if (!email || !password) {
     return apiError(c, 400, "INVALID_CREDENTIALS", "Email and password are required.");
   }
 
   const user = await getUserByEmail(c.env.NEXTCLAW_PLATFORM_DB, email);
-  if (!user) {
+  if (user) {
+    const security = await ensureUserSecurityRow(c.env.NEXTCLAW_PLATFORM_DB, user.id, nowIso);
+    const lockedUntil = parseIsoDate(security.login_locked_until);
+    if (lockedUntil && lockedUntil.getTime() > now.getTime()) {
+      await appendLoginAttempt(c.env.NEXTCLAW_PLATFORM_DB, {
+        email,
+        ip: clientIp,
+        success: false,
+        reason: "locked",
+        createdAt: nowIso
+      });
+      return apiError(c, 423, "ACCOUNT_LOCKED", `Account is temporarily locked until ${lockedUntil.toISOString()}.`);
+    }
+    if (lockedUntil && lockedUntil.getTime() <= now.getTime()) {
+      await resetUserLoginSecurity(c.env.NEXTCLAW_PLATFORM_DB, user.id, nowIso);
+    }
+  }
+
+  const valid = user
+    ? await verifyPassword(password, user.password_salt, user.password_hash)
+    : false;
+  if (!valid) {
+    await appendLoginAttempt(c.env.NEXTCLAW_PLATFORM_DB, {
+      email,
+      ip: clientIp,
+      success: false,
+      reason: "invalid_credentials",
+      createdAt: nowIso
+    });
+    if (user) {
+      const lockState = await registerUserLoginFailure(c.env.NEXTCLAW_PLATFORM_DB, user.id, nowIso);
+      if (lockState.lockedUntil) {
+        await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
+          actorUserId: user.id,
+          action: "auth.login.locked",
+          targetType: "user",
+          targetId: user.id,
+          beforeJson: null,
+          afterJson: JSON.stringify({ lockedUntil: lockState.lockedUntil }),
+          metadataJson: JSON.stringify({ email, ip: clientIp })
+        });
+        return apiError(c, 423, "ACCOUNT_LOCKED", `Account is temporarily locked until ${lockState.lockedUntil}.`);
+      }
+    }
     return apiError(c, 401, "INVALID_CREDENTIALS", "Invalid email or password.");
   }
 
-  const valid = await verifyPassword(password, user.password_salt, user.password_hash);
-  if (!valid) {
+  await appendLoginAttempt(c.env.NEXTCLAW_PLATFORM_DB, {
+    email,
+    ip: clientIp,
+    success: true,
+    reason: null,
+    createdAt: nowIso
+  });
+  if (!user) {
     return apiError(c, 401, "INVALID_CREDENTIALS", "Invalid email or password.");
   }
+  await resetUserLoginSecurity(c.env.NEXTCLAW_PLATFORM_DB, user.id, nowIso);
 
   const token = await issueSessionToken(c.env, user);
   return c.json({
@@ -355,21 +367,38 @@ app.get("/platform/billing/ledger", async (c) => {
   }
 
   const limit = parseBoundedInt(c.req.query("limit"), 20, 1, 200);
-  const rows = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-    `SELECT id, user_id, kind, amount_usd, free_amount_usd, paid_amount_usd,
-            model, prompt_tokens, completion_tokens, request_id, note, created_at
-       FROM usage_ledger
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?`
-  )
-    .bind(auth.user.id, limit)
-    .all<LedgerRow>();
+  const cursor = decodeCursorToken(c.req.query("cursor"));
+  const rows = cursor
+    ? await c.env.NEXTCLAW_PLATFORM_DB.prepare(
+      `SELECT id, user_id, kind, amount_usd, free_amount_usd, paid_amount_usd,
+              model, prompt_tokens, completion_tokens, request_id, note, created_at
+         FROM usage_ledger
+        WHERE user_id = ?
+          AND (created_at < ? OR (created_at = ? AND id < ?))
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?`
+    )
+      .bind(auth.user.id, cursor.createdAt, cursor.createdAt, cursor.id, limit + 1)
+      .all<LedgerRow>()
+    : await c.env.NEXTCLAW_PLATFORM_DB.prepare(
+      `SELECT id, user_id, kind, amount_usd, free_amount_usd, paid_amount_usd,
+              model, prompt_tokens, completion_tokens, request_id, note, created_at
+         FROM usage_ledger
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?`
+    )
+      .bind(auth.user.id, limit + 1)
+      .all<LedgerRow>();
+
+  const pagination = paginateRows(rows.results ?? [], limit);
 
   return c.json({
     ok: true,
     data: {
-      items: (rows.results ?? []).map(toLedgerView)
+      items: pagination.items.map(toLedgerView),
+      nextCursor: pagination.nextCursor,
+      hasMore: pagination.hasMore
     }
   });
 });
@@ -382,21 +411,38 @@ app.get("/platform/billing/recharge-intents", async (c) => {
   }
 
   const limit = parseBoundedInt(c.req.query("limit"), 20, 1, 100);
-  const rows = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-    `SELECT id, user_id, amount_usd, status, note, created_at, updated_at,
-            confirmed_at, confirmed_by_user_id, rejected_at, rejected_by_user_id
-       FROM recharge_intents
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?`
-  )
-    .bind(auth.user.id, limit)
-    .all<RechargeIntentRow>();
+  const cursor = decodeCursorToken(c.req.query("cursor"));
+  const rows = cursor
+    ? await c.env.NEXTCLAW_PLATFORM_DB.prepare(
+      `SELECT id, user_id, amount_usd, status, note, created_at, updated_at,
+              confirmed_at, confirmed_by_user_id, rejected_at, rejected_by_user_id
+         FROM recharge_intents
+        WHERE user_id = ?
+          AND (created_at < ? OR (created_at = ? AND id < ?))
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?`
+    )
+      .bind(auth.user.id, cursor.createdAt, cursor.createdAt, cursor.id, limit + 1)
+      .all<RechargeIntentRow>()
+    : await c.env.NEXTCLAW_PLATFORM_DB.prepare(
+      `SELECT id, user_id, amount_usd, status, note, created_at, updated_at,
+              confirmed_at, confirmed_by_user_id, rejected_at, rejected_by_user_id
+         FROM recharge_intents
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?`
+    )
+      .bind(auth.user.id, limit + 1)
+      .all<RechargeIntentRow>();
+
+  const pagination = paginateRows(rows.results ?? [], limit);
 
   return c.json({
     ok: true,
     data: {
-      items: (rows.results ?? []).map(toRechargeIntentView)
+      items: pagination.items.map(toRechargeIntentView),
+      nextCursor: pagination.nextCursor,
+      hasMore: pagination.hasMore
     }
   });
 });
@@ -478,31 +524,39 @@ app.get("/platform/admin/users", async (c) => {
 
   const limit = parseBoundedInt(c.req.query("limit"), 50, 1, 500);
   const query = optionalTrimmedString(c.req.query("q") ?? "");
+  const cursor = decodeCursorToken(c.req.query("cursor"));
 
-  const sql = query
-    ? `SELECT id, email, password_hash, password_salt, role,
-              free_limit_usd, free_used_usd, paid_balance_usd,
-              created_at, updated_at
-         FROM users
-        WHERE email LIKE ?
-        ORDER BY created_at DESC
-        LIMIT ?`
-    : `SELECT id, email, password_hash, password_salt, role,
-              free_limit_usd, free_used_usd, paid_balance_usd,
-              created_at, updated_at
-         FROM users
-        ORDER BY created_at DESC
-        LIMIT ?`;
+  const conditions: string[] = [];
+  const binds: unknown[] = [];
+  if (query) {
+    conditions.push("email LIKE ?");
+    binds.push(`%${query}%`);
+  }
+  if (cursor) {
+    conditions.push("(created_at < ? OR (created_at = ? AND id < ?))");
+    binds.push(cursor.createdAt, cursor.createdAt, cursor.id);
+  }
 
-  const statement = c.env.NEXTCLAW_PLATFORM_DB.prepare(sql);
-  const result = query
-    ? await statement.bind(`%${query}%`, limit).all<UserRow>()
-    : await statement.bind(limit).all<UserRow>();
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const sql = `SELECT id, email, password_hash, password_salt, role,
+                      free_limit_usd, free_used_usd, paid_balance_usd,
+                      created_at, updated_at
+                 FROM users
+                 ${whereClause}
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?`;
+
+  const result = await c.env.NEXTCLAW_PLATFORM_DB.prepare(sql)
+    .bind(...binds, limit + 1)
+    .all<UserRow>();
+  const pagination = paginateRows(result.results ?? [], limit);
 
   return c.json({
     ok: true,
     data: {
-      items: (result.results ?? []).map(toUserPublicView)
+      items: pagination.items.map(toUserPublicView),
+      nextCursor: pagination.nextCursor,
+      hasMore: pagination.hasMore
     }
   });
 });
@@ -515,6 +569,11 @@ app.patch("/platform/admin/users/:userId", async (c) => {
   }
 
   const userId = c.req.param("userId");
+  const userBefore = await getUserById(c.env.NEXTCLAW_PLATFORM_DB, userId);
+  if (!userBefore) {
+    return apiError(c, 404, "USER_NOT_FOUND", "User not found.");
+  }
+
   const body = await readJson(c);
   const freeLimitUsdRaw = readUnknown(body, "freeLimitUsd");
   const paidBalanceDeltaUsdRaw = readUnknown(body, "paidBalanceDeltaUsd");
@@ -554,7 +613,7 @@ app.patch("/platform/admin/users/:userId", async (c) => {
           model: null,
           promptTokens: 0,
           completionTokens: 0,
-          requestId: null,
+          requestId: `admin-adjust:${crypto.randomUUID()}`,
           note: `Admin recharge +${delta.toFixed(6)} USD`
         });
       }
@@ -579,23 +638,38 @@ app.patch("/platform/admin/users/:userId", async (c) => {
           model: null,
           promptTokens: 0,
           completionTokens: 0,
-          requestId: null,
+          requestId: `admin-adjust:${crypto.randomUUID()}`,
           note: `Admin deduction -${abs.toFixed(6)} USD`
         });
       }
     }
   }
 
-  const user = await getUserById(c.env.NEXTCLAW_PLATFORM_DB, userId);
-  if (!user) {
-    return apiError(c, 404, "USER_NOT_FOUND", "User not found.");
+  const userAfter = await getUserById(c.env.NEXTCLAW_PLATFORM_DB, userId);
+  if (!userAfter) {
+    return apiError(c, 500, "USER_NOT_FOUND_AFTER_UPDATE", "User cannot be loaded after update.");
+  }
+
+  if (changed) {
+    await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
+      actorUserId: admin.user.id,
+      action: "admin.user.quota.update",
+      targetType: "user",
+      targetId: userId,
+      beforeJson: JSON.stringify(toUserPublicView(userBefore)),
+      afterJson: JSON.stringify(toUserPublicView(userAfter)),
+      metadataJson: JSON.stringify({
+        freeLimitUsd: typeof freeLimitUsdRaw === "number" ? roundUsd(freeLimitUsdRaw) : null,
+        paidBalanceDeltaUsd: typeof paidBalanceDeltaUsdRaw === "number" ? roundUsd(paidBalanceDeltaUsdRaw) : null
+      })
+    });
   }
 
   return c.json({
     ok: true,
     data: {
       changed,
-      user: toUserPublicView(user)
+      user: toUserPublicView(userAfter)
     }
   });
 });
@@ -609,28 +683,35 @@ app.get("/platform/admin/recharge-intents", async (c) => {
 
   const status = optionalTrimmedString(c.req.query("status") ?? "");
   const limit = parseBoundedInt(c.req.query("limit"), 100, 1, 500);
+  const cursor = decodeCursorToken(c.req.query("cursor"));
 
-  const sql = status && (status === "pending" || status === "confirmed" || status === "rejected")
-    ? `SELECT id, user_id, amount_usd, status, note, created_at, updated_at,
-              confirmed_at, confirmed_by_user_id, rejected_at, rejected_by_user_id
-         FROM recharge_intents
-        WHERE status = ?
-        ORDER BY created_at DESC
-        LIMIT ?`
-    : `SELECT id, user_id, amount_usd, status, note, created_at, updated_at,
-              confirmed_at, confirmed_by_user_id, rejected_at, rejected_by_user_id
-         FROM recharge_intents
-        ORDER BY created_at DESC
-        LIMIT ?`;
+  const conditions: string[] = [];
+  const binds: unknown[] = [];
+  if (status && (status === "pending" || status === "confirmed" || status === "rejected")) {
+    conditions.push("status = ?");
+    binds.push(status);
+  }
+  if (cursor) {
+    conditions.push("(created_at < ? OR (created_at = ? AND id < ?))");
+    binds.push(cursor.createdAt, cursor.createdAt, cursor.id);
+  }
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const sql = `SELECT id, user_id, amount_usd, status, note, created_at, updated_at,
+                      confirmed_at, confirmed_by_user_id, rejected_at, rejected_by_user_id
+                 FROM recharge_intents
+                 ${whereClause}
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?`;
 
-  const rows = status && (status === "pending" || status === "confirmed" || status === "rejected")
-    ? await c.env.NEXTCLAW_PLATFORM_DB.prepare(sql).bind(status, limit).all<RechargeIntentRow>()
-    : await c.env.NEXTCLAW_PLATFORM_DB.prepare(sql).bind(limit).all<RechargeIntentRow>();
+  const rows = await c.env.NEXTCLAW_PLATFORM_DB.prepare(sql).bind(...binds, limit + 1).all<RechargeIntentRow>();
+  const pagination = paginateRows(rows.results ?? [], limit);
 
   return c.json({
     ok: true,
     data: {
-      items: (rows.results ?? []).map(toRechargeIntentView)
+      items: pagination.items.map(toRechargeIntentView),
+      nextCursor: pagination.nextCursor,
+      hasMore: pagination.hasMore
     }
   });
 });
@@ -687,18 +768,45 @@ app.post("/platform/admin/recharge-intents/:intentId/confirm", async (c) => {
     return apiError(c, 500, "RECHARGE_CONFIRM_FAILED", "Failed to update user balance.");
   }
 
-  await appendLedger(c.env.NEXTCLAW_PLATFORM_DB, {
-    id: crypto.randomUUID(),
-    userId: intent.user_id,
-    kind: "recharge",
-    amountUsd: roundUsd(intent.amount_usd),
-    freeAmountUsd: 0,
-    paidAmountUsd: roundUsd(intent.amount_usd),
-    model: null,
-    promptTokens: 0,
-    completionTokens: 0,
-    requestId: null,
-    note: `Recharge confirmed by ${admin.user.email}`
+  try {
+    await appendLedger(c.env.NEXTCLAW_PLATFORM_DB, {
+      id: crypto.randomUUID(),
+      userId: intent.user_id,
+      kind: "recharge",
+      amountUsd: roundUsd(intent.amount_usd),
+      freeAmountUsd: 0,
+      paidAmountUsd: roundUsd(intent.amount_usd),
+      model: null,
+      promptTokens: 0,
+      completionTokens: 0,
+      requestId: `recharge:${intentId}`,
+      note: `Recharge confirmed by ${admin.user.email}`
+    });
+  } catch {
+    await c.env.NEXTCLAW_PLATFORM_DB.batch([
+      c.env.NEXTCLAW_PLATFORM_DB.prepare(
+        "UPDATE users SET paid_balance_usd = MAX(0, paid_balance_usd - ?), updated_at = ? WHERE id = ?"
+      ).bind(intent.amount_usd, now, intent.user_id),
+      c.env.NEXTCLAW_PLATFORM_DB.prepare(
+        `UPDATE recharge_intents
+            SET status = 'pending',
+                confirmed_at = NULL,
+                confirmed_by_user_id = NULL,
+                updated_at = ?
+          WHERE id = ?`
+      ).bind(now, intentId)
+    ]);
+    return apiError(c, 500, "RECHARGE_CONFIRM_FAILED", "Failed to append ledger.");
+  }
+
+  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
+    actorUserId: admin.user.id,
+    action: "admin.recharge.confirm",
+    targetType: "recharge_intent",
+    targetId: intentId,
+    beforeJson: JSON.stringify({ status: "pending" }),
+    afterJson: JSON.stringify({ status: "confirmed", amountUsd: roundUsd(intent.amount_usd), userId: intent.user_id }),
+    metadataJson: JSON.stringify({ note: intent.note ?? null })
   });
 
   const user = await getUserById(c.env.NEXTCLAW_PLATFORM_DB, intent.user_id);
@@ -743,6 +851,16 @@ app.post("/platform/admin/recharge-intents/:intentId/reject", async (c) => {
     return apiError(c, 409, "RECHARGE_INTENT_STATE_CHANGED", "Recharge intent state changed, please retry.");
   }
 
+  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
+    actorUserId: admin.user.id,
+    action: "admin.recharge.reject",
+    targetType: "recharge_intent",
+    targetId: intentId,
+    beforeJson: JSON.stringify({ status: "pending" }),
+    afterJson: JSON.stringify({ status: "rejected", amountUsd: roundUsd(intent.amount_usd), userId: intent.user_id }),
+    metadataJson: JSON.stringify({ note: intent.note ?? null })
+  });
+
   return c.json({
     ok: true,
     data: {
@@ -766,9 +884,20 @@ app.patch("/platform/admin/settings", async (c) => {
     return apiError(c, 400, "INVALID_GLOBAL_FREE_LIMIT", "globalFreeLimitUsd must be a non-negative number.");
   }
 
+  const previousLimit = await readPlatformNumberSetting(c.env.NEXTCLAW_PLATFORM_DB, "global_free_limit_usd", getGlobalFreeLimit(c.env));
   await writePlatformNumberSetting(c.env.NEXTCLAW_PLATFORM_DB, "global_free_limit_usd", roundUsd(globalFreeLimitUsd));
 
   const currentUsed = await readPlatformNumberSetting(c.env.NEXTCLAW_PLATFORM_DB, "global_free_used_usd", 0);
+  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
+    actorUserId: admin.user.id,
+    action: "admin.settings.global_free_limit.update",
+    targetType: "platform_setting",
+    targetId: "global_free_limit_usd",
+    beforeJson: JSON.stringify({ value: roundUsd(previousLimit) }),
+    afterJson: JSON.stringify({ value: roundUsd(globalFreeLimitUsd) }),
+    metadataJson: null
+  });
+
   return c.json({
     ok: true,
     data: {
@@ -890,7 +1019,10 @@ app.post("/v1/chat/completions", async (c) => {
     body: JSON.stringify(upstreamPayload)
   });
 
-  const requestId = crypto.randomUUID();
+  const idempotencyKey = normalizeIdempotencyKey(c.req.header("x-idempotency-key"));
+  const requestId = idempotencyKey
+    ? `chat:${auth.user.id}:${idempotencyKey}`
+    : crypto.randomUUID();
 
   if (body.stream === true && upstreamResponse.body) {
     const [clientStream, billingStream] = upstreamResponse.body.tee();
@@ -1089,6 +1221,34 @@ async function chargeUsage(
   usage: UsageCounters,
   requestId: string
 ): Promise<ChargeResult> {
+  const existingLedger = await getLedgerByRequestId(env.NEXTCLAW_PLATFORM_DB, userId, requestId);
+  if (existingLedger) {
+    return {
+      ok: true,
+      split: {
+        totalCostUsd: roundUsd(Math.abs(existingLedger.amount_usd)),
+        freePartUsd: roundUsd(existingLedger.free_amount_usd),
+        paidPartUsd: roundUsd(existingLedger.paid_amount_usd)
+      },
+      snapshot: (await readBillingSnapshot(env.NEXTCLAW_PLATFORM_DB, userId)) ?? {
+        user: {
+          id: userId,
+          email: "",
+          password_hash: "",
+          password_salt: "",
+          role: "user",
+          free_limit_usd: 0,
+          free_used_usd: 0,
+          paid_balance_usd: 0,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString()
+        },
+        globalFreeLimitUsd: 0,
+        globalFreeUsedUsd: 0
+      }
+    };
+  }
+
   const totalCostUsd = roundUsd(calculateCost(modelSpec, usage) + getRequestFlatUsdPerRequest(env));
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -1174,19 +1334,43 @@ async function chargeUsage(
       }
     }
 
-    await appendLedger(env.NEXTCLAW_PLATFORM_DB, {
-      id: crypto.randomUUID(),
-      userId,
-      kind: resolveUsageLedgerKind(split),
-      amountUsd: -roundUsd(split.totalCostUsd),
-      freeAmountUsd: roundUsd(split.freePartUsd),
-      paidAmountUsd: roundUsd(split.paidPartUsd),
-      model: modelSpec.id,
-      promptTokens: usage.promptTokens,
-      completionTokens: usage.completionTokens,
-      requestId,
-      note: null
-    });
+    try {
+      await appendLedger(env.NEXTCLAW_PLATFORM_DB, {
+        id: crypto.randomUUID(),
+        userId,
+        kind: resolveUsageLedgerKind(split),
+        amountUsd: -roundUsd(split.totalCostUsd),
+        freeAmountUsd: roundUsd(split.freePartUsd),
+        paidAmountUsd: roundUsd(split.paidPartUsd),
+        model: modelSpec.id,
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+        requestId,
+        note: null
+      });
+    } catch {
+      await env.NEXTCLAW_PLATFORM_DB.prepare(
+        `UPDATE users
+            SET free_used_usd = MAX(0, free_used_usd - ?),
+                paid_balance_usd = paid_balance_usd + ?,
+                updated_at = ?
+          WHERE id = ?`
+      )
+        .bind(split.freePartUsd, split.paidPartUsd, now, userId)
+        .run();
+
+      if (split.freePartUsd > 0) {
+        await env.NEXTCLAW_PLATFORM_DB.prepare(
+          `UPDATE platform_settings
+              SET value = MAX(0, CAST(value AS REAL) - ?),
+                  updated_at = ?
+            WHERE key = 'global_free_used_usd'`
+        )
+          .bind(split.freePartUsd, now)
+          .run();
+      }
+      continue;
+    }
 
     return {
       ok: true,
@@ -1286,7 +1470,7 @@ async function appendLedger(
   }
 ): Promise<void> {
   const now = new Date().toISOString();
-  await db.prepare(
+  const result = await db.prepare(
     `INSERT INTO usage_ledger (
       id, user_id, kind, amount_usd, free_amount_usd, paid_amount_usd,
       model, prompt_tokens, completion_tokens, request_id, note, created_at
@@ -1304,6 +1488,55 @@ async function appendLedger(
       payload.completionTokens,
       payload.requestId,
       payload.note,
+      now
+    )
+    .run();
+  if (!result.success || (result.meta.changes ?? 0) !== 1) {
+    throw new Error("APPEND_LEDGER_FAILED");
+  }
+}
+
+async function getLedgerByRequestId(db: D1Database, userId: string, requestId: string): Promise<LedgerRow | null> {
+  const row = await db.prepare(
+    `SELECT id, user_id, kind, amount_usd, free_amount_usd, paid_amount_usd,
+            model, prompt_tokens, completion_tokens, request_id, note, created_at
+       FROM usage_ledger
+      WHERE user_id = ? AND request_id = ?
+      LIMIT 1`
+  )
+    .bind(userId, requestId)
+    .first<LedgerRow>();
+  return row ?? null;
+}
+
+async function appendAuditLog(
+  db: D1Database,
+  payload: {
+    actorUserId: string;
+    action: string;
+    targetType: string;
+    targetId: string | null;
+    beforeJson: string | null;
+    afterJson: string | null;
+    metadataJson: string | null;
+  }
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO audit_logs (
+      id, actor_user_id, action, target_type, target_id,
+      before_json, after_json, metadata_json, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      crypto.randomUUID(),
+      payload.actorUserId,
+      payload.action,
+      payload.targetType,
+      payload.targetId,
+      payload.beforeJson,
+      payload.afterJson,
+      payload.metadataJson,
       now
     )
     .run();
@@ -1335,6 +1568,78 @@ async function getUserByEmail(db: D1Database, email: string): Promise<UserRow | 
   return row ?? null;
 }
 
+async function ensureUserSecurityRow(db: D1Database, userId: string, nowIso: string): Promise<UserSecurityRow> {
+  await db.prepare(
+    `INSERT OR IGNORE INTO user_security (user_id, failed_login_attempts, login_locked_until, updated_at)
+     VALUES (?, 0, NULL, ?)`
+  )
+    .bind(userId, nowIso)
+    .run();
+
+  const row = await db.prepare(
+    `SELECT user_id, failed_login_attempts, login_locked_until, updated_at
+       FROM user_security
+      WHERE user_id = ?`
+  )
+    .bind(userId)
+    .first<UserSecurityRow>();
+
+  if (row) {
+    return row;
+  }
+
+  return {
+    user_id: userId,
+    failed_login_attempts: 0,
+    login_locked_until: null,
+    updated_at: nowIso
+  };
+}
+
+async function registerUserLoginFailure(
+  db: D1Database,
+  userId: string,
+  nowIso: string
+): Promise<{ lockedUntil: string | null }> {
+  const current = await ensureUserSecurityRow(db, userId, nowIso);
+  const nextFailed = normalizeNonNegativeInteger(current.failed_login_attempts) + 1;
+  if (nextFailed >= MAX_FAILED_LOGIN_ATTEMPTS_PER_USER) {
+    const lockedUntil = new Date(Date.now() + ACCOUNT_LOCK_MINUTES * 60_000).toISOString();
+    await db.prepare(
+      `UPDATE user_security
+          SET failed_login_attempts = 0,
+              login_locked_until = ?,
+              updated_at = ?
+        WHERE user_id = ?`
+    )
+      .bind(lockedUntil, nowIso, userId)
+      .run();
+    return { lockedUntil };
+  }
+
+  await db.prepare(
+    `UPDATE user_security
+        SET failed_login_attempts = ?,
+            updated_at = ?
+      WHERE user_id = ?`
+  )
+    .bind(nextFailed, nowIso, userId)
+    .run();
+  return { lockedUntil: null };
+}
+
+async function resetUserLoginSecurity(db: D1Database, userId: string, nowIso: string): Promise<void> {
+  await db.prepare(
+    `UPDATE user_security
+        SET failed_login_attempts = 0,
+            login_locked_until = NULL,
+            updated_at = ?
+      WHERE user_id = ?`
+  )
+    .bind(nowIso, userId)
+    .run();
+}
+
 async function countUsers(db: D1Database): Promise<number> {
   const row = await db.prepare("SELECT COUNT(1) AS count FROM users").first<{ count: number }>();
   return normalizeNonNegativeInteger(row?.count ?? 0);
@@ -1360,6 +1665,45 @@ async function getRechargeIntentById(db: D1Database, id: string): Promise<Rechar
     .bind(id)
     .first<RechargeIntentRow>();
   return row ?? null;
+}
+
+async function appendLoginAttempt(
+  db: D1Database,
+  payload: {
+    email: string;
+    ip: string | null;
+    success: boolean;
+    reason: string | null;
+    createdAt: string;
+  }
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO login_attempts (
+      id, email, ip, success, reason, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      crypto.randomUUID(),
+      payload.email,
+      payload.ip,
+      payload.success ? 1 : 0,
+      payload.reason,
+      payload.createdAt
+    )
+    .run();
+}
+
+async function countRecentFailedLoginsByIp(db: D1Database, ip: string, sinceIso: string): Promise<number> {
+  const row = await db.prepare(
+    `SELECT COUNT(1) AS count
+       FROM login_attempts
+      WHERE ip = ?
+        AND success = 0
+        AND created_at >= ?`
+  )
+    .bind(ip, sinceIso)
+    .first<{ count: number }>();
+  return normalizeNonNegativeInteger(row?.count ?? 0);
 }
 
 async function writePlatformNumberSetting(db: D1Database, key: string, value: number): Promise<void> {
@@ -1493,16 +1837,8 @@ function readNumber(payload: Record<string, unknown>, key: string): number {
   return typeof raw === "number" ? raw : Number.NaN;
 }
 
-function isStrongPassword(value: string): boolean {
-  return value.trim().length >= 8;
-}
-
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
-}
-
-function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function optionalTrimmedString(value: string): string | null {
@@ -1528,6 +1864,79 @@ function parseBoundedInt(raw: string | undefined, fallback: number, min: number,
   return Math.min(max, Math.max(min, parsed));
 }
 
+function readClientIp(cfConnectingIp: string | undefined, forwardedFor: string | undefined): string | null {
+  if (cfConnectingIp && cfConnectingIp.trim().length > 0) {
+    return cfConnectingIp.trim();
+  }
+  if (!forwardedFor) {
+    return null;
+  }
+  const first = forwardedFor.split(",")[0]?.trim();
+  return first && first.length > 0 ? first : null;
+}
+
+function parseIsoDate(value: string | null): Date | null {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function paginateRows<T extends { created_at: string; id: string }>(
+  rows: T[],
+  limit: number
+): { items: T[]; nextCursor: string | null; hasMore: boolean } {
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const last = items[items.length - 1];
+  return {
+    items,
+    nextCursor: hasMore && last
+      ? encodeCursorToken({ createdAt: last.created_at, id: last.id })
+      : null,
+    hasMore
+  };
+}
+
+function encodeCursorToken(payload: CursorPayload): string {
+  const raw = JSON.stringify(payload);
+  return encodeBase64Url(new TextEncoder().encode(raw));
+}
+
+function decodeCursorToken(raw: string | undefined): CursorPayload | null {
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+  try {
+    const decoded = new TextDecoder().decode(decodeBase64Url(raw.trim()));
+    const parsed = JSON.parse(decoded) as CursorPayload;
+    if (!parsed || typeof parsed.createdAt !== "string" || typeof parsed.id !== "string") {
+      return null;
+    }
+    if (parsed.createdAt.length === 0 || parsed.id.length === 0) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeIdempotencyKey(raw: string | undefined): string | null {
+  if (!raw) {
+    return null;
+  }
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (trimmed.length > 128) {
+    return null;
+  }
+  return trimmed.replace(/[^a-zA-Z0-9._:-]/g, "_");
+}
+
 async function issueSessionToken(env: Env, user: UserRow): Promise<string> {
   const secret = readAuthSecret(env);
   if (!secret) {
@@ -1547,6 +1956,9 @@ async function issueSessionToken(env: Env, user: UserRow): Promise<string> {
 function readAuthSecret(env: Env): string | null {
   const secret = env.AUTH_TOKEN_SECRET?.trim();
   if (!secret) {
+    return null;
+  }
+  if (secret.length < MIN_AUTH_SECRET_LENGTH) {
     return null;
   }
   return secret;
@@ -1636,15 +2048,6 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function hashPassword(password: string): Promise<{ salt: string; hash: string }> {
-  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
-  const derived = await derivePasswordHash(password, saltBytes);
-  return {
-    salt: encodeBase64Url(saltBytes),
-    hash: encodeBase64Url(derived)
-  };
-}
-
 async function verifyPassword(password: string, saltEncoded: string, expectedHashEncoded: string): Promise<boolean> {
   const salt = decodeBase64Url(saltEncoded);
   const derived = await derivePasswordHash(password, salt);
@@ -1673,24 +2076,12 @@ async function derivePasswordHash(password: string, salt: Uint8Array): Promise<U
   return new Uint8Array(bits);
 }
 
-function allowSelfSignup(env: Env): boolean {
-  const raw = env.ALLOW_SELF_SIGNUP?.trim().toLowerCase();
-  if (!raw) {
-    return true;
-  }
-  return raw === "1" || raw === "true" || raw === "yes";
-}
-
 function getDashscopeApiBase(env: Env): string {
   return normalizeNonEmptyString(env.DASHSCOPE_API_BASE) ?? DEFAULT_DASHSCOPE_API_BASE;
 }
 
 function getGlobalFreeLimit(env: Env): number {
   return parseNonNegativeNumber(env.GLOBAL_FREE_USD_LIMIT, DEFAULT_GLOBAL_FREE_USD_LIMIT);
-}
-
-function getDefaultUserFreeLimit(env: Env): number {
-  return parseNonNegativeNumber(env.DEFAULT_USER_FREE_USD_LIMIT, DEFAULT_USER_FREE_USD_LIMIT);
 }
 
 function getRequestFlatUsdPerRequest(env: Env): number {
@@ -1853,6 +2244,17 @@ function openaiLikeUnavailable(message: string): Response {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export class NextclawQuotaDurableObject {
+  constructor(
+    private readonly _state: DurableObjectState,
+    private readonly _env: Env
+  ) {}
+
+  async fetch(): Promise<Response> {
+    return new Response("not_implemented", { status: 501 });
+  }
 }
 
 export default app;

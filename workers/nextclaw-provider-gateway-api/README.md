@@ -32,16 +32,13 @@ pnpm -C workers/nextclaw-provider-gateway-api dev
 ## 3. 环境变量（`wrangler.toml`）
 
 - `DASHSCOPE_API_KEY`：上游模型 API Key（secret）
-- `AUTH_TOKEN_SECRET`：登录 token 签名密钥
+- `AUTH_TOKEN_SECRET`：登录 token 签名密钥（生产至少 32 字符随机字符串）
 - `GLOBAL_FREE_USD_LIMIT`：总免费额度池（USD）
-- `DEFAULT_USER_FREE_USD_LIMIT`：新用户默认免费额度（USD）
 - `REQUEST_FLAT_USD_PER_REQUEST`：每次请求固定费用（USD，可选）
-- `ALLOW_SELF_SIGNUP`：是否允许自助注册（`true/false`）
 
 ## 4. 主要接口
 
 ### 用户认证
-- `POST /platform/auth/register`
 - `POST /platform/auth/login`
 - `GET /platform/auth/me`
 
@@ -65,7 +62,10 @@ pnpm -C workers/nextclaw-provider-gateway-api dev
 - `GET /v1/usage`
 - `POST /v1/chat/completions`
 
-> 注意：`/v1/*` 的 `Authorization: Bearer <token>` 必须是登录 token，不再支持匿名体验 key。
+> 注意：
+> - `platform/auth` 不开放自助注册入口，账号需通过管理员/数据库预先创建。
+> - `/v1/*` 的 `Authorization: Bearer <token>` 必须是登录 token，不再支持匿名体验 key。
+> - 登录接口具备基础防暴力破解能力：IP 失败限流 + 账号失败锁定。
 
 ## 5. 质量检查
 
