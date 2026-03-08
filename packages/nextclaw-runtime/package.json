@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/runtime",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "NextClaw runtime assembly for builtin providers and channels.",
   "type": "module",
@@ -19,7 +19,7 @@
     "tsc": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@nextclaw/core": "^0.7.1"
+    "@nextclaw/core": "^0.7.3"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",

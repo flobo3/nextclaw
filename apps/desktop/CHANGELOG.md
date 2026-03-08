@@ -1,5 +1,16 @@
 # @nextclaw/desktop
 
+## 0.0.22
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/core@0.7.3
+  - @nextclaw/channel-runtime@0.1.30
+  - @nextclaw/openclaw-compat@0.2.1
+  - @nextclaw/server@0.6.6
+  - nextclaw@0.9.18
+
 ## 0.0.21
 
 ### Patch Changes

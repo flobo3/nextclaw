@@ -225,3 +225,9 @@
   - 反例：只写单语；或中英混排在同一条 bullet；或中文在前英文在后且与用户约定冲突。
   - 执行方式：发布前按模板生成 release notes；发布后立即校验线上正文结构（语言块顺序、分节完整性、changelog 链接）并回传链接。
   - 维护责任人：当前助手。
+- **new-subproject-eslint-baseline-required**：
+  - 约束/适用范围：当在本仓库新增子项目（`apps/*`、`packages/*`、`packages/extensions/*`、`workers/*`）且该子项目包含可 lint 的源码时，必须在创建阶段同步配置 ESLint，并至少启用 `max-lines` 与 `max-lines-per-function` 约束；禁止先落代码、后补 lint 基线。
+  - 示例：新建 `apps/foo-admin` 时，同步新增 `.eslintrc.cjs` 或 `eslint.config.mjs`，并写入 `max-lines`/`max-lines-per-function`，同时提供 `lint` 脚本。
+  - 反例：新增子项目后只有 `build/tsc`，没有 ESLint 配置；或配置了 ESLint 但遗漏 `max-lines` 与 `max-lines-per-function`。
+  - 执行方式：创建子项目时用清单检查 `package.json` 是否有 `lint`、是否存在 ESLint 配置文件、是否包含 `max-lines` 与 `max-lines-per-function` 规则，并在迭代日志记录检查结果。
+  - 维护责任人：当前助手。

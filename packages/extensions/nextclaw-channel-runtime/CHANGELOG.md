@@ -1,5 +1,13 @@
 # @nextclaw/channel-runtime
 
+## 0.1.30
+
+### Patch Changes
+
+- Release core/runtime/server/CLI linkage updates for telegram streaming and subagent behavior fixes.
+- Updated dependencies
+  - @nextclaw/core@0.7.3
+
 ## 0.1.29
 
 ### Patch Changes
