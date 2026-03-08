@@ -255,7 +255,10 @@ export class SubagentManager {
       attachments: [],
       metadata: {
         ...(params.origin.sessionKey ? { session_key_override: params.origin.sessionKey } : {}),
-        ...(params.origin.agentId ? { target_agent_id: params.origin.agentId } : {})
+        ...(params.origin.agentId ? { target_agent_id: params.origin.agentId } : {}),
+        system_event_kind: "subagent_completion",
+        subagent_label: params.label,
+        subagent_status: params.status
       }
     };
 

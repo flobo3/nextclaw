@@ -196,8 +196,11 @@ export class AgentLoop {
     message: InboundMessage;
     sessionKey?: string;
     publishResponse?: boolean;
+    onAssistantDelta?: AssistantDeltaHandler;
   }): Promise<OutboundMessage | null> {
-    const response = await this.processMessage(params.message, params.sessionKey);
+    const response = await this.processMessage(params.message, params.sessionKey, {
+      onAssistantDelta: params.onAssistantDelta
+    });
     const shouldPublish = params.publishResponse ?? true;
     if (response && shouldPublish) {
       await this.options.bus.publishOutbound(response);
@@ -450,6 +453,60 @@ export class AgentLoop {
     }
     const names = requestedSkillNames.join(", ");
     return `[Requested skills for this turn: ${names}]\n\n${content}`;
+  }
+
+  private formatSystemMessageForPrompt(msg: InboundMessage): string {
+    const sender = this.normalizeOptionalString(msg.senderId) ?? "system";
+    const content = msg.content.trim();
+    if (!content) {
+      return `[System Message from ${sender}]`;
+    }
+    return `[System Message from ${sender}]\n${content}`;
+  }
+
+  private normalizeSystemEventType(value: unknown): string | null {
+    if (typeof value !== "string") {
+      return null;
+    }
+    const normalized = value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_.-]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    if (!normalized) {
+      return null;
+    }
+    return normalized;
+  }
+
+  private recordSystemInboundEvent(params: {
+    session: Session;
+    message: InboundMessage;
+    sessionKey: string;
+    originChannel: string;
+    originChatId: string;
+    onSessionEvent?: SessionEventHandler;
+  }): void {
+    const kind =
+      this.normalizeSystemEventType(params.message.metadata.system_event_kind) ??
+      this.normalizeSystemEventType(params.message.senderId) ??
+      "message";
+
+    const event = this.sessions.appendEvent(params.session, {
+      type: `system.${kind}`,
+      timestamp: params.message.timestamp.toISOString(),
+      data: {
+        senderId: params.message.senderId,
+        content: params.message.content,
+        sourceChannel: params.message.channel,
+        sourceChatId: params.message.chatId,
+        originChannel: params.originChannel,
+        originChatId: params.originChatId,
+        sessionKey: params.sessionKey,
+        metadata: { ...params.message.metadata }
+      }
+    });
+    params.onSessionEvent?.(event);
   }
 
   private pruneMessagesForInputBudget(messages: Array<Record<string, unknown>>): void {
@@ -746,7 +803,7 @@ export class AgentLoop {
       accountId: accountId ?? null
     });
     const requestedSkillNames = this.resolveRequestedSkillNames(msg.metadata);
-    const currentMessage = this.prependRequestedSkills(msg.content, requestedSkillNames);
+    const currentMessage = this.prependRequestedSkills(this.formatSystemMessageForPrompt(msg), requestedSkillNames);
 
     const messages = this.context.buildMessages({
       history: this.sessions.getHistory(session),
@@ -757,10 +814,12 @@ export class AgentLoop {
       skillNames: requestedSkillNames,
       messageToolHints
     });
-    this.recordSessionMessage({
+    this.recordSystemInboundEvent({
       session,
-      role: "user",
-      content: `[System: ${msg.senderId}] ${msg.content}`,
+      message: msg,
+      sessionKey,
+      originChannel,
+      originChatId,
       onSessionEvent: options?.onSessionEvent
     });
 
