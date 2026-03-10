@@ -85,8 +85,13 @@ export class WorkspaceManager {
       if (!force && existsSync(dest)) {
         continue;
       }
-      cpSync(src, dest, { recursive: true, force: true });
-      seeded += 1;
+      try {
+        cpSync(src, dest, { recursive: true, force: true });
+        seeded += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Warning: Failed to seed builtin skill '${entry.name}': ${message}`);
+      }
     }
     return seeded;
   }

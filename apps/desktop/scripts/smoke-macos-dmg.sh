@@ -113,7 +113,6 @@ collect_candidate_ports() {
       ports+=("${env_port}")
     fi
   done
-  ports+=(18791)
 
   if command -v lsof >/dev/null 2>&1; then
     while IFS= read -r entry; do
@@ -181,11 +180,20 @@ find_running_app_pid() {
 
 find_runtime_script() {
   local candidates=(
+    "${INSTALLED_APP}/Contents/Resources/app.asar/node_modules/nextclaw/dist/cli/index.js"
     "${INSTALLED_APP}/Contents/Resources/app/node_modules/nextclaw/dist/cli/index.js"
     "${INSTALLED_APP}/Contents/Resources/node_modules/nextclaw/dist/cli/index.js"
   )
   local candidate
+  local asar_base
   for candidate in "${candidates[@]}"; do
+    if [[ "${candidate}" == *"/app.asar/"* ]]; then
+      asar_base="${candidate%%/node_modules/*}"
+      if [[ -f "${asar_base}" ]]; then
+        echo "${candidate}"
+        return 0
+      fi
+    fi
     if [[ -f "${candidate}" ]]; then
       echo "${candidate}"
       return 0

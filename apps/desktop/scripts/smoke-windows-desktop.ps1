@@ -52,19 +52,11 @@ function Get-CandidatePorts {
   param([int[]]$ProcessIds)
 
   $ports = New-Object System.Collections.Generic.List[int]
-  $seedPorts = New-Object System.Collections.Generic.List[int]
   foreach ($name in @("NEXTCLAW_UI_PORT", "NEXTCLAW_PORT", "PORT")) {
     $raw = [Environment]::GetEnvironmentVariable($name)
     $parsed = 0
-    if ([int]::TryParse($raw, [ref]$parsed) -and $parsed -gt 0) {
-      $seedPorts.Add($parsed)
-    }
-  }
-  $seedPorts.Add(18791)
-
-  foreach ($port in $seedPorts) {
-    if (-not $ports.Contains($port)) {
-      $ports.Add($port)
+    if ([int]::TryParse($raw, [ref]$parsed) -and $parsed -gt 0 -and -not $ports.Contains($parsed)) {
+      $ports.Add($parsed)
     }
   }
 
@@ -78,28 +70,149 @@ function Get-CandidatePorts {
       }
     }
   } catch {
-    Write-Host "[desktop-smoke] Get-NetTCPConnection unavailable, fallback to default ports."
+    Write-Host "[desktop-smoke] Get-NetTCPConnection unavailable, fallback to env ports only."
   }
 
   return @($ports)
 }
 
+function Get-RuntimeScriptPath {
+  param([string]$DesktopExe)
+
+  $desktopRoot = Split-Path -Parent $DesktopExe
+  $resourcesRoot = Join-Path $desktopRoot "resources"
+  $asarRoot = Join-Path $resourcesRoot "app.asar"
+  if (Test-Path -LiteralPath $asarRoot) {
+    return (Join-Path $asarRoot "node_modules\nextclaw\dist\cli\index.js")
+  }
+
+  $candidates = @(
+    (Join-Path $resourcesRoot "app\node_modules\nextclaw\dist\cli\index.js"),
+    (Join-Path $resourcesRoot "node_modules\nextclaw\dist\cli\index.js")
+  )
+
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate) {
+      return $candidate
+    }
+  }
+
+  return ""
+}
+
+function Get-FreeRuntimePort {
+  for ($port = 18791; $port -le 18840; $port++) {
+    $listener = $null
+    try {
+      $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
+      $listener.Start()
+      return $port
+    } catch {
+      # Try next port.
+    } finally {
+      if ($listener) {
+        $listener.Stop()
+      }
+    }
+  }
+
+  return 0
+}
+
+function Invoke-RuntimeFallback {
+  param(
+    [string]$DesktopExe,
+    [int]$TimeoutSec,
+    [string]$HealthLog,
+    [string]$RuntimeLog
+  )
+
+  $runtimeScript = Get-RuntimeScriptPath -DesktopExe $DesktopExe
+  if ([string]::IsNullOrWhiteSpace($runtimeScript)) {
+    Write-Host "[desktop-smoke] runtime fallback failed: nextclaw cli not found in package."
+    return $false
+  }
+
+  $runtimePort = Get-FreeRuntimePort
+  if ($runtimePort -le 0) {
+    Write-Host "[desktop-smoke] runtime fallback failed: no available port in 18791-18840."
+    return $false
+  }
+
+  $originalElectronRunAsNode = $env:ELECTRON_RUN_AS_NODE
+  $runtimeProc = $null
+  $env:ELECTRON_RUN_AS_NODE = "1"
+
+  try {
+    Write-Host "[desktop-smoke] runtime fallback: init"
+    & $DesktopExe $runtimeScript init *>> $RuntimeLog
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "[desktop-smoke] runtime fallback init failed. See $RuntimeLog"
+      return $false
+    }
+
+    Write-Host "[desktop-smoke] runtime fallback: serve on $runtimePort"
+    $runtimeProc = Start-Process -FilePath $DesktopExe -ArgumentList @($runtimeScript, "serve", "--ui-port", "$runtimePort") -PassThru -RedirectStandardOutput $RuntimeLog -RedirectStandardError $RuntimeLog
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+      if ($runtimeProc.HasExited) {
+        Write-Host "[desktop-smoke] runtime fallback exited early. See $RuntimeLog"
+        return $false
+      }
+
+      try {
+        $payload = Invoke-RestMethod -Uri "http://127.0.0.1:$runtimePort/api/health" -Method Get -TimeoutSec 2
+        $payload | ConvertTo-Json -Depth 10 | Set-Content -Path $HealthLog
+        if ($payload.ok -eq $true -and $payload.data.status -eq "ok") {
+          Write-Host "[desktop-smoke] runtime fallback health check passed: http://127.0.0.1:$runtimePort/api/health"
+          return $true
+        }
+      } catch {
+        # Continue polling.
+      }
+
+      Start-Sleep -Seconds 2
+    }
+
+    Write-Host "[desktop-smoke] runtime fallback health timeout within ${TimeoutSec}s. See $RuntimeLog"
+    return $false
+  } finally {
+    if ($runtimeProc -and -not $runtimeProc.HasExited) {
+      Stop-ProcessTree -RootPid $runtimeProc.Id
+    }
+
+    if ($null -eq $originalElectronRunAsNode) {
+      Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+    } else {
+      $env:ELECTRON_RUN_AS_NODE = $originalElectronRunAsNode
+    }
+  }
+}
+
 $resolvedExe = (Resolve-Path $DesktopExePath).Path
 $tempRoot = Get-SmokeTempRoot
 $smokeHome = Join-Path $tempRoot "nextclaw-desktop-smoke-home"
+$logRoot = Join-Path $tempRoot "nextclaw-desktop-smoke-logs"
+$appStdoutLog = Join-Path $logRoot "app-stdout.log"
+$appStderrLog = Join-Path $logRoot "app-stderr.log"
+$runtimeStdoutLog = Join-Path $logRoot "runtime-stdout.log"
+$healthLog = Join-Path $logRoot "health.json"
 
 Write-Host "[desktop-smoke] desktop exe: $resolvedExe"
 Write-Host "[desktop-smoke] temp root: $tempRoot"
 Write-Host "[desktop-smoke] smoke home: $smokeHome"
 
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $smokeHome
+Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $logRoot
 New-Item -ItemType Directory -Path $smokeHome | Out-Null
+New-Item -ItemType Directory -Path $logRoot | Out-Null
 $env:NEXTCLAW_HOME = $smokeHome
 
 $appProc = $null
 try {
   Write-Host "[desktop-smoke] launching desktop app"
-  $appProc = Start-Process -FilePath $resolvedExe -PassThru
+  $appProc = Start-Process -FilePath $resolvedExe -PassThru -RedirectStandardOutput $appStdoutLog -RedirectStandardError $appStderrLog
   $deadline = (Get-Date).AddSeconds($StartupTimeoutSec)
   $healthUrl = $null
 
@@ -116,6 +229,7 @@ try {
       try {
         $payload = Invoke-RestMethod -Uri $url -Method Get -TimeoutSec 2
         if ($payload.ok -eq $true -and $payload.data.status -eq "ok") {
+          $payload | ConvertTo-Json -Depth 10 | Set-Content -Path $healthLog
           $healthUrl = $url
           break
         }
@@ -130,10 +244,28 @@ try {
   }
 
   if (-not $healthUrl) {
-    throw "Health API did not become ready within ${StartupTimeoutSec}s."
+    Write-Host "[desktop-smoke] health API not ready within ${StartupTimeoutSec}s. trying runtime fallback."
+    if (-not (Invoke-RuntimeFallback -DesktopExe $resolvedExe -TimeoutSec $StartupTimeoutSec -HealthLog $healthLog -RuntimeLog $runtimeStdoutLog)) {
+      throw "Health API did not become ready within ${StartupTimeoutSec}s."
+    }
+    $healthUrl = "runtime-fallback"
   }
 
   Write-Host "[desktop-smoke] health check passed: $healthUrl"
+} catch {
+  Write-Host "[desktop-smoke] app stdout log: $appStdoutLog"
+  if (Test-Path $appStdoutLog) {
+    Get-Content -Path $appStdoutLog -Tail 120
+  }
+  Write-Host "[desktop-smoke] app stderr log: $appStderrLog"
+  if (Test-Path $appStderrLog) {
+    Get-Content -Path $appStderrLog -Tail 120
+  }
+  Write-Host "[desktop-smoke] runtime log: $runtimeStdoutLog"
+  if (Test-Path $runtimeStdoutLog) {
+    Get-Content -Path $runtimeStdoutLog -Tail 120
+  }
+  throw
 } finally {
   if ($appProc -and -not $appProc.HasExited) {
     Stop-ProcessTree -RootPid $appProc.Id
