@@ -50,6 +50,7 @@
     "release:publish": "pnpm release:sync-readmes && pnpm release:check-readmes && pnpm release:check && pnpm changeset publish && pnpm changeset tag",
     "release:frontend": "node scripts/release-frontend.mjs && pnpm release:version && pnpm release:publish",
     "release": "pnpm changeset && pnpm release:version && pnpm release:publish",
+    "docker:start": "bash scripts/docker-start.sh",
     "deploy:landing": "pnpm --filter @nextclaw/landing build && pnpm dlx wrangler pages deploy apps/landing/dist --project-name nextclaw-landing --branch master",
     "deploy:docs": "pnpm --filter @nextclaw/docs build && pnpm dlx wrangler pages deploy apps/docs/.vitepress/dist --project-name nextclaw-docs --branch master",
     "deploy:platform:console": "pnpm -C apps/platform-console build && pnpm dlx wrangler pages deploy apps/platform-console/dist --project-name nextclaw-platform-console --branch master --commit-dirty=true",

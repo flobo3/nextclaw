@@ -1,0 +1,15 @@
+services:
+  nextclaw:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ${NEXTCLAW_DOCKER_CONTAINER_NAME:-nextclaw}
+    environment:
+      NEXTCLAW_HOME: /data
+      NEXTCLAW_UI_PORT: ${NEXTCLAW_DOCKER_UI_PORT:-18791}
+    ports:
+      - "${NEXTCLAW_DOCKER_UI_PORT:-18791}:${NEXTCLAW_DOCKER_UI_PORT:-18791}"
+      - "${NEXTCLAW_DOCKER_API_PORT:-18790}:18790"
+    volumes:
+      - "${NEXTCLAW_DOCKER_DATA_DIR:-./.nextclaw-docker}:/data"
+    restart: unless-stopped

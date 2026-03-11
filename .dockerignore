@@ -1,0 +1,16 @@
+node_modules
+.git
+.github
+dist
+tmp
+workspace
+packages/*/node_modules
+packages/*/dist
+packages/extensions/*/node_modules
+packages/extensions/*/dist
+apps/*/node_modules
+apps/*/dist
+workers/*/node_modules
+workers/*/dist
+docs/logs
+.DS_Store

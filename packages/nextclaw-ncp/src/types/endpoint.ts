@@ -7,11 +7,9 @@ import type { NcpMessage } from "./message.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Envelope wrapping a message sent *to* an endpoint (caller → endpoint).
- *
- * When `correlationId` is set, the endpoint should echo it back on the
- * corresponding `NcpCompletedEnvelope` or `NcpFailedEnvelope` so the caller
- * can pair responses with requests without relying on message ordering.
+ * Envelope for a message.request event (one peer → the other).
+ * When `correlationId` is set, the responder should echo it on
+ * message.completed / message.failed so the initiator can correlate.
  */
 export type NcpRequestEnvelope = {
   sessionKey: string;
@@ -22,8 +20,8 @@ export type NcpRequestEnvelope = {
 };
 
 /**
- * Envelope wrapping a message received *from* an endpoint (endpoint → caller).
- * Mirrors `NcpRequestEnvelope` for symmetric bridging in bidirectional setups.
+ * Envelope for message.received (partial or full message from the other peer).
+ * Mirrors NcpRequestEnvelope shape for symmetric request/response.
  */
 export type NcpResponseEnvelope = {
   sessionKey: string;

@@ -3,6 +3,7 @@ import { createIcons, icons } from 'lucide';
 
 type Locale = 'en' | 'zh';
 type PageRoute = 'home' | 'download';
+type InstallMode = 'npm' | 'docker';
 
 type FeatureItem = {
   icon: string;
@@ -71,6 +72,9 @@ type LandingCopy = {
   downloadWindowsGuideSteps: string[];
   downloadOptions: DownloadOption[];
   copyTitle: string;
+  installOptionDesktop: string;
+  installOptionNpm: string;
+  installOptionDocker: string;
   docsButton: string;
   githubButton: string;
   screenshotChatAlt: string;
@@ -337,6 +341,9 @@ const COPY: Record<Locale, LandingCopy> = {
       }
     ],
     copyTitle: 'Copy commands',
+    installOptionDesktop: 'Desktop Download',
+    installOptionNpm: 'npm Install',
+    installOptionDocker: 'Docker Install',
     docsButton: 'Read the Docs',
     githubButton: 'View on GitHub',
     screenshotChatAlt: 'NextClaw Agent chat',
@@ -533,6 +540,9 @@ const COPY: Record<Locale, LandingCopy> = {
       }
     ],
     copyTitle: '复制命令',
+    installOptionDesktop: '桌面端下载',
+    installOptionNpm: 'npm 安装',
+    installOptionDocker: 'Docker 安装',
     docsButton: '查看文档',
     githubButton: '查看 GitHub',
     screenshotChatAlt: 'NextClaw Agent 对话',
@@ -677,6 +687,10 @@ function isLocale(value: string | null | undefined): value is Locale {
   return value === 'en' || value === 'zh';
 }
 
+function isInstallMode(value: string | null | undefined): value is InstallMode {
+  return value === 'npm' || value === 'docker';
+}
+
 function isPageRoute(value: string | null | undefined): value is PageRoute {
   return value === 'home' || value === 'download';
 }
@@ -735,6 +749,9 @@ class LandingPage {
   private readonly locale: Locale;
   private readonly route: PageRoute;
   private readonly copy: LandingCopy;
+  private activeInstallMode: InstallMode = 'npm';
+  private terminalAnimationTimer: number | null = null;
+  private terminalAnimationRunId = 0;
 
   constructor(root: HTMLDivElement, locale: Locale, route: PageRoute) {
     this.root = root;
@@ -754,10 +771,10 @@ class LandingPage {
       <div class="relative min-h-screen flex flex-col bg-gradient-radial overflow-hidden">
         <header class="fixed top-0 w-full z-50 glass border-b transition-all duration-300">
           <div class="container mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2 group cursor-pointer">
+            <a id="home-link" href="${homeRoute}" class="flex items-center gap-2 group cursor-pointer">
               <img src="/logo-phoenix.svg" alt="NextClaw" class="w-8 h-8 transition-transform group-hover:scale-105" />
               <span class="font-semibold text-lg tracking-tight">NextClaw</span>
-            </div>
+            </a>
             <nav class="hidden md:flex gap-8 text-sm font-medium">
               <a href="${downloadRoute}" class="text-muted-foreground hover:text-foreground transition-colors">${this.copy.navDownload}</a>
               <a href="${featuresLink}" class="text-muted-foreground hover:text-foreground transition-colors">${this.copy.navFeatures}</a>
@@ -826,7 +843,7 @@ class LandingPage {
                   .map(
                     (option) => `
                       <article data-download-card="${option.key}" class="rounded-2xl border border-border/70 bg-background/70 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-                        <div class="flex items-start justify-between gap-4">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div class="flex items-start gap-3">
                             <div class="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                               <i data-lucide="${option.icon}" class="w-5 h-5"></i>
@@ -841,7 +858,7 @@ class LandingPage {
                             href="#"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                            class="inline-flex h-11 min-w-[128px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
                           >
                             ${option.buttonLabel}
                           </a>
@@ -914,19 +931,39 @@ class LandingPage {
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row flex-wrap justify-center gap-4 mb-6 animate-slide-up opacity-0" style="animation-delay: 0.5s">
-            <a href="${downloadRoute}" class="inline-flex items-center justify-center gap-2 h-14 w-64 rounded-full font-semibold bg-foreground text-background hover:bg-foreground/90 transition-all hover:scale-105 shadow-xl focus:ring-2 focus:ring-foreground focus:outline-none text-lg">
-              <i data-lucide="download" class="w-5 h-5"></i>
-              ${this.copy.heroDownloadButton}
-            </a>
-            <a href="${docsLink}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 h-14 w-64 rounded-full font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 shadow-xl shadow-primary/25 focus:ring-2 focus:ring-primary focus:outline-none text-lg">
-              <i data-lucide="book-open" class="w-5 h-5"></i>
-              ${this.copy.docsButton}
-            </a>
-            <a href="${LINKS.github}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 h-14 w-64 rounded-full font-medium bg-background text-foreground border border-border hover:bg-secondary transition-all hover:scale-105 shadow-sm focus:ring-2 focus:ring-foreground focus:outline-none text-lg">
-              <i data-lucide="github" class="w-5 h-5"></i>
-              ${this.copy.githubButton}
-            </a>
+          <div class="flex flex-col items-center gap-4 mb-6 animate-slide-up opacity-0" style="animation-delay: 0.5s">
+            <div class="inline-flex flex-wrap justify-center rounded-full border border-border bg-background/80 p-1 shadow-sm">
+              <a href="${downloadRoute}" class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full font-semibold bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm sm:text-base">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                ${this.copy.installOptionDesktop}
+              </a>
+              <button
+                type="button"
+                data-install-mode="npm"
+                class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full font-semibold transition-colors text-sm sm:text-base bg-primary text-primary-foreground"
+              >
+                <i data-lucide="package" class="w-4 h-4"></i>
+                ${this.copy.installOptionNpm}
+              </button>
+              <button
+                type="button"
+                data-install-mode="docker"
+                class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full font-semibold transition-colors text-sm sm:text-base text-muted-foreground hover:text-foreground"
+              >
+                <i data-lucide="box" class="w-4 h-4"></i>
+                ${this.copy.installOptionDocker}
+              </button>
+            </div>
+            <div class="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
+              <a href="${docsLink}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-full font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 shadow-md shadow-primary/25 focus:ring-2 focus:ring-primary focus:outline-none text-base">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+                ${this.copy.docsButton}
+              </a>
+              <a href="${LINKS.github}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-full font-medium bg-background text-foreground border border-border hover:bg-secondary transition-all hover:scale-105 shadow-sm focus:ring-2 focus:ring-foreground focus:outline-none text-base">
+                <i data-lucide="github" class="w-5 h-5"></i>
+                ${this.copy.githubButton}
+              </a>
+            </div>
           </div>
           <div class="flex flex-row flex-wrap justify-center gap-4 mb-20 animate-slide-up opacity-0" style="animation-delay: 0.55s">
             <button id="community-qr-btn" type="button" class="inline-flex items-center justify-center gap-2 h-12 w-48 rounded-full font-medium bg-[#07C160] text-white hover:bg-[#06AD56] transition-all hover:scale-105 shadow-sm focus:ring-2 focus:ring-[#07C160] focus:outline-none text-base cursor-pointer">
@@ -1160,6 +1197,8 @@ class LandingPage {
     `;
 
     this.bindLocaleSelect();
+    this.bindHomeLinkAction();
+    this.bindInstallModeActions();
     this.bindCopyAction();
     this.bindMobileMenu();
     this.bindCommunityQrModal();
@@ -1290,6 +1329,23 @@ class LandingPage {
     });
   }
 
+  private bindHomeLinkAction(): void {
+    const homeLink = document.querySelector<HTMLAnchorElement>('#home-link');
+    if (!homeLink) {
+      return;
+    }
+    homeLink.addEventListener('click', (event) => {
+      if (this.route !== 'home') {
+        return;
+      }
+      event.preventDefault();
+      if (window.location.hash) {
+        window.history.replaceState(null, '', ROUTES[this.locale].home);
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    });
+  }
+
   private bindCopyAction(): void {
     const copyBtn = document.querySelector<HTMLButtonElement>('#copy-btn');
     if (!copyBtn) {
@@ -1297,7 +1353,7 @@ class LandingPage {
     }
     copyBtn.addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText('npm install -g nextclaw && nextclaw start');
+        await navigator.clipboard.writeText(this.getInstallCommand());
         const original = copyBtn.innerHTML;
         copyBtn.innerHTML = `<span class="text-xs">${this.copy.copiedText}</span>`;
         setTimeout(() => {
@@ -1310,52 +1366,113 @@ class LandingPage {
     });
   }
 
-  private runTerminalAnimation(): void {
-    const terminalContent = document.querySelector<HTMLElement>('#terminal-content');
-    const installCmd = document.querySelector<HTMLElement>('#install-cmd');
-    if (!terminalContent || !installCmd) {
+  private bindInstallModeActions(): void {
+    const installButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-install-mode]'));
+    if (!installButtons.length) {
       return;
     }
 
-    const startupSequence: Array<{ text: string; icon?: string; color?: string; isCommand?: boolean }> = [
-      { text: 'nextclaw start', isCommand: true },
+    this.updateInstallModeButtonStates(installButtons);
+
+    for (const button of installButtons) {
+      button.addEventListener('click', () => {
+        const mode = button.dataset.installMode;
+        if (!isInstallMode(mode) || mode === this.activeInstallMode) {
+          return;
+        }
+        this.activeInstallMode = mode;
+        this.updateInstallModeButtonStates(installButtons);
+        this.runTerminalAnimation();
+      });
+    }
+  }
+
+  private updateInstallModeButtonStates(buttons: HTMLButtonElement[]): void {
+    for (const button of buttons) {
+      const mode = button.dataset.installMode;
+      const isActive = isInstallMode(mode) && mode === this.activeInstallMode;
+      button.classList.toggle('bg-primary', isActive);
+      button.classList.toggle('text-primary-foreground', isActive);
+      button.classList.toggle('hover:bg-primary/90', isActive);
+      button.classList.toggle('text-muted-foreground', !isActive);
+      button.classList.toggle('hover:text-foreground', !isActive);
+    }
+  }
+
+  private getInstallCommand(mode: InstallMode = this.activeInstallMode): string {
+    if (mode === 'docker') {
+      return 'curl -fsSL https://nextclaw.io/install-docker.sh | bash';
+    }
+    return 'npm install -g nextclaw && nextclaw start';
+  }
+
+  private runTerminalAnimation(): void {
+    const terminalContent = document.querySelector<HTMLElement>('#terminal-content');
+    if (!terminalContent) {
+      return;
+    }
+
+    if (this.terminalAnimationTimer !== null) {
+      window.clearTimeout(this.terminalAnimationTimer);
+      this.terminalAnimationTimer = null;
+    }
+
+    this.terminalAnimationRunId += 1;
+    const runId = this.terminalAnimationRunId;
+    const installCommand = this.getInstallCommand();
+
+    terminalContent.innerHTML = `
+      <div class="flex items-center text-[#d4c8be]">
+        <span class="text-[#8eb079] mr-2">~</span>
+        <span class="text-[#e29e57] mr-2 font-bold">$</span>
+        <span id="install-cmd"></span>
+      </div>
+    `;
+    const installCmd = terminalContent.querySelector<HTMLElement>('#install-cmd');
+    if (!installCmd) {
+      return;
+    }
+
+    const startupSequence: Array<{ text: string; icon?: string; color?: string }> = [
       { text: this.copy.terminalStarted, icon: '✓', color: '#8eb079' },
       { text: 'UI:  http://127.0.0.1:18791', icon: '→', color: '#7eb6d4' },
       { text: 'API: http://127.0.0.1:18791/api', icon: '→', color: '#7eb6d4' }
     ];
 
+    const isStale = (): boolean => runId !== this.terminalAnimationRunId;
+    const sleep = (ms: number): Promise<void> =>
+      new Promise((resolve) => {
+        window.setTimeout(resolve, ms);
+      });
+
     const typeText = async (element: HTMLElement, text: string, speed = 36): Promise<void> => {
       for (let index = 0; index < text.length; index += 1) {
+        if (isStale()) {
+          return;
+        }
         element.textContent += text[index];
-        await new Promise((resolve) => setTimeout(resolve, speed));
+        await sleep(speed);
       }
     };
 
-    const addLine = async (content: { text: string; icon?: string; color?: string; isCommand?: boolean }): Promise<void> => {
-      const line = document.createElement('div');
-      line.className = 'flex items-center mt-3';
-
-      if (content.isCommand) {
-        line.innerHTML = `
-          <span class="text-[#8eb079] mr-2">~</span>
-          <span class="text-[#e29e57] mr-2 font-bold">$</span>
-          <span class="text-[#d4c8be]"></span>
-        `;
-        terminalContent.appendChild(line);
-        const textSpan = line.querySelector('span:last-child') as HTMLElement;
-        await typeText(textSpan, content.text, 34);
+    const addLine = async (content: { text: string; icon?: string; color?: string }): Promise<void> => {
+      if (isStale()) {
         return;
       }
-
+      const line = document.createElement('div');
+      line.className = 'flex items-center mt-3';
       line.innerHTML = `
         <span class="mr-2 font-bold" style="color: ${content.color}">${content.icon}</span>
         <span style="color: ${content.color}">${content.text}</span>
       `;
       terminalContent.appendChild(line);
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await sleep(120);
     };
 
     const addCursor = (): void => {
+      if (isStale()) {
+        return;
+      }
       const cursorLine = document.createElement('div');
       cursorLine.className = 'flex items-center mt-3';
       cursorLine.innerHTML = `
@@ -1367,16 +1484,23 @@ class LandingPage {
     };
 
     const run = async (): Promise<void> => {
-      await typeText(installCmd, 'npm install -g nextclaw', 34);
-      await new Promise((resolve) => setTimeout(resolve, 550));
+      await typeText(installCmd, installCommand, 34);
+      await sleep(550);
+      if (isStale()) {
+        return;
+      }
       for (const item of startupSequence) {
         await addLine(item);
-        await new Promise((resolve) => setTimeout(resolve, 180));
+        await sleep(180);
+        if (isStale()) {
+          return;
+        }
       }
       addCursor();
     };
 
-    setTimeout(() => {
+    this.terminalAnimationTimer = window.setTimeout(() => {
+      this.terminalAnimationTimer = null;
       void run();
     }, 360);
   }

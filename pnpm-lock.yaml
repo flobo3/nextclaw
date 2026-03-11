@@ -619,10 +619,6 @@ importers:
         version: 2.1.9(@types/node@20.19.33)
 
   packages/nextclaw-ncp:
-    dependencies:
-      '@nextclaw/core':
-        specifier: workspace:*
-        version: link:../nextclaw-core
     devDependencies:
       '@types/node':
         specifier: ^20.17.6

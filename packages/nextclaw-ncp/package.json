@@ -19,9 +19,6 @@
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json"
   },
-  "dependencies": {
-    "@nextclaw/core": "workspace:*"
-  },
   "devDependencies": {
     "@types/node": "^20.17.6",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
