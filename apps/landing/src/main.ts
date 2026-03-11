@@ -29,13 +29,46 @@ type ComparisonRow = {
   values: string[]; // [NextClaw, OpenClaw, NanoBot, ...]
 };
 
+type DownloadAssetKey = 'macArm64Dmg' | 'windowsX64Zip';
+
+type DownloadOption = {
+  key: DownloadAssetKey;
+  icon: string;
+  title: string;
+  description: string;
+  buttonLabel: string;
+};
+
+type DesktopReleaseInfo = {
+  tag: string;
+  version: string;
+  url: string;
+  assets: Record<DownloadAssetKey, string>;
+};
+
 type LandingCopy = {
+  navDownload: string;
   navFeatures: string;
   navDocs: string;
   navCommunity: string;
   heroTitleLine1: string;
   heroTitleLine2: string;
   heroDescription: string;
+  heroDownloadButton: string;
+  downloadTitle: string;
+  downloadSubtitle: string;
+  downloadVersionLabel: string;
+  downloadDetectedLabel: string;
+  downloadUnknownPlatform: string;
+  downloadReleaseLabel: string;
+  downloadReleaseLinkText: string;
+  downloadUnsignedNotice: string;
+  downloadOpenGuideTitle: string;
+  downloadMacGuideTitle: string;
+  downloadWindowsGuideTitle: string;
+  downloadMacGuideSteps: string[];
+  downloadWindowsGuideSteps: string[];
+  downloadOptions: DownloadOption[];
   copyTitle: string;
   docsButton: string;
   githubButton: string;
@@ -114,8 +147,121 @@ const LINKS: Record<'github' | 'npm' | 'discord' | 'wechatGroupImage', string> &
   }
 };
 
+const DESKTOP_RELEASE_FALLBACK: DesktopReleaseInfo = {
+  tag: 'v0.9.21-desktop.8',
+  version: '0.0.26',
+  url: 'https://github.com/Peiiii/nextclaw/releases/tag/v0.9.21-desktop.8',
+  assets: {
+    macArm64Dmg:
+      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.8/NextClaw.Desktop-0.0.26-arm64.dmg',
+    windowsX64Zip:
+      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.8/NextClaw.Desktop-win32-x64-unpacked.zip'
+  }
+};
+
+const GITHUB_RELEASES_API = 'https://api.github.com/repos/Peiiii/nextclaw/releases?per_page=20';
+
+const DESKTOP_ASSET_PATTERNS: Record<DownloadAssetKey, RegExp> = {
+  macArm64Dmg: /NextClaw\.Desktop-(\d+\.\d+\.\d+)-arm64\.dmg$/,
+  windowsX64Zip: /NextClaw\.Desktop-win32-x64-unpacked\.zip$/
+};
+
+function inferDesktopVersionFromAssetName(assetName: string): string | null {
+  const match = assetName.match(DESKTOP_ASSET_PATTERNS.macArm64Dmg);
+  return match?.[1] ?? null;
+}
+
+function resolveDesktopReleaseInfo(input: unknown): DesktopReleaseInfo | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+
+  const release = input as {
+    draft?: boolean;
+    prerelease?: boolean;
+    tag_name?: string;
+    html_url?: string;
+    assets?: Array<{ name?: string; browser_download_url?: string }>;
+  };
+
+  if (release.draft || release.prerelease) {
+    return null;
+  }
+
+  if (typeof release.tag_name !== 'string' || !/^v\d+\.\d+\.\d+-desktop\.\d+$/.test(release.tag_name)) {
+    return null;
+  }
+
+  const assets = Array.isArray(release.assets) ? release.assets : [];
+  const macAsset = assets.find((item) => typeof item.name === 'string' && DESKTOP_ASSET_PATTERNS.macArm64Dmg.test(item.name));
+  const windowsAsset = assets.find(
+    (item) => typeof item.name === 'string' && DESKTOP_ASSET_PATTERNS.windowsX64Zip.test(item.name)
+  );
+
+  if (!macAsset?.browser_download_url || !windowsAsset?.browser_download_url || !macAsset.name) {
+    return null;
+  }
+
+  const version = inferDesktopVersionFromAssetName(macAsset.name) ?? DESKTOP_RELEASE_FALLBACK.version;
+
+  return {
+    tag: release.tag_name,
+    version,
+    url: release.html_url ?? `https://github.com/Peiiii/nextclaw/releases/tag/${release.tag_name}`,
+    assets: {
+      macArm64Dmg: macAsset.browser_download_url,
+      windowsX64Zip: windowsAsset.browser_download_url
+    }
+  };
+}
+
+async function fetchLatestStableDesktopRelease(): Promise<DesktopReleaseInfo | null> {
+  try {
+    const response = await fetch(GITHUB_RELEASES_API, {
+      headers: {
+        Accept: 'application/vnd.github+json'
+      }
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const releases: unknown = await response.json();
+    if (!Array.isArray(releases)) {
+      return null;
+    }
+
+    for (const candidate of releases) {
+      const resolved = resolveDesktopReleaseInfo(candidate);
+      if (resolved) {
+        return resolved;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to fetch desktop release metadata', error);
+  }
+
+  return null;
+}
+
+function detectRecommendedDesktopAsset(): DownloadAssetKey | 'unknown' {
+  const userAgent = navigator.userAgent.toLowerCase();
+
+  if (userAgent.includes('windows')) {
+    return 'windowsX64Zip';
+  }
+
+  if (userAgent.includes('mac')) {
+    return 'macArm64Dmg';
+  }
+
+  return 'unknown';
+}
+
 const COPY: Record<Locale, LandingCopy> = {
   en: {
+    navDownload: 'Download',
     navFeatures: 'Features',
     navDocs: 'Docs',
     navCommunity: 'Community',
@@ -123,6 +269,46 @@ const COPY: Record<Locale, LandingCopy> = {
     heroTitleLine2: '',
     heroDescription:
       'Your omnipotent personal assistant, residing above the digital realm. NextClaw orchestrates the entire internet and raw compute, bending every bit and byte to manifest your intent into reality. Runs entirely on your machine.',
+    heroDownloadButton: 'Download Desktop',
+    downloadTitle: 'Download NextClaw Desktop',
+    downloadSubtitle: 'Official installer assets from the latest stable desktop release.',
+    downloadVersionLabel: 'Current desktop version',
+    downloadDetectedLabel: 'Detected device',
+    downloadUnknownPlatform: 'Unknown platform',
+    downloadReleaseLabel: 'Release tag',
+    downloadReleaseLinkText: 'View all release assets',
+    downloadUnsignedNotice:
+      'Unsigned build notice: first launch may show system warnings. For macOS, click Done first, then go to Privacy & Security and click Open Anyway.',
+    downloadOpenGuideTitle: 'Beginner open guide',
+    downloadMacGuideTitle: 'macOS first launch',
+    downloadWindowsGuideTitle: 'Windows first launch',
+    downloadMacGuideSteps: [
+      'Open the .dmg and drag NextClaw Desktop.app into Applications.',
+      'Double-click the app once. If blocked, click Done.',
+      'Go to System Settings -> Privacy & Security, then click Open Anyway.',
+      'If still blocked as damaged, run: xattr -cr "/Applications/NextClaw Desktop.app".'
+    ],
+    downloadWindowsGuideSteps: [
+      'Unzip the downloaded package.',
+      'Run NextClaw Desktop.exe.',
+      'If SmartScreen appears, click More info -> Run anyway.'
+    ],
+    downloadOptions: [
+      {
+        key: 'macArm64Dmg',
+        icon: 'apple',
+        title: 'macOS (Apple Silicon)',
+        description: 'DMG package for M-series Macs.',
+        buttonLabel: 'Download DMG'
+      },
+      {
+        key: 'windowsX64Zip',
+        icon: 'monitor',
+        title: 'Windows (x64)',
+        description: 'Unpacked zip containing NextClaw Desktop.exe.',
+        buttonLabel: 'Download ZIP'
+      }
+    ],
     copyTitle: 'Copy commands',
     docsButton: 'Read the Docs',
     githubButton: 'View on GitHub',
@@ -265,12 +451,53 @@ const COPY: Record<Locale, LandingCopy> = {
     ]
   },
   zh: {
+    navDownload: '下载',
     navFeatures: '功能',
     navDocs: '文档',
     navCommunity: '社群',
     heroTitleLine1: 'NextClaw',
     heroTitleLine2: '',
     heroDescription: '你的数字世界全能管家。NextClaw 替你俯瞰并调度整个互联网与海量算力，让每一寸比特与字节都听从你的意图运转。权柄归你，完全本地运行。',
+    heroDownloadButton: '下载桌面版',
+    downloadTitle: '下载 NextClaw Desktop',
+    downloadSubtitle: '官网直连最新稳定版 Desktop 产物（macOS + Windows）。',
+    downloadVersionLabel: '当前桌面端版本',
+    downloadDetectedLabel: '检测到的设备',
+    downloadUnknownPlatform: '未知平台',
+    downloadReleaseLabel: '发布标签',
+    downloadReleaseLinkText: '查看完整发布资产',
+    downloadUnsignedNotice:
+      '未签名版本提示：首次打开可能触发系统拦截。macOS 请先点“完成”，再到“隐私与安全性”底部点击“仍要打开”。',
+    downloadOpenGuideTitle: '小白打开教程',
+    downloadMacGuideTitle: 'macOS 首次打开',
+    downloadWindowsGuideTitle: 'Windows 首次打开',
+    downloadMacGuideSteps: [
+      '打开 .dmg，把 NextClaw Desktop.app 拖到“应用程序”。',
+      '先双击一次应用；若系统拦截，先点“完成”。',
+      '进入“系统设置 -> 隐私与安全性”，在页面底部点“仍要打开”。',
+      '若仍提示已损坏，执行：xattr -cr "/Applications/NextClaw Desktop.app"。'
+    ],
+    downloadWindowsGuideSteps: [
+      '先解压下载的 zip 包。',
+      '双击运行 NextClaw Desktop.exe。',
+      '若出现 SmartScreen，点“更多信息” -> “仍要运行”。'
+    ],
+    downloadOptions: [
+      {
+        key: 'macArm64Dmg',
+        icon: 'apple',
+        title: 'macOS（Apple Silicon）',
+        description: '适用于 M 系列芯片 Mac 的 DMG 包。',
+        buttonLabel: '下载 DMG'
+      },
+      {
+        key: 'windowsX64Zip',
+        icon: 'monitor',
+        title: 'Windows（x64）',
+        description: '解压后可直接运行 NextClaw Desktop.exe。',
+        buttonLabel: '下载 ZIP'
+      }
+    ],
     copyTitle: '复制命令',
     docsButton: '查看文档',
     githubButton: '查看 GitHub',
@@ -475,6 +702,7 @@ class LandingPage {
               <span class="font-semibold text-lg tracking-tight">NextClaw</span>
             </div>
             <nav class="hidden md:flex gap-8 text-sm font-medium">
+              <a href="#download" class="text-muted-foreground hover:text-foreground transition-colors">${this.copy.navDownload}</a>
               <a href="#features" class="text-muted-foreground hover:text-foreground transition-colors">${this.copy.navFeatures}</a>
               <a href="#community" class="text-muted-foreground hover:text-foreground transition-colors">${this.copy.navCommunity}</a>
               <a href="${docsLink}" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground transition-colors">${this.copy.navDocs}</a>
@@ -502,6 +730,7 @@ class LandingPage {
           <!-- Mobile menu -->
           <div id="mobile-menu" class="hidden md:hidden border-t border-border/40 bg-background/95 backdrop-blur-sm">
             <nav class="container mx-auto px-6 py-4 flex flex-col gap-4 text-sm font-medium">
+              <a href="#download" class="text-muted-foreground hover:text-foreground transition-colors py-2">${this.copy.navDownload}</a>
               <a href="#features" class="text-muted-foreground hover:text-foreground transition-colors py-2">${this.copy.navFeatures}</a>
               <a href="#community" class="text-muted-foreground hover:text-foreground transition-colors py-2">${this.copy.navCommunity}</a>
               <a href="${docsLink}" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground transition-colors py-2">${this.copy.navDocs}</a>
@@ -517,6 +746,88 @@ class LandingPage {
           <p class="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto mb-10 animate-slide-up opacity-0" style="animation-delay: 0.3s">
             ${this.copy.heroDescription}
           </p>
+
+          <section id="download" class="w-full max-w-5xl mx-auto mb-10 text-left animate-slide-up opacity-0" style="animation-delay: 0.35s">
+            <div class="glass-card rounded-3xl p-6 md:p-8 border border-primary/20 shadow-2xl">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                  <h2 class="text-2xl md:text-3xl font-bold tracking-tight">${this.copy.downloadTitle}</h2>
+                  <p class="text-muted-foreground mt-2">${this.copy.downloadSubtitle}</p>
+                </div>
+                <div class="text-sm text-muted-foreground space-y-1 md:text-right">
+                  <div>${this.copy.downloadVersionLabel}: <span id="desktop-version" class="font-semibold text-foreground">${DESKTOP_RELEASE_FALLBACK.version}</span></div>
+                  <div>${this.copy.downloadDetectedLabel}: <span id="desktop-detected-platform" class="font-semibold text-foreground">${this.copy.downloadUnknownPlatform}</span></div>
+                  <div>${this.copy.downloadReleaseLabel}: <a id="desktop-release-link" href="${DESKTOP_RELEASE_FALLBACK.url}" target="_blank" rel="noopener noreferrer" class="font-semibold text-primary hover:underline">${DESKTOP_RELEASE_FALLBACK.tag}</a></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${this.copy.downloadOptions
+                  .map(
+                    (option) => `
+                      <article data-download-card="${option.key}" class="rounded-2xl border border-border/70 bg-background/70 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+                        <div class="flex items-start justify-between gap-4">
+                          <div class="flex items-start gap-3">
+                            <div class="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                              <i data-lucide="${option.icon}" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                              <h3 class="font-semibold text-lg">${option.title}</h3>
+                              <p class="text-sm text-muted-foreground mt-1">${option.description}</p>
+                            </div>
+                          </div>
+                          <a
+                            data-download-link="${option.key}"
+                            href="#"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                          >
+                            ${option.buttonLabel}
+                          </a>
+                        </div>
+                      </article>
+                    `
+                  )
+                  .join('')}
+              </div>
+
+              <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-900">
+                ${this.copy.downloadUnsignedNotice}
+              </div>
+
+              <div class="mt-5">
+                <a
+                  id="desktop-release-link-secondary"
+                  href="${DESKTOP_RELEASE_FALLBACK.url}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                >
+                  <i data-lucide="external-link" class="w-4 h-4"></i>
+                  ${this.copy.downloadReleaseLinkText}
+                </a>
+              </div>
+
+              <div class="mt-6">
+                <h3 class="text-base font-semibold mb-3">${this.copy.downloadOpenGuideTitle}</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="rounded-2xl border border-border/60 bg-background/60 p-4">
+                    <h4 class="font-medium mb-2">${this.copy.downloadMacGuideTitle}</h4>
+                    <ol class="space-y-2 text-sm text-muted-foreground list-decimal pl-5">
+                      ${this.copy.downloadMacGuideSteps.map((step) => `<li>${step}</li>`).join('')}
+                    </ol>
+                  </div>
+                  <div class="rounded-2xl border border-border/60 bg-background/60 p-4">
+                    <h4 class="font-medium mb-2">${this.copy.downloadWindowsGuideTitle}</h4>
+                    <ol class="space-y-2 text-sm text-muted-foreground list-decimal pl-5">
+                      ${this.copy.downloadWindowsGuideSteps.map((step) => `<li>${step}</li>`).join('')}
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <div class="w-full max-w-2xl mx-auto mb-10 text-left animate-slide-up opacity-0" style="animation-delay: 0.4s">
             <div class="rounded-2xl overflow-hidden bg-[#332c28] shadow-2xl border border-white/5">
@@ -542,11 +853,15 @@ class LandingPage {
           </div>
 
           <div class="flex flex-col sm:flex-row flex-wrap justify-center gap-4 mb-6 animate-slide-up opacity-0" style="animation-delay: 0.5s">
+            <a href="#download" class="inline-flex items-center justify-center gap-2 h-14 w-64 rounded-full font-semibold bg-foreground text-background hover:bg-foreground/90 transition-all hover:scale-105 shadow-xl focus:ring-2 focus:ring-foreground focus:outline-none text-lg">
+              <i data-lucide="download" class="w-5 h-5"></i>
+              ${this.copy.heroDownloadButton}
+            </a>
             <a href="${docsLink}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 h-14 w-64 rounded-full font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 shadow-xl shadow-primary/25 focus:ring-2 focus:ring-primary focus:outline-none text-lg">
               <i data-lucide="book-open" class="w-5 h-5"></i>
               ${this.copy.docsButton}
             </a>
-            <a href="${LINKS.github}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 h-14 w-64 rounded-full font-medium bg-foreground text-background hover:bg-foreground/90 transition-all hover:scale-105 shadow-sm focus:ring-2 focus:ring-foreground focus:outline-none text-lg">
+            <a href="${LINKS.github}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 h-14 w-64 rounded-full font-medium bg-background text-foreground border border-border hover:bg-secondary transition-all hover:scale-105 shadow-sm focus:ring-2 focus:ring-foreground focus:outline-none text-lg">
               <i data-lucide="github" class="w-5 h-5"></i>
               ${this.copy.githubButton}
             </a>
@@ -783,8 +1098,68 @@ class LandingPage {
     this.bindCopyAction();
     this.bindMobileMenu();
     this.bindCommunityQrModal();
+    this.bindDesktopDownloads();
     this.runTerminalAnimation();
     createIcons({ icons, nameAttr: 'data-lucide' });
+  }
+
+  private bindDesktopDownloads(): void {
+    const versionNode = document.querySelector<HTMLElement>('#desktop-version');
+    const detectedNode = document.querySelector<HTMLElement>('#desktop-detected-platform');
+    const releasePrimary = document.querySelector<HTMLAnchorElement>('#desktop-release-link');
+    const releaseSecondary = document.querySelector<HTMLAnchorElement>('#desktop-release-link-secondary');
+
+    const linkNodes: Record<DownloadAssetKey, HTMLAnchorElement | null> = {
+      macArm64Dmg: document.querySelector<HTMLAnchorElement>('[data-download-link="macArm64Dmg"]'),
+      windowsX64Zip: document.querySelector<HTMLAnchorElement>('[data-download-link="windowsX64Zip"]')
+    };
+
+    const cardNodes: Record<DownloadAssetKey, HTMLElement | null> = {
+      macArm64Dmg: document.querySelector<HTMLElement>('[data-download-card="macArm64Dmg"]'),
+      windowsX64Zip: document.querySelector<HTMLElement>('[data-download-card="windowsX64Zip"]')
+    };
+
+    const applyReleaseInfo = (release: DesktopReleaseInfo): void => {
+      if (versionNode) {
+        versionNode.textContent = release.version;
+      }
+      if (releasePrimary) {
+        releasePrimary.textContent = release.tag;
+        releasePrimary.href = release.url;
+      }
+      if (releaseSecondary) {
+        releaseSecondary.href = release.url;
+      }
+      linkNodes.macArm64Dmg?.setAttribute('href', release.assets.macArm64Dmg);
+      linkNodes.windowsX64Zip?.setAttribute('href', release.assets.windowsX64Zip);
+    };
+
+    const recommended = detectRecommendedDesktopAsset();
+    if (detectedNode) {
+      if (recommended === 'unknown') {
+        detectedNode.textContent = this.copy.downloadUnknownPlatform;
+      } else {
+        const match = this.copy.downloadOptions.find((option) => option.key === recommended);
+        detectedNode.textContent = match?.title ?? this.copy.downloadUnknownPlatform;
+      }
+    }
+
+    if (recommended !== 'unknown') {
+      const recommendedCard = cardNodes[recommended];
+      if (recommendedCard) {
+        recommendedCard.classList.add('ring-2', 'ring-primary/60', 'shadow-xl', 'shadow-primary/10');
+      }
+    }
+
+    applyReleaseInfo(DESKTOP_RELEASE_FALLBACK);
+
+    void (async () => {
+      const latestRelease = await fetchLatestStableDesktopRelease();
+      if (!latestRelease) {
+        return;
+      }
+      applyReleaseInfo(latestRelease);
+    })();
   }
 
   private bindMobileMenu(): void {
