@@ -19,7 +19,7 @@ Electron desktop shell for NextClaw.
   - `PATH=/opt/homebrew/bin:$PATH pnpm -C apps/desktop build`
   - then retry `PATH=/opt/homebrew/bin:$PATH pnpm dev:desktop`
 
-## Signed Release (Official)
+## Release Modes
 
 ### 1) Validate before release
 
@@ -40,11 +40,15 @@ Expected startup logs include:
 - `UI API: http://0.0.0.0:<port>/api`
 - `UI frontend: http://0.0.0.0:<port>`
 
-### 2) Build signed/notarized desktop artifacts
+### 2) Build desktop artifacts
 
-macOS (dmg + zip, no publish, requires signing + notarization credentials):
+macOS unsigned (current default in CI):
 
-- `PATH=/opt/homebrew/bin:$PATH pnpm -C apps/desktop dist -- --mac dmg zip --publish never`
+- `PATH=/opt/homebrew/bin:$PATH CSC_IDENTITY_AUTO_DISCOVERY=false pnpm -C apps/desktop dist -- --mac dmg zip --publish never`
+
+macOS signed/notarized (optional):
+
+- same command as above, but provide signing/notarization credentials in environment.
 
 Windows (unpacked EXE directory, no publish):
 
@@ -58,8 +62,8 @@ All artifacts are under `apps/desktop/release`:
 - `NextClaw Desktop-<version>-arm64-mac.zip`
 - `win-unpacked/NextClaw Desktop.exe`
 
-### 4) Credential requirements for official macOS distribution
+### 4) Optional macOS signing credentials
 
 - `CSC_LINK`, `CSC_KEY_PASSWORD` for Developer ID Application certificate.
 - `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `APPLE_API_KEY` for notarization.
-- Release workflow will fail fast if these variables are missing.
+- If missing, release can still proceed in unsigned mode.
