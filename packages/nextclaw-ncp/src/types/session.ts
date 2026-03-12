@@ -11,7 +11,7 @@ export type NcpSessionBinding = {
   /** The endpoint that owns this session. */
   endpointId: string;
   /** NCP-internal session identifier — stable across reconnects. */
-  sessionKey: string;
+  sessionId: string;
   /**
    * The session identifier used by the endpoint itself (e.g. an OpenAI thread id,
    * a Slack channel + thread_ts pair, or a vendor-specific conversation id).
@@ -27,7 +27,7 @@ export type NcpSessionBinding = {
  * Not a full history — use `NcpSessionContract.appendMessage` for the message log.
  */
 export type NcpSessionState = {
-  sessionKey: string;
+  sessionId: string;
   endpointId: string;
   /** Present once a binding has been established. */
   endpointSessionId?: string;
@@ -48,11 +48,11 @@ export interface NcpSessionContract {
    * Looks up the binding for a given session key.
    * Returns `null` if no binding exists yet.
    */
-  resolveBinding(sessionKey: string): Promise<NcpSessionBinding | null>;
+  resolveBinding(sessionId: string): Promise<NcpSessionBinding | null>;
 
   /**
    * Creates or updates the binding for a session key.
-   * Implementations should treat this as an upsert (idempotent on `sessionKey`).
+   * Implementations should treat this as an upsert (idempotent on `sessionId`).
    */
   upsertBinding(binding: NcpSessionBinding): Promise<void>;
 

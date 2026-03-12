@@ -1,7 +1,7 @@
 import type {
+  NcpAgentConversationSnapshot,
   NcpAgentConversationStateManager,
   NcpCompletedEnvelope,
-  NcpConversationSnapshot,
   NcpEndpointEvent,
   NcpError,
   NcpFailedEnvelope,
@@ -13,9 +13,11 @@ import type {
   NcpMessageStatus,
   NcpRequestEnvelope,
   NcpResponseEnvelope,
+  NcpRunContext,
   NcpRunErrorPayload,
   NcpRunFinishedPayload,
   NcpRunMetadataPayload,
+  NcpRunReadyMetadata,
   NcpRunStartedPayload,
   NcpReasoningDeltaPayload,
   NcpReasoningEndPayload,
@@ -46,7 +48,7 @@ const buildRuntimeError = (payload: NcpRunErrorPayload): NcpError => {
     code: "runtime-error",
     message: message && message.length > 0 ? message : "Agent run failed.",
     details: {
-      sessionKey: payload.sessionKey,
+      sessionId: payload.sessionId,
       messageId: payload.messageId,
       threadId: payload.threadId,
       runId: payload.runId,
@@ -60,21 +62,23 @@ export class DefaultNcpAgentConversationStateManager
   private messages: NcpMessage[] = [];
   private streamingMessage: NcpMessage | null = null;
   private error: NcpError | null = null;
-  private readonly listeners = new Set<(snapshot: NcpConversationSnapshot) => void>();
+  private activeRun: NcpRunContext | null = null;
+  private readonly listeners = new Set<(snapshot: NcpAgentConversationSnapshot) => void>();
 
   private readonly toolCallMessageIdByCallId = new Map<string, string>();
   private readonly toolCallArgsRawByCallId = new Map<string, string>();
   private stateVersion = 0;
 
-  getSnapshot(): NcpConversationSnapshot {
+  getSnapshot(): NcpAgentConversationSnapshot {
     return {
       messages: this.messages.map((message) => cloneMessage(message)),
       streamingMessage: this.streamingMessage ? cloneMessage(this.streamingMessage) : null,
       error: this.error ? { ...this.error, details: this.error.details ? { ...this.error.details } : undefined } : null,
+      activeRun: this.activeRun ? { ...this.activeRun } : null,
     };
   }
 
-  subscribe(listener: (snapshot: NcpConversationSnapshot) => void) {
+  subscribe(listener: (snapshot: NcpAgentConversationSnapshot) => void) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -167,7 +171,7 @@ export class DefaultNcpAgentConversationStateManager
     }
 
     if (this.stateVersion !== versionBeforeDispatch) {
-      const snapshot = this.getSnapshot();
+      const snapshot: NcpAgentConversationSnapshot = this.getSnapshot();
       for (const listener of this.listeners) {
         listener(snapshot);
       }
@@ -272,7 +276,7 @@ export class DefaultNcpAgentConversationStateManager
   }
 
   handleMessageTextStart(payload: NcpTextStartPayload): void {
-    this.ensureStreamingMessage(payload.sessionKey, payload.messageId, "streaming");
+    this.ensureStreamingMessage(payload.sessionId, payload.messageId, "streaming");
     this.setError(null);
   }
 
@@ -281,7 +285,7 @@ export class DefaultNcpAgentConversationStateManager
       return;
     }
 
-    const targetMessage = this.ensureStreamingMessage(payload.sessionKey, payload.messageId, "streaming");
+    const targetMessage = this.ensureStreamingMessage(payload.sessionId, payload.messageId, "streaming");
     const nextParts = [...targetMessage.parts];
     const lastPart = nextParts[nextParts.length - 1];
     if (lastPart?.type === "text") {
@@ -314,7 +318,7 @@ export class DefaultNcpAgentConversationStateManager
   }
 
   handleMessageReasoningStart(payload: NcpReasoningStartPayload): void {
-    this.ensureStreamingMessage(payload.sessionKey, payload.messageId, "streaming");
+    this.ensureStreamingMessage(payload.sessionId, payload.messageId, "streaming");
   }
 
   handleMessageReasoningDelta(payload: NcpReasoningDeltaPayload): void {
@@ -322,7 +326,7 @@ export class DefaultNcpAgentConversationStateManager
       return;
     }
 
-    const targetMessage = this.ensureStreamingMessage(payload.sessionKey, payload.messageId, "streaming");
+    const targetMessage = this.ensureStreamingMessage(payload.sessionId, payload.messageId, "streaming");
     const nextParts = [...targetMessage.parts];
     const reasoningPartIndex = this.findLastReasoningPartIndex(nextParts);
 
@@ -354,7 +358,7 @@ export class DefaultNcpAgentConversationStateManager
 
   handleMessageToolCallStart(payload: NcpToolCallStartPayload): void {
     const targetMessage = this.resolveToolCallTargetMessage(
-      payload.sessionKey,
+      payload.sessionId,
       payload.toolCallId,
       payload.messageId,
     );
@@ -378,18 +382,18 @@ export class DefaultNcpAgentConversationStateManager
 
   handleMessageToolCallArgs(payload: NcpToolCallArgsPayload): void {
     this.toolCallArgsRawByCallId.set(payload.toolCallId, payload.args);
-    this.applyToolCallArgs(payload.sessionKey, payload.toolCallId, payload.args);
+    this.applyToolCallArgs(payload.sessionId, payload.toolCallId, payload.args);
   }
 
   handleMessageToolCallArgsDelta(payload: NcpToolCallArgsDeltaPayload): void {
     const currentArgs = this.toolCallArgsRawByCallId.get(payload.toolCallId) ?? "";
     const nextArgs = `${currentArgs}${payload.delta}`;
     this.toolCallArgsRawByCallId.set(payload.toolCallId, nextArgs);
-    this.applyToolCallArgs(payload.sessionKey, payload.toolCallId, nextArgs, payload.messageId);
+    this.applyToolCallArgs(payload.sessionId, payload.toolCallId, nextArgs, payload.messageId);
   }
 
   handleMessageToolCallEnd(payload: NcpToolCallEndPayload): void {
-    const targetMessage = this.resolveToolCallTargetMessage(payload.sessionKey, payload.toolCallId);
+    const targetMessage = this.resolveToolCallTargetMessage(payload.sessionId, payload.toolCallId);
     const args = this.toolCallArgsRawByCallId.get(payload.toolCallId) ?? "";
     const nextParts = this.upsertToolInvocationPart(targetMessage.parts, {
       type: "tool-invocation",
@@ -420,7 +424,7 @@ export class DefaultNcpAgentConversationStateManager
     });
 
     if (!updated) {
-      const fallbackMessage = this.resolveToolCallTargetMessage(payload.sessionKey, payload.toolCallId);
+      const fallbackMessage = this.resolveToolCallTargetMessage(payload.sessionId, payload.toolCallId);
       const nextParts = this.upsertToolInvocationPart(fallbackMessage.parts, {
         type: "tool-invocation",
         toolCallId: payload.toolCallId,
@@ -436,20 +440,41 @@ export class DefaultNcpAgentConversationStateManager
     }
   }
 
-  handleRunStarted(_payload: NcpRunStartedPayload): void {
+  handleRunStarted(payload: NcpRunStartedPayload): void {
     this.setError(null);
+    this.activeRun = {
+      runId: payload.runId ?? null,
+      sessionId: payload.sessionId,
+    };
+    this.stateVersion += 1;
   }
 
   handleRunFinished(_payload: NcpRunFinishedPayload): void {
-    // Run finished does not imply message completion in protocol-level state.
+    this.activeRun = null;
+    this.stateVersion += 1;
   }
 
   handleRunError(payload: NcpRunErrorPayload): void {
     this.setError(buildRuntimeError(payload));
+    this.activeRun = null;
+    this.stateVersion += 1;
   }
 
-  handleRunMetadata(_payload: NcpRunMetadataPayload): void {
-    // Metadata is intentionally ignored in conversation snapshot.
+  handleRunMetadata(payload: NcpRunMetadataPayload): void {
+    const m = payload.metadata as Record<string, unknown>;
+    if (m?.kind === "ready") {
+      const ready = m as NcpRunReadyMetadata;
+      this.activeRun = {
+        runId: ready.runId ?? this.activeRun?.runId ?? null,
+        sessionId: ready.sessionId ?? this.activeRun?.sessionId,
+        abortDisabledReason:
+          ready.supportsAbort === false ? (ready.abortDisabledReason ?? "Unsupported") : null,
+      };
+      this.stateVersion += 1;
+    } else if (m?.kind === "final") {
+      this.activeRun = null;
+      this.stateVersion += 1;
+    }
   }
 
   handleEndpointError(payload: NcpError): void {
@@ -457,12 +482,12 @@ export class DefaultNcpAgentConversationStateManager
   }
 
   private applyToolCallArgs(
-    sessionKey: string,
+    sessionId: string,
     toolCallId: string,
     args: string,
     messageId?: string,
   ): void {
-    const targetMessage = this.resolveToolCallTargetMessage(sessionKey, toolCallId, messageId);
+    const targetMessage = this.resolveToolCallTargetMessage(sessionId, toolCallId, messageId);
     const toolName = this.findToolNameByCallId(targetMessage.parts, toolCallId) ?? "unknown";
     const nextParts = this.upsertToolInvocationPart(targetMessage.parts, {
       type: "tool-invocation",
@@ -480,7 +505,7 @@ export class DefaultNcpAgentConversationStateManager
   }
 
   private ensureStreamingMessage(
-    sessionKey: string,
+    sessionId: string,
     messageId: string,
     status: NcpMessageStatus,
   ): NcpMessage {
@@ -498,7 +523,7 @@ export class DefaultNcpAgentConversationStateManager
 
     const nextStreamingMessage: NcpMessage = {
       id: messageId,
-      sessionKey,
+      sessionId,
       role: DEFAULT_ASSISTANT_ROLE,
       status,
       parts: [],
@@ -509,7 +534,7 @@ export class DefaultNcpAgentConversationStateManager
   }
 
   private resolveToolCallTargetMessage(
-    sessionKey: string,
+    sessionId: string,
     toolCallId: string,
     messageId?: string,
   ): NcpMessage {
@@ -520,7 +545,7 @@ export class DefaultNcpAgentConversationStateManager
       `tool-${toolCallId}`;
 
     this.toolCallMessageIdByCallId.set(toolCallId, preferredMessageId);
-    return this.ensureStreamingMessage(sessionKey, preferredMessageId, "streaming");
+    return this.ensureStreamingMessage(sessionId, preferredMessageId, "streaming");
   }
 
   private updateMessageContainingToolCall(

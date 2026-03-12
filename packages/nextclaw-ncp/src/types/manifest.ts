@@ -40,7 +40,7 @@ export type NcpEndpointManifest = {
   supportsAbort: boolean;
   /** Whether this endpoint can push messages without a prior user request. */
   supportsProactiveMessages: boolean;
-  /** Whether a disconnected session can be resumed by the same `sessionKey`. */
+  /** Whether a disconnected session can be resumed by the same `sessionId`. */
   supportsSessionResume: boolean;
   /**
    * The subset of `NcpMessagePart` types this endpoint can send or receive.

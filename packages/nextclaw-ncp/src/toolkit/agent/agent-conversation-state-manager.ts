@@ -23,7 +23,10 @@ import type {
   NcpTextStartPayload,
 } from "../../types/events.js";
 import type { NcpError } from "../../types/errors.js";
-import type { NcpConversationStateManager } from "../conversation-state.js";
+import type {
+  NcpAgentConversationSnapshot,
+  NcpConversationStateManager,
+} from "../conversation-state.js";
 
 /**
  * Agent-scenario state manager: extends the generic conversation state manager
@@ -33,6 +36,7 @@ import type { NcpConversationStateManager } from "../conversation-state.js";
  * and use these handlers to update messages, streamingMessage, and error.
  */
 export interface NcpAgentConversationStateManager extends NcpConversationStateManager {
+  getSnapshot(): NcpAgentConversationSnapshot;
   handleMessageRequest(payload: NcpRequestEnvelope): void;
   /** Local peer sent a message (outbound); typically non-streaming. Add to messages. */
   handleMessageSent(payload: NcpMessageSentPayload): void;

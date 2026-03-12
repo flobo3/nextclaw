@@ -177,7 +177,7 @@ export type NcpMessage = {
   /** Globally unique message identifier. */
   id: string;
   /** The session this message belongs to. */
-  sessionKey: string;
+  sessionId: string;
   role: NcpMessageRole;
   status: NcpMessageStatus;
   parts: NcpMessagePart[];

@@ -7,7 +7,7 @@ const now = "2026-03-12T00:00:00.000Z";
 const createMessage = (overrides: Partial<NcpMessage> = {}): NcpMessage => {
   return {
     id: "msg-1",
-    sessionKey: "session-1",
+    sessionId: "session-1",
     role: "assistant",
     status: "final",
     parts: [],
@@ -23,14 +23,14 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.text-start",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-1",
       },
     });
     manager.dispatch({
       type: "message.text-delta",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-1",
         delta: "hello ",
       },
@@ -38,7 +38,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.text-delta",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-1",
         delta: "world",
       },
@@ -46,7 +46,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.text-end",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-1",
       },
     });
@@ -58,7 +58,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.completed",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         message: createMessage({
           id: "assistant-1",
           status: "final",
@@ -81,14 +81,14 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.reasoning-start",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-2",
       },
     });
     manager.dispatch({
       type: "message.reasoning-delta",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-2",
         delta: "thinking ",
       },
@@ -96,7 +96,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.reasoning-delta",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-2",
         delta: "hard",
       },
@@ -105,7 +105,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.tool-call-start",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-2",
         toolCallId: "tool-1",
         toolName: "search",
@@ -114,7 +114,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.tool-call-args-delta",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-2",
         toolCallId: "tool-1",
         delta: "{\"q\":\"hel",
@@ -123,7 +123,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.tool-call-args-delta",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-2",
         toolCallId: "tool-1",
         delta: "lo\"}",
@@ -132,14 +132,14 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     manager.dispatch({
       type: "message.tool-call-end",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         toolCallId: "tool-1",
       },
     });
     manager.dispatch({
       type: "message.tool-call-result",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         toolCallId: "tool-1",
         content: { ok: true },
       },
@@ -168,14 +168,14 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     manager.dispatch({
       type: "message.text-start",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-3",
       },
     });
     manager.dispatch({
       type: "message.text-delta",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-3",
         delta: "partial",
       },
@@ -183,7 +183,7 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     manager.dispatch({
       type: "message.failed",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         messageId: "assistant-3",
         error: {
           code: "runtime-error",
@@ -219,7 +219,7 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     manager.dispatch({
       type: "message.sent",
       payload: {
-        sessionKey: "session-1",
+        sessionId: "session-1",
         message: createMessage({
           id: "user-1",
           role: "user",

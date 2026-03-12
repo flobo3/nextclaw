@@ -1,4 +1,5 @@
 import type { NcpEndpointEvent } from "../types/events.js";
+import type { NcpRunContext } from "../types/run.js";
 import type { NcpError } from "../types/errors.js";
 import type { NcpMessage } from "../types/message.js";
 
@@ -19,6 +20,14 @@ export interface NcpConversationSnapshot {
 
   /** Latest error, if any (e.g. from message.failed or endpoint.error). */
   readonly error: NcpError | null;
+}
+
+/**
+ * Agent snapshot: extends base snapshot with active run state.
+ * Use for UI run status, abort button enable/disable, and abort payload.
+ */
+export interface NcpAgentConversationSnapshot extends NcpConversationSnapshot {
+  readonly activeRun: NcpRunContext | null;
 }
 
 /**

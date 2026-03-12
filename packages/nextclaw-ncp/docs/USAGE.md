@@ -4,7 +4,7 @@
 
 约定：
 
-- **后端**：提供 `POST /api/chat`（body 为本次请求）+ `GET /api/chat/stream?sessionKey=...`（SSE，同一次对话的 accepted/text-delta/completed/failed 等事件）。
+- **后端**：提供 `POST /api/chat`（body 为本次请求）+ `GET /api/chat/stream?sessionId=...`（SSE，同一次对话的 accepted/text-delta/completed/failed 等事件）。
 - **协议**：请求/响应都走 NCP 事件；SSE 里每行一个 JSON，对应一个 `NcpEndpointEvent`。事件类型与 payload 定义在 `src/types/events.ts`，与 agent-chat 对齐（含 `message.text-*` / `message.reasoning-*` / `message.tool-call-*` / `run.*`）。
 - **后端**：持有一个 `NcpEndpoint`，收到 HTTP 请求时把 body 转成 `message.request` 注入端点（broadcast），端点的一个订阅者跑 Agent 并 broadcast accepted/delta/completed，另一个订阅者把事件写到 SSE 响应里。
 
@@ -82,7 +82,7 @@ function subscribeAgentRunner(
     if (event.type !== "message.request") return;
     const { payload } = event;
     const messageId = `msg-${Date.now()}`;
-    const { sessionKey, correlationId } = payload;
+    const { sessionId, correlationId } = payload;
 
     endpoint.emit({
       type: "message.accepted",
@@ -92,23 +92,23 @@ function subscribeAgentRunner(
     try {
       endpoint.emit({
         type: "message.text-start",
-        payload: { sessionKey, messageId },
+        payload: { sessionId, messageId },
       });
       let fullText = "";
       for await (const chunk of runAgent(payload.message)) {
         fullText += chunk;
         endpoint.emit({
           type: "message.text-delta",
-          payload: { sessionKey, messageId, delta: chunk },
+          payload: { sessionId, messageId, delta: chunk },
         });
       }
       endpoint.emit({
         type: "message.text-end",
-        payload: { sessionKey, messageId },
+        payload: { sessionId, messageId },
       });
       const reply: NcpMessage = {
         id: messageId,
-        sessionKey,
+        sessionId,
         role: "assistant",
         status: "final",
         parts: [{ type: "text", text: fullText }],
@@ -116,13 +116,13 @@ function subscribeAgentRunner(
       };
       endpoint.emit({
         type: "message.completed",
-        payload: { sessionKey, message: reply, correlationId },
+        payload: { sessionId, message: reply, correlationId },
       });
     } catch (err) {
       endpoint.emit({
         type: "message.failed",
         payload: {
-          sessionKey,
+          sessionId,
           messageId,
           error: toNcpError(err),
           correlationId,
@@ -139,14 +139,14 @@ function toNcpError(err: unknown): NcpError {
 ```
 
 ```typescript
-// ---------- 后端：订阅者 2 — 按 sessionKey 把事件只写给当前请求的 SSE res ----------
+// ---------- 后端：订阅者 2 — 按 sessionId 把事件只写给当前请求的 SSE res ----------
 const sseBySession = new Map<string, NodeJS.WritableStream>();
 
 function subscribeSseWriter(endpoint: ServerAgentEndpoint): void {
   endpoint.subscribe((event) => {
-    const sessionKey = "sessionKey" in event.payload ? event.payload.sessionKey : null;
-    if (!sessionKey) return;
-    const out = sseBySession.get(sessionKey);
+    const sessionId = "sessionId" in event.payload ? event.payload.sessionId : null;
+    if (!sessionId) return;
+    const out = sseBySession.get(sessionId);
     if (out && "write" in out) (out as NodeJS.WritableStream).write(`data: ${JSON.stringify(event)}\n\n`);
   });
 }
@@ -172,9 +172,9 @@ http.createServer((req, res) => {
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       const envelope = JSON.parse(body) as NcpRequestEnvelope;
-      const sessionKey = envelope.sessionKey;
-      sseBySession.set(sessionKey, res);
-      res.on("close", () => sseBySession.delete(sessionKey));
+      const sessionId = envelope.sessionId;
+      sseBySession.set(sessionId, res);
+      res.on("close", () => sseBySession.delete(sessionId));
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.flushHeaders?.();
@@ -184,13 +184,13 @@ http.createServer((req, res) => {
 }).listen(3000);
 ```
 
-`endpoint.ready` 等事件没有 `sessionKey`，可按需在订阅里忽略或单独广播给所有已连接的 res。
+`endpoint.ready` 等事件没有 `sessionId`，可按需在订阅里忽略或单独广播给所有已连接的 res。
 
 ---
 
 ## 2. 前端：发 POST + 读 SSE，按 NCP 事件更新 UI
 
-前端发一条用户消息（POST body = NcpRequestEnvelope），然后读同一次请求返回的 SSE 流（或另开 GET stream 并带 sessionKey），解析为 NCP 事件，根据 `message.accepted` / `message.text-*` / `message.completed` / `message.failed` 等更新界面。
+前端发一条用户消息（POST body = NcpRequestEnvelope），然后读同一次请求返回的 SSE 流（或另开 GET stream 并带 sessionId），解析为 NCP 事件，根据 `message.accepted` / `message.text-*` / `message.completed` / `message.failed` 等更新界面。
 
 ```typescript
 // ---------- 前端：构建请求并发送，消费 SSE 流里的 NCP 事件 ----------
@@ -200,13 +200,13 @@ import type {
   NcpMessage,
 } from "@nextclaw/ncp";
 
-async function sendMessage(sessionKey: string, userText: string): Promise<void> {
+async function sendMessage(sessionId: string, userText: string): Promise<void> {
   const correlationId = `req-${Date.now()}`;
   const envelope: NcpRequestEnvelope = {
-    sessionKey,
+    sessionId,
     message: {
       id: `user-${Date.now()}`,
-      sessionKey,
+      sessionId,
       role: "user",
       status: "final",
       parts: [{ type: "text", text: userText }],

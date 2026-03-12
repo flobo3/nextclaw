@@ -14,7 +14,7 @@ import type { NcpMessage } from "./message.js";
 // ---------------------------------------------------------------------------
 
 export type NcpRequestEnvelope = {
-  sessionKey: string;
+  sessionId: string;
   message: NcpMessage;
   correlationId?: string;
   metadata?: Record<string, unknown>;
@@ -22,21 +22,21 @@ export type NcpRequestEnvelope = {
 
 /** Payload for message.incoming: message content from the other peer (partial or full). */
 export type NcpResponseEnvelope = {
-  sessionKey: string;
+  sessionId: string;
   message: NcpMessage;
   correlationId?: string;
   metadata?: Record<string, unknown>;
 };
 
 export type NcpCompletedEnvelope = {
-  sessionKey: string;
+  sessionId: string;
   message: NcpMessage;
   correlationId?: string;
   metadata?: Record<string, unknown>;
 };
 
 export type NcpFailedEnvelope = {
-  sessionKey: string;
+  sessionId: string;
   messageId?: string;
   error: NcpError;
   correlationId?: string;
@@ -61,7 +61,7 @@ export type NcpMessageAbortPayload = {
  * Used when reconnecting to a stream (e.g. after page refresh).
  */
 export type NcpResumeRequestPayload = {
-  sessionKey: string;
+  sessionId: string;
   remoteRunId: string;
   fromEventIndex?: number;
   metadata?: Record<string, unknown>;
@@ -72,7 +72,7 @@ export type NcpResumeRequestPayload = {
  * Typically non-streaming; add the message to the local conversation state.
  */
 export type NcpMessageSentPayload = {
-  sessionKey: string;
+  sessionId: string;
   message: NcpMessage;
   metadata?: Record<string, unknown>;
 };
@@ -82,13 +82,13 @@ export type NcpMessageSentPayload = {
 // ---------------------------------------------------------------------------
 
 export type NcpTypingStartPayload = {
-  sessionKey: string;
+  sessionId: string;
   /** Participant who is typing (human user or bot/assistant). */
   userId?: string;
 };
 
 export type NcpTypingEndPayload = {
-  sessionKey: string;
+  sessionId: string;
   /** Participant who stopped typing (human user or bot/assistant). */
   userId?: string;
 };
@@ -98,7 +98,7 @@ export type NcpTypingEndPayload = {
 // ---------------------------------------------------------------------------
 
 export type NcpPresenceUpdatedPayload = {
-  sessionKey: string;
+  sessionId: string;
   /** Participant this presence applies to (human user or bot/assistant). */
   userId?: string;
   status: "online" | "offline" | "away";
@@ -109,24 +109,24 @@ export type NcpPresenceUpdatedPayload = {
 // ---------------------------------------------------------------------------
 
 export type NcpMessageReadPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
   readAt?: string;
   readerId?: string;
 };
 
 export type NcpMessageDeliveredPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
 };
 
 export type NcpMessageRecalledPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
 };
 
 export type NcpMessageReactionPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
   reaction: string;
   added: boolean;
@@ -139,21 +139,21 @@ export type NcpMessageReactionPayload = {
 // ---------------------------------------------------------------------------
 
 export type NcpRunStartedPayload = {
-  sessionKey?: string;
+  sessionId?: string;
   messageId?: string;
   threadId?: string;
   runId?: string;
 };
 
 export type NcpRunFinishedPayload = {
-  sessionKey?: string;
+  sessionId?: string;
   messageId?: string;
   threadId?: string;
   runId?: string;
 };
 
 export type NcpRunErrorPayload = {
-  sessionKey?: string;
+  sessionId?: string;
   messageId?: string;
   error?: string;
   threadId?: string;
@@ -161,7 +161,7 @@ export type NcpRunErrorPayload = {
 };
 
 export type NcpRunMetadataPayload = {
-  sessionKey?: string;
+  sessionId?: string;
   messageId?: string;
   runId?: string;
   metadata: Record<string, unknown>;
@@ -173,18 +173,18 @@ export type NcpRunMetadataPayload = {
 // ---------------------------------------------------------------------------
 
 export type NcpTextStartPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
 };
 
 export type NcpTextDeltaPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
   delta: string;
 };
 
 export type NcpTextEndPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
 };
 
@@ -194,18 +194,18 @@ export type NcpTextEndPayload = {
 // ---------------------------------------------------------------------------
 
 export type NcpReasoningStartPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
 };
 
 export type NcpReasoningDeltaPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
   delta: string;
 };
 
 export type NcpReasoningEndPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId: string;
 };
 
@@ -215,32 +215,32 @@ export type NcpReasoningEndPayload = {
 // ---------------------------------------------------------------------------
 
 export type NcpToolCallStartPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId?: string;
   toolCallId: string;
   toolName: string;
 };
 
 export type NcpToolCallArgsPayload = {
-  sessionKey: string;
+  sessionId: string;
   toolCallId: string;
   args: string;
 };
 
 export type NcpToolCallArgsDeltaPayload = {
-  sessionKey: string;
+  sessionId: string;
   messageId?: string;
   toolCallId: string;
   delta: string;
 };
 
 export type NcpToolCallEndPayload = {
-  sessionKey: string;
+  sessionId: string;
   toolCallId: string;
 };
 
 export type NcpToolCallResultPayload = {
-  sessionKey: string;
+  sessionId: string;
   toolCallId: string;
   content: unknown;
 };
