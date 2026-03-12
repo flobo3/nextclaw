@@ -3,8 +3,8 @@ set -euo pipefail
 
 APP_NAME="nextclaw"
 CONTAINER_NAME="${NEXTCLAW_DOCKER_CONTAINER_NAME:-nextclaw}"
-UI_PORT="${NEXTCLAW_DOCKER_UI_PORT:-18791}"
-API_PORT="${NEXTCLAW_DOCKER_API_PORT:-18790}"
+UI_PORT="${NEXTCLAW_DOCKER_UI_PORT:-18891}"
+API_PORT="${NEXTCLAW_DOCKER_API_PORT:-18890}"
 DATA_DIR="${NEXTCLAW_DOCKER_DATA_DIR:-${HOME}/.nextclaw-docker}"
 DOCKER_IMAGE="${NEXTCLAW_DOCKER_IMAGE:-node:22-bookworm-slim}"
 INSTALL_TARGET="${NEXTCLAW_DOCKER_INSTALL_TARGET:-nextclaw@latest}"
@@ -29,8 +29,8 @@ usage() {
 Usage: install-docker.sh [options]
 
 Options:
-  --ui-port <port>          UI port (default: 18791)
-  --api-port <port>         Gateway API port mapped to host (default: 18790)
+  --ui-port <port>          UI port (default: 18891)
+  --api-port <port>         Gateway API port mapped to host (default: 18890)
   --data-dir <path>         Persistent data directory mounted to /data (default: ~/.nextclaw-docker)
   --container-name <name>   Docker container name (default: nextclaw)
   --image <image>           Docker image for runtime bootstrap (default: node:22-bookworm-slim)
@@ -76,6 +76,7 @@ wait_for_health() {
   local root_url="http://127.0.0.1:${UI_PORT}/"
   local status=""
   local started_at now elapsed
+  local last_progress=0
   started_at="$(date +%s)"
 
   if ! has_cmd curl; then
@@ -96,6 +97,10 @@ wait_for_health() {
 
     now="$(date +%s)"
     elapsed=$(( now - started_at ))
+    if (( elapsed >= last_progress + 10 )); then
+      log "Waiting for service readiness... ${elapsed}s/${HEALTH_TIMEOUT_SEC}s"
+      last_progress="${elapsed}"
+    fi
     if (( elapsed >= HEALTH_TIMEOUT_SEC )); then
       return 1
     fi
@@ -212,6 +217,7 @@ fi
 
 log "Starting ${APP_NAME} docker container..."
 "${run_cmd[@]}" >/dev/null
+log "Bootstrapping runtime inside container (npm install + first start). This may take 10-120s depending on network."
 
 if ! wait_for_health; then
   warn "Health check timeout after ${HEALTH_TIMEOUT_SEC}s: tried http://127.0.0.1:${UI_PORT}/api/health and http://127.0.0.1:${UI_PORT}/"
