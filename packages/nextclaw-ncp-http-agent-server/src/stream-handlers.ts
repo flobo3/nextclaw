@@ -27,12 +27,14 @@ export type ForwardResponseOptions = {
 };
 
 export function createForwardResponse(options: ForwardResponseOptions): Response {
+  const { requestSignal } = options;
   return buildSseResponse(
-    createSseEventStream(createForwardSseEvents(options), options.requestSignal),
+    createSseEventStream(createForwardSseEvents(options), requestSignal),
   );
 }
 
 async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGenerator<SseEventFrame> {
+  const { endpoint, requestEvent, requestSignal, timeoutMs, scope } = options;
   const queue = createAsyncQueue<SseEventFrame>();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let unsubscribe: (() => void) | null = null;
@@ -57,18 +59,18 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
       unsubscribe();
       unsubscribe = null;
     }
-    options.requestSignal.removeEventListener("abort", stop);
+    requestSignal.removeEventListener("abort", stop);
     queue.close();
   };
 
-  options.requestSignal.addEventListener("abort", stop, { once: true });
+  requestSignal.addEventListener("abort", stop, { once: true });
   timeoutId = setTimeout(() => {
     push(toErrorFrame("TIMEOUT", "NCP HTTP stream timed out before terminal event."));
     stop();
-  }, options.timeoutMs);
+  }, timeoutMs);
 
-  unsubscribe = options.endpoint.subscribe((event) => {
-    if (!matchesScope(options.scope, event)) {
+  unsubscribe = endpoint.subscribe((event) => {
+    if (!matchesScope(scope, event)) {
       return;
     }
     push(toNcpEventFrame(event));
@@ -77,7 +79,7 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
     }
   });
 
-  void options.endpoint.emit(options.requestEvent).catch((error) => {
+  void endpoint.emit(requestEvent).catch((error) => {
     push(toErrorFrame("EMIT_FAILED", errorMessage(error)));
     stop();
   });
@@ -98,18 +100,17 @@ export type ReplayResponseOptions = {
 };
 
 export function createReplayResponse(options: ReplayResponseOptions): Response {
+  const { signal } = options;
   return buildSseResponse(
-    createSseEventStream(createReplaySseEvents(options), options.signal),
+    createSseEventStream(createReplaySseEvents(options), signal),
   );
 }
 
 async function* createReplaySseEvents(options: ReplayResponseOptions): AsyncGenerator<SseEventFrame> {
+  const { replayProvider, payload, signal } = options;
   try {
-    for await (const event of options.replayProvider.stream({
-      payload: options.payload,
-      signal: options.signal,
-    })) {
-      if (options.signal.aborted) {
+    for await (const event of replayProvider.stream({ payload, signal })) {
+      if (signal.aborted) {
         break;
       }
       yield toNcpEventFrame(event);

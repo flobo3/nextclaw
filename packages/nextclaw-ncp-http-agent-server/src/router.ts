@@ -1,6 +1,6 @@
 import { Hono } from "hono";
+import { NcpHttpAgentController } from "./controller.js";
 import { normalizeBasePath, sanitizeTimeout } from "./parsers.js";
-import { handleAbort, handleReconnect, handleSend } from "./routes.js";
 import type { NcpHttpAgentServerOptions } from "./types.js";
 
 export function createNcpHttpAgentRouter(options: NcpHttpAgentServerOptions): Hono {
@@ -10,14 +10,15 @@ export function createNcpHttpAgentRouter(options: NcpHttpAgentServerOptions): Ho
 }
 
 export function mountNcpHttpAgentRoutes(app: Hono, options: NcpHttpAgentServerOptions): void {
-  const basePath = normalizeBasePath(options.basePath);
-  const routeOptions = {
-    agentEndpoint: options.agentEndpoint,
-    replayProvider: options.replayProvider,
-    timeoutMs: sanitizeTimeout(options.requestTimeoutMs),
-  };
+  const { basePath: rawBasePath, agentEndpoint, replayProvider, requestTimeoutMs } = options;
+  const basePath = normalizeBasePath(rawBasePath);
+  const controller = new NcpHttpAgentController({
+    agentEndpoint,
+    replayProvider,
+    timeoutMs: sanitizeTimeout(requestTimeoutMs),
+  });
 
-  app.post(`${basePath}/send`, (c) => handleSend(c, routeOptions));
-  app.get(`${basePath}/reconnect`, (c) => handleReconnect(c, routeOptions));
-  app.post(`${basePath}/abort`, (c) => handleAbort(c, routeOptions));
+  app.post(`${basePath}/send`, (c) => controller.handleSend(c.req.raw));
+  app.get(`${basePath}/reconnect`, (c) => controller.handleReconnect(c.req.raw));
+  app.post(`${basePath}/abort`, (c) => controller.handleAbort(c.req.raw));
 }
