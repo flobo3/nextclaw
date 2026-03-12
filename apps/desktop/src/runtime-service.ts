@@ -1,5 +1,8 @@
 import { fork, type ChildProcess } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:net";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 type RuntimeLogger = {
@@ -13,23 +16,52 @@ type RuntimeServiceOptions = {
   scriptPath: string;
   startupTimeoutMs?: number;
   healthPath?: string;
+  mode?: "managed-service" | "embedded-serve";
+};
+
+type ServiceState = {
+  uiUrl?: unknown;
+  uiHost?: unknown;
+  uiPort?: unknown;
 };
 
 export class RuntimeServiceProcess {
   private readonly startupTimeoutMs: number;
   private readonly healthPath: string;
+  private readonly mode: "managed-service" | "embedded-serve";
   private child: ChildProcess | null = null;
   private port: number | null = null;
 
   constructor(private readonly options: RuntimeServiceOptions) {
     this.startupTimeoutMs = options.startupTimeoutMs ?? 25_000;
     this.healthPath = options.healthPath ?? "/api/health";
+    this.mode = options.mode ?? "embedded-serve";
   }
 
   async start(): Promise<{ port: number; baseUrl: string }> {
     if (this.child) {
       throw new Error("Runtime process already started.");
     }
+    if (this.mode === "managed-service") {
+      return await this.startManagedService();
+    }
+    return await this.startEmbeddedServe();
+  }
+
+  private async startManagedService(): Promise<{ port: number; baseUrl: string }> {
+    await this.ensureInitialized();
+    await this.runCliCommand(["start"], "start");
+    const state = this.readServiceState();
+    const baseUrl = this.resolveManagedUiBaseUrl(state);
+    if (!baseUrl) {
+      throw new Error(`Managed runtime is running but UI URL is unavailable in ${this.resolveServiceStatePath()}`);
+    }
+    const parsedPort = this.parsePort(baseUrl);
+    this.port = parsedPort;
+    return { port: parsedPort ?? 0, baseUrl };
+  }
+
+  private async startEmbeddedServe(): Promise<{ port: number; baseUrl: string }> {
     await this.ensureInitialized();
     const port = await pickFreePort();
     const child = fork(this.options.scriptPath, ["serve", "--ui-port", String(port)], {
@@ -99,6 +131,12 @@ export class RuntimeServiceProcess {
   }
 
   async stop(): Promise<void> {
+    if (this.mode === "managed-service") {
+      this.child = null;
+      this.port = null;
+      return;
+    }
+
     const child = this.child;
     if (!child || child.killed) {
       this.child = null;
@@ -126,6 +164,61 @@ export class RuntimeServiceProcess {
 
     this.child = null;
     this.port = null;
+  }
+
+  private readServiceState(): ServiceState | null {
+    const statePath = this.resolveServiceStatePath();
+    if (!existsSync(statePath)) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(readFileSync(statePath, "utf8"));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return null;
+      }
+      return parsed as ServiceState;
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveServiceStatePath(): string {
+    const homeOverride = process.env.NEXTCLAW_HOME?.trim();
+    const dataDir = homeOverride ? resolve(homeOverride) : resolve(homedir(), ".nextclaw");
+    return resolve(dataDir, "run", "service.json");
+  }
+
+  private resolveManagedUiBaseUrl(state: ServiceState | null): string | null {
+    const uiUrl = typeof state?.uiUrl === "string" ? state.uiUrl.trim() : "";
+    if (uiUrl) {
+      return uiUrl;
+    }
+    const uiHost = typeof state?.uiHost === "string" ? state.uiHost.trim() : "";
+    const uiPort = Number(state?.uiPort);
+    if (!uiHost || !Number.isFinite(uiPort) || uiPort <= 0) {
+      return null;
+    }
+    const safeHost = uiHost === "0.0.0.0" || uiHost === "::" ? "127.0.0.1" : uiHost;
+    return `http://${safeHost}:${uiPort}`;
+  }
+
+  private parsePort(baseUrl: string): number | null {
+    try {
+      const parsed = new URL(baseUrl);
+      const explicitPort = Number(parsed.port);
+      if (Number.isFinite(explicitPort) && explicitPort > 0) {
+        return explicitPort;
+      }
+      if (parsed.protocol === "http:") {
+        return 80;
+      }
+      if (parsed.protocol === "https:") {
+        return 443;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 }
 
