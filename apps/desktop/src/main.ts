@@ -14,6 +14,7 @@ class DesktopApplication {
   private readonly updater = new DesktopUpdater(logger);
   private runtime: RuntimeServiceProcess | null = null;
   private window: BrowserWindow | null = null;
+  private stopping = false;
 
   async start(): Promise<void> {
     if (!app.requestSingleInstanceLock()) {
@@ -33,8 +34,16 @@ class DesktopApplication {
     app.on("window-all-closed", () => {
       app.quit();
     });
-    app.on("before-quit", () => {
+    app.on("before-quit", (event) => {
       this.updater.stop();
+      if (this.stopping) {
+        return;
+      }
+      this.stopping = true;
+      event.preventDefault();
+      void this.stopRuntime().finally(() => {
+        app.quit();
+      });
     });
 
     await app.whenReady();
@@ -50,7 +59,8 @@ class DesktopApplication {
       const runtimeCommand = new RuntimeConfigResolver().resolveCommand();
       const runtime = new RuntimeServiceProcess({
         logger,
-        scriptPath: runtimeCommand.scriptPath
+        scriptPath: runtimeCommand.scriptPath,
+        mode: app.isPackaged ? "managed-service" : "embedded-serve"
       });
       const { baseUrl } = await runtime.start();
       this.runtime = runtime;
@@ -75,8 +85,21 @@ class DesktopApplication {
         await this.window.loadURL(`data:text/plain,${encodeURIComponent(`Check logs at: ${logPath}`)}`);
         return true;
       }
-      await this.runtime?.stop();
+      await this.stopRuntime();
       return false;
+    }
+  }
+
+  private async stopRuntime(): Promise<void> {
+    const runtime = this.runtime;
+    this.runtime = null;
+    if (!runtime) {
+      return;
+    }
+    try {
+      await runtime.stop();
+    } catch (error) {
+      logger.warn(`Failed to stop runtime cleanly: ${String(error)}`);
     }
   }
 
