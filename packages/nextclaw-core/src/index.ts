@@ -30,3 +30,4 @@ export * from "./providers/provider_manager.js";
 export * from "./providers/registry.js";
 export * from "./session/manager.js";
 export * from "./utils/helpers.js";
+export * from "./utils/thinking.js";

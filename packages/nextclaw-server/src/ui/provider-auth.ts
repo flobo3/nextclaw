@@ -331,7 +331,8 @@ function setProviderApiKey(params: {
       apiBase: null,
       extraHeaders: null,
       wireApi: "auto",
-      models: []
+      models: [],
+      modelThinking: {}
     };
   }
 

@@ -4,6 +4,10 @@ export const FIELD_HELP: Record<string, string> = {
     "Default model identifier used by the agent. Use provider-prefixed format. Examples: openai/gpt-5.1 · anthropic/claude-opus-4-1 · deepseek/deepseek-chat · minimax/MiniMax-M2.5 · openrouter/openai/gpt-5.3-codex.",
   "agents.defaults.engine": "Default agent engine kind. Built-in: native. Plugin engines can register additional kinds.",
   "agents.defaults.engineConfig": "Default engine config payload passed to the selected agent engine.",
+  "agents.defaults.thinkingDefault":
+    "Default thinking effort when no session override exists. Allowed: off|minimal|low|medium|high|adaptive|xhigh.",
+  "agents.defaults.models":
+    "Optional per-model strategy overrides. Set agents.defaults.models.<provider/model>.params.thinking for model-specific defaults.",
   "agents.defaults.contextTokens": "Maximum model input context budget (used for token-budget pruning before provider calls).",
   "agents.defaults.maxToolIterations": "Maximum tool calls per turn.",
   "agents.list": "List of agent runtimes hosted by one gateway process.",
@@ -13,6 +17,10 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.list.*.model": "Optional per-agent model override.",
   "agents.list.*.engine": "Optional per-agent engine override.",
   "agents.list.*.engineConfig": "Optional per-agent engine config override.",
+  "agents.list.*.thinkingDefault":
+    "Optional per-agent default thinking effort. Takes precedence over agents.defaults.thinkingDefault.",
+  "agents.list.*.models":
+    "Optional per-agent model strategy overrides. Set agents.list[].models.<provider/model>.params.thinking to override thinking by model for that agent.",
   "agents.list.*.contextTokens": "Optional per-agent input context budget override.",
   "agents.list.*.maxToolIterations": "Optional per-agent max tool iterations.",
   "agents.context.bootstrap.files": "Files injected into the system prompt at startup.",
@@ -39,6 +47,8 @@ export const FIELD_HELP: Record<string, string> = {
   "providers.*.extraHeaders": "Extra headers to send to the provider.",
   "providers.*.wireApi": "Select API mode (auto/chat/responses) for providers that support it.",
   "providers.*.models": "Custom model ids for this provider. These are merged with built-in defaults in the UI selector.",
+  "providers.*.modelThinking":
+    "Optional per-model thinking capability map. Keyed by provider-local model id. Example: { \"gpt-5.3-codex\": { supported: [\"minimal\",\"low\",\"medium\",\"high\"], default: \"low\" } }",
   "search.provider": "Choose which web search provider the web_search tool will use.",
   "search.enabledProviders": "Providers that are enabled and available for use in the search settings UI.",
   "search.defaults.maxResults": "Default number of web search results returned by the agent.",

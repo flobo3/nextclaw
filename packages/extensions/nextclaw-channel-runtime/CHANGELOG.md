@@ -1,5 +1,13 @@
 # @nextclaw/channel-runtime
 
+## 0.1.35
+
+### Patch Changes
+
+- Add model-level thinking capability configuration and session thinking selector with backend fallback alignment.
+- Updated dependencies
+  - @nextclaw/core@0.7.7
+
 ## 0.1.34
 
 ### Patch Changes

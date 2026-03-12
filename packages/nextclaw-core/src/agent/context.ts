@@ -6,6 +6,7 @@ import { APP_NAME } from "../config/brand.js";
 import type { Config } from "../config/schema.js";
 import type { InboundAttachment } from "../bus/events.js";
 import { SILENT_REPLY_TOKEN } from "./tokens.js";
+import type { ThinkingLevel } from "../utils/thinking.js";
 
 export type Message = Record<string, unknown>;
 
@@ -138,6 +139,7 @@ export class ContextBuilder {
     channel?: string;
     chatId?: string;
     sessionKey?: string;
+    thinkingLevel?: ThinkingLevel | null;
     messageToolHints?: string[];
   }): Message[] {
     const messages: Message[] = [];
@@ -147,6 +149,9 @@ export class ContextBuilder {
     }
     if (params.sessionKey) {
       systemPrompt += `\nSession: ${params.sessionKey}`;
+    }
+    if (params.thinkingLevel) {
+      systemPrompt += `\nThinking policy: ${params.thinkingLevel}`;
     }
     messages.push({ role: "system", content: systemPrompt });
     messages.push(...params.history);

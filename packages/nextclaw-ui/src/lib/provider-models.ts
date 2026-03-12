@@ -1,4 +1,12 @@
-import type { ConfigMetaView, ConfigView, ProviderConfigView } from '@/api/types';
+import type { ConfigMetaView, ConfigView, ProviderConfigView, ThinkingLevel } from '@/api/types';
+
+const THINKING_LEVELS: ThinkingLevel[] = ['off', 'minimal', 'low', 'medium', 'high', 'adaptive', 'xhigh'];
+const THINKING_LEVEL_SET = new Set<string>(THINKING_LEVELS);
+
+export type ModelThinkingCapability = {
+  supported: ThinkingLevel[];
+  default?: ThinkingLevel | null;
+};
 
 export type ProviderModelCatalogItem = {
   name: string;
@@ -6,6 +14,7 @@ export type ProviderModelCatalogItem = {
   prefix: string;
   aliases: string[];
   models: string[];
+  modelThinking: Record<string, ModelThinkingCapability>;
   configured: boolean;
 };
 
@@ -57,6 +66,70 @@ export function composeProviderModel(prefix: string, localModel: string): string
     return normalizedModel;
   }
   return `${normalizedPrefix}/${normalizedModel}`;
+}
+
+function parseThinkingLevel(value: unknown): ThinkingLevel | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  return THINKING_LEVEL_SET.has(normalized) ? (normalized as ThinkingLevel) : null;
+}
+
+function normalizeThinkingLevels(values: unknown): ThinkingLevel[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  const deduped: ThinkingLevel[] = [];
+  for (const value of values) {
+    const level = parseThinkingLevel(value);
+    if (!level || deduped.includes(level)) {
+      continue;
+    }
+    deduped.push(level);
+  }
+  return deduped;
+}
+
+export function normalizeModelThinkingMap(
+  input: ProviderConfigView['modelThinking'],
+  aliases: string[]
+): Record<string, ModelThinkingCapability> {
+  if (!input) {
+    return {};
+  }
+  const normalized: Record<string, ModelThinkingCapability> = {};
+  for (const [rawModel, rawValue] of Object.entries(input)) {
+    const localModel = toProviderLocalModel(rawModel, aliases);
+    if (!localModel) {
+      continue;
+    }
+    const supported = normalizeThinkingLevels(rawValue?.supported);
+    if (supported.length === 0) {
+      continue;
+    }
+    const defaultLevel = parseThinkingLevel(rawValue?.default);
+    normalized[localModel] =
+      defaultLevel && supported.includes(defaultLevel)
+        ? { supported, default: defaultLevel }
+        : { supported };
+  }
+  return normalized;
+}
+
+export function resolveModelThinkingCapability(
+  map: Record<string, ModelThinkingCapability>,
+  model: string,
+  aliases: string[]
+): ModelThinkingCapability | null {
+  const localModel = toProviderLocalModel(model, aliases);
+  if (!localModel) {
+    return null;
+  }
+  return map[localModel] ?? null;
 }
 
 export function findProviderByModel(
@@ -121,6 +194,7 @@ export function buildProviderModelCatalog(params: {
       (providerConfig?.models ?? []).map((model) => toProviderLocalModel(model, aliases))
     );
     const models = normalizeStringList([...defaultModels, ...customModels]);
+    const modelThinking = normalizeModelThinkingMap(providerConfig?.modelThinking, aliases);
     const configDisplayName = providerConfig?.displayName?.trim();
     const configured = isProviderConfigured(providerConfig);
 
@@ -130,6 +204,7 @@ export function buildProviderModelCatalog(params: {
       prefix,
       aliases,
       models,
+      modelThinking,
       configured
     } satisfies ProviderModelCatalogItem;
   });

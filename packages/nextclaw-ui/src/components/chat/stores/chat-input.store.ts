@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type { MarketplaceInstalledRecord } from '@/api/types';
+import type { ThinkingLevel } from '@/api/types';
+import type { ChatModelOption } from '@/components/chat/chat-input.types';
 
 export type ChatInputSnapshot = {
   isProviderStateResolved: boolean;
@@ -10,8 +12,9 @@ export type ChatInputSnapshot = {
   stopDisabledReason: string | null;
   sendError: string | null;
   isSending: boolean;
-  modelOptions: Array<{ value: string; modelLabel: string; providerLabel: string }>;
+  modelOptions: ChatModelOption[];
   selectedModel: string;
+  selectedThinkingLevel: ThinkingLevel | null;
   sessionTypeOptions: Array<{ value: string; label: string }>;
   selectedSessionType?: string;
   stopSupported: boolean;
@@ -39,6 +42,7 @@ const initialSnapshot: ChatInputSnapshot = {
   isSending: false,
   modelOptions: [],
   selectedModel: '',
+  selectedThinkingLevel: null,
   sessionTypeOptions: [],
   selectedSessionType: undefined,
   stopSupported: false,

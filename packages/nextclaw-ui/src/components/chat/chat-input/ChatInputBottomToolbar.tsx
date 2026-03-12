@@ -5,6 +5,7 @@ import { ChatInputAttachButton } from '@/components/chat/chat-input/components/b
 import { ChatInputModelSelector } from '@/components/chat/chat-input/components/bottom-toolbar/ChatInputModelSelector';
 import { ChatInputSendControls } from '@/components/chat/chat-input/components/bottom-toolbar/ChatInputSendControls';
 import { ChatInputSessionTypeSelector } from '@/components/chat/chat-input/components/bottom-toolbar/ChatInputSessionTypeSelector';
+import { ChatInputThinkingSelector } from '@/components/chat/chat-input/components/bottom-toolbar/ChatInputThinkingSelector';
 import { t } from '@/lib/i18n';
 
 export function ChatInputBottomToolbar() {
@@ -27,6 +28,9 @@ export function ChatInputBottomToolbar() {
     snapshot.stopDisabledReason === '__preparing__'
       ? t('chatStopPreparing')
       : snapshot.stopDisabledReason?.trim() || t('chatStopUnavailable');
+  const selectedModelThinkingCapability = selectedModelOption?.thinkingCapability;
+  const thinkingSupportedLevels = selectedModelThinkingCapability?.supported ?? [];
+  const shouldShowThinkingSelector = thinkingSupportedLevels.length > 0;
 
   return (
     <div className="flex items-center justify-between px-3 pb-3">
@@ -53,6 +57,14 @@ export function ChatInputBottomToolbar() {
           isModelOptionsLoading={isModelOptionsLoading}
           hasModelOptions={hasModelOptions}
         />
+        {shouldShowThinkingSelector ? (
+          <ChatInputThinkingSelector
+            supportedLevels={thinkingSupportedLevels}
+            selectedThinkingLevel={snapshot.selectedThinkingLevel}
+            defaultThinkingLevel={selectedModelThinkingCapability?.default ?? null}
+            onSelectedThinkingLevelChange={presenter.chatInputManager.selectThinkingLevel}
+          />
+        ) : null}
         <ChatInputAttachButton />
       </div>
       <ChatInputSendControls

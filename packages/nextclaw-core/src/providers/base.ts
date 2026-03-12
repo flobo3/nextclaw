@@ -1,3 +1,5 @@
+import type { ThinkingLevel } from "../utils/thinking.js";
+
 export type ToolCallRequest = {
   id: string;
   name: string;
@@ -38,6 +40,7 @@ export abstract class LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): Promise<LLMResponse>;
 
@@ -46,6 +49,7 @@ export abstract class LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): AsyncGenerator<LLMStreamEvent> {
     const response = await this.chat(params);

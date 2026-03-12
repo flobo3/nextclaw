@@ -19,7 +19,10 @@ import {
   type ProviderSpec,
   SessionManager,
   getWorkspacePathFromConfig,
-  type SearchConfig
+  normalizeThinkingLevels,
+  parseThinkingLevel,
+  type SearchConfig,
+  type ThinkingLevel
 } from "@nextclaw/core";
 import { findServerBuiltinProviderByName, listServerBuiltinProviders } from "./provider-overrides.js";
 import type {
@@ -118,7 +121,8 @@ function createDefaultProviderConfig(defaultWireApi: "auto" | "chat" | "response
     apiBase: null,
     extraHeaders: null,
     wireApi: defaultWireApi,
-    models: []
+    models: [],
+    modelThinking: {}
   };
 }
 
@@ -436,6 +440,32 @@ function normalizeModelList(input: string[] | null | undefined): string[] {
   return [...deduped];
 }
 
+function normalizeModelThinkingConfig(
+  input: Record<string, { supported?: unknown; default?: unknown }> | null | undefined
+): Record<string, { supported: ThinkingLevel[]; default?: ThinkingLevel | null }> {
+  if (!input || typeof input !== "object") {
+    return {};
+  }
+  const normalized: Record<string, { supported: ThinkingLevel[]; default?: ThinkingLevel | null }> = {};
+  for (const [rawModel, rawValue] of Object.entries(input)) {
+    const model = rawModel.trim();
+    if (!model || !rawValue || typeof rawValue !== "object") {
+      continue;
+    }
+    const supported = normalizeThinkingLevels(rawValue.supported);
+    if (supported.length === 0) {
+      continue;
+    }
+    const defaultLevel = parseThinkingLevel(rawValue.default);
+    if (defaultLevel && supported.includes(defaultLevel)) {
+      normalized[model] = { supported, default: defaultLevel };
+    } else {
+      normalized[model] = { supported };
+    }
+  }
+  return normalized;
+}
+
 function toProviderView(
   config: Config,
   provider: ProviderConfig,
@@ -460,7 +490,8 @@ function toProviderView(
     apiKeyMasked: masked.apiKeyMasked ?? (apiKeyRefSet ? "****" : undefined),
     apiBase: provider.apiBase ?? null,
     extraHeaders: extraHeaders && Object.keys(extraHeaders).length > 0 ? extraHeaders : null,
-    models: normalizeModelList(provider.models ?? [])
+    models: normalizeModelList(provider.models ?? []),
+    modelThinking: normalizeModelThinkingConfig(provider.modelThinking ?? {})
   };
   const supportsWireApi = Boolean(spec?.supportsWireApi) || isCustomProviderName(providerName);
   if (supportsWireApi) {
@@ -824,6 +855,9 @@ export function updateProvider(
   if (Object.prototype.hasOwnProperty.call(patch, "models")) {
     provider.models = normalizeModelList(patch.models ?? []);
   }
+  if (Object.prototype.hasOwnProperty.call(patch, "modelThinking")) {
+    provider.modelThinking = normalizeModelThinkingConfig(patch.modelThinking ?? {});
+  }
   const next = ConfigSchema.parse(config);
   saveConfig(next, configPath);
   const uiHints = buildUiHints(next);
@@ -845,7 +879,8 @@ export function createCustomProvider(
     apiBase: normalizeOptionalString(patch.apiBase),
     extraHeaders: normalizeHeaders(patch.extraHeaders ?? null),
     wireApi: patch.wireApi ?? "auto",
-    models: normalizeModelList(patch.models ?? [])
+    models: normalizeModelList(patch.models ?? []),
+    modelThinking: normalizeModelThinkingConfig(patch.modelThinking ?? {})
   };
   const next = ConfigSchema.parse(config);
   saveConfig(next, configPath);

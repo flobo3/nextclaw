@@ -1,5 +1,10 @@
 import type { Config } from "../config/schema.js";
 import type { SessionManager } from "../session/manager.js";
+import {
+  CLEAR_THINKING_TOKENS,
+  THINKING_LEVELS,
+  parseThinkingLevel
+} from "../utils/thinking.js";
 
 export type CommandOptionType = "string" | "boolean" | "number";
 
@@ -155,8 +160,13 @@ export class CommandRegistry {
       execute: (ctx) => {
         const session = ctx.sessionManager?.getIfExists(ctx.sessionKey);
         const model = this.resolveSessionModel(session?.metadata);
+        const thinking = this.resolveSessionThinking(session?.metadata);
         return {
-          content: [`Session: ${ctx.sessionKey}`, `Model: ${model}`].join("\n"),
+          content: [
+            `Session: ${ctx.sessionKey}`,
+            `Model: ${model}`,
+            `Thinking: ${thinking ? `${thinking} (session override)` : "default"}`
+          ].join("\n"),
           ephemeral: DEFAULT_EPHEMERAL
         };
       }
@@ -214,6 +224,58 @@ export class CommandRegistry {
         return { content: `Model set to ${raw}.`, ephemeral: DEFAULT_EPHEMERAL };
       }
     });
+
+    this.register({
+      name: "thinking",
+      description: "Get or set the session thinking effort",
+      aliases: ["effort"],
+      options: [
+        {
+          name: "level",
+          description: `Thinking level (${THINKING_LEVELS.join("|")} or clear/reset/default)`,
+          type: "string",
+          required: false
+        }
+      ],
+      execute: (ctx, args) => {
+        if (!ctx.sessionManager) {
+          return { content: "Session management is not available.", ephemeral: DEFAULT_EPHEMERAL };
+        }
+        const session = ctx.sessionManager.getOrCreate(ctx.sessionKey);
+        const raw = typeof args.level === "string" ? args.level.trim() : "";
+        if (!raw) {
+          const current = this.resolveSessionThinking(session.metadata);
+          return {
+            content: current
+              ? `Current thinking effort: ${current} (session override)`
+              : "Current thinking effort: default",
+            ephemeral: DEFAULT_EPHEMERAL
+          };
+        }
+        const normalized = raw.toLowerCase();
+        if (CLEAR_THINKING_TOKENS.has(normalized)) {
+          delete session.metadata.preferred_thinking;
+          ctx.sessionManager.save(session);
+          return {
+            content: "Thinking override cleared. Current thinking effort: default",
+            ephemeral: DEFAULT_EPHEMERAL
+          };
+        }
+        const level = parseThinkingLevel(normalized);
+        if (!level) {
+          return {
+            content: `Invalid thinking level: ${raw}. Allowed: ${THINKING_LEVELS.join(", ")}. Use clear/reset/default to remove override.`,
+            ephemeral: DEFAULT_EPHEMERAL
+          };
+        }
+        session.metadata.preferred_thinking = level;
+        ctx.sessionManager.save(session);
+        return {
+          content: `Thinking effort set to ${level}.`,
+          ephemeral: DEFAULT_EPHEMERAL
+        };
+      }
+    });
   }
 
   private register(spec: CommandSpec): void {
@@ -254,6 +316,13 @@ export class CommandRegistry {
       return preferred;
     }
     return this.config.agents.defaults.model;
+  }
+
+  private resolveSessionThinking(metadata: Record<string, unknown> | undefined): string | null {
+    if (!metadata) {
+      return null;
+    }
+    return parseThinkingLevel(metadata.preferred_thinking);
   }
 
   private parseTextArgs(spec: CommandSpec, raw: string): Record<string, unknown> {

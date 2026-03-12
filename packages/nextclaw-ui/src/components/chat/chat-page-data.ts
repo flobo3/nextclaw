@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { SessionEntryView } from '@/api/types';
+import type { SessionEntryView, ThinkingLevel } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
 import { useChatSessionTypeState } from '@/components/chat/useChatSessionTypeState';
 import { useSyncSelectedModel } from '@/components/chat/chat-page-runtime';
@@ -13,7 +13,7 @@ import {
   useSessions,
 } from '@/hooks/useConfig';
 import { useMarketplaceInstalled } from '@/hooks/useMarketplace';
-import { buildProviderModelCatalog, composeProviderModel } from '@/lib/provider-models';
+import { buildProviderModelCatalog, composeProviderModel, resolveModelThinkingCapability } from '@/lib/provider-models';
 
 type UseChatPageDataParams = {
   query: string;
@@ -23,6 +23,19 @@ type UseChatPageDataParams = {
   setPendingSessionType: Dispatch<SetStateAction<string>>;
   setSelectedModel: Dispatch<SetStateAction<string>>;
 };
+
+const THINKING_LEVEL_SET = new Set<string>(['off', 'minimal', 'low', 'medium', 'high', 'adaptive', 'xhigh']);
+
+function parseThinkingLevel(value: unknown): ThinkingLevel | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  return THINKING_LEVEL_SET.has(normalized) ? (normalized as ThinkingLevel) : null;
+}
 
 export function useChatPageData(params: UseChatPageDataParams) {
   const configQuery = useConfig();
@@ -57,7 +70,8 @@ export function useChatPageData(params: UseChatPageDataParams) {
         options.push({
           value,
           modelLabel: localModel,
-          providerLabel: provider.displayName
+          providerLabel: provider.displayName,
+          thinkingCapability: resolveModelThinkingCapability(provider.modelThinking, localModel, provider.aliases)
         });
       }
     }
@@ -93,6 +107,28 @@ export function useChatPageData(params: UseChatPageDataParams) {
   });
 
   const historyMessages = useMemo(() => historyQuery.data?.messages ?? [], [historyQuery.data?.messages]);
+  const selectedSessionThinkingLevel = useMemo(() => {
+    if (!params.selectedSessionKey) {
+      return null;
+    }
+    const metadata = historyQuery.data?.metadata;
+    if (!metadata || typeof metadata !== 'object') {
+      return null;
+    }
+    const candidates = [
+      metadata.preferred_thinking,
+      metadata.thinking,
+      metadata.thinking_level,
+      metadata.thinkingLevel
+    ];
+    for (const value of candidates) {
+      const level = parseThinkingLevel(value);
+      if (level) {
+        return level;
+      }
+    }
+    return null;
+  }, [historyQuery.data?.metadata, params.selectedSessionKey]);
 
   return {
     configQuery,
@@ -108,6 +144,7 @@ export function useChatPageData(params: UseChatPageDataParams) {
     skillRecords,
     selectedSession,
     historyMessages,
+    selectedSessionThinkingLevel,
     ...sessionTypeState
   };
 }

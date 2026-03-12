@@ -1,5 +1,16 @@
 # nextclaw
 
+## 0.9.24
+
+### Patch Changes
+
+- Add model-level thinking capability configuration and session thinking selector with backend fallback alignment.
+- Updated dependencies
+  - @nextclaw/core@0.7.7
+  - @nextclaw/server@0.6.11
+  - @nextclaw/runtime@0.1.6
+  - @nextclaw/openclaw-compat@0.2.6
+
 ## 0.9.23
 
 ### Patch Changes

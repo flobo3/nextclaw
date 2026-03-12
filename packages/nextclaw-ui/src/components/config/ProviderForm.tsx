@@ -15,17 +15,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MaskedInput } from '@/components/common/MaskedInput';
 import { KeyValueEditor } from '@/components/common/KeyValueEditor';
 import { StatusDot } from '@/components/ui/status-dot';
 import { getLanguage, t } from '@/lib/i18n';
 import { hintForPath } from '@/lib/config-hints';
-import type { ProviderConfigView, ProviderConfigUpdate, ProviderConnectionTestRequest } from '@/api/types';
+import type { ProviderConfigView, ProviderConfigUpdate, ProviderConnectionTestRequest, ThinkingLevel } from '@/api/types';
 import { CircleDotDashed, Plus, X, Trash2, ChevronDown, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CONFIG_DETAIL_CARD_CLASS, CONFIG_EMPTY_DETAIL_CARD_CLASS } from './config-layout';
 
 type WireApiType = 'auto' | 'chat' | 'responses';
+type ModelThinkingConfig = Record<string, { supported: ThinkingLevel[]; default?: ThinkingLevel | null }>;
 
 type ProviderFormProps = {
   providerName?: string;
@@ -48,8 +50,11 @@ const EMPTY_PROVIDER_CONFIG: ProviderConfigView = {
   apiBase: null,
   extraHeaders: null,
   wireApi: null,
-  models: []
+  models: [],
+  modelThinking: {}
 };
+const THINKING_LEVELS: ThinkingLevel[] = ['off', 'minimal', 'low', 'medium', 'high', 'adaptive', 'xhigh'];
+const THINKING_LEVEL_SET = new Set<string>(THINKING_LEVELS);
 
 function normalizeHeaders(input: Record<string, string> | null | undefined): Record<string, string> | null {
   if (!input) {
@@ -158,6 +163,128 @@ function serializeModelsForSave(models: string[], defaultModels: string[]): stri
     return [];
   }
   return models;
+}
+
+function parseThinkingLevel(value: unknown): ThinkingLevel | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  return THINKING_LEVEL_SET.has(normalized) ? (normalized as ThinkingLevel) : null;
+}
+
+function normalizeThinkingLevels(values: unknown): ThinkingLevel[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  const deduped: ThinkingLevel[] = [];
+  for (const value of values) {
+    const level = parseThinkingLevel(value);
+    if (!level || deduped.includes(level)) {
+      continue;
+    }
+    deduped.push(level);
+  }
+  return deduped;
+}
+
+function normalizeModelThinkingConfig(
+  input: ProviderConfigView['modelThinking'],
+  aliases: string[]
+): ModelThinkingConfig {
+  if (!input) {
+    return {};
+  }
+  const normalized: ModelThinkingConfig = {};
+  for (const [rawModel, rawValue] of Object.entries(input)) {
+    const model = toProviderLocalModelId(rawModel, aliases);
+    if (!model) {
+      continue;
+    }
+    const supported = normalizeThinkingLevels(rawValue?.supported);
+    if (supported.length === 0) {
+      continue;
+    }
+    const defaultLevel = parseThinkingLevel(rawValue?.default);
+    normalized[model] =
+      defaultLevel && supported.includes(defaultLevel)
+        ? { supported, default: defaultLevel }
+        : { supported };
+  }
+  return normalized;
+}
+
+function normalizeModelThinkingForModels(modelThinking: ModelThinkingConfig, models: string[]): ModelThinkingConfig {
+  const modelSet = new Set(models.map((item) => item.trim()).filter(Boolean));
+  const normalized: ModelThinkingConfig = {};
+  for (const [model, entry] of Object.entries(modelThinking)) {
+    if (!modelSet.has(model)) {
+      continue;
+    }
+    const supported = normalizeThinkingLevels(entry.supported);
+    if (supported.length === 0) {
+      continue;
+    }
+    const defaultLevel = parseThinkingLevel(entry.default);
+    normalized[model] =
+      defaultLevel && supported.includes(defaultLevel)
+        ? { supported, default: defaultLevel }
+        : { supported };
+  }
+  return normalized;
+}
+
+function modelThinkingEqual(left: ModelThinkingConfig, right: ModelThinkingConfig): boolean {
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+  for (let index = 0; index < leftKeys.length; index += 1) {
+    const key = leftKeys[index];
+    if (key !== rightKeys[index]) {
+      return false;
+    }
+    const leftEntry = left[key];
+    const rightEntry = right[key];
+    if (!leftEntry || !rightEntry) {
+      return false;
+    }
+    const leftSupported = [...leftEntry.supported].sort();
+    const rightSupported = [...rightEntry.supported].sort();
+    if (!modelListsEqual(leftSupported, rightSupported)) {
+      return false;
+    }
+    if ((leftEntry.default ?? null) !== (rightEntry.default ?? null)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function formatThinkingLevelLabel(level: ThinkingLevel): string {
+  if (level === 'off') {
+    return t('chatThinkingLevelOff');
+  }
+  if (level === 'minimal') {
+    return t('chatThinkingLevelMinimal');
+  }
+  if (level === 'low') {
+    return t('chatThinkingLevelLow');
+  }
+  if (level === 'medium') {
+    return t('chatThinkingLevelMedium');
+  }
+  if (level === 'high') {
+    return t('chatThinkingLevelHigh');
+  }
+  if (level === 'adaptive') {
+    return t('chatThinkingLevelAdaptive');
+  }
+  return t('chatThinkingLevelXhigh');
 }
 
 function resolvePreferredAuthMethodId(params: {
@@ -272,6 +399,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
   const [extraHeaders, setExtraHeaders] = useState<Record<string, string> | null>(null);
   const [wireApi, setWireApi] = useState<WireApiType>('auto');
   const [models, setModels] = useState<string[]>([]);
+  const [modelThinking, setModelThinking] = useState<ModelThinkingConfig>({});
   const [modelDraft, setModelDraft] = useState('');
   const [providerDisplayName, setProviderDisplayName] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -322,6 +450,14 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
   const currentEditableModels = useMemo(
     () => resolveEditableModels(defaultModels, currentModels),
     [defaultModels, currentModels]
+  );
+  const currentModelThinking = useMemo(
+    () =>
+      normalizeModelThinkingForModels(
+        normalizeModelThinkingConfig(resolvedProviderConfig.modelThinking, providerModelAliases),
+        currentEditableModels
+      ),
+    [currentEditableModels, providerModelAliases, resolvedProviderConfig.modelThinking]
   );
   const language = getLanguage();
   const apiBaseHelpText =
@@ -443,6 +579,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
       setExtraHeaders(null);
       setWireApi('auto');
       setModels([]);
+      setModelThinking({});
       setModelDraft('');
       setProviderDisplayName('');
       setAuthSessionId(null);
@@ -457,6 +594,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     setExtraHeaders(resolvedProviderConfig.extraHeaders || null);
     setWireApi(currentWireApi);
     setModels(currentEditableModels);
+    setModelThinking(currentModelThinking);
     setModelDraft('');
     setProviderDisplayName(effectiveDisplayName);
     setAuthSessionId(null);
@@ -469,12 +607,17 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     resolvedProviderConfig.extraHeaders,
     currentWireApi,
     currentEditableModels,
+    currentModelThinking,
     effectiveDisplayName,
     preferredAuthMethodId,
     clearAuthPollTimer
   ]);
 
   useEffect(() => () => clearAuthPollTimer(), [clearAuthPollTimer]);
+
+  useEffect(() => {
+    setModelThinking((prev) => normalizeModelThinkingForModels(prev, models));
+  }, [models]);
 
   const hasChanges = useMemo(() => {
     if (!providerName) {
@@ -485,11 +628,20 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     const headersChanged = !headersEqual(extraHeaders, currentHeaders);
     const wireApiChanged = providerSpec?.supportsWireApi ? wireApi !== currentWireApi : false;
     const modelsChanged = !modelListsEqual(models, currentEditableModels);
+    const modelThinkingChanged = !modelThinkingEqual(modelThinking, currentModelThinking);
     const displayNameChanged = isCustomProvider
       ? providerDisplayName.trim() !== effectiveDisplayName
       : false;
 
-    return apiKeyChanged || apiBaseChanged || headersChanged || wireApiChanged || modelsChanged || displayNameChanged;
+    return (
+      apiKeyChanged ||
+      apiBaseChanged ||
+      headersChanged ||
+      wireApiChanged ||
+      modelsChanged ||
+      modelThinkingChanged ||
+      displayNameChanged
+    );
   }, [
     providerName,
     isCustomProvider,
@@ -504,7 +656,9 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     wireApi,
     currentWireApi,
     models,
-    currentEditableModels
+    currentEditableModels,
+    modelThinking,
+    currentModelThinking
   ]);
 
   const handleAddModel = () => {
@@ -518,6 +672,45 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     }
     setModels((prev) => [...prev, next]);
     setModelDraft('');
+  };
+
+  const toggleModelThinkingLevel = (modelName: string, level: ThinkingLevel) => {
+    setModelThinking((prev) => {
+      const currentEntry = prev[modelName];
+      const currentLevels = currentEntry?.supported ?? [];
+      const nextLevels = currentLevels.includes(level)
+        ? currentLevels.filter((item) => item !== level)
+        : THINKING_LEVELS.filter((item) => item === level || currentLevels.includes(item));
+      if (nextLevels.length === 0) {
+        const next = { ...prev };
+        delete next[modelName];
+        return next;
+      }
+      const nextDefault =
+        currentEntry?.default && nextLevels.includes(currentEntry.default) ? currentEntry.default : undefined;
+      return {
+        ...prev,
+        [modelName]: nextDefault ? { supported: nextLevels, default: nextDefault } : { supported: nextLevels }
+      };
+    });
+  };
+
+  const setModelThinkingDefault = (modelName: string, level: ThinkingLevel | null) => {
+    setModelThinking((prev) => {
+      const currentEntry = prev[modelName];
+      if (!currentEntry || currentEntry.supported.length === 0) {
+        return prev;
+      }
+      if (level && !currentEntry.supported.includes(level)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [modelName]: level
+          ? { supported: currentEntry.supported, default: level }
+          : { supported: currentEntry.supported }
+      };
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -554,6 +747,9 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     }
     if (!modelListsEqual(models, currentEditableModels)) {
       payload.models = serializeModelsForSave(models, defaultModels);
+    }
+    if (!modelThinkingEqual(modelThinking, currentModelThinking)) {
+      payload.modelThinking = normalizeModelThinkingForModels(modelThinking, models);
     }
 
     updateProvider.mutate({ provider: providerName, data: payload });
@@ -876,22 +1072,99 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {models.map((modelName) => (
-                  <div
-                    key={modelName}
-                    className="group inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5"
-                  >
-                    <span className="max-w-[180px] truncate text-sm text-gray-800 sm:max-w-[240px]">{modelName}</span>
-                    <button
-                      type="button"
-                      onClick={() => setModels((prev) => prev.filter((name) => name !== modelName))}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-opacity hover:bg-gray-100 hover:text-gray-600 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-                      aria-label={t('remove')}
+                {models.map((modelName) => {
+                  const thinkingEntry = modelThinking[modelName];
+                  const supportedLevels = thinkingEntry?.supported ?? [];
+                  const defaultThinkingLevel = thinkingEntry?.default ?? null;
+                  return (
+                    <div
+                      key={modelName}
+                      className="group inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
+                      <span className="max-w-[140px] truncate text-sm text-gray-800 sm:max-w-[220px]">{modelName}</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-opacity hover:bg-gray-100 hover:text-gray-600 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                            aria-label={t('providerModelThinkingTitle')}
+                            title={t('providerModelThinkingTitle')}
+                          >
+                            <Settings2 className="h-3 w-3" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 space-y-3">
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-gray-800">{t('providerModelThinkingTitle')}</p>
+                            <p className="text-xs text-gray-500">{t('providerModelThinkingHint')}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {THINKING_LEVELS.map((level) => {
+                              const selected = supportedLevels.includes(level);
+                              return (
+                                <button
+                                  key={level}
+                                  type="button"
+                                  onClick={() => toggleModelThinkingLevel(modelName, level)}
+                                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                    selected
+                                      ? 'border-primary bg-primary text-white'
+                                      : 'border-gray-200 bg-white text-gray-600 hover:border-primary/40 hover:text-primary'
+                                  }`}
+                                >
+                                  {formatThinkingLevelLabel(level)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-gray-700">{t('providerModelThinkingDefault')}</Label>
+                            <Select
+                              value={defaultThinkingLevel ?? '__none__'}
+                              onValueChange={(value) =>
+                                setModelThinkingDefault(
+                                  modelName,
+                                  value === '__none__' ? null : (value as ThinkingLevel)
+                                )
+                              }
+                              disabled={supportedLevels.length === 0}
+                            >
+                              <SelectTrigger className="h-8 rounded-lg bg-white text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">{t('providerModelThinkingDefaultNone')}</SelectItem>
+                                {supportedLevels.map((level) => (
+                                  <SelectItem key={level} value={level}>
+                                    {formatThinkingLevelLabel(level)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {supportedLevels.length === 0 ? (
+                              <p className="text-xs text-gray-500">{t('providerModelThinkingNoSupported')}</p>
+                            ) : null}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModels((prev) => prev.filter((name) => name !== modelName));
+                          setModelThinking((prev) => {
+                            const next = { ...prev };
+                            delete next[modelName];
+                            return next;
+                          });
+                        }}
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-opacity hover:bg-gray-100 hover:text-gray-600 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                        aria-label={t('remove')}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

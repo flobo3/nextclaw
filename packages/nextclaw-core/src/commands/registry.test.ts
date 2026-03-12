@@ -70,6 +70,24 @@ describe("CommandRegistry text commands", () => {
     });
     expect(modelResult?.content).toContain("Model set to openai/gpt-5");
     expect(session.metadata.preferred_model).toBe("openai/gpt-5");
+
+    const thinkingResult = await registry.executeText("/thinking medium", {
+      channel: "ui",
+      chatId: "web-ui",
+      senderId: "user-1",
+      sessionKey
+    });
+    expect(thinkingResult?.content).toContain("Thinking effort set to medium");
+    expect(session.metadata.preferred_thinking).toBe("medium");
+
+    const clearThinkingResult = await registry.executeText("/thinking clear", {
+      channel: "ui",
+      chatId: "web-ui",
+      senderId: "user-1",
+      sessionKey
+    });
+    expect(clearThinkingResult?.content).toContain("Thinking override cleared");
+    expect(session.metadata.preferred_thinking).toBeUndefined();
   });
 
   it("returns friendly error for unknown slash command", async () => {

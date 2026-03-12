@@ -265,6 +265,3 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
   }
 }
 
-export function createNcpHttpAgentClient(options: NcpHttpAgentClientOptions): NcpAgentClientEndpoint {
-  return new NcpHttpAgentClientEndpoint(options);
-}

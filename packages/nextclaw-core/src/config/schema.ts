@@ -15,6 +15,11 @@ const streamingModeSchema = z.union([z.boolean(), z.enum(["off", "partial", "blo
 const telegramStreamingModeSchema = z
   .union([z.boolean(), z.enum(["off", "partial", "block", "progress"])])
   .default("partial");
+export const ThinkingLevelSchema = z.enum(["off", "minimal", "low", "medium", "high", "adaptive", "xhigh"]);
+const providerModelThinkingSchema = z.object({
+  supported: z.array(ThinkingLevelSchema).default([]),
+  default: ThinkingLevelSchema.nullable().optional()
+});
 const discordDraftChunkSchema = z
   .object({
     minChars: z.number().int().default(200),
@@ -201,6 +206,14 @@ export const AgentDefaultsSchema = z.object({
   model: z.string().default("dashscope/qwen3.5-flash"),
   engine: z.string().default("native"),
   engineConfig: z.record(z.unknown()).default({}),
+  thinkingDefault: ThinkingLevelSchema.default("off"),
+  models: z
+    .record(
+      z.object({
+        params: z.record(z.unknown()).default({})
+      }).passthrough()
+    )
+    .default({}),
   contextTokens: z.number().int().min(1000).default(200000),
   maxToolIterations: z.number().int().default(1000)
 });
@@ -212,6 +225,14 @@ export const AgentProfileSchema = z.object({
   model: z.string().optional(),
   engine: z.string().optional(),
   engineConfig: z.record(z.unknown()).optional(),
+  thinkingDefault: ThinkingLevelSchema.optional(),
+  models: z
+    .record(
+      z.object({
+        params: z.record(z.unknown()).default({})
+      }).passthrough()
+    )
+    .optional(),
   contextTokens: z.number().int().min(1000).optional(),
   maxToolIterations: z.number().int().optional()
 });
@@ -282,7 +303,8 @@ export const ProviderConfigSchema = z.object({
   apiBase: z.string().nullable().default(null),
   extraHeaders: z.record(z.string()).nullable().default(null),
   wireApi: z.enum(["auto", "chat", "responses"]).default("auto"),
-  models: z.array(z.string().trim().min(1)).default([])
+  models: z.array(z.string().trim().min(1)).default([]),
+  modelThinking: z.record(providerModelThinkingSchema).default({})
 });
 
 export const ProvidersConfigSchema = z.record(ProviderConfigSchema).default({});

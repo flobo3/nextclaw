@@ -10,6 +10,8 @@ import {
   ChatCompletionsPayloadError,
   normalizeChatCompletionsResponse
 } from "./chat-completions-normalizer.js";
+import type { ThinkingLevel } from "../utils/thinking.js";
+import { mapThinkingLevelToOpenAIReasoningEffort } from "../utils/thinking.js";
 
 export type OpenAIProviderOptions = {
   apiKey?: string | null;
@@ -46,6 +48,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): Promise<LLMResponse> {
     if (this.wireApi === "chat") {
@@ -69,6 +72,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): AsyncGenerator<LLMStreamEvent> {
     if (this.wireApi === "chat") {
@@ -100,6 +104,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): Promise<LLMResponse> {
     const model = params.model ?? this.defaultModel;
@@ -125,6 +130,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): AsyncGenerator<LLMStreamEvent> {
     const model = params.model ?? this.defaultModel;
@@ -265,11 +271,16 @@ export class OpenAICompatibleProvider extends LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): Promise<LLMResponse> {
     const model = params.model ?? this.defaultModel;
     const input = this.toResponsesInput(params.messages);
     const body: Record<string, unknown> = { model, input: input as unknown };
+    const reasoningEffort = mapThinkingLevelToOpenAIReasoningEffort(params.thinkingLevel);
+    if (reasoningEffort) {
+      body.reasoning = { effort: reasoningEffort };
+    }
     if (params.tools && params.tools.length) {
       body.tools = params.tools as unknown;
     }

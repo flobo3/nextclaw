@@ -6,6 +6,9 @@ function buildSendTurnPayload(item: SendMessageParams, requestedSkills: string[]
   if (item.sessionType) {
     metadata.session_type = item.sessionType;
   }
+  if (item.thinkingLevel) {
+    metadata.thinking = item.thinkingLevel;
+  }
   if (requestedSkills.length > 0) {
     metadata.requested_skills = requestedSkills;
   }

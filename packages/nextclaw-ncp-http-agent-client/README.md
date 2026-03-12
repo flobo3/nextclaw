@@ -10,4 +10,4 @@ pnpm -C packages/nextclaw-ncp-http-agent-client build
 
 ## API
 
-- `createNcpHttpAgentClient(options)`
+- `new NcpHttpAgentClientEndpoint(options)`

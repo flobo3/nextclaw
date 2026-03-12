@@ -1,5 +1,24 @@
 # @nextclaw/openclaw-compat
 
+## 0.2.6
+
+### Patch Changes
+
+- Add model-level thinking capability configuration and session thinking selector with backend fallback alignment.
+- Updated dependencies
+  - @nextclaw/core@0.7.7
+  - @nextclaw/channel-runtime@0.1.35
+  - @nextclaw/channel-plugin-dingtalk@0.1.11
+  - @nextclaw/channel-plugin-discord@0.1.12
+  - @nextclaw/channel-plugin-email@0.1.11
+  - @nextclaw/channel-plugin-feishu@0.1.11
+  - @nextclaw/channel-plugin-mochat@0.1.11
+  - @nextclaw/channel-plugin-qq@0.1.11
+  - @nextclaw/channel-plugin-slack@0.1.11
+  - @nextclaw/channel-plugin-telegram@0.1.11
+  - @nextclaw/channel-plugin-wecom@0.1.11
+  - @nextclaw/channel-plugin-whatsapp@0.1.11
+
 ## 0.2.5
 
 ### Patch Changes

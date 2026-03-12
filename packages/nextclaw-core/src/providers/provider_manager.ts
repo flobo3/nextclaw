@@ -2,6 +2,7 @@ import type { Config, ProviderConfig } from "../config/schema.js";
 import { getApiBase, getProvider, getProviderName } from "../config/schema.js";
 import type { LLMProvider, LLMResponse, LLMStreamEvent } from "./base.js";
 import { LiteLLMProvider } from "./litellm_provider.js";
+import type { ThinkingLevel } from "../utils/thinking.js";
 
 type ProviderManagerOptions = {
   defaultProvider: LLMProvider;
@@ -20,6 +21,7 @@ type ProviderChatParams = {
   tools?: Array<Record<string, unknown>>;
   model?: string | null;
   maxTokens?: number;
+  thinkingLevel?: ThinkingLevel | null;
   signal?: AbortSignal;
 };
 

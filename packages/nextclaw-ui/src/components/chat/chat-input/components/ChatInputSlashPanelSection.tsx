@@ -43,10 +43,10 @@ export function ChatInputSlashPanelSection({
         onOpenAutoFocus={(event) => event.preventDefault()}
         style={resolvedSlashPanelWidth ? { width: `${resolvedSlashPanelWidth}px` } : undefined}
       >
-        <div className="grid min-h-[240px] grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
+        <div className="grid min-h-[240px] grid-cols-[minmax(220px,300px)_minmax(0,1fr)]">
           <div
             ref={slashListRef}
-            className="max-h-[320px] overflow-y-auto border-r border-gray-200 p-3 custom-scrollbar"
+            className="max-h-[320px] overflow-y-auto border-r border-gray-200 p-2.5 custom-scrollbar"
           >
             {isSlashPanelLoading ? (
               <div className="p-2 text-xs text-gray-500">{t('chatSlashLoading')}</div>
@@ -82,7 +82,7 @@ export function ChatInputSlashPanelSection({
               </>
             )}
           </div>
-          <div className="p-4">
+          <div className="max-w-[320px] p-3.5">
             {activeSlashItem ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">

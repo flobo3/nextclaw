@@ -4,7 +4,9 @@ import type { MarketplaceInstalledRecord } from '@/api/types';
 import { t } from '@/lib/i18n';
 import type { ChatInputBarSlashItem } from '@/components/chat/chat-input.types';
 
-const SLASH_PANEL_MAX_WIDTH = 920;
+const SLASH_PANEL_MAX_WIDTH = 680;
+const SLASH_PANEL_DESKTOP_SHRINK_RATIO = 0.82;
+const SLASH_PANEL_DESKTOP_MIN_WIDTH = 560;
 
 type RankedSkill = {
   record: MarketplaceInstalledRecord;
@@ -162,7 +164,14 @@ function useSlashPanelController(params: SlashPanelControllerParams) {
   const isSlashPanelOpen = slashQuery !== null && !dismissedSlashPanel;
   const activeSlashItem = slashItems[activeSlashIndex] ?? null;
   const isSlashPanelLoading = params.isSkillsLoading;
-  const resolvedSlashPanelWidth = slashPanelWidth ? Math.min(slashPanelWidth, SLASH_PANEL_MAX_WIDTH) : undefined;
+  const resolvedSlashPanelWidth = slashPanelWidth
+    ? Math.min(
+        slashPanelWidth > SLASH_PANEL_DESKTOP_MIN_WIDTH
+          ? slashPanelWidth * SLASH_PANEL_DESKTOP_SHRINK_RATIO
+          : slashPanelWidth,
+        SLASH_PANEL_MAX_WIDTH
+      )
+    : undefined;
 
   useEffect(() => {
     const anchor = slashAnchorRef.current;

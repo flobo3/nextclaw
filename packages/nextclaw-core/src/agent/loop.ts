@@ -24,6 +24,12 @@ import { ExtensionToolAdapter } from "../extensions/tool-adapter.js";
 import { createTypingStopControlMessage } from "../bus/control.js";
 import type { ExtensionToolContext, ExtensionRegistry } from "../extensions/types.js";
 import { InputBudgetPruner } from "./input-budget-pruner.js";
+import {
+  CLEAR_THINKING_TOKENS,
+  type ThinkingLevel,
+  parseThinkingLevel
+} from "../utils/thinking.js";
+import { resolveThinkingLevel } from "./thinking.js";
 
 type MessageToolHintsResolver = (params: {
   sessionKey: string;
@@ -313,6 +319,25 @@ export class AgentLoop {
     return this.options.model ?? this.options.providerManager.get().getDefaultModel();
   }
 
+  private resolveSessionThinkingOverride(
+    session: { metadata: Record<string, unknown> },
+    metadata: Record<string, unknown>
+  ): ThinkingLevel | null {
+    const clearThinking = metadata.clear_thinking === true || metadata.reset_thinking === true;
+    if (clearThinking) {
+      delete session.metadata.preferred_thinking;
+    }
+
+    const inboundThinking = this.readMetadataThinking(metadata);
+    if (inboundThinking === "__clear__") {
+      delete session.metadata.preferred_thinking;
+    } else if (inboundThinking) {
+      session.metadata.preferred_thinking = inboundThinking;
+    }
+
+    return parseThinkingLevel(session.metadata.preferred_thinking) ?? null;
+  }
+
   private readMetadataModel(metadata: Record<string, unknown>): string | null {
     const candidates = [metadata.model, metadata.llm_model, metadata.agent_model, metadata.session_model];
     for (const candidate of candidates) {
@@ -322,6 +347,33 @@ export class AgentLoop {
       const trimmed = candidate.trim();
       if (trimmed) {
         return trimmed;
+      }
+    }
+    return null;
+  }
+
+  private readMetadataThinking(metadata: Record<string, unknown>): ThinkingLevel | "__clear__" | null {
+    const candidates = [
+      metadata.thinking,
+      metadata.thinking_level,
+      metadata.thinkingLevel,
+      metadata.thinking_effort,
+      metadata.thinkingEffort
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate !== "string") {
+        continue;
+      }
+      const normalized = candidate.trim().toLowerCase();
+      if (!normalized) {
+        continue;
+      }
+      if (CLEAR_THINKING_TOKENS.has(normalized)) {
+        return "__clear__";
+      }
+      const level = parseThinkingLevel(normalized);
+      if (level) {
+        return level;
       }
     }
     return null;
@@ -584,6 +636,13 @@ export class AgentLoop {
       handoffDepth: this.resolveHandoffDepth(msg.metadata)
     });
     const runtimeModel = this.resolveSessionModel(session, msg.metadata);
+    const sessionThinking = this.resolveSessionThinkingOverride(session, msg.metadata);
+    const runtimeThinking = resolveThinkingLevel({
+      config: this.options.config,
+      agentId: this.agentId,
+      model: runtimeModel,
+      sessionThinkingLevel: sessionThinking
+    });
     const messageId = msg.metadata?.message_id as string | undefined;
     if (messageId) {
       session.metadata.last_message_id = messageId;
@@ -656,6 +715,7 @@ export class AgentLoop {
       channel: msg.channel,
       chatId: msg.chatId,
       sessionKey,
+      thinkingLevel: runtimeThinking,
       skillNames: requestedSkillNames,
       messageToolHints
     });
@@ -683,6 +743,7 @@ export class AgentLoop {
           messages,
           tools: this.tools.getDefinitions(),
           model: runtimeModel,
+          thinkingLevel: runtimeThinking,
           signal: options?.abortSignal
         }, options?.onAssistantDelta);
         throwIfAborted(options?.abortSignal);
@@ -815,6 +876,13 @@ export class AgentLoop {
       handoffDepth: this.resolveHandoffDepth(msg.metadata)
     });
     const runtimeModel = this.resolveSessionModel(session, msg.metadata);
+    const sessionThinking = this.resolveSessionThinkingOverride(session, msg.metadata);
+    const runtimeThinking = resolveThinkingLevel({
+      config: this.options.config,
+      agentId: this.agentId,
+      model: runtimeModel,
+      sessionThinkingLevel: sessionThinking
+    });
 
     const messageTool = this.tools.get("message");
     if (messageTool instanceof MessageTool) {
@@ -860,6 +928,7 @@ export class AgentLoop {
       channel: originChannel,
       chatId: originChatId,
       sessionKey,
+      thinkingLevel: runtimeThinking,
       skillNames: requestedSkillNames,
       messageToolHints
     });
@@ -889,6 +958,7 @@ export class AgentLoop {
           messages,
           tools: this.tools.getDefinitions(),
           model: runtimeModel,
+          thinkingLevel: runtimeThinking,
           signal: options?.abortSignal
         }, options?.onAssistantDelta);
         throwIfAborted(options?.abortSignal);
@@ -1006,6 +1076,7 @@ export class AgentLoop {
       tools?: Array<Record<string, unknown>>;
       model?: string | null;
       maxTokens?: number;
+      thinkingLevel?: ThinkingLevel | null;
       signal?: AbortSignal;
     },
     onAssistantDelta?: AssistantDeltaHandler

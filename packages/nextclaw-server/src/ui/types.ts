@@ -1,4 +1,4 @@
-import type { CronService } from "@nextclaw/core";
+import type { CronService, ThinkingLevel } from "@nextclaw/core";
 
 export type ApiError = {
   code: string;
@@ -23,6 +23,7 @@ export type ProviderConfigView = {
   extraHeaders?: Record<string, string> | null;
   wireApi?: "auto" | "chat" | "responses" | null;
   models?: string[];
+  modelThinking?: Record<string, { supported: ThinkingLevel[]; default?: ThinkingLevel | null }>;
 };
 
 export type ProviderConfigUpdate = {
@@ -32,6 +33,7 @@ export type ProviderConfigUpdate = {
   extraHeaders?: Record<string, string> | null;
   wireApi?: "auto" | "chat" | "responses" | null;
   models?: string[] | null;
+  modelThinking?: Record<string, { supported?: ThinkingLevel[]; default?: ThinkingLevel | null }> | null;
 };
 
 export type ProviderConnectionTestRequest = ProviderConfigUpdate & {

@@ -1,5 +1,11 @@
 # nextclaw-core
 
+## 0.7.7
+
+### Patch Changes
+
+- Add model-level thinking capability configuration and session thinking selector with backend fallback alignment.
+
 ## 0.7.6
 
 ### Patch Changes

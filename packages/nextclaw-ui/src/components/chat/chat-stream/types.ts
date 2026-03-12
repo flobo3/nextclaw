@@ -4,7 +4,8 @@ import type {
   ChatTurnStreamDeltaEvent,
   ChatTurnStreamReadyEvent,
   ChatTurnStreamSessionEvent,
-  SessionMessageView
+  SessionMessageView,
+  ThinkingLevel
 } from '@/api/types';
 
 export type SendMessageParams = {
@@ -14,6 +15,7 @@ export type SendMessageParams = {
   agentId: string;
   sessionType?: string;
   model?: string;
+  thinkingLevel?: ThinkingLevel;
   requestedSkills?: string[];
   stopSupported?: boolean;
   stopReason?: string;

@@ -7,6 +7,8 @@ import { normalizeSessionType } from '@/components/chat/useChatSessionTypeState'
 import type { ChatInputSnapshot } from '@/components/chat/stores/chat-input.store';
 import type { SetStateAction } from 'react';
 import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
+import type { ThinkingLevel } from '@/api/types';
+import type { ChatModelOption } from '@/components/chat/chat-input.types';
 
 export class ChatInputManager {
   constructor(
@@ -36,6 +38,14 @@ export class ChatInputManager {
       return;
     }
     useChatInputStore.getState().setSnapshot(patch);
+    if (
+      Object.prototype.hasOwnProperty.call(patch, 'modelOptions') ||
+      Object.prototype.hasOwnProperty.call(patch, 'selectedModel') ||
+      Object.prototype.hasOwnProperty.call(patch, 'selectedThinkingLevel')
+    ) {
+      const snapshot = useChatInputStore.getState().snapshot;
+      this.reconcileThinkingForModel(snapshot.selectedModel);
+    }
   };
 
   setDraft = (next: SetStateAction<string>) => {
@@ -77,6 +87,7 @@ export class ChatInputManager {
       agentId: sessionSnapshot.selectedAgentId,
       sessionType: inputSnapshot.selectedSessionType,
       model: inputSnapshot.selectedModel || undefined,
+      thinkingLevel: inputSnapshot.selectedThinkingLevel ?? undefined,
       stopSupported: inputSnapshot.stopSupported,
       stopReason: inputSnapshot.stopReason,
       requestedSkills,
@@ -99,6 +110,16 @@ export class ChatInputManager {
       return;
     }
     useChatInputStore.getState().setSnapshot({ selectedModel: value });
+    this.reconcileThinkingForModel(value);
+  };
+
+  setSelectedThinkingLevel = (next: SetStateAction<ThinkingLevel | null>) => {
+    const prev = useChatInputStore.getState().snapshot.selectedThinkingLevel;
+    const value = this.resolveUpdateValue(prev, next);
+    if (value === prev) {
+      return;
+    }
+    useChatInputStore.getState().setSnapshot({ selectedThinkingLevel: value });
   };
 
   selectSessionType = (value: string) => {
@@ -120,9 +141,39 @@ export class ChatInputManager {
     this.setSelectedModel(value);
   };
 
+  selectThinkingLevel = (value: ThinkingLevel) => {
+    this.setSelectedThinkingLevel(value);
+  };
+
   selectSkills = (next: string[]) => {
     this.setSelectedSkills(next);
   };
+
+  private resolveThinkingForModel(modelOption: ChatModelOption | undefined, current: ThinkingLevel | null): ThinkingLevel | null {
+    const capability = modelOption?.thinkingCapability;
+    if (!capability || capability.supported.length === 0) {
+      return null;
+    }
+    if (current === 'off') {
+      return 'off';
+    }
+    if (current && capability.supported.includes(current)) {
+      return current;
+    }
+    if (capability.default && capability.supported.includes(capability.default)) {
+      return capability.default;
+    }
+    return 'off';
+  }
+
+  private reconcileThinkingForModel(model: string): void {
+    const snapshot = useChatInputStore.getState().snapshot;
+    const modelOption = snapshot.modelOptions.find((option) => option.value === model);
+    const nextThinking = this.resolveThinkingForModel(modelOption, snapshot.selectedThinkingLevel);
+    if (nextThinking !== snapshot.selectedThinkingLevel) {
+      useChatInputStore.getState().setSnapshot({ selectedThinkingLevel: nextThinking });
+    }
+  }
 
   private syncRemoteSessionType = async (normalizedType: string) => {
     const sessionSnapshot = useChatSessionListStore.getState().snapshot;

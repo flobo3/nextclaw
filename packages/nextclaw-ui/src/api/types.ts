@@ -14,6 +14,8 @@ export type AppMetaView = {
   productVersion: string;
 };
 
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "adaptive" | "xhigh";
+
 export type ProviderConfigView = {
   displayName?: string;
   apiKeySet: boolean;
@@ -22,6 +24,7 @@ export type ProviderConfigView = {
   extraHeaders?: Record<string, string> | null;
   wireApi?: "auto" | "chat" | "responses" | null;
   models?: string[];
+  modelThinking?: Record<string, { supported: ThinkingLevel[]; default?: ThinkingLevel | null }>;
 };
 
 export type ProviderConfigUpdate = {
@@ -31,6 +34,7 @@ export type ProviderConfigUpdate = {
   extraHeaders?: Record<string, string> | null;
   wireApi?: "auto" | "chat" | "responses" | null;
   models?: string[] | null;
+  modelThinking?: Record<string, { supported?: ThinkingLevel[]; default?: ThinkingLevel | null }> | null;
 };
 
 export type ProviderConnectionTestRequest = ProviderConfigUpdate & {

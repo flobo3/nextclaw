@@ -1,5 +1,13 @@
 # @nextclaw/runtime
 
+## 0.1.6
+
+### Patch Changes
+
+- Add model-level thinking capability configuration and session thinking selector with backend fallback alignment.
+- Updated dependencies
+  - @nextclaw/core@0.7.7
+
 ## 0.1.5
 
 ### Patch Changes

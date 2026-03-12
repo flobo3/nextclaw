@@ -1,5 +1,12 @@
 # @nextclaw/channel-plugin-discord
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/channel-runtime@0.1.35
+
 ## 0.1.11
 
 ### Patch Changes

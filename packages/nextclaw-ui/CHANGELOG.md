@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.6.13
+
+### Patch Changes
+
+- Add model-level thinking capability configuration and session thinking selector with backend fallback alignment.
+
 ## 0.6.12
 
 ### Patch Changes

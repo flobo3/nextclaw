@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NcpEndpointEvent, NcpRequestEnvelope } from "@nextclaw/ncp";
-import { createNcpHttpAgentClient } from "./index.js";
+import { NcpHttpAgentClientEndpoint } from "./index.js";
 
 const now = "2026-03-12T00:00:00.000Z";
 
@@ -33,7 +33,7 @@ describe("createNcpHttpAgentClient stream behavior", () => {
       return createSseResponse(frames, { splitByUtf8Token: "你" });
     };
 
-    const client = createNcpHttpAgentClient({
+    const client = new NcpHttpAgentClientEndpoint({
       baseUrl: "https://api.example.com",
       fetchImpl,
     });
@@ -94,7 +94,7 @@ describe("createNcpHttpAgentClient stream behavior", () => {
       ]);
     };
 
-    const client = createNcpHttpAgentClient({
+    const client = new NcpHttpAgentClientEndpoint({
       baseUrl: "https://api.example.com",
       fetchImpl,
     });
@@ -148,7 +148,7 @@ describe("createNcpHttpAgentClient resume and abort", () => {
       ]);
     };
 
-    const client = createNcpHttpAgentClient({
+    const client = new NcpHttpAgentClientEndpoint({
       baseUrl: "https://api.example.com",
       fetchImpl,
     });
@@ -194,7 +194,7 @@ describe("createNcpHttpAgentClient resume and abort", () => {
       });
     };
 
-    const client = createNcpHttpAgentClient({
+    const client = new NcpHttpAgentClientEndpoint({
       baseUrl: "https://api.example.com",
       fetchImpl,
     });
@@ -237,7 +237,7 @@ describe("createNcpHttpAgentClient edge cases", () => {
       });
     };
 
-    const client = createNcpHttpAgentClient({
+    const client = new NcpHttpAgentClientEndpoint({
       baseUrl: "https://api.example.com",
       fetchImpl,
     });

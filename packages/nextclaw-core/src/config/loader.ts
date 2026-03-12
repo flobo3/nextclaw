@@ -148,7 +148,8 @@ function ensureBuiltinNextclawKey(config: Config): boolean {
       apiBase: null,
       extraHeaders: null,
       wireApi: "auto",
-      models: []
+      models: [],
+      modelThinking: {}
     };
     providers.nextclaw = provider;
     changed = true;

@@ -1,6 +1,7 @@
 import { LLMProvider, type LLMResponse, type LLMStreamEvent } from "./base.js";
 import { OpenAICompatibleProvider } from "./openai_provider.js";
 import { findGateway, findProviderByModel, findProviderByName, type ProviderSpec } from "./registry.js";
+import type { ThinkingLevel } from "../utils/thinking.js";
 
 export type LiteLLMProviderOptions = {
   apiKey?: string | null;
@@ -46,6 +47,7 @@ export class LiteLLMProvider extends LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): Promise<LLMResponse> {
     const requestedModel = this.stripCustomProviderPrefix(params.model ?? this.defaultModel);
@@ -58,6 +60,7 @@ export class LiteLLMProvider extends LLMProvider {
       tools: params.tools,
       model: apiModel,
       maxTokens: overrides.maxTokens,
+      thinkingLevel: params.thinkingLevel,
       signal: params.signal
     });
   }
@@ -67,6 +70,7 @@ export class LiteLLMProvider extends LLMProvider {
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
+    thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
   }): AsyncGenerator<LLMStreamEvent> {
     const requestedModel = this.stripCustomProviderPrefix(params.model ?? this.defaultModel);
@@ -79,6 +83,7 @@ export class LiteLLMProvider extends LLMProvider {
       tools: params.tools,
       model: apiModel,
       maxTokens: overrides.maxTokens,
+      thinkingLevel: params.thinkingLevel,
       signal: params.signal
     })) {
       yield event;

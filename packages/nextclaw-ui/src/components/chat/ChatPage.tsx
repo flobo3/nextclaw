@@ -122,6 +122,7 @@ export function ChatPage({ view }: ChatPageProps) {
   const { sessionId: routeSessionIdParam } = useParams<{ sessionId?: string }>();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
+  const thinkingHydratedSessionKeyRef = useRef<string | null>(null);
   const routeSessionKey = useMemo(
     () => parseSessionKeyFromRoute(routeSessionIdParam),
     [routeSessionIdParam]
@@ -137,6 +138,7 @@ export function ChatPage({ view }: ChatPageProps) {
     skillRecords,
     selectedSession,
     historyMessages,
+    selectedSessionThinkingLevel,
     sessionTypeOptions,
     defaultSessionType,
     selectedSessionType,
@@ -232,6 +234,12 @@ export function ChatPage({ view }: ChatPageProps) {
   ]);
 
   useEffect(() => {
+    const shouldHydrateThinkingFromHistory =
+      !isSending &&
+      !isAwaitingAssistantOutput &&
+      !historyQuery.isLoading &&
+      selectedSessionKey !== thinkingHydratedSessionKeyRef.current;
+
     presenter.chatInputManager.syncSnapshot({
       isProviderStateResolved,
       defaultSessionType,
@@ -244,11 +252,18 @@ export function ChatPage({ view }: ChatPageProps) {
       modelOptions,
       sessionTypeOptions,
       selectedSessionType,
+      ...(shouldHydrateThinkingFromHistory ? { selectedThinkingLevel: selectedSessionThinkingLevel } : {}),
       canEditSessionType,
       sessionTypeUnavailable,
       skillRecords,
       isSkillsLoading: installedSkillsQuery.isLoading
     });
+    if (shouldHydrateThinkingFromHistory) {
+      thinkingHydratedSessionKeyRef.current = selectedSessionKey;
+    }
+    if (!selectedSessionKey) {
+      thinkingHydratedSessionKeyRef.current = null;
+    }
     presenter.chatSessionListManager.syncSnapshot({
       sessions,
       query,
@@ -292,6 +307,7 @@ export function ChatPage({ view }: ChatPageProps) {
     presenter,
     query,
     selectedSession,
+    selectedSessionThinkingLevel,
     selectedSessionKey,
     selectedAgentId,
     selectedSessionType,

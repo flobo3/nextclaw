@@ -31,6 +31,8 @@ const RELOAD_RULES: ReloadRule[] = [
   { prefix: "agents.defaults.model", kind: "reload-agent" },
   { prefix: "agents.defaults.engine", kind: "reload-agent" },
   { prefix: "agents.defaults.engineConfig", kind: "reload-agent" },
+  { prefix: "agents.defaults.thinkingDefault", kind: "reload-agent" },
+  { prefix: "agents.defaults.models", kind: "reload-agent" },
   { prefix: "agents.defaults.maxToolIterations", kind: "reload-agent" },
   { prefix: "agents.context", kind: "reload-agent" },
   { prefix: "agents.defaults.contextTokens", kind: "reload-agent" },

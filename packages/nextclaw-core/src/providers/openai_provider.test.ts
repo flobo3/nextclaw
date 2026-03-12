@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OpenAICompatibleProvider } from "./openai_provider.js";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 describe("OpenAICompatibleProvider responses payload parser", () => {
   const provider = new OpenAICompatibleProvider({
@@ -34,5 +40,66 @@ describe("OpenAICompatibleProvider responses payload parser", () => {
       .extractSseJson(raw);
     expect(parsed).not.toBeNull();
     expect(Array.isArray((parsed as { output?: unknown }).output)).toBe(true);
+  });
+
+  it("injects reasoning effort when thinkingLevel is provided for responses API", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          status: "completed",
+          output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }],
+          usage: {}
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as unknown as typeof globalThis.fetch;
+
+    const responseProvider = new OpenAICompatibleProvider({
+      apiKey: "sk-test",
+      apiBase: "http://127.0.0.1:9/v1",
+      defaultModel: "gpt-test",
+      wireApi: "responses"
+    });
+    await responseProvider.chat({
+      messages: [{ role: "user", content: "hello" }],
+      thinkingLevel: "medium"
+    });
+
+    expect(capturedBody).not.toBeNull();
+    const reasoning = capturedBody && typeof capturedBody === "object"
+      ? (capturedBody as Record<string, unknown>).reasoning
+      : undefined;
+    expect(reasoning).toEqual({ effort: "medium" });
+  });
+
+  it("does not inject reasoning effort when thinkingLevel is off", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          status: "completed",
+          output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }],
+          usage: {}
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as unknown as typeof globalThis.fetch;
+
+    const responseProvider = new OpenAICompatibleProvider({
+      apiKey: "sk-test",
+      apiBase: "http://127.0.0.1:9/v1",
+      defaultModel: "gpt-test",
+      wireApi: "responses"
+    });
+    await responseProvider.chat({
+      messages: [{ role: "user", content: "hello" }],
+      thinkingLevel: "off"
+    });
+
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody).not.toHaveProperty("reasoning");
   });
 });
