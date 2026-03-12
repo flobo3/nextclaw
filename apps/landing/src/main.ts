@@ -169,7 +169,7 @@ const DESKTOP_RELEASE_FALLBACK: DesktopReleaseInfo = {
     macArm64Dmg:
       'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.10/NextClaw.Desktop-0.0.27-arm64.dmg',
     macX64Dmg:
-      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.10/NextClaw.Desktop-0.0.27-x64.dmg',
+      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.10/NextClaw.Desktop-0.0.27.dmg',
     windowsX64Zip:
       'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.10/NextClaw.Desktop-win32-x64-unpacked.zip',
     linuxX64AppImage:
@@ -181,7 +181,7 @@ const GITHUB_RELEASES_API = 'https://api.github.com/repos/Peiiii/nextclaw/releas
 
 const DESKTOP_ASSET_PATTERNS: Record<DownloadAssetKey, RegExp> = {
   macArm64Dmg: /NextClaw\.Desktop-(\d+\.\d+\.\d+)-arm64\.dmg$/,
-  macX64Dmg: /NextClaw\.Desktop-(\d+\.\d+\.\d+)-x64\.dmg$/,
+  macX64Dmg: /NextClaw\.Desktop-(\d+\.\d+\.\d+)(?:-x64)?\.dmg$/,
   windowsX64Zip: /NextClaw\.Desktop-win32-x64-unpacked\.zip$/,
   linuxX64AppImage: /NextClaw(?:\.Desktop| Desktop)-(\d+\.\d+\.\d+)(?:-linux-x64)?\.AppImage$/i
 };
