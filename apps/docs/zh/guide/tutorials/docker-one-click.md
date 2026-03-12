@@ -11,8 +11,8 @@
   - Docker 镜像源（拉取 `node:22-bookworm-slim`）
   - npm registry（安装 `nextclaw`）
 - 默认端口未被占用：
-  - UI：`18791`
-  - Gateway：`18790`
+  - UI：`18891`
+  - Gateway：`18890`
 
 ## 一键部署命令
 
@@ -25,9 +25,9 @@ curl -fsSL https://nextclaw.io/install-docker.sh | bash
 脚本完成后会输出类似：
 
 ```text
-UI: http://127.0.0.1:18791
-API: http://127.0.0.1:18791/api
-Gateway (direct): http://127.0.0.1:18790
+UI: http://127.0.0.1:18891
+API: http://127.0.0.1:18891/api
+Gateway (direct): http://127.0.0.1:18890
 Data dir: /Users/<you>/.nextclaw-docker
 Container: nextclaw
 ```
@@ -65,8 +65,8 @@ docker rm -f nextclaw
 ### 方式 1：环境变量（最常用）
 
 ```bash
-NEXTCLAW_DOCKER_UI_PORT=18891 \
-NEXTCLAW_DOCKER_API_PORT=18890 \
+NEXTCLAW_DOCKER_UI_PORT=18991 \
+NEXTCLAW_DOCKER_API_PORT=18990 \
 NEXTCLAW_DOCKER_CONTAINER_NAME=nextclaw-prod \
 NEXTCLAW_DOCKER_DATA_DIR="$HOME/.nextclaw-docker-prod" \
 curl -fsSL https://nextclaw.io/install-docker.sh | bash
@@ -76,8 +76,8 @@ curl -fsSL https://nextclaw.io/install-docker.sh | bash
 
 ```bash
 curl -fsSL https://nextclaw.io/install-docker.sh | bash -s -- \
-  --ui-port 18891 \
-  --api-port 18890 \
+  --ui-port 18991 \
+  --api-port 18990 \
   --container-name nextclaw-prod \
   --data-dir "$HOME/.nextclaw-docker-prod"
 ```
