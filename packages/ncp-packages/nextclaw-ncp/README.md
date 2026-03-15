@@ -5,7 +5,7 @@ Core protocol types and endpoint abstractions for universal communication in Nex
 ## Build
 
 ```bash
-pnpm -C packages/nextclaw-ncp build
+pnpm -C packages/ncp-packages/nextclaw-ncp build
 ```
 
 ## Scope

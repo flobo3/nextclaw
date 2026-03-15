@@ -5,7 +5,7 @@ HTTP/SSE transport adapter implementing `NcpAgentClientEndpoint` for agent scena
 ## Build
 
 ```bash
-pnpm -C packages/nextclaw-ncp-http-agent-client build
+pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-client build
 ```
 
 ## API

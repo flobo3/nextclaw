@@ -5,7 +5,7 @@ HTTP/SSE transport adapter for exposing an `NcpAgentClientEndpoint` over Hono ro
 ## Build
 
 ```bash
-pnpm -C packages/nextclaw-ncp-http-agent-server build
+pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-server build
 ```
 
 ## API

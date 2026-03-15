@@ -13,7 +13,7 @@ COPY packages ./packages
 RUN pnpm install --frozen-lockfile
 
 RUN pnpm -C packages/nextclaw-core build \
-  && pnpm -C packages/nextclaw-ncp build \
+  && pnpm -C packages/ncp-packages/nextclaw-ncp build \
   && pnpm -C packages/nextclaw-runtime build \
   && pnpm -C packages/extensions/nextclaw-channel-runtime build \
   && pnpm -C packages/extensions/nextclaw-engine-plugin-codex-sdk build \

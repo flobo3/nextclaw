@@ -34,10 +34,10 @@
 
 ## 2. 包与目录规划
 
-新增 `packages/nextclaw-ncp/`（发布名：`@nextclaw/ncp`）：
+新增 `packages/ncp-packages/nextclaw-ncp/`（发布名：`@nextclaw/ncp`）：
 
 ```text
-packages/nextclaw-ncp/
+packages/ncp-packages/nextclaw-ncp/
   package.json
   tsconfig.json
   src/

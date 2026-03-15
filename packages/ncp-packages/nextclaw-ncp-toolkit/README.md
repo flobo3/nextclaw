@@ -5,7 +5,7 @@ Toolkit implementations built on top of `@nextclaw/ncp` protocol contracts.
 ## Build
 
 ```bash
-pnpm -C packages/nextclaw-ncp-toolkit build
+pnpm -C packages/ncp-packages/nextclaw-ncp-toolkit build
 ```
 
 ## Scope

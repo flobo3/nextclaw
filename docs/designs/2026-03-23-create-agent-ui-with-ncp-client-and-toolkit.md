@@ -182,7 +182,7 @@ ChatPage
 ## 九、文件结构建议
 
 ```
-packages/nextclaw-ncp-toolkit/
+packages/ncp-packages/nextclaw-ncp-toolkit/
   src/
     agent/
       agent-conversation-state-manager.ts  (已有)
