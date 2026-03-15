@@ -13,9 +13,17 @@ export function getOrCreateSessionId(): string {
   if (existing && existing.trim().length > 0) {
     return existing;
   }
-  const next = `demo-${Math.random().toString(36).slice(2, 10)}`;
+  const next = createNewSessionId();
   window.localStorage.setItem(SESSION_STORAGE_KEY, next);
   return next;
+}
+
+export function createNewSessionId(): string {
+  return `demo-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function setCurrentSessionId(sessionId: string): void {
+  window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
 }
 
 export async function refreshSessions(
@@ -27,4 +35,9 @@ export async function refreshSessions(
   }
   const payload = (await response.json()) as SessionSummary[];
   setter(Array.isArray(payload) ? payload : []);
+}
+
+export async function deleteSession(sessionId: string): Promise<boolean> {
+  const response = await fetch(`/demo/sessions/${sessionId}`, { method: "DELETE" });
+  return response.ok;
 }
