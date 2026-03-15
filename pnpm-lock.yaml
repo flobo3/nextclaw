@@ -181,9 +181,9 @@ importers:
       '@nextclaw/ncp-http-agent-client':
         specifier: workspace:*
         version: link:../../../packages/ncp-packages/nextclaw-ncp-http-agent-client
-      '@nextclaw/ncp-toolkit':
+      '@nextclaw/ncp-react':
         specifier: workspace:*
-        version: link:../../../packages/ncp-packages/nextclaw-ncp-toolkit
+        version: link:../../../packages/ncp-packages/nextclaw-ncp-react
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -559,6 +559,34 @@ importers:
       vitest:
         specifier: ^2.1.2
         version: 2.1.9(@types/node@20.19.33)
+
+  packages/ncp-packages/nextclaw-ncp-react:
+    dependencies:
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../nextclaw-ncp
+      '@nextclaw/ncp-toolkit':
+        specifier: workspace:*
+        version: link:../nextclaw-ncp-toolkit
+      react:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 18.3.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20.17.6
+        version: 20.19.33
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.28
+      prettier:
+        specifier: ^3.3.3
+        version: 3.8.1
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   packages/ncp-packages/nextclaw-ncp-toolkit:
     dependencies:

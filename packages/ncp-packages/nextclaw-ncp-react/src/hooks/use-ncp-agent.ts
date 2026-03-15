@@ -11,6 +11,7 @@ export function useNcpAgent(sessionId: string, client: NcpAgentClientEndpoint) {
   if (!managerRef.current) {
     managerRef.current = new DefaultNcpAgentConversationStateManager();
   }
+
   const [snapshot, setSnapshot] = useState<NcpAgentConversationSnapshot>(
     () => managerRef.current!.getSnapshot(),
   );
@@ -18,10 +19,14 @@ export function useNcpAgent(sessionId: string, client: NcpAgentClientEndpoint) {
 
   useEffect(() => {
     const manager = managerRef.current;
-    if (!manager) return;
+    if (!manager) {
+      return;
+    }
+
     const unsubscribe = manager.subscribe((nextSnapshot) => {
       setSnapshot(nextSnapshot);
     });
+
     return () => {
       unsubscribe();
     };
@@ -29,7 +34,9 @@ export function useNcpAgent(sessionId: string, client: NcpAgentClientEndpoint) {
 
   useEffect(() => {
     const manager = managerRef.current;
-    if (!manager) return;
+    if (!manager) {
+      return;
+    }
 
     const unsubscribeClient = client.subscribe((event) => {
       void manager.dispatch(event);
@@ -52,6 +59,7 @@ export function useNcpAgent(sessionId: string, client: NcpAgentClientEndpoint) {
     if (!content.trim() || isSending || isRunning) {
       return;
     }
+
     setIsSending(true);
     try {
       await client.send({
@@ -75,6 +83,7 @@ export function useNcpAgent(sessionId: string, client: NcpAgentClientEndpoint) {
     if (!runId) {
       return;
     }
+
     await client.abort({ runId });
   };
 
@@ -82,6 +91,7 @@ export function useNcpAgent(sessionId: string, client: NcpAgentClientEndpoint) {
     if (!activeRunId) {
       return;
     }
+
     await client.stream({ sessionId, runId: activeRunId });
   };
 

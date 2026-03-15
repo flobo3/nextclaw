@@ -12,7 +12,7 @@
   "dependencies": {
     "@nextclaw/ncp": "workspace:*",
     "@nextclaw/ncp-http-agent-client": "workspace:*",
-    "@nextclaw/ncp-toolkit": "workspace:*",
+    "@nextclaw/ncp-react": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

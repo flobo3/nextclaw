@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { NcpHttpAgentClientEndpoint } from "@nextclaw/ncp-http-agent-client";
+import { useNcpAgent } from "@nextclaw/ncp-react";
 import { getOrCreateSessionId } from "./lib/session";
-import { useNcpAgent } from "./hooks/use-ncp-agent";
 import { useSessions } from "./hooks/use-sessions";
 import { SessionsPanel } from "./components/sessions-panel";
 import { ChatPanel } from "./components/chat-panel";
