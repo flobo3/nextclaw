@@ -3,8 +3,10 @@ type ChatInputProps = {
   placeholder?: string;
   isSending: boolean;
   sendDisabled: boolean;
+  isRunning: boolean;
   onChange: (value: string) => void;
   onSend: () => void;
+  onAbort?: () => void;
 };
 
 export function ChatInput({
@@ -12,9 +14,13 @@ export function ChatInput({
   placeholder = "Ask anything.",
   isSending,
   sendDisabled,
+  isRunning,
   onChange,
   onSend,
+  onAbort,
 }: ChatInputProps) {
+  const showAbort = isRunning && onAbort;
+
   return (
     <footer className="composer">
       <textarea
@@ -24,13 +30,26 @@ export function ChatInput({
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            void onSend();
+            if (showAbort) {
+              void onAbort?.();
+            } else {
+              void onSend();
+            }
           }
         }}
       />
-      <button onClick={onSend} disabled={sendDisabled || value.trim().length === 0}>
-        {isSending ? "running..." : "send"}
-      </button>
+      {showAbort ? (
+        <button className="danger" onClick={onAbort}>
+          stop
+        </button>
+      ) : (
+        <button
+          onClick={onSend}
+          disabled={sendDisabled || value.trim().length === 0}
+        >
+          {isSending ? "running..." : "send"}
+        </button>
+      )}
     </footer>
   );
 }

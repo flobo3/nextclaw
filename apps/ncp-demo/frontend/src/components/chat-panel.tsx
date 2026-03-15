@@ -53,8 +53,10 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
         placeholder="Ask anything. Demo will call get_current_time tool first."
         isSending={agent.isSending}
         sendDisabled={agent.isSending || agent.isRunning}
+        isRunning={agent.isRunning}
         onChange={setDraft}
         onSend={handleSend}
+        onAbort={handleAbort}
       />
     </main>
   );
