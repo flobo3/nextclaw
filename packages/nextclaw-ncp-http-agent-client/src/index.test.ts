@@ -135,15 +135,15 @@ describe("createNcpHttpAgentClient stream behavior", () => {
 
 });
 
-describe("createNcpHttpAgentClient resume and abort", () => {
-  it("resume builds reconnect query and maps SSE error to endpoint.error", async () => {
+describe("createNcpHttpAgentClient stream and abort", () => {
+  it("stream builds stream query and maps SSE error to endpoint.error", async () => {
     const calls: Array<{ input: URL | string | Request; init?: RequestInit }> = [];
     const fetchImpl = async (input: URL | string | Request, init?: RequestInit): Promise<Response> => {
       calls.push({ input, init });
       return createSseResponse([
         sseFrame("error", {
           code: "TIMEOUT",
-          message: "resume timeout",
+          message: "stream timeout",
         }),
       ]);
     };
@@ -159,18 +159,18 @@ describe("createNcpHttpAgentClient resume and abort", () => {
     });
 
     await expect(
-      client.resume({
+      client.stream({
         sessionId: "session-1",
-        remoteRunId: "run-1",
+        runId: "run-1",
         fromEventIndex: 7,
       }),
-    ).rejects.toThrow("resume timeout");
+    ).rejects.toThrow("stream timeout");
 
     expect(calls).toHaveLength(1);
     const requestUrl = calls[0]?.input instanceof URL ? calls[0].input : new URL(String(calls[0]?.input));
-    expect(requestUrl.pathname).toBe("/ncp/agent/reconnect");
+    expect(requestUrl.pathname).toBe("/ncp/agent/stream");
     expect(requestUrl.searchParams.get("sessionId")).toBe("session-1");
-    expect(requestUrl.searchParams.get("remoteRunId")).toBe("run-1");
+    expect(requestUrl.searchParams.get("runId")).toBe("run-1");
     expect(requestUrl.searchParams.get("fromEventIndex")).toBe("7");
     expect(calls[0]?.init?.method).toBe("GET");
 
@@ -180,7 +180,7 @@ describe("createNcpHttpAgentClient resume and abort", () => {
     expect(endpointError?.type).toBe("endpoint.error");
     if (endpointError && endpointError.type === "endpoint.error") {
       expect(endpointError.payload.code).toBe("timeout-error");
-      expect(endpointError.payload.message).toBe("resume timeout");
+      expect(endpointError.payload.message).toBe("stream timeout");
     }
   });
 

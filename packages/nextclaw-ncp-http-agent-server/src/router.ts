@@ -10,15 +10,15 @@ export function createNcpHttpAgentRouter(options: NcpHttpAgentServerOptions): Ho
 }
 
 export function mountNcpHttpAgentRoutes(app: Hono, options: NcpHttpAgentServerOptions): void {
-  const { basePath: rawBasePath, agentClientEndpoint, replayProvider, requestTimeoutMs } = options;
+  const { basePath: rawBasePath, agentClientEndpoint, streamProvider, requestTimeoutMs } = options;
   const basePath = normalizeBasePath(rawBasePath);
   const controller = new NcpHttpAgentController({
     agentClientEndpoint,
-    replayProvider,
+    streamProvider,
     timeoutMs: sanitizeTimeout(requestTimeoutMs),
   });
 
   app.post(`${basePath}/send`, (c) => controller.handleSend(c.req.raw));
-  app.get(`${basePath}/reconnect`, (c) => controller.handleReconnect(c.req.raw));
+  app.get(`${basePath}/stream`, (c) => controller.handleStream(c.req.raw));
   app.post(`${basePath}/abort`, (c) => controller.handleAbort(c.req.raw));
 }

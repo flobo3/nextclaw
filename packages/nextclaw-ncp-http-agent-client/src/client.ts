@@ -5,7 +5,7 @@ import {
   type NcpEndpointSubscriber,
   type NcpMessageAbortPayload,
   type NcpRequestEnvelope,
-  type NcpResumeRequestPayload,
+  type NcpStreamRequestPayload,
   NcpEventType,
 } from "@nextclaw/ncp";
 import { consumeSseStream } from "./sse.js";
@@ -72,7 +72,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
       supportsStreaming: true,
       supportsAbort: true,
       supportsProactiveMessages: false,
-      supportsSessionResume: true,
+      supportsRunStream: true,
       supportedPartTypes: SUPPORTED_PART_TYPES,
       expectedLatency: "seconds",
       metadata: { transport: "http+sse", scope: "agent" },
@@ -103,8 +103,8 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
       case "message.request":
         await this.send(event.payload);
         return;
-      case "message.resume-request":
-        await this.resume(event.payload);
+      case "message.stream-request":
+        await this.stream(event.payload);
         return;
       case "message.abort":
         await this.abort(event.payload);
@@ -131,17 +131,17 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
     });
   }
 
-  async resume(payload: NcpResumeRequestPayload): Promise<void> {
+  async stream(payload: NcpStreamRequestPayload): Promise<void> {
     await this.ensureStarted();
     const query = new URLSearchParams({
       sessionId: payload.sessionId,
-      remoteRunId: payload.remoteRunId,
+      runId: payload.runId,
     });
     if (typeof payload.fromEventIndex === "number" && Number.isFinite(payload.fromEventIndex)) {
       query.set("fromEventIndex", String(Math.max(0, Math.trunc(payload.fromEventIndex))));
     }
     await this.streamRequest({
-      path: `/reconnect?${query.toString()}`,
+      path: `/stream?${query.toString()}`,
       method: "GET",
     });
   }
@@ -265,4 +265,3 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
     }
   }
 }
-

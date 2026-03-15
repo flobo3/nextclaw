@@ -1,7 +1,7 @@
 import type {
   NcpMessageAbortPayload,
   NcpRequestEnvelope,
-  NcpResumeRequestPayload,
+  NcpStreamRequestPayload,
 } from "@nextclaw/ncp";
 import {
   DEFAULT_BASE_PATH,
@@ -42,11 +42,11 @@ export async function parseRequestEnvelope(request: Request): Promise<NcpRequest
   }
 }
 
-export function parseResumePayloadFromUrl(url: string): NcpResumeRequestPayload | null {
+export function parseStreamPayloadFromUrl(url: string): NcpStreamRequestPayload | null {
   const query = new URL(url).searchParams;
   const sessionId = query.get("sessionId")?.trim();
-  const remoteRunId = query.get("remoteRunId")?.trim();
-  if (!sessionId || !remoteRunId) {
+  const runId = query.get("runId")?.trim();
+  if (!sessionId || !runId) {
     return null;
   }
 
@@ -58,7 +58,7 @@ export function parseResumePayloadFromUrl(url: string): NcpResumeRequestPayload 
 
   return {
     sessionId,
-    remoteRunId,
+    runId,
     ...(typeof fromEventIndex === "number" ? { fromEventIndex } : {}),
   };
 }

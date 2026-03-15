@@ -12,11 +12,10 @@ export function extractScopeFromEvent(event: NcpEndpointEvent): ExtractedScope {
   if (!payload) {
     return {};
   }
-  const runId = readString(payload.runId) ?? readString(payload.remoteRunId);
   return {
     sessionId: readString(payload.sessionId),
     correlationId: readString(payload.correlationId),
-    runId,
+    runId: readString(payload.runId),
   };
 }
 

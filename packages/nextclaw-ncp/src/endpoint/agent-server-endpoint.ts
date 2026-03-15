@@ -5,7 +5,7 @@ import type { NcpEndpointManifest } from "../types/manifest.js";
  * Agent server-side endpoint: receives requests and emits responses.
  *
  * Extends `NcpEndpoint` with a manifest constraint (`endpointKind: "agent"`).
- * Use this on the server side that processes `message.request` / `message.resume-request`
+ * Use this on the server side that processes `message.request` / `message.stream-request`
  * and emits `message.incoming`, streaming deltas, `message.completed`, etc.
  */
 export interface NcpAgentServerEndpoint extends NcpEndpoint {

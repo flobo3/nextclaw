@@ -90,7 +90,7 @@ export class DefaultNcpAgentConversationStateManager
       case NcpEventType.MessageRequest:
         this.handleMessageRequest(event.payload);
         break;
-      case NcpEventType.MessageResumeRequest:
+      case NcpEventType.MessageStreamRequest:
         break;
       case NcpEventType.MessageSent:
         this.handleMessageSent(event.payload);

@@ -1,7 +1,7 @@
 import type {
   NcpAgentClientEndpoint,
   NcpEndpointEvent,
-  NcpResumeRequestPayload,
+  NcpStreamRequestPayload,
 } from "@nextclaw/ncp";
 import { isTerminalEvent, matchesScope } from "./scope.js";
 import {
@@ -12,7 +12,7 @@ import {
 } from "./sse-stream.js";
 import type {
   EventScope,
-  NcpHttpAgentReplayProvider,
+  NcpHttpAgentStreamProvider,
   SseEventFrame,
 } from "./types.js";
 import { createAsyncQueue } from "./async-queue.js";
@@ -94,24 +94,26 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
   }
 }
 
-/** Replay path: stream stored events from replayProvider, no live agent call. */
-export type ReplayResponseOptions = {
-  replayProvider: NcpHttpAgentReplayProvider;
-  payload: NcpResumeRequestPayload;
+/** Stored-stream path: stream stored events from streamProvider, no live agent call. */
+export type StoredStreamResponseOptions = {
+  streamProvider: NcpHttpAgentStreamProvider;
+  payload: NcpStreamRequestPayload;
   signal: AbortSignal;
 };
 
-export function createReplayResponse(options: ReplayResponseOptions): Response {
+export function createStoredStreamResponse(options: StoredStreamResponseOptions): Response {
   const { signal } = options;
   return buildSseResponse(
-    createSseEventStream(createReplaySseEvents(options), signal),
+    createSseEventStream(createStoredStreamSseEvents(options), signal),
   );
 }
 
-async function* createReplaySseEvents(options: ReplayResponseOptions): AsyncGenerator<SseEventFrame> {
-  const { replayProvider, payload, signal } = options;
+async function* createStoredStreamSseEvents(
+  options: StoredStreamResponseOptions,
+): AsyncGenerator<SseEventFrame> {
+  const { streamProvider, payload, signal } = options;
   try {
-    for await (const event of replayProvider.stream({ payload, signal })) {
+    for await (const event of streamProvider.stream({ payload, signal })) {
       if (signal.aborted) {
         break;
       }
@@ -121,6 +123,6 @@ async function* createReplaySseEvents(options: ReplayResponseOptions): AsyncGene
       }
     }
   } catch (error) {
-    yield toErrorFrame("REPLAY_FAILED", errorMessage(error));
+    yield toErrorFrame("STREAM_SOURCE_FAILED", errorMessage(error));
   }
 }

@@ -1,7 +1,7 @@
 import type {
   NcpMessageAbortPayload,
   NcpRequestEnvelope,
-  NcpResumeRequestPayload,
+  NcpStreamRequestPayload,
 } from "../types/events.js";
 import type { NcpEndpoint } from "../types/endpoint.js";
 
@@ -15,8 +15,8 @@ export interface NcpAgentClientEndpoint extends NcpEndpoint {
   /** Sends a new message request to the agent. Emits `message.request`. */
   send(envelope: NcpRequestEnvelope): Promise<void>;
 
-  /** Resumes an existing run by remote run id. Emits `message.resume-request`. */
-  resume(payload: NcpResumeRequestPayload): Promise<void>;
+  /** Reads the event stream of an existing run. Emits `message.stream-request`. */
+  stream(payload: NcpStreamRequestPayload): Promise<void>;
 
   /** Aborts the current or specified run. Emits `message.abort`. */
   abort(payload?: NcpMessageAbortPayload): Promise<void>;

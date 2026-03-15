@@ -57,12 +57,12 @@ export type NcpMessageAbortPayload = {
 };
 
 /**
- * Payload for message.resume-request: resume an existing run by its remote id.
- * Used when reconnecting to a stream (e.g. after page refresh).
+ * Payload for message.stream-request: read the event stream of an existing run.
+ * Used when reconnecting after page refresh or attaching a second reader.
  */
-export type NcpResumeRequestPayload = {
+export type NcpStreamRequestPayload = {
   sessionId: string;
-  remoteRunId: string;
+  runId: string;
   fromEventIndex?: number;
   metadata?: Record<string, unknown>;
 };
@@ -253,7 +253,7 @@ export enum NcpEventType {
   EndpointReady = "endpoint.ready",
   EndpointError = "endpoint.error",
   MessageRequest = "message.request",
-  MessageResumeRequest = "message.resume-request",
+  MessageStreamRequest = "message.stream-request",
   MessageSent = "message.sent",
   MessageAccepted = "message.accepted",
   MessageIncoming = "message.incoming",
@@ -291,7 +291,7 @@ export enum NcpEventType {
 export type NcpEndpointEvent =
   | { type: NcpEventType.EndpointReady }
   | { type: NcpEventType.MessageRequest; payload: NcpRequestEnvelope }
-  | { type: NcpEventType.MessageResumeRequest; payload: NcpResumeRequestPayload }
+  | { type: NcpEventType.MessageStreamRequest; payload: NcpStreamRequestPayload }
   | { type: NcpEventType.MessageSent; payload: NcpMessageSentPayload }
   | { type: NcpEventType.MessageAccepted; payload: NcpMessageAcceptedPayload }
   | { type: NcpEventType.MessageIncoming; payload: NcpResponseEnvelope }

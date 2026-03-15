@@ -75,7 +75,7 @@ export type EndpointManifest = {
   supportsStreaming: boolean;
   supportsAbort: boolean;
   supportsProactiveMessages: boolean;
-  supportsSessionResume: boolean;
+  supportsRunStream: boolean;
   supportedPartTypes: string[];
   expectedLatency: "realtime" | "seconds" | "minutes" | "hours" | "days";
   sharedLevel?: "minimal" | "partial" | "full";
@@ -231,4 +231,3 @@ export abstract class AbstractAgentEndpoint extends AbstractEndpoint {
 6.（可选）飞书端点 PoC
 
 > 本文档是项目 design 基线；后续实现迭代应在 `docs/logs` 按版本递增记录落地与验证结果。
-

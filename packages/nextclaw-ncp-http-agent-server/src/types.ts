@@ -1,7 +1,7 @@
 import type {
   NcpAgentClientEndpoint,
   NcpEndpointEvent,
-  NcpResumeRequestPayload,
+  NcpStreamRequestPayload,
 } from "@nextclaw/ncp";
 
 export const DEFAULT_BASE_PATH = "/ncp/agent";
@@ -15,26 +15,26 @@ export type EventScope = {
 };
 
 /**
- * Replays stored session events for `/reconnect`.
+ * Streams stored session events for `/stream`.
  *
  * **Scenario**: User sends a message, agent streams SSE back. Network drops mid-stream.
- * User reconnects and requests `GET /reconnect?sessionId=xxx&remoteRunId=yyy` to
+ * User reconnects and requests `GET /stream?sessionId=xxx&runId=yyy` to
  * "continue watching the previous reply".
  *
  * **Two paths**:
- * - **Replay** (with replayProvider): Do not call agent. Fetch that run's events
+ * - **Stored stream** (with streamProvider): Do not call agent. Fetch that run's events
  *   (message.accepted, message.text-delta, message.completed, etc.) from persistence
  *   and stream them in order. Use when you have session/event storage and want to
  *   avoid re-running the agent.
- * - **Forward** (no replayProvider): Forward `message.resume-request` to the agent
+ * - **Forward** (no streamProvider): Forward `message.stream-request` to the agent
  *   and let it recover or re-run.
  *
- * **Implementation**: `stream` fetches events by payload.sessionId and payload.remoteRunId
+ * **Implementation**: `stream` fetches events by payload.sessionId and payload.runId
  * from your storage and yields them in order.
  */
-export type NcpHttpAgentReplayProvider = {
+export type NcpHttpAgentStreamProvider = {
   stream(params: {
-    payload: NcpResumeRequestPayload;
+    payload: NcpStreamRequestPayload;
     signal: AbortSignal;
   }): AsyncIterable<NcpEndpointEvent>;
 };
@@ -45,10 +45,10 @@ export type NcpHttpAgentServerOptions = {
   basePath?: string;
   requestTimeoutMs?: number;
   /**
-   * Optional. When set, `/reconnect` replays stored events instead of forwarding to the agent.
-   * When not set, forwards `message.resume-request` to the agent.
+   * Optional. When set, `/stream` serves stored events instead of forwarding to the agent.
+   * When not set, forwards `message.stream-request` to the agent.
    */
-  replayProvider?: NcpHttpAgentReplayProvider;
+  streamProvider?: NcpHttpAgentStreamProvider;
 };
 
 export type SseEventFrame = {

@@ -1,6 +1,6 @@
 export type {
   NcpAgentBackendController,
-  NcpAgentBackendReconnectOptions,
+  NcpAgentBackendStreamOptions,
   NcpAgentBackendSendOptions,
   NcpAgentReplayProvider,
 } from "./controller.js";

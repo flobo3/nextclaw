@@ -2,15 +2,15 @@ import { NcpEventType } from "@nextclaw/ncp";
 import {
   parseAbortPayload,
   parseRequestEnvelope,
-  parseResumePayloadFromUrl,
+  parseStreamPayloadFromUrl,
 } from "./parsers.js";
-import { createForwardResponse, createReplayResponse } from "./stream-handlers.js";
+import { createForwardResponse, createStoredStreamResponse } from "./stream-handlers.js";
 import { jsonResponse } from "./utils.js";
 import type { NcpHttpAgentHandler, NcpHttpAgentHandlerOptions } from "./handler-interface.js";
 
 /**
  * Framework-agnostic controller for NCP agent HTTP routes.
- * Forwards /send and /reconnect to agentClientEndpoint; /reconnect uses replayProvider when set.
+ * Forwards /send and /stream to agentClientEndpoint; /stream uses streamProvider when set.
  */
 export class NcpHttpAgentController implements NcpHttpAgentHandler {
   constructor(private readonly options: NcpHttpAgentHandlerOptions) {}
@@ -37,32 +37,32 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
     });
   }
 
-  async handleReconnect(request: Request): Promise<Response> {
-    const { agentClientEndpoint, replayProvider, timeoutMs } = this.options;
-    const resumePayload = parseResumePayloadFromUrl(request.url);
-    if (!resumePayload) {
+  async handleStream(request: Request): Promise<Response> {
+    const { agentClientEndpoint, streamProvider, timeoutMs } = this.options;
+    const streamPayload = parseStreamPayloadFromUrl(request.url);
+    if (!streamPayload) {
       return jsonResponse(
-        { ok: false, error: { code: "INVALID_QUERY", message: "sessionId and remoteRunId are required." } },
+        { ok: false, error: { code: "INVALID_QUERY", message: "sessionId and runId are required." } },
         400,
       );
     }
 
-    if (replayProvider) {
-      return createReplayResponse({
-        replayProvider,
-        payload: resumePayload,
+    if (streamProvider) {
+      return createStoredStreamResponse({
+        streamProvider,
+        payload: streamPayload,
         signal: request.signal,
       });
     }
 
     return createForwardResponse({
       endpoint: agentClientEndpoint,
-      requestEvent: { type: NcpEventType.MessageResumeRequest, payload: resumePayload },
+      requestEvent: { type: NcpEventType.MessageStreamRequest, payload: streamPayload },
       requestSignal: request.signal,
       timeoutMs,
       scope: {
-        sessionId: resumePayload.sessionId,
-        runId: resumePayload.remoteRunId,
+        sessionId: streamPayload.sessionId,
+        runId: streamPayload.runId,
       },
     });
   }

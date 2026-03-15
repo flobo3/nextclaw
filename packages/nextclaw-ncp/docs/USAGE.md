@@ -34,7 +34,7 @@ export class ServerAgentEndpoint implements NcpAgentServerEndpoint {
     supportsStreaming: true,
     supportsAbort: true,
     supportsProactiveMessages: false,
-    supportsSessionResume: false,
+    supportsRunStream: false,
     supportedPartTypes: ["text"],
     expectedLatency: "seconds",
   };

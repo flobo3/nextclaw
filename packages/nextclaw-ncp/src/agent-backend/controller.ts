@@ -2,7 +2,7 @@ import type {
   NcpEndpointEvent,
   NcpMessageAbortPayload,
   NcpRequestEnvelope,
-  NcpResumeRequestPayload,
+  NcpStreamRequestPayload,
 } from "../types/events.js";
 import type { NcpSessionApi } from "../types/session.js";
 
@@ -10,7 +10,7 @@ export type NcpAgentBackendSendOptions = {
   signal?: AbortSignal;
 };
 
-export type NcpAgentBackendReconnectOptions = {
+export type NcpAgentBackendStreamOptions = {
   signal?: AbortSignal;
 };
 
@@ -20,9 +20,9 @@ export interface NcpAgentBackendController extends NcpSessionApi {
     options?: NcpAgentBackendSendOptions,
   ): AsyncIterable<NcpEndpointEvent>;
 
-  reconnect(
-    payload: NcpResumeRequestPayload,
-    options?: NcpAgentBackendReconnectOptions,
+  stream(
+    payload: NcpStreamRequestPayload,
+    options?: NcpAgentBackendStreamOptions,
   ): AsyncIterable<NcpEndpointEvent>;
 
   abort(payload: NcpMessageAbortPayload): Promise<void>;
@@ -30,7 +30,7 @@ export interface NcpAgentBackendController extends NcpSessionApi {
 
 export type NcpAgentReplayProvider = {
   stream(params: {
-    payload: NcpResumeRequestPayload;
+    payload: NcpStreamRequestPayload;
     signal: AbortSignal;
   }): AsyncIterable<NcpEndpointEvent>;
 };

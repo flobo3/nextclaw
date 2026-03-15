@@ -25,7 +25,7 @@ export type NcpEndpointLatency = "realtime" | "seconds" | "minutes" | "hours" | 
  *
  * Consumers use the manifest for runtime capability discovery —
  * e.g. whether to show a typing indicator, whether to offer file uploads,
- * or whether session resume is available.
+ * or whether an existing run can be streamed again.
  */
 export type NcpEndpointManifest = {
   /** Category of this endpoint. */
@@ -40,8 +40,8 @@ export type NcpEndpointManifest = {
   supportsAbort: boolean;
   /** Whether this endpoint can push messages without a prior user request. */
   supportsProactiveMessages: boolean;
-  /** Whether a disconnected session can be resumed by the same `sessionId`. */
-  supportsSessionResume: boolean;
+  /** Whether this endpoint can stream the events of an existing run by `runId`. */
+  supportsRunStream: boolean;
   /**
    * The subset of `NcpMessagePart` types this endpoint can send or receive.
    * Using the literal union from `NcpMessagePart["type"]` prevents typos

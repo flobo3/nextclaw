@@ -1,7 +1,7 @@
 import {
   type NcpMessageAbortPayload,
   type NcpRequestEnvelope,
-  type NcpResumeRequestPayload,
+  type NcpStreamRequestPayload,
   NcpEventType,
 } from "../types/events.js";
 import type { NcpAgentClientEndpoint } from "./agent-client-endpoint.js";
@@ -19,8 +19,8 @@ export function createAgentClientFromServer(
     async send(envelope: NcpRequestEnvelope): Promise<void> {
       await server.emit({ type: NcpEventType.MessageRequest, payload: envelope });
     },
-    async resume(payload: NcpResumeRequestPayload): Promise<void> {
-      await server.emit({ type: NcpEventType.MessageResumeRequest, payload });
+    async stream(payload: NcpStreamRequestPayload): Promise<void> {
+      await server.emit({ type: NcpEventType.MessageStreamRequest, payload });
     },
     async abort(payload?: NcpMessageAbortPayload): Promise<void> {
       await server.emit({ type: NcpEventType.MessageAbort, payload: payload ?? {} });

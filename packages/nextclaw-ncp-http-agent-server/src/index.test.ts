@@ -6,7 +6,7 @@ import {
   type NcpEndpointSubscriber,
   type NcpMessageAbortPayload,
   type NcpRequestEnvelope,
-  type NcpResumeRequestPayload,
+  type NcpStreamRequestPayload,
   NcpEventType,
 } from "@nextclaw/ncp";
 import { createNcpHttpAgentRouter } from "./index.js";
@@ -78,11 +78,11 @@ describe("createNcpHttpAgentRouter", () => {
     expect(endpoint.emitted[0]?.type).toBe("message.request");
   });
 
-  it("returns 400 when reconnect query is missing required fields", async () => {
+  it("returns 400 when stream query is missing required fields", async () => {
     const endpoint = new FakeAgentEndpoint();
     const app = createNcpHttpAgentRouter({ agentClientEndpoint: endpoint });
 
-    const response = await app.request("http://localhost/ncp/agent/reconnect?sessionId=session-1", {
+    const response = await app.request("http://localhost/ncp/agent/stream?sessionId=session-1", {
       method: "GET",
     });
     expect(response.status).toBe(400);
@@ -115,7 +115,7 @@ class FakeAgentEndpoint implements NcpAgentClientEndpoint {
     supportsStreaming: true,
     supportsAbort: true,
     supportsProactiveMessages: false,
-    supportsSessionResume: true,
+    supportsRunStream: true,
     supportedPartTypes: ["text"],
     expectedLatency: "seconds",
   };
@@ -146,8 +146,8 @@ class FakeAgentEndpoint implements NcpAgentClientEndpoint {
     await this.emit({ type: NcpEventType.MessageRequest, payload: envelope });
   }
 
-  async resume(payload: NcpResumeRequestPayload): Promise<void> {
-    await this.emit({ type: NcpEventType.MessageResumeRequest, payload });
+  async stream(payload: NcpStreamRequestPayload): Promise<void> {
+    await this.emit({ type: NcpEventType.MessageStreamRequest, payload });
   }
 
   async abort(payload?: NcpMessageAbortPayload): Promise<void> {

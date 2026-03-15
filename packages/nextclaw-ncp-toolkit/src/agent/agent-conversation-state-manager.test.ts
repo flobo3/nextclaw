@@ -217,7 +217,7 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     expect(callbackCount).toBe(0);
 
     manager.dispatch({
-      type: "message.sent",
+      type: NcpEventType.MessageSent,
       payload: {
         sessionId: "session-1",
         message: createMessage({

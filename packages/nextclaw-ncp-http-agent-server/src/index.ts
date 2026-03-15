@@ -8,6 +8,6 @@ export type {
   NcpHttpAgentHandlerOptions,
 } from "./handler-interface.js";
 export type {
-  NcpHttpAgentReplayProvider,
+  NcpHttpAgentStreamProvider,
   NcpHttpAgentServerOptions,
 } from "./types.js";

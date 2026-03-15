@@ -15,7 +15,7 @@
 ### A. 最低标准（必须满足）
 
 1. Capability Manifest
-- 必须声明：`engineKind`、`version`、`supportsStreaming`、`supportsAbort`、`supportsSessionResume`
+- 必须声明：`engineKind`、`version`、`supportsStreaming`、`supportsAbort`、`supportsRunStream`
 - 必须声明共享等级：`sharedLevel`（`minimal`/`partial`/`full`）
 
 2. Session Contract
