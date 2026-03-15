@@ -122,7 +122,7 @@ Visit **[docs.nextclaw.io](https://docs.nextclaw.io/en/)** for the full document
 - [Commands](https://docs.nextclaw.io/en/guide/commands)
 - [Vision & Roadmap](https://docs.nextclaw.io/en/guide/vision)
 - [Feishu Setup Tutorial](https://docs.nextclaw.io/en/guide/tutorials/feishu)
-- GitHub planning docs: [Roadmap](docs/ROADMAP.md) · [TODO Backlog](docs/TODO.md)
+- GitHub planning docs: [Roadmap](docs/ROADMAP.md) · [TODO Backlog](docs/TODO.md) · [File Naming Convention](docs/workflows/file-naming-convention.md)
 
 ## Community
 
