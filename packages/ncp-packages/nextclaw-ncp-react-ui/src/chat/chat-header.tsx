@@ -17,10 +17,20 @@ export function ChatHeader({
     <header className="chat-header">
       <h1>{title}</h1>
       <div className="header-actions">
-        <button className="ghost" onClick={onStreamRun} disabled={streamRunDisabled}>
+        <button
+          className="ncp-ui-button ncp-ui-button-ghost"
+          type="button"
+          onClick={onStreamRun}
+          disabled={streamRunDisabled}
+        >
           stream last run
         </button>
-        <button className="danger" onClick={onAbort} disabled={abortDisabled}>
+        <button
+          className="ncp-ui-button ncp-ui-button-danger"
+          type="button"
+          onClick={onAbort}
+          disabled={abortDisabled}
+        >
           abort
         </button>
       </div>

@@ -6,10 +6,10 @@ type SessionActionsProps = {
 export function SessionActions({ onNew, onRefresh }: SessionActionsProps) {
   return (
     <div className="session-actions">
-      <button className="ghost" onClick={onNew}>
+      <button className="ncp-ui-button ncp-ui-button-ghost" type="button" onClick={onNew}>
         new
       </button>
-      <button className="ghost" onClick={onRefresh}>
+      <button className="ncp-ui-button ncp-ui-button-ghost" type="button" onClick={onRefresh}>
         refresh
       </button>
     </div>

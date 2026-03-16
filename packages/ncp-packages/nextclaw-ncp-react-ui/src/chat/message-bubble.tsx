@@ -1,5 +1,5 @@
 import type { NcpMessage } from "@nextclaw/ncp";
-import { MessagePart } from "./message-part";
+import { MessagePart } from "./message-part.js";
 
 export function MessageBubble({ message }: { message: NcpMessage }) {
   return (

@@ -4,6 +4,7 @@ export function MessagePart({ part }: { part: NcpMessagePart }) {
   if (part.type === "text") {
     return <p className="part-text">{part.text}</p>;
   }
+
   if (part.type === "reasoning") {
     return (
       <div className="part-reasoning-block">
@@ -12,6 +13,7 @@ export function MessagePart({ part }: { part: NcpMessagePart }) {
       </div>
     );
   }
+
   if (part.type === "tool-invocation") {
     return (
       <div className="part-tool">
@@ -20,5 +22,6 @@ export function MessagePart({ part }: { part: NcpMessagePart }) {
       </div>
     );
   }
+
   return <pre className="part-raw">{JSON.stringify(part, null, 2)}</pre>;
 }

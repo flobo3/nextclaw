@@ -3,8 +3,11 @@ import {
   createNewSessionId,
   deleteSession,
 } from "../lib/session";
-import { SessionActions } from "../ui/session-actions";
-import { SessionList } from "../ui/session-list";
+import {
+  SessionActions,
+  SessionList,
+  type SessionListItem,
+} from "@nextclaw/ncp-react-ui";
 
 type SessionsPanelProps = {
   sessionId: string;
@@ -19,6 +22,13 @@ export function SessionsPanel({
   sessions,
   onRefresh,
 }: SessionsPanelProps) {
+  const items: SessionListItem[] = sessions.map((session) => ({
+    id: session.sessionId,
+    title: session.sessionId,
+    subtitle: `${session.messageCount} msgs · ${session.status ?? "idle"}`,
+    isActive: session.sessionId === sessionId,
+  }));
+
   const handleSessionSelect = (id: string) => setSessionId(id);
 
   const handleNewSession = () => setSessionId(createNewSessionId());
@@ -39,10 +49,9 @@ export function SessionsPanel({
     <aside className="panel sessions-panel">
       <div className="panel-title">Sessions</div>
       <SessionActions onNew={handleNewSession} onRefresh={onRefresh} />
-      <div className="session-list">
+      <div className="session-list-shell">
         <SessionList
-          sessions={sessions}
-          activeSessionId={sessionId}
+          items={items}
           onSelect={handleSessionSelect}
           onDelete={handleSessionDelete}
         />

@@ -1,0 +1,17 @@
+:root {
+  --ncp-ui-bg: #08101f;
+  --ncp-ui-bg-soft: #101c31;
+  --ncp-ui-card: rgba(12, 22, 40, 0.86);
+  --ncp-ui-line: rgba(173, 205, 255, 0.24);
+  --ncp-ui-text: #eaf3ff;
+  --ncp-ui-muted: #9bb4da;
+  --ncp-ui-accent: #57d2ff;
+  --ncp-ui-danger: #ff6f7d;
+  --ncp-ui-user: #1a3859;
+  --ncp-ui-assistant: #0e1f36;
+  --ncp-ui-button-text: #08203f;
+  --ncp-ui-button-primary: linear-gradient(135deg, #3ca4ff, #57d2ff);
+  --ncp-ui-button-danger: linear-gradient(135deg, #ff7b92, #ffb07a);
+  --ncp-ui-font-sans: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --ncp-ui-font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
+}

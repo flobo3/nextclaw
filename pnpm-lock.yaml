@@ -184,6 +184,9 @@ importers:
       '@nextclaw/ncp-react':
         specifier: workspace:*
         version: link:../../../packages/ncp-packages/nextclaw-ncp-react
+      '@nextclaw/ncp-react-ui':
+        specifier: workspace:*
+        version: link:../../../packages/ncp-packages/nextclaw-ncp-react-ui
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -578,6 +581,34 @@ importers:
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.28
+      prettier:
+        specifier: ^3.3.3
+        version: 3.8.1
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/ncp-packages/nextclaw-ncp-react-ui:
+    dependencies:
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../nextclaw-ncp
+      react:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.28
+      eslint-plugin-unicorn:
+        specifier: ^63.0.0
+        version: 63.0.0(eslint@9.39.3(jiti@1.21.7))
       prettier:
         specifier: ^3.3.3
         version: 3.8.1

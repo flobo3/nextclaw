@@ -19,31 +19,38 @@ export function ChatInput({
   onSend,
   onAbort,
 }: ChatInputProps) {
-  const showAbort = isRunning && onAbort;
+  const showAbort = isRunning && Boolean(onAbort);
 
   return (
     <footer className="composer">
       <textarea
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (showAbort) {
-              void onAbort?.();
-            } else {
-              void onSend();
-            }
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey) {
+            return;
           }
+          event.preventDefault();
+          if (showAbort) {
+            void onAbort?.();
+            return;
+          }
+          void onSend();
         }}
       />
       {showAbort ? (
-        <button className="danger" onClick={onAbort}>
+        <button
+          className="ncp-ui-button ncp-ui-button-danger"
+          type="button"
+          onClick={onAbort}
+        >
           stop
         </button>
       ) : (
         <button
+          className="ncp-ui-button"
+          type="button"
           onClick={onSend}
           disabled={sendDisabled || value.trim().length === 0}
         >

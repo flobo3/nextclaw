@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { NcpHttpAgentClientEndpoint } from "@nextclaw/ncp-http-agent-client";
 import { useHydratedNcpAgent } from "@nextclaw/ncp-react";
+import { ChatHeader, ChatInput, ErrorBox, MessageList } from "@nextclaw/ncp-react-ui";
 import { loadConversationSeed } from "../lib/session";
-import { ChatHeader } from "../ui/chat-header";
-import { ChatInput } from "../ui/chat-input";
-import { ErrorBox } from "../ui/error-box";
-import { MessageList } from "../ui/message-list";
 
 type ChatPanelProps = {
   sessionId: string;
