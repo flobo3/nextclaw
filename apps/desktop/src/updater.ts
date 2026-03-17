@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { app, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
 
@@ -15,6 +17,10 @@ export class DesktopUpdater {
   start(): void {
     if (!app.isPackaged) {
       this.logger.info("Updater disabled in development mode.");
+      return;
+    }
+    if (!this.hasUpdateMetadata()) {
+      this.logger.info("Updater disabled because app-update.yml is missing.");
       return;
     }
 
@@ -49,9 +55,9 @@ export class DesktopUpdater {
       }
     });
 
-    void autoUpdater.checkForUpdates();
+    this.triggerUpdateCheck();
     this.intervalHandle = setInterval(() => {
-      void autoUpdater.checkForUpdates();
+      this.triggerUpdateCheck();
     }, 60 * 60 * 1000);
   }
 
@@ -60,5 +66,16 @@ export class DesktopUpdater {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;
     }
+  }
+
+  private hasUpdateMetadata(): boolean {
+    return existsSync(join(process.resourcesPath, "app-update.yml"));
+  }
+
+  private triggerUpdateCheck(): void {
+    void autoUpdater.checkForUpdates().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Updater check skipped: ${message}`);
+    });
   }
 }

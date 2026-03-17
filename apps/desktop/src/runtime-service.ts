@@ -25,6 +25,8 @@ type ServiceState = {
   uiPort?: unknown;
 };
 
+const LOOPBACK_HOST = "127.0.0.1";
+
 export class RuntimeServiceProcess {
   private readonly startupTimeoutMs: number;
   private readonly healthPath: string;
@@ -54,7 +56,7 @@ export class RuntimeServiceProcess {
     const state = this.readServiceState();
     const baseUrl = this.resolveManagedUiBaseUrl(state);
     if (!baseUrl) {
-      throw new Error(`Managed runtime is running but UI URL is unavailable in ${this.resolveServiceStatePath()}`);
+      throw new Error(`Managed runtime is running but UI host/port is unavailable in ${this.resolveServiceStatePath()}`);
     }
     const parsedPort = this.parsePort(baseUrl);
     this.port = parsedPort;
@@ -189,17 +191,23 @@ export class RuntimeServiceProcess {
   }
 
   private resolveManagedUiBaseUrl(state: ServiceState | null): string | null {
-    const uiUrl = typeof state?.uiUrl === "string" ? state.uiUrl.trim() : "";
-    if (uiUrl) {
-      return uiUrl;
-    }
     const uiHost = typeof state?.uiHost === "string" ? state.uiHost.trim() : "";
     const uiPort = Number(state?.uiPort);
-    if (!uiHost || !Number.isFinite(uiPort) || uiPort <= 0) {
+    if (!Number.isFinite(uiPort) || uiPort <= 0) {
       return null;
     }
-    const safeHost = uiHost === "0.0.0.0" || uiHost === "::" ? "127.0.0.1" : uiHost;
-    return `http://${safeHost}:${uiPort}`;
+    const resolvedHost = this.resolveManagedUiHost(uiHost);
+    if (!resolvedHost) {
+      return null;
+    }
+    return `http://${resolvedHost}:${uiPort}`;
+  }
+
+  private resolveManagedUiHost(uiHost: string): string | null {
+    if (!uiHost || isLoopbackHost(uiHost) || isWildcardHost(uiHost)) {
+      return LOOPBACK_HOST;
+    }
+    return uiHost;
   }
 
   private parsePort(baseUrl: string): number | null {
@@ -220,6 +228,16 @@ export class RuntimeServiceProcess {
       return null;
     }
   }
+}
+
+function isLoopbackHost(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "127.0.0.1" || normalized === "localhost" || normalized === "::1";
+}
+
+function isWildcardHost(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "0.0.0.0" || normalized === "::";
 }
 
 export async function waitForHealth(url: string, timeoutMs: number): Promise<void> {
