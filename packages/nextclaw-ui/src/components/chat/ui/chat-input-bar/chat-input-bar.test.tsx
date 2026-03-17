@@ -10,8 +10,6 @@ function createInputBarProps(overrides?: Partial<ChatInputBarProps>): ChatInputB
     onValueChange: vi.fn(),
     onKeyDown: vi.fn(),
     slashMenu: {
-      anchorRef: { current: null },
-      listRef: { current: null },
       isOpen: false,
       isLoading: false,
       items: [],

@@ -1,5 +1,10 @@
 import { ToolInvocationStatus, type UiMessage } from '@nextclaw/agent-chat';
 import { adaptChatMessages } from '@/components/chat/adapters/chat-message.adapter';
+import type { ChatMessageSource } from '@/components/chat/adapters/chat-message.adapter';
+
+function toSource(uiMessages: UiMessage[]): ChatMessageSource[] {
+  return uiMessages as unknown as ChatMessageSource[];
+}
 
 describe('adaptChatMessages', () => {
   it('maps markdown, reasoning, and tool parts into UI view models', () => {
@@ -33,7 +38,7 @@ describe('adaptChatMessages', () => {
     ];
 
     const adapted = adaptChatMessages({
-      uiMessages: messages,
+      uiMessages: toSource(messages),
       formatTimestamp: (value) => `formatted:${value}`,
       texts: {
         roleLabels: {
@@ -47,7 +52,8 @@ describe('adaptChatMessages', () => {
         toolCallLabel: 'Tool Call',
         toolResultLabel: 'Tool Result',
         toolNoOutputLabel: 'No output',
-        toolOutputLabel: 'View Output'
+        toolOutputLabel: 'View Output',
+        unknownPartLabel: 'Unknown Part'
       }
     });
 
@@ -58,7 +64,7 @@ describe('adaptChatMessages', () => {
     expect(adapted[0]?.parts[2]).toMatchObject({
       type: 'tool-card',
       card: {
-        titleLabel: 'Tool Call',
+        titleLabel: 'Tool Result',
         outputLabel: 'View Output'
       }
     });
@@ -72,7 +78,7 @@ describe('adaptChatMessages', () => {
           role: 'data',
           parts: [{ type: 'text', text: 'payload' }]
         }
-      ],
+      ] as unknown as ChatMessageSource[],
       formatTimestamp: () => 'formatted',
       texts: {
         roleLabels: {
@@ -86,11 +92,46 @@ describe('adaptChatMessages', () => {
         toolCallLabel: 'Tool Call',
         toolResultLabel: 'Tool Result',
         toolNoOutputLabel: 'No output',
-        toolOutputLabel: 'View Output'
+        toolOutputLabel: 'View Output',
+        unknownPartLabel: 'Unknown Part'
       }
     });
 
     expect(adapted[0]?.role).toBe('message');
     expect(adapted[0]?.roleLabel).toBe('Message');
+  });
+
+  it('maps unknown parts into a visible fallback part', () => {
+    const adapted = adaptChatMessages({
+      uiMessages: [
+        {
+          id: 'x-1',
+          role: 'assistant',
+          parts: [{ type: 'step-start', value: 'x' }]
+        }
+      ] as unknown as ChatMessageSource[],
+      formatTimestamp: () => 'formatted',
+      texts: {
+        roleLabels: {
+          user: 'You',
+          assistant: 'Assistant',
+          tool: 'Tool',
+          system: 'System',
+          fallback: 'Message'
+        },
+        reasoningLabel: 'Reasoning',
+        toolCallLabel: 'Tool Call',
+        toolResultLabel: 'Tool Result',
+        toolNoOutputLabel: 'No output',
+        toolOutputLabel: 'View Output',
+        unknownPartLabel: 'Unknown Part'
+      }
+    });
+
+    expect(adapted[0]?.parts[0]).toMatchObject({
+      type: 'unknown',
+      rawType: 'step-start',
+      label: 'Unknown Part'
+    });
   });
 });

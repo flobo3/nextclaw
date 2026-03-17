@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChatMessageListContainer } from '@/components/chat/containers/chat-message-list.container';
+import { ChatInputBarContainer, ChatMessageListContainer } from '@/components/chat';
 import { ChatWelcome } from '@/components/chat/ChatWelcome';
-import { ChatInputBarContainer } from '@/components/chat/containers/chat-input-bar.container';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
 import { useChatThreadStore } from '@/components/chat/stores/chat-thread.store';
 import { t } from '@/lib/i18n';

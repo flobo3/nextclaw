@@ -1,25 +1,25 @@
 import { useMemo } from 'react';
-import { Paperclip } from 'lucide-react';
-import type { ThinkingLevel } from '@/api/types';
 import {
   buildChatSlashItems,
   buildModelStateHint,
   buildModelToolbarSelect,
   buildSelectedSkillItems,
   buildSessionTypeToolbarSelect,
+  buildSkillPickerModel,
   buildThinkingToolbarSelect,
-  resolveSlashQuery
+  resolveSlashQuery,
+  type ChatModelRecord,
+  type ChatSkillRecord,
+  type ChatThinkingLevel
 } from '@/components/chat/adapters/chat-input-bar.adapter';
 import { useChatInputBarController } from '@/components/chat/chat-input/chat-input-bar.controller';
-import { SkillsPicker } from '@/components/chat/SkillsPicker';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
-import type { ChatInputSnapshot } from '@/components/chat/stores/chat-input.store';
+import { useI18n } from '@/components/providers/I18nProvider';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { ChatInputBar } from '@/components/chat/ui/chat-input-bar/chat-input-bar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { t } from '@/lib/i18n';
 
-function buildThinkingLabels(): Record<ThinkingLevel, string> {
+function buildThinkingLabels(): Record<ChatThinkingLevel, string> {
   return {
     off: t('chatThinkingLevelOff'),
     minimal: t('chatThinkingLevelMinimal'),
@@ -31,48 +31,76 @@ function buildThinkingLabels(): Record<ThinkingLevel, string> {
   };
 }
 
-function ChatAttachButtonSlot() {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            disabled
-            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-400"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <p className="text-xs">{t('chatInputAttachComingSoon')}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+function toSkillRecords(snapshotRecords: Array<{
+  spec: string;
+  label?: string;
+  description?: string;
+  descriptionZh?: string;
+  origin?: string;
+}>, officialBadgeLabel: string): ChatSkillRecord[] {
+  return snapshotRecords.map((record) => ({
+    key: record.spec,
+    label: record.label || record.spec,
+    description: record.description,
+    descriptionZh: record.descriptionZh,
+    badgeLabel: record.origin === 'builtin' ? officialBadgeLabel : undefined
+  }));
 }
 
-function ChatSkillsPickerSlot(props: {
-  records: ChatInputSnapshot['skillRecords'];
-  isLoading: boolean;
-  selectedSkills: string[];
-  onSelectedSkillsChange: (next: string[]) => void;
-}) {
-  return (
-    <SkillsPicker
-      records={props.records}
-      isLoading={props.isLoading}
-      selectedSkills={props.selectedSkills}
-      onSelectedSkillsChange={props.onSelectedSkillsChange}
-    />
-  );
+function toModelRecords(snapshotModels: Array<{
+  value: string;
+  modelLabel: string;
+  providerLabel: string;
+  thinkingCapability?: {
+    supported: string[];
+    default?: string | null;
+  } | null;
+}>): ChatModelRecord[] {
+  return snapshotModels.map((model) => ({
+    value: model.value,
+    modelLabel: model.modelLabel,
+    providerLabel: model.providerLabel,
+    thinkingCapability: model.thinkingCapability
+      ? {
+          supported: model.thinkingCapability.supported as ChatThinkingLevel[],
+          default: (model.thinkingCapability.default as ChatThinkingLevel | null | undefined) ?? null
+        }
+      : null
+  }));
 }
 
 export function ChatInputBarContainer() {
   const presenter = usePresenter();
+  const { language } = useI18n();
   const snapshot = useChatInputStore((state) => state.snapshot);
 
-  const hasModelOptions = snapshot.modelOptions.length > 0;
+  const officialSkillBadgeLabel = useMemo(() => {
+    // Keep memo reactive to locale switches even though `t` is imported as a stable function.
+    const locale = language;
+    void locale;
+    return t('chatSkillsPickerOfficial');
+  }, [language]);
+  const slashTexts = useMemo(
+    () => {
+      // Keep memo reactive to locale switches even though `t` is imported as a stable function.
+      const locale = language;
+      void locale;
+      return {
+        slashSkillSubtitle: t('chatSlashTypeSkill'),
+        slashSkillSpecLabel: t('chatSlashSkillSpec'),
+        noSkillDescription: t('chatSkillsPickerNoDescription')
+      };
+    },
+    [language]
+  );
+
+  const skillRecords = useMemo(
+    () => toSkillRecords(snapshot.skillRecords, officialSkillBadgeLabel),
+    [snapshot.skillRecords, officialSkillBadgeLabel]
+  );
+  const modelRecords = useMemo(() => toModelRecords(snapshot.modelOptions), [snapshot.modelOptions]);
+
+  const hasModelOptions = modelRecords.length > 0;
   const isModelOptionsLoading = !snapshot.isProviderStateResolved && !hasModelOptions;
   const isModelOptionsEmpty = snapshot.isProviderStateResolved && !hasModelOptions;
   const inputDisabled =
@@ -85,13 +113,8 @@ export function ChatInputBarContainer() {
 
   const slashQuery = resolveSlashQuery(snapshot.draft);
   const slashItems = useMemo(
-    () =>
-      buildChatSlashItems(snapshot.skillRecords, slashQuery ?? '', {
-        slashSkillSubtitle: t('chatSlashTypeSkill'),
-        slashSkillSpecLabel: t('chatSlashSkillSpec'),
-        noSkillDescription: t('chatSkillsPickerNoDescription')
-      }),
-    [slashQuery, snapshot.skillRecords]
+    () => buildChatSlashItems(skillRecords, slashQuery ?? '', slashTexts),
+    [slashQuery, skillRecords, slashTexts]
   );
 
   const controller = useChatInputBarController({
@@ -123,7 +146,7 @@ export function ChatInputBarContainer() {
     (snapshot.sessionTypeOptions.length > 1 ||
       Boolean(snapshot.selectedSessionType && snapshot.selectedSessionType !== 'native'));
 
-  const selectedModelOption = snapshot.modelOptions.find((option) => option.value === snapshot.selectedModel);
+  const selectedModelOption = modelRecords.find((option) => option.value === snapshot.selectedModel);
   const selectedModelThinkingCapability = selectedModelOption?.thinkingCapability;
   const thinkingSupportedLevels = selectedModelThinkingCapability?.supported ?? [];
 
@@ -145,7 +168,7 @@ export function ChatInputBarContainer() {
       }
     }),
     buildModelToolbarSelect({
-      modelOptions: snapshot.modelOptions,
+      modelOptions: modelRecords,
       selectedModel: snapshot.selectedModel,
       isModelOptionsLoading,
       hasModelOptions,
@@ -157,14 +180,28 @@ export function ChatInputBarContainer() {
     }),
     buildThinkingToolbarSelect({
       supportedLevels: thinkingSupportedLevels,
-      selectedThinkingLevel: snapshot.selectedThinkingLevel,
+      selectedThinkingLevel: snapshot.selectedThinkingLevel as ChatThinkingLevel | null,
       defaultThinkingLevel: selectedModelThinkingCapability?.default ?? null,
-      onValueChange: presenter.chatInputManager.selectThinkingLevel,
+      onValueChange: (value) => presenter.chatInputManager.selectThinkingLevel(value),
       texts: {
         thinkingLabels: buildThinkingLabels()
       }
     })
   ].filter((item): item is NonNullable<typeof item> => item !== null);
+
+  const skillPicker = buildSkillPickerModel({
+    skillRecords,
+    selectedSkills: snapshot.selectedSkills,
+    isLoading: snapshot.isSkillsLoading,
+    onSelectedKeysChange: presenter.chatInputManager.selectSkills,
+    texts: {
+      title: t('chatSkillsPickerTitle'),
+      searchPlaceholder: t('chatSkillsPickerSearchPlaceholder'),
+      emptyLabel: t('chatSkillsPickerEmpty'),
+      loadingLabel: t('sessionsLoading'),
+      manageLabel: t('chatSkillsPickerManage')
+    }
+  });
 
   return (
     <ChatInputBar
@@ -174,11 +211,8 @@ export function ChatInputBarContainer() {
       onValueChange={presenter.chatInputManager.setDraft}
       onKeyDown={controller.onTextareaKeyDown}
       slashMenu={{
-        anchorRef: controller.slashAnchorRef,
-        listRef: controller.slashListRef,
         isOpen: controller.isSlashPanelOpen,
         isLoading: snapshot.isSkillsLoading,
-        width: controller.resolvedSlashPanelWidth,
         items: slashItems,
         activeIndex: controller.activeSlashIndex,
         activeItem: controller.activeSlashItem,
@@ -203,21 +237,21 @@ export function ChatInputBarContainer() {
         }
       })}
       selectedItems={{
-        items: buildSelectedSkillItems(snapshot.selectedSkills, snapshot.skillRecords),
+        items: buildSelectedSkillItems(snapshot.selectedSkills, skillRecords),
         onRemove: (key) => presenter.chatInputManager.selectSkills(snapshot.selectedSkills.filter((skill) => skill !== key))
       }}
       toolbar={{
-        startContent: [
-          <ChatSkillsPickerSlot
-            key="skills-picker"
-            records={snapshot.skillRecords}
-            isLoading={snapshot.isSkillsLoading}
-            selectedSkills={snapshot.selectedSkills}
-            onSelectedSkillsChange={presenter.chatInputManager.selectSkills}
-          />
-        ],
         selects: toolbarSelects,
-        endContent: [<ChatAttachButtonSlot key="attach-button" />],
+        accessories: [
+          {
+            key: 'attach',
+            label: t('chatInputAttachComingSoon'),
+            icon: 'paperclip',
+            disabled: true,
+            tooltip: t('chatInputAttachComingSoon')
+          }
+        ],
+        skillPicker,
         actions: {
           sendError: snapshot.sendError,
           isSending: snapshot.isSending,

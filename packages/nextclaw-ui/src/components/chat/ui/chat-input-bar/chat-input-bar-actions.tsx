@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ChatUiPrimitives } from '@/components/chat/ui/primitives/chat-ui-primitives';
 import type { ChatInputBarActionsProps } from '@/components/chat/view-models/chat-ui.types';
 import { ArrowUp, Square } from 'lucide-react';
 
 export function ChatInputBarActions(props: ChatInputBarActionsProps) {
+  const { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } = ChatUiPrimitives;
   return (
     <div className="flex flex-col items-end gap-1">
       {props.sendError?.trim() ? (

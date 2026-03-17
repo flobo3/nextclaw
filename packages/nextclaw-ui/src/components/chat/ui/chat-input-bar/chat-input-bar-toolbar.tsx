@@ -1,8 +1,13 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { ChatInputBarToolbarProps, ChatToolbarIcon, ChatToolbarSelect } from '@/components/chat/view-models/chat-ui.types';
-import { cn } from '@/lib/utils';
-import { Brain, Sparkles } from 'lucide-react';
+import { ChatUiPrimitives } from '@/components/chat/ui/primitives/chat-ui-primitives';
+import type {
+  ChatInputBarToolbarProps,
+  ChatToolbarAccessoryIcon,
+  ChatToolbarIcon,
+  ChatToolbarSelect
+} from '@/components/chat/view-models/chat-ui.types';
+import { Brain, Paperclip, Sparkles } from 'lucide-react';
 import { ChatInputBarActions } from '@/components/chat/ui/chat-input-bar/chat-input-bar-actions';
+import { ChatInputBarSkillPicker } from '@/components/chat/ui/chat-input-bar/chat-input-bar-skill-picker';
 
 function ToolbarIcon({ icon }: { icon?: ChatToolbarIcon }) {
   if (icon === 'sparkles') {
@@ -14,14 +19,45 @@ function ToolbarIcon({ icon }: { icon?: ChatToolbarIcon }) {
   return null;
 }
 
+function AccessoryIcon({ icon }: { icon?: ChatToolbarAccessoryIcon }) {
+  if (icon === 'paperclip') {
+    return <Paperclip className="h-4 w-4" />;
+  }
+  return <ToolbarIcon icon={icon} />;
+}
+
+function resolveTriggerWidth(key: string): string {
+  if (key === 'model') {
+    return 'min-w-[220px]';
+  }
+  if (key === 'session-type') {
+    return 'min-w-[140px]';
+  }
+  if (key === 'thinking') {
+    return 'min-w-[150px]';
+  }
+  return '';
+}
+
+function resolveContentWidth(key: string): string {
+  if (key === 'model') {
+    return 'w-[320px]';
+  }
+  if (key === 'session-type') {
+    return 'w-[220px]';
+  }
+  if (key === 'thinking') {
+    return 'w-[180px]';
+  }
+  return '';
+}
+
 function ToolbarSelect({ item }: { item: ChatToolbarSelect }) {
+  const { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } = ChatUiPrimitives;
   return (
     <Select value={item.value} onValueChange={item.onValueChange} disabled={item.disabled}>
       <SelectTrigger
-        className={cn(
-          'h-8 w-auto rounded-lg border-0 bg-transparent px-3 text-xs font-medium text-gray-600 shadow-none hover:bg-gray-100 focus:ring-0',
-          item.minWidthClassName
-        )}
+        className={`h-8 w-auto rounded-lg border-0 bg-transparent px-3 text-xs font-medium text-gray-600 shadow-none hover:bg-gray-100 focus:ring-0 ${resolveTriggerWidth(item.key)}`}
       >
         {item.selectedLabel ? (
           <div className="flex min-w-0 items-center gap-2 text-left">
@@ -34,7 +70,7 @@ function ToolbarSelect({ item }: { item: ChatToolbarSelect }) {
           <SelectValue placeholder={item.placeholder} />
         )}
       </SelectTrigger>
-      <SelectContent className={item.contentWidthClassName}>
+      <SelectContent className={resolveContentWidth(item.key)}>
         {item.options.length === 0 ? (
           item.loading ? (
             <div className="space-y-2 px-3 py-2">
@@ -64,18 +100,41 @@ function ToolbarSelect({ item }: { item: ChatToolbarSelect }) {
 }
 
 export function ChatInputBarToolbar(props: ChatInputBarToolbarProps) {
+  const { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } = ChatUiPrimitives;
   return (
     <div className="flex items-center justify-between px-3 pb-3">
       <div className="flex items-center gap-1">
-        {props.startContent?.map((slot, index) => (
-          <div key={`leading-${index}`}>{slot}</div>
-        ))}
+        {props.skillPicker ? <ChatInputBarSkillPicker picker={props.skillPicker} /> : null}
         {props.selects.map((item) => (
           <ToolbarSelect key={item.key} item={item} />
         ))}
-        {props.endContent?.map((slot, index) => (
-          <div key={`trailing-${index}`}>{slot}</div>
-        ))}
+        {props.accessories?.map((item) => {
+          const button = (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-400"
+              onClick={item.onClick}
+              disabled={item.disabled}
+              aria-label={item.label}
+            >
+              <AccessoryIcon icon={item.icon} />
+              <span>{item.label}</span>
+            </button>
+          );
+          if (!item.tooltip) {
+            return <div key={item.key}>{button}</div>;
+          }
+          return (
+            <TooltipProvider key={item.key}>
+              <Tooltip>
+                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">{item.tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        })}
       </div>
       <ChatInputBarActions {...props.actions} />
     </div>

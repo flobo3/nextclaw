@@ -2,6 +2,7 @@ import type { ChatMessageTexts, ChatMessageViewModel } from '@/components/chat/v
 import { ChatMessageMarkdown } from '@/components/chat/ui/chat-message-list/chat-message-markdown';
 import { ChatReasoningBlock } from '@/components/chat/ui/chat-message-list/chat-reasoning-block';
 import { ChatToolCard } from '@/components/chat/ui/chat-message-list/chat-tool-card';
+import { ChatUnknownPart } from '@/components/chat/ui/chat-message-list/chat-unknown-part';
 import { cn } from '@/lib/utils';
 
 type ChatMessageProps = {
@@ -39,6 +40,9 @@ export function ChatMessage(props: ChatMessageProps) {
                 <ChatToolCard card={part.card} />
               </div>
             );
+          }
+          if (part.type === 'unknown') {
+            return <ChatUnknownPart key={`unknown-${index}`} label={part.label} rawType={part.rawType} text={part.text} />;
           }
           return null;
         })}

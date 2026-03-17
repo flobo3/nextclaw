@@ -1,4 +1,4 @@
-import type { KeyboardEventHandler, MutableRefObject, ReactNode } from 'react';
+import type { KeyboardEventHandler } from 'react';
 
 export type ChatTexts = {
   slashLoadingLabel: string;
@@ -26,6 +26,8 @@ export type ChatSelectedItem = {
 
 export type ChatToolbarIcon = 'sparkles' | 'brain';
 
+export type ChatToolbarAccessoryIcon = ChatToolbarIcon | 'paperclip';
+
 export type ChatToolbarSelectOption = {
   value: string;
   label: string;
@@ -42,9 +44,36 @@ export type ChatToolbarSelect = {
   disabled?: boolean;
   loading?: boolean;
   emptyLabel?: string;
-  minWidthClassName?: string;
-  contentWidthClassName?: string;
   onValueChange: (value: string) => void;
+};
+
+export type ChatToolbarAccessory = {
+  key: string;
+  label: string;
+  icon?: ChatToolbarAccessoryIcon;
+  disabled?: boolean;
+  tooltip?: string;
+  onClick?: () => void;
+};
+
+export type ChatSkillPickerOption = {
+  key: string;
+  label: string;
+  description?: string;
+  badgeLabel?: string;
+};
+
+export type ChatSkillPickerProps = {
+  title: string;
+  searchPlaceholder: string;
+  emptyLabel: string;
+  loadingLabel: string;
+  isLoading?: boolean;
+  manageLabel?: string;
+  manageHref?: string;
+  options: ChatSkillPickerOption[];
+  selectedKeys: string[];
+  onSelectedKeysChange: (next: string[]) => void;
 };
 
 export type ChatInputBarActionsProps = {
@@ -61,9 +90,9 @@ export type ChatInputBarActionsProps = {
 };
 
 export type ChatInputBarToolbarProps = {
-  startContent?: ReactNode[];
   selects: ChatToolbarSelect[];
-  endContent?: ReactNode[];
+  accessories?: ChatToolbarAccessory[];
+  skillPicker?: ChatSkillPickerProps | null;
   actions: ChatInputBarActionsProps;
 };
 
@@ -76,11 +105,8 @@ export type ChatInlineHint = {
 };
 
 export type ChatSlashMenuProps = {
-  anchorRef: MutableRefObject<HTMLDivElement | null>;
-  listRef: MutableRefObject<HTMLDivElement | null>;
   isOpen: boolean;
   isLoading: boolean;
-  width?: number;
   items: ChatSlashItem[];
   activeIndex: number;
   activeItem: ChatSlashItem | null;
@@ -134,6 +160,12 @@ export type ChatMessagePartViewModel =
   | {
       type: 'tool-card';
       card: ChatToolPartViewModel;
+    }
+  | {
+      type: 'unknown';
+      label: string;
+      rawType: string;
+      text?: string;
     };
 
 export type ChatMessageViewModel = {

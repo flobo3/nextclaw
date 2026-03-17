@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { ChatSlashItem } from '@/components/chat/view-models/chat-ui.types';
-
-const SLASH_PANEL_MAX_WIDTH = 680;
-const SLASH_PANEL_DESKTOP_SHRINK_RATIO = 0.82;
-const SLASH_PANEL_DESKTOP_MIN_WIDTH = 560;
 
 type UseChatInputBarControllerParams = {
   isSlashMode: boolean;
@@ -20,38 +16,9 @@ type UseChatInputBarControllerParams = {
 export function useChatInputBarController(params: UseChatInputBarControllerParams) {
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [dismissedSlashPanel, setDismissedSlashPanel] = useState(false);
-  const [slashPanelWidth, setSlashPanelWidth] = useState<number | null>(null);
-
-  const slashAnchorRef = useRef<HTMLDivElement | null>(null);
-  const slashListRef = useRef<HTMLDivElement | null>(null);
 
   const isSlashPanelOpen = params.isSlashMode && !dismissedSlashPanel;
   const activeSlashItem = params.slashItems[activeSlashIndex] ?? null;
-  const resolvedSlashPanelWidth = useMemo(() => {
-    if (!slashPanelWidth) {
-      return undefined;
-    }
-    return Math.min(
-      slashPanelWidth > SLASH_PANEL_DESKTOP_MIN_WIDTH
-        ? slashPanelWidth * SLASH_PANEL_DESKTOP_SHRINK_RATIO
-        : slashPanelWidth,
-      SLASH_PANEL_MAX_WIDTH
-    );
-  }, [slashPanelWidth]);
-
-  useEffect(() => {
-    const anchor = slashAnchorRef.current;
-    if (!anchor || typeof ResizeObserver === 'undefined') {
-      return;
-    }
-    const update = () => {
-      setSlashPanelWidth(anchor.getBoundingClientRect().width);
-    };
-    update();
-    const observer = new ResizeObserver(() => update());
-    observer.observe(anchor);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     if (!isSlashPanelOpen || params.slashItems.length === 0) {
@@ -74,18 +41,6 @@ export function useChatInputBarController(params: UseChatInputBarControllerParam
       setDismissedSlashPanel(false);
     }
   }, [dismissedSlashPanel, params.isSlashMode]);
-
-  useEffect(() => {
-    if (!isSlashPanelOpen || params.isSlashLoading || params.slashItems.length === 0) {
-      return;
-    }
-    const container = slashListRef.current;
-    if (!container) {
-      return;
-    }
-    const active = container.querySelector<HTMLElement>(`[data-slash-index="${activeSlashIndex}"]`);
-    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [activeSlashIndex, isSlashPanelOpen, params.isSlashLoading, params.slashItems.length]);
 
   const handleSelectSlashItem = useCallback((item: ChatSlashItem) => {
     params.onSelectSlashItem(item);
@@ -135,12 +90,9 @@ export function useChatInputBarController(params: UseChatInputBarControllerParam
   }, [activeSlashIndex, handleSelectSlashItem, isSlashPanelOpen, params]);
 
   return {
-    slashAnchorRef,
-    slashListRef,
     isSlashPanelOpen,
     activeSlashIndex,
     activeSlashItem,
-    resolvedSlashPanelWidth,
     onSelectSlashItem: handleSelectSlashItem,
     onSlashPanelOpenChange: (open: boolean) => {
       if (!open) {

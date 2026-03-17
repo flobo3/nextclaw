@@ -4,8 +4,6 @@ import type { ChatSlashMenuProps } from '@/components/chat/view-models/chat-ui.t
 
 function createSlashMenuProps(overrides?: Partial<ChatSlashMenuProps>): ChatSlashMenuProps {
   return {
-    anchorRef: { current: null },
-    listRef: { current: null },
     isOpen: true,
     isLoading: false,
     items: [],

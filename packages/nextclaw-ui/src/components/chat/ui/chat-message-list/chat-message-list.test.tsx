@@ -68,4 +68,29 @@ describe('ChatMessageList', () => {
       expect(writeText).toHaveBeenCalledWith('const x = 1;');
     });
   });
+
+  it('renders unknown parts with fallback label', () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-2',
+            role: 'assistant',
+            roleLabel: 'Assistant',
+            timestampLabel: '10:03',
+            parts: [{ type: 'unknown', label: 'Unknown Part', rawType: 'step-start', text: '{"x":1}' }]
+          }
+        ]}
+        isSending={false}
+        hasStreamingDraft={false}
+        texts={{
+          copyCodeLabel: 'Copy',
+          copiedCodeLabel: 'Copied',
+          typingLabel: 'Typing...'
+        }}
+      />
+    );
+
+    expect(screen.getByText('Unknown Part: step-start')).toBeTruthy();
+  });
 });

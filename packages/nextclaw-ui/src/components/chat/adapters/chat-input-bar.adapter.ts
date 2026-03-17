@@ -1,11 +1,31 @@
-import type { MarketplaceInstalledRecord, ThinkingLevel } from '@/api/types';
-import type { ChatModelOption } from '@/components/chat/chat-input.types';
 import type {
   ChatInlineHint,
   ChatSelectedItem,
+  ChatSkillPickerOption,
   ChatSlashItem,
+  ChatSkillPickerProps,
   ChatToolbarSelect
 } from '@/components/chat/view-models/chat-ui.types';
+
+export type ChatThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'adaptive' | 'xhigh';
+
+export type ChatSkillRecord = {
+  key: string;
+  label: string;
+  description?: string;
+  descriptionZh?: string;
+  badgeLabel?: string;
+};
+
+export type ChatModelRecord = {
+  value: string;
+  modelLabel: string;
+  providerLabel: string;
+  thinkingCapability?: {
+    supported: ChatThinkingLevel[];
+    default?: ChatThinkingLevel | null;
+  } | null;
+};
 
 const SLASH_ITEM_MATCH_SCORE = {
   exactSpec: 1200,
@@ -27,7 +47,7 @@ export type ChatInputBarAdapterTexts = {
   modelSelectPlaceholder: string;
   modelNoOptionsLabel: string;
   sessionTypePlaceholder: string;
-  thinkingLabels: Record<ThinkingLevel, string>;
+  thinkingLabels: Record<ChatThinkingLevel, string>;
   noModelOptionsLabel: string;
   configureProviderLabel: string;
 };
@@ -60,14 +80,14 @@ function isSubsequenceMatch(query: string, target: string): boolean {
   return false;
 }
 
-function scoreSkillRecord(record: MarketplaceInstalledRecord, query: string): number {
+function scoreSkillRecord(record: ChatSkillRecord, query: string): number {
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) {
     return SLASH_ITEM_MATCH_SCORE.fallback;
   }
 
-  const spec = normalizeSearchText(record.spec);
-  const label = normalizeSearchText(record.label || record.spec);
+  const spec = normalizeSearchText(record.key);
+  const label = normalizeSearchText(record.label || record.key);
   const description = normalizeSearchText(`${record.descriptionZh ?? ''} ${record.description ?? ''}`);
   const labelTokens = label.split(/[\s/_-]+/).filter(Boolean);
 
@@ -102,7 +122,7 @@ function scoreSkillRecord(record: MarketplaceInstalledRecord, query: string): nu
 }
 
 export function buildChatSlashItems(
-  skillRecords: MarketplaceInstalledRecord[],
+  skillRecords: ChatSkillRecord[],
   normalizedSlashQuery: string,
   texts: Pick<ChatInputBarAdapterTexts, 'slashSkillSubtitle' | 'slashSkillSpecLabel' | 'noSkillDescription'>
 ): ChatSlashItem[] {
@@ -119,8 +139,8 @@ export function buildChatSlashItems(
       if (right.score !== left.score) {
         return right.score - left.score;
       }
-      const leftLabel = (left.record.label || left.record.spec).trim();
-      const rightLabel = (right.record.label || right.record.spec).trim();
+      const leftLabel = (left.record.label || left.record.key).trim();
+      const rightLabel = (right.record.label || right.record.key).trim();
       const labelCompare = skillSortCollator.compare(leftLabel, rightLabel);
       if (labelCompare !== 0) {
         return labelCompare;
@@ -128,26 +148,62 @@ export function buildChatSlashItems(
       return left.order - right.order;
     })
     .map(({ record }) => ({
-      key: `skill:${record.spec}`,
-      title: record.label || record.spec,
+      key: `skill:${record.key}`,
+      title: record.label || record.key,
       subtitle: texts.slashSkillSubtitle,
       description: (record.descriptionZh ?? record.description ?? '').trim() || texts.noSkillDescription,
-      detailLines: [`${texts.slashSkillSpecLabel}: ${record.spec}`],
-      value: record.spec
+      detailLines: [`${texts.slashSkillSpecLabel}: ${record.key}`],
+      value: record.key
     }));
 }
 
 export function buildSelectedSkillItems(
   selectedSkills: string[],
-  skillRecords: MarketplaceInstalledRecord[]
+  skillRecords: ChatSkillRecord[]
 ): ChatSelectedItem[] {
   return selectedSkills.map((spec) => {
-    const matched = skillRecords.find((record) => record.spec === spec);
+    const matched = skillRecords.find((record) => record.key === spec);
     return {
       key: spec,
       label: matched?.label || spec
     };
   });
+}
+
+export function buildSkillPickerOptions(skillRecords: ChatSkillRecord[]): ChatSkillPickerOption[] {
+  return skillRecords.map((record) => ({
+    key: record.key,
+    label: record.label,
+    description: record.descriptionZh || record.description || '',
+    badgeLabel: record.badgeLabel
+  }));
+}
+
+export function buildSkillPickerModel(params: {
+  skillRecords: ChatSkillRecord[];
+  selectedSkills: string[];
+  isLoading: boolean;
+  onSelectedKeysChange: (next: string[]) => void;
+  texts: {
+    title: string;
+    searchPlaceholder: string;
+    emptyLabel: string;
+    loadingLabel: string;
+    manageLabel: string;
+  };
+}): ChatSkillPickerProps {
+  return {
+    title: params.texts.title,
+    searchPlaceholder: params.texts.searchPlaceholder,
+    emptyLabel: params.texts.emptyLabel,
+    loadingLabel: params.texts.loadingLabel,
+    isLoading: params.isLoading,
+    manageLabel: params.texts.manageLabel,
+    manageHref: '/marketplace/skills',
+    options: buildSkillPickerOptions(params.skillRecords),
+    selectedKeys: params.selectedSkills,
+    onSelectedKeysChange: params.onSelectedKeysChange
+  };
 }
 
 export function buildModelStateHint(params: {
@@ -174,7 +230,7 @@ export function buildModelStateHint(params: {
 }
 
 export function buildModelToolbarSelect(params: {
-  modelOptions: ChatModelOption[];
+  modelOptions: ChatModelRecord[];
   selectedModel: string;
   isModelOptionsLoading: boolean;
   hasModelOptions: boolean;
@@ -199,8 +255,6 @@ export function buildModelToolbarSelect(params: {
     disabled: !params.hasModelOptions,
     loading: params.isModelOptionsLoading,
     emptyLabel: params.texts.modelNoOptionsLabel,
-    minWidthClassName: 'min-w-[220px]',
-    contentWidthClassName: 'w-[320px]',
     onValueChange: params.onValueChange
   };
 }
@@ -228,15 +282,13 @@ export function buildSessionTypeToolbarSelect(params: {
       label: option.label
     })),
     disabled: !params.canEditSessionType,
-    minWidthClassName: 'min-w-[140px]',
-    contentWidthClassName: 'w-[220px]',
     onValueChange: params.onValueChange
   };
 }
 
-function normalizeThinkingLevels(levels: ThinkingLevel[]): ThinkingLevel[] {
-  const deduped: ThinkingLevel[] = [];
-  for (const level of ['off', ...levels] as ThinkingLevel[]) {
+function normalizeThinkingLevels(levels: ChatThinkingLevel[]): ChatThinkingLevel[] {
+  const deduped: ChatThinkingLevel[] = [];
+  for (const level of ['off', ...levels] as ChatThinkingLevel[]) {
     if (!deduped.includes(level)) {
       deduped.push(level);
     }
@@ -245,10 +297,10 @@ function normalizeThinkingLevels(levels: ThinkingLevel[]): ThinkingLevel[] {
 }
 
 export function buildThinkingToolbarSelect(params: {
-  supportedLevels: ThinkingLevel[];
-  selectedThinkingLevel: ThinkingLevel | null;
-  defaultThinkingLevel?: ThinkingLevel | null;
-  onValueChange: (value: ThinkingLevel) => void;
+  supportedLevels: ChatThinkingLevel[];
+  selectedThinkingLevel: ChatThinkingLevel | null;
+  defaultThinkingLevel?: ChatThinkingLevel | null;
+  onValueChange: (value: ChatThinkingLevel) => void;
   texts: Pick<ChatInputBarAdapterTexts, 'thinkingLabels'>;
 }): ChatToolbarSelect | null {
   if (params.supportedLevels.length === 0) {
@@ -272,8 +324,6 @@ export function buildThinkingToolbarSelect(params: {
       value: level,
       label: params.texts.thinkingLabels[level]
     })),
-    minWidthClassName: 'min-w-[150px]',
-    contentWidthClassName: 'w-[180px]',
-    onValueChange: (value) => params.onValueChange(value as ThinkingLevel)
+    onValueChange: (value) => params.onValueChange(value as ChatThinkingLevel)
   };
 }

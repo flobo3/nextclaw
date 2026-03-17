@@ -1,4 +1,3 @@
-import { type UiMessage } from '@nextclaw/agent-chat';
 import {
   stringifyUnknown,
   summarizeToolArgs,
@@ -9,6 +8,42 @@ import type {
   ChatMessageViewModel,
   ChatToolPartViewModel
 } from '@/components/chat/view-models/chat-ui.types';
+
+export type ChatMessagePartSource =
+  | {
+      type: 'text';
+      text: string;
+    }
+  | {
+      type: 'reasoning';
+      reasoning: string;
+    }
+  | {
+      type: 'tool-invocation';
+      toolInvocation: {
+        status?: string;
+        toolName: string;
+        args?: unknown;
+        parsedArgs?: unknown;
+        result?: unknown;
+        error?: string;
+        toolCallId?: string;
+      };
+    }
+  | {
+      type: string;
+      [key: string]: unknown;
+    };
+
+export type ChatMessageSource = {
+  id: string;
+  role: string;
+  meta?: {
+    timestamp?: string;
+    status?: string;
+  };
+  parts: ChatMessagePartSource[];
+};
 
 export type ChatMessageAdapterTexts = {
   roleLabels: {
@@ -23,9 +58,36 @@ export type ChatMessageAdapterTexts = {
   toolResultLabel: string;
   toolNoOutputLabel: string;
   toolOutputLabel: string;
+  unknownPartLabel: string;
 };
 
-function resolveMessageTimestamp(message: UiMessage): string {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isTextPart(part: ChatMessagePartSource): part is Extract<ChatMessagePartSource, { type: 'text' }> {
+  return part.type === 'text' && typeof part.text === 'string';
+}
+
+function isReasoningPart(
+  part: ChatMessagePartSource
+): part is Extract<ChatMessagePartSource, { type: 'reasoning' }> {
+  return part.type === 'reasoning' && typeof part.reasoning === 'string';
+}
+
+function isToolInvocationPart(
+  part: ChatMessagePartSource
+): part is Extract<ChatMessagePartSource, { type: 'tool-invocation' }> {
+  if (part.type !== 'tool-invocation') {
+    return false;
+  }
+  if (!isRecord(part.toolInvocation)) {
+    return false;
+  }
+  return typeof part.toolInvocation.toolName === 'string';
+}
+
+function resolveMessageTimestamp(message: ChatMessageSource): string {
   const candidate = message.meta?.timestamp;
   if (candidate && Number.isFinite(Date.parse(candidate))) {
     return candidate;
@@ -33,7 +95,7 @@ function resolveMessageTimestamp(message: UiMessage): string {
   return new Date().toISOString();
 }
 
-function resolveRoleLabel(role: UiMessage['role'], texts: ChatMessageAdapterTexts['roleLabels']): string {
+function resolveRoleLabel(role: string, texts: ChatMessageAdapterTexts['roleLabels']): string {
   if (role === 'user') {
     return texts.user;
   }
@@ -49,7 +111,7 @@ function resolveRoleLabel(role: UiMessage['role'], texts: ChatMessageAdapterText
   return texts.fallback;
 }
 
-function resolveUiRole(role: UiMessage['role']): ChatMessageRole {
+function resolveUiRole(role: string): ChatMessageRole {
   if (role === 'user' || role === 'assistant' || role === 'tool' || role === 'system') {
     return role;
   }
@@ -70,7 +132,7 @@ function buildToolCard(toolCard: ToolCard, texts: ChatMessageAdapterTexts): Chat
 }
 
 export function adaptChatMessages(params: {
-  uiMessages: UiMessage[];
+  uiMessages: ChatMessageSource[];
   texts: ChatMessageAdapterTexts;
   formatTimestamp: (value: string) => string;
 }): ChatMessageViewModel[] {
@@ -82,7 +144,7 @@ export function adaptChatMessages(params: {
     status: message.meta?.status,
     parts: message.parts
       .map((part) => {
-        if (part.type === 'text') {
+        if (isTextPart(part)) {
           const text = part.text.trim();
           if (!text) {
             return null;
@@ -92,7 +154,7 @@ export function adaptChatMessages(params: {
             text
           };
         }
-        if (part.type === 'reasoning') {
+        if (isReasoningPart(part)) {
           const text = part.reasoning.trim();
           if (!text) {
             return null;
@@ -103,7 +165,7 @@ export function adaptChatMessages(params: {
             label: params.texts.reasoningLabel
           };
         }
-        if (part.type === 'tool-invocation') {
+        if (isToolInvocationPart(part)) {
           const invocation = part.toolInvocation;
           const detail = summarizeToolArgs(invocation.parsedArgs ?? invocation.args);
           const rawResult = typeof invocation.error === 'string' && invocation.error.trim()
@@ -114,7 +176,7 @@ export function adaptChatMessages(params: {
           const hasResult =
             invocation.status === 'result' || invocation.status === 'error' || invocation.status === 'cancelled';
           const card: ToolCard = {
-            kind: invocation.status === 'result' && !invocation.args ? 'result' : 'call',
+            kind: hasResult ? 'result' : 'call',
             name: invocation.toolName,
             detail,
             text: rawResult || undefined,
@@ -126,7 +188,12 @@ export function adaptChatMessages(params: {
             card: buildToolCard(card, params.texts)
           };
         }
-        return null;
+        return {
+          type: 'unknown' as const,
+          label: params.texts.unknownPartLabel,
+          rawType: typeof part.type === 'string' ? part.type : 'unknown',
+          text: stringifyUnknown(part)
+        };
       })
       .filter((part) => part !== null)
   }));

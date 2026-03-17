@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { type UiMessage } from '@nextclaw/agent-chat';
-import { adaptChatMessages } from '@/components/chat/adapters/chat-message.adapter';
+import { adaptChatMessages, type ChatMessageSource } from '@/components/chat/adapters/chat-message.adapter';
+import { useI18n } from '@/components/providers/I18nProvider';
 import { ChatMessageList } from '@/components/chat/ui/chat-message-list/chat-message-list';
 import { formatDateTime, t } from '@/lib/i18n';
 
@@ -11,11 +12,26 @@ type ChatMessageListContainerProps = {
 };
 
 export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
+  const { language } = useI18n();
+  const sourceMessages = useMemo<ChatMessageSource[]>(
+    () =>
+      props.uiMessages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        meta: {
+          timestamp: message.meta?.timestamp,
+          status: message.meta?.status
+        },
+        parts: message.parts as unknown as ChatMessageSource['parts']
+      })),
+    [props.uiMessages]
+  );
+
   const messages = useMemo(
     () =>
       adaptChatMessages({
-        uiMessages: props.uiMessages,
-        formatTimestamp: formatDateTime,
+        uiMessages: sourceMessages,
+        formatTimestamp: (value) => formatDateTime(value, language),
         texts: {
           roleLabels: {
             user: t('chatRoleUser'),
@@ -28,10 +44,11 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
           toolCallLabel: t('chatToolCall'),
           toolResultLabel: t('chatToolResult'),
           toolNoOutputLabel: t('chatToolNoOutput'),
-          toolOutputLabel: t('chatToolOutput')
+          toolOutputLabel: t('chatToolOutput'),
+          unknownPartLabel: t('chatUnknownPart')
         }
       }),
-    [props.uiMessages]
+    [language, sourceMessages]
   );
 
   return (

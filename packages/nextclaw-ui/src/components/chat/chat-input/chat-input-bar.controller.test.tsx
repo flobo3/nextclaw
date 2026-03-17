@@ -95,4 +95,34 @@ describe('useChatInputBarController', () => {
     });
     expect(onStop).toHaveBeenCalled();
   });
+
+  it('supports Tab selection and Enter send when slash mode is not active', () => {
+    const onSelectSlashItem = vi.fn();
+    const onSend = vi.fn();
+    const { result, rerender } = renderHook(
+      (props: { isSlashMode: boolean }) =>
+        useChatInputBarController({
+          isSlashMode: props.isSlashMode,
+          slashItems: [{ key: 'one', title: 'One', subtitle: 'Skill', description: '', detailLines: [] }],
+          isSlashLoading: false,
+          onSelectSlashItem,
+          onSend,
+          onStop: vi.fn(),
+          isSending: false,
+          canStopGeneration: false
+        }),
+      { initialProps: { isSlashMode: true } }
+    );
+
+    act(() => {
+      result.current.onTextareaKeyDown(createKeyEvent('Tab'));
+    });
+    expect(onSelectSlashItem).toHaveBeenCalledTimes(1);
+
+    rerender({ isSlashMode: false });
+    act(() => {
+      result.current.onTextareaKeyDown(createKeyEvent('Enter'));
+    });
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
 });

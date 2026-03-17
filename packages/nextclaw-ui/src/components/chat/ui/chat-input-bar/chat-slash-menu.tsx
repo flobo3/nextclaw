@@ -1,13 +1,19 @@
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChatUiPrimitives } from '@/components/chat/ui/primitives/chat-ui-primitives';
 import type { ChatSlashMenuProps } from '@/components/chat/view-models/chat-ui.types';
 
+const SLASH_PANEL_MAX_WIDTH = 680;
+const SLASH_PANEL_DESKTOP_SHRINK_RATIO = 0.82;
+const SLASH_PANEL_DESKTOP_MIN_WIDTH = 560;
+
 export function ChatSlashMenu(props: ChatSlashMenuProps) {
+  const { Popover, PopoverAnchor, PopoverContent } = ChatUiPrimitives;
+  const [panelWidth, setPanelWidth] = useState<number | null>(null);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const {
-    anchorRef,
-    listRef,
     isOpen,
     isLoading,
-    width,
     items,
     activeIndex,
     activeItem,
@@ -16,6 +22,42 @@ export function ChatSlashMenu(props: ChatSlashMenuProps) {
     onOpenChange,
     onSetActiveIndex
   } = props;
+
+  const resolvedWidth = useMemo(() => {
+    if (!panelWidth) {
+      return undefined;
+    }
+    return Math.min(
+      panelWidth > SLASH_PANEL_DESKTOP_MIN_WIDTH ? panelWidth * SLASH_PANEL_DESKTOP_SHRINK_RATIO : panelWidth,
+      SLASH_PANEL_MAX_WIDTH
+    );
+  }, [panelWidth]);
+
+  useEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const update = () => {
+      setPanelWidth(anchor.getBoundingClientRect().width);
+    };
+    update();
+    const observer = new ResizeObserver(() => update());
+    observer.observe(anchor);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || isLoading || items.length === 0) {
+      return;
+    }
+    const container = listRef.current;
+    if (!container) {
+      return;
+    }
+    const active = container.querySelector<HTMLElement>(`[data-slash-index="${activeIndex}"]`);
+    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeIndex, isLoading, isOpen, items.length]);
 
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
@@ -28,7 +70,7 @@ export function ChatSlashMenu(props: ChatSlashMenuProps) {
         sideOffset={10}
         className="z-[70] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white/95 p-0 shadow-2xl backdrop-blur-md"
         onOpenAutoFocus={(event) => event.preventDefault()}
-        style={width ? { width: `${width}px` } : undefined}
+        style={resolvedWidth ? { width: `${resolvedWidth}px` } : undefined}
       >
         <div className="grid min-h-[240px] grid-cols-[minmax(220px,300px)_minmax(0,1fr)]">
           <div
