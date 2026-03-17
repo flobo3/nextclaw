@@ -158,6 +158,31 @@ export type ProviderAuthImportResult = {
   expiresAt?: string;
 };
 
+export type AuthStatusView = {
+  enabled: boolean;
+  configured: boolean;
+  authenticated: boolean;
+  username?: string;
+};
+
+export type AuthSetupRequest = {
+  username: string;
+  password: string;
+};
+
+export type AuthLoginRequest = {
+  username: string;
+  password: string;
+};
+
+export type AuthPasswordUpdateRequest = {
+  password: string;
+};
+
+export type AuthEnabledUpdateRequest = {
+  enabled: boolean;
+};
+
 export type AgentProfileView = {
   id: string;
   default?: boolean;
@@ -501,6 +526,7 @@ export type ConfigView = {
   session?: SessionConfigView;
   tools?: Record<string, unknown>;
   gateway?: Record<string, unknown>;
+  ui?: Record<string, unknown>;
   secrets?: SecretsView;
 };
 

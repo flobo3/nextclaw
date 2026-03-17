@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LoginPage } from '@/components/auth/login-page';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useAuthStatus } from '@/hooks/use-auth';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Toaster } from 'sonner';
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -20,6 +22,7 @@ const SearchConfigPage = lazy(async () => ({ default: (await import('@/component
 const ProvidersListPage = lazy(async () => ({ default: (await import('@/components/config/ProvidersList')).ProvidersList }));
 const ChannelsListPage = lazy(async () => ({ default: (await import('@/components/config/ChannelsList')).ChannelsList }));
 const RuntimeConfigPage = lazy(async () => ({ default: (await import('@/components/config/RuntimeConfig')).RuntimeConfig }));
+const SecurityConfigPage = lazy(async () => ({ default: (await import('@/components/config/security-config')).SecurityConfig }));
 const SessionsConfigPage = lazy(async () => ({ default: (await import('@/components/config/SessionsConfig')).SessionsConfig }));
 const SecretsConfigPage = lazy(async () => ({ default: (await import('@/components/config/SecretsConfig')).SecretsConfig }));
 const MarketplacePage = lazy(async () => ({ default: (await import('@/components/marketplace/MarketplacePage')).MarketplacePage }));
@@ -32,38 +35,57 @@ function LazyRoute({ children }: { children: JSX.Element }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
 }
 
-function AppContent() {
+function ProtectedApp() {
   useWebSocket(queryClient); // Initialize WebSocket connection
 
   return (
+    <AppLayout>
+      <div className="w-full h-full">
+        <Routes>
+          <Route path="/chat/skills" element={<Navigate to="/skills" replace />} />
+          <Route path="/chat/cron" element={<Navigate to="/cron" replace />} />
+          <Route path="/chat/:sessionId?" element={<LazyRoute><ChatPage view="chat" /></LazyRoute>} />
+          <Route path="/skills" element={<LazyRoute><ChatPage view="skills" /></LazyRoute>} />
+          <Route path="/cron" element={<LazyRoute><ChatPage view="cron" /></LazyRoute>} />
+          <Route path="/model" element={<LazyRoute><ModelConfigPage /></LazyRoute>} />
+          <Route path="/search" element={<LazyRoute><SearchConfigPage /></LazyRoute>} />
+          <Route path="/providers" element={<LazyRoute><ProvidersListPage /></LazyRoute>} />
+          <Route path="/channels" element={<LazyRoute><ChannelsListPage /></LazyRoute>} />
+          <Route path="/runtime" element={<LazyRoute><RuntimeConfigPage /></LazyRoute>} />
+          <Route path="/security" element={<LazyRoute><SecurityConfigPage /></LazyRoute>} />
+          <Route path="/sessions" element={<LazyRoute><SessionsConfigPage /></LazyRoute>} />
+          <Route path="/secrets" element={<LazyRoute><SecretsConfigPage /></LazyRoute>} />
+          <Route path="/settings" element={<Navigate to="/model" replace />} />
+          <Route path="/marketplace/skills" element={<Navigate to="/skills" replace />} />
+          <Route path="/marketplace" element={<Navigate to="/marketplace/plugins" replace />} />
+          <Route path="/marketplace/:type" element={<LazyRoute><MarketplacePage /></LazyRoute>} />
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="*" element={<Navigate to="/chat" replace />} />
+        </Routes>
+      </div>
+    </AppLayout>
+  );
+}
+
+function AuthGate() {
+  const authStatus = useAuthStatus();
+
+  if (authStatus.isLoading && !authStatus.isError) {
+    return <RouteFallback />;
+  }
+
+  if (authStatus.data?.enabled && !authStatus.data.authenticated) {
+    return <LoginPage username={authStatus.data.username} />;
+  }
+
+  return <ProtectedApp />;
+}
+
+export default function AppContent() {
+  return (
     <QueryClientProvider client={queryClient}>
-      <AppLayout>
-        <div className="w-full h-full">
-          <Routes>
-            <Route path="/chat/skills" element={<Navigate to="/skills" replace />} />
-            <Route path="/chat/cron" element={<Navigate to="/cron" replace />} />
-            <Route path="/chat/:sessionId?" element={<LazyRoute><ChatPage view="chat" /></LazyRoute>} />
-            <Route path="/skills" element={<LazyRoute><ChatPage view="skills" /></LazyRoute>} />
-            <Route path="/cron" element={<LazyRoute><ChatPage view="cron" /></LazyRoute>} />
-            <Route path="/model" element={<LazyRoute><ModelConfigPage /></LazyRoute>} />
-            <Route path="/search" element={<LazyRoute><SearchConfigPage /></LazyRoute>} />
-            <Route path="/providers" element={<LazyRoute><ProvidersListPage /></LazyRoute>} />
-            <Route path="/channels" element={<LazyRoute><ChannelsListPage /></LazyRoute>} />
-            <Route path="/runtime" element={<LazyRoute><RuntimeConfigPage /></LazyRoute>} />
-            <Route path="/sessions" element={<LazyRoute><SessionsConfigPage /></LazyRoute>} />
-            <Route path="/secrets" element={<LazyRoute><SecretsConfigPage /></LazyRoute>} />
-            <Route path="/settings" element={<Navigate to="/model" replace />} />
-            <Route path="/marketplace/skills" element={<Navigate to="/skills" replace />} />
-            <Route path="/marketplace" element={<Navigate to="/marketplace/plugins" replace />} />
-            <Route path="/marketplace/:type" element={<LazyRoute><MarketplacePage /></LazyRoute>} />
-            <Route path="/" element={<Navigate to="/chat" replace />} />
-            <Route path="*" element={<Navigate to="/chat" replace />} />
-          </Routes>
-        </div>
-      </AppLayout>
+      <AuthGate />
       <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );
 }
-
-export default AppContent;

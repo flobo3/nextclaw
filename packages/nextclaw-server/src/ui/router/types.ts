@@ -1,4 +1,5 @@
 import type * as NextclawCore from "@nextclaw/core";
+import type { UiAuthService } from "../auth.service.js";
 import type { MarketplaceApiConfig, UiChatRuntime, UiServerEvent } from "../types.js";
 
 export type UiRouterOptions = {
@@ -8,6 +9,7 @@ export type UiRouterOptions = {
   marketplace?: MarketplaceApiConfig;
   cronService?: InstanceType<typeof NextclawCore.CronService>;
   chatRuntime?: UiChatRuntime;
+  authService?: UiAuthService;
 };
 
 export type CronJobEntry = {

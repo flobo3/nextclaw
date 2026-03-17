@@ -1,5 +1,10 @@
 import { api, API_BASE } from './client';
 import type {
+  AuthEnabledUpdateRequest,
+  AuthLoginRequest,
+  AuthPasswordUpdateRequest,
+  AuthSetupRequest,
+  AuthStatusView,
   AppMetaView,
   ConfigView,
   ConfigMetaView,
@@ -45,6 +50,60 @@ import type {
   CronRunRequest,
   CronActionResult
 } from './types';
+
+// GET /api/auth/status
+export async function fetchAuthStatus(): Promise<AuthStatusView> {
+  const response = await api.get<AuthStatusView>('/api/auth/status');
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// POST /api/auth/setup
+export async function setupAuth(data: AuthSetupRequest): Promise<AuthStatusView> {
+  const response = await api.post<AuthStatusView>('/api/auth/setup', data);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// POST /api/auth/login
+export async function loginAuth(data: AuthLoginRequest): Promise<AuthStatusView> {
+  const response = await api.post<AuthStatusView>('/api/auth/login', data);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// POST /api/auth/logout
+export async function logoutAuth(): Promise<{ success: boolean }> {
+  const response = await api.post<{ success: boolean }>('/api/auth/logout', {});
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// PUT /api/auth/password
+export async function updateAuthPassword(data: AuthPasswordUpdateRequest): Promise<AuthStatusView> {
+  const response = await api.put<AuthStatusView>('/api/auth/password', data);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// PUT /api/auth/enabled
+export async function updateAuthEnabled(data: AuthEnabledUpdateRequest): Promise<AuthStatusView> {
+  const response = await api.put<AuthStatusView>('/api/auth/enabled', data);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
 
 // GET /api/app/meta
 export async function fetchAppMeta(): Promise<AppMetaView> {
@@ -356,6 +415,7 @@ async function readSseStream(params: {
 }): Promise<{ sessionKey: string; reply: string }> {
   const response = await fetch(`${API_BASE}${params.path}`, {
     method: params.method,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream'

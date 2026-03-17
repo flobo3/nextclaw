@@ -1,5 +1,7 @@
 import { Hono } from "hono";
+import { UiAuthService } from "./auth.service.js";
 import { AppRoutesController } from "./router/app.controller.js";
+import { AuthRoutesController } from "./router/auth.controller.js";
 import { ChatRoutesController } from "./router/chat.controller.js";
 import { ConfigRoutesController } from "./router/config.controller.js";
 import { CronRoutesController } from "./router/cron.controller.js";
@@ -15,8 +17,10 @@ import type { UiRouterOptions } from "./router/types.js";
 export function createUiRouter(options: UiRouterOptions): Hono {
   const app = new Hono();
   const marketplaceBaseUrl = normalizeMarketplaceBaseUrl(options);
+  const authService = options.authService ?? new UiAuthService(options.configPath);
 
   const appController = new AppRoutesController(options);
+  const authController = new AuthRoutesController(authService);
   const configController = new ConfigRoutesController(options);
   const chatController = new ChatRoutesController(options);
   const sessionController = new SessionRoutesController(options);
@@ -26,8 +30,28 @@ export function createUiRouter(options: UiRouterOptions): Hono {
 
   app.notFound((c) => c.json(err("NOT_FOUND", "endpoint not found"), 404));
 
+  app.use("/api/*", async (c, next) => {
+    const path = c.req.path;
+    if (path === "/api/health" || path.startsWith("/api/auth/")) {
+      await next();
+      return;
+    }
+    if (!authService.isProtectionEnabled() || authService.isRequestAuthenticated(c.req.raw)) {
+      await next();
+      return;
+    }
+    c.status(401);
+    return c.json(err("UNAUTHORIZED", "Authentication required."), 401);
+  });
+
   app.get("/api/health", appController.health);
   app.get("/api/app/meta", appController.appMeta);
+  app.get("/api/auth/status", authController.getStatus);
+  app.post("/api/auth/setup", authController.setup);
+  app.post("/api/auth/login", authController.login);
+  app.post("/api/auth/logout", authController.logout);
+  app.put("/api/auth/password", authController.updatePassword);
+  app.put("/api/auth/enabled", authController.updateEnabled);
 
   app.get("/api/config", configController.getConfig);
   app.get("/api/config/meta", configController.getConfigMeta);

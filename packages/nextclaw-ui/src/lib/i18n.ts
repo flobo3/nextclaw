@@ -134,6 +134,7 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   marketplace: { zh: '市场', en: 'Marketplace' },
   advanced: { zh: '高级', en: 'Advanced' },
   settings: { zh: '设置', en: 'Settings' },
+  security: { zh: '安全', en: 'Security' },
   backToMain: { zh: '返回主界面', en: 'Back to Main' },
 
   // Common
@@ -401,10 +402,80 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   textChunkLimit: { zh: '文本分块上限', en: 'Text Chunk Limit' },
   invalidJson: { zh: 'JSON 格式无效', en: 'Invalid JSON' },
 
+  // Auth
+  authBrand: { zh: 'NextClaw UI', en: 'NextClaw UI' },
+  authLoginTitle: { zh: '管理员登录', en: 'Admin Sign In' },
+  authLoginDescription: {
+    zh: '认证已开启。登录后才能查看这台机器的 NextClaw UI。',
+    en: 'Authentication is enabled. Sign in to access this machine’s NextClaw UI.'
+  },
+  authUsername: { zh: '管理员用户名', en: 'Admin Username' },
+  authUsernamePlaceholder: { zh: '输入管理员用户名', en: 'Enter admin username' },
+  authPassword: { zh: '管理员密码', en: 'Admin Password' },
+  authPasswordPlaceholder: { zh: '输入管理员密码', en: 'Enter admin password' },
+  authConfirmPassword: { zh: '确认密码', en: 'Confirm Password' },
+  authConfirmPasswordPlaceholder: { zh: '再次输入密码', en: 'Enter password again' },
+  authLoginAction: { zh: '登录', en: 'Sign In' },
+  authLoggingIn: { zh: '登录中...', en: 'Signing in...' },
+  authLoggingOut: { zh: '退出中...', en: 'Signing out...' },
+  authActionFailed: { zh: '认证操作失败', en: 'Authentication action failed' },
+  authLoginSuccess: { zh: '登录成功', en: 'Signed in successfully' },
+  authLogoutSuccess: { zh: '已退出登录', en: 'Signed out successfully' },
+  authSetupSuccess: { zh: '认证已开启，当前标签页已自动登录，可直接继续使用', en: 'Authentication enabled. This tab is now signed in and ready to use.' },
+  authPasswordUpdated: { zh: '管理员密码已更新', en: 'Admin password updated' },
+  authEnabledSuccess: { zh: '认证已开启', en: 'Authentication enabled' },
+  authDisabledSuccess: { zh: '认证已关闭', en: 'Authentication disabled' },
+  authRetryStatus: { zh: '重试', en: 'Retry' },
+  authStatusLoadFailed: { zh: '无法获取认证状态，请检查 UI 服务是否正常。', en: 'Failed to load authentication status. Check whether the UI server is healthy.' },
+
   // Runtime
   runtimePageTitle: { zh: '路由与运行时', en: 'Routing & Runtime' },
   runtimePageDescription: { zh: '对齐 OpenClaw 的多 Agent 路由：绑定规则、Agent 池、私聊范围。', en: 'Align multi-agent routing with OpenClaw: bindings, agent pool, and DM scope.' },
   runtimeLoading: { zh: '加载运行时配置中...', en: 'Loading runtime settings...' },
+  authSecurityTitle: { zh: 'Security', en: 'Security' },
+  authSecurityDescription: {
+    zh: '保持本机控制台默认简单；只有在你需要远程暴露时，再给 UI 加一层登录门。',
+    en: 'Keep the local console simple by default, and add a lightweight login gate only when you expose the UI remotely.'
+  },
+  authSetupTitle: { zh: '开启轻量认证', en: 'Enable Lightweight Authentication' },
+  authSetupDescription: {
+    zh: '首次开启时设置单个管理员账号。完成后当前标签页会自动登录。',
+    en: 'Create the single admin account the first time you enable authentication. This tab will be signed in automatically.'
+  },
+  authSetupAction: { zh: '开启认证', en: 'Enable Authentication' },
+  authSettingUp: { zh: '开启中...', en: 'Enabling...' },
+  authPasswordMismatch: { zh: '两次输入的密码不一致', en: 'Passwords do not match' },
+  authPasswordMinLengthHint: {
+    zh: '密码至少 8 个字符。当前版本只支持单管理员账号。',
+    en: 'Passwords must be at least 8 characters. This version supports a single admin account only.'
+  },
+  authStatusLabel: { zh: '当前状态', en: 'Current Status' },
+  authStatusConfiguredUser: { zh: '管理员账号：{username}', en: 'Admin account: {username}' },
+  authUsernameFixedHelp: {
+    zh: '首版不提供修改用户名和多用户管理；如需重新定义账号，请后续扩展这套边界。',
+    en: 'This first version does not support renaming the admin account or managing multiple users.'
+  },
+  authEnableLabel: { zh: '要求登录', en: 'Require Login' },
+  authEnableOnHelp: {
+    zh: '已开启后，除健康检查与认证接口外，其余 UI API 和 WebSocket 都需要登录。',
+    en: 'When enabled, every UI API and WebSocket except health and auth endpoints requires login.'
+  },
+  authEnableOffHelp: {
+    zh: '当前保持即开即用。重新打开后，这个标签页会自动拿到新的登录会话。',
+    en: 'The UI is currently open for local-style use. Re-enabling will issue a fresh signed-in session to this tab.'
+  },
+  authPasswordSectionTitle: { zh: '修改管理员密码', en: 'Change Admin Password' },
+  authPasswordSectionDescription: {
+    zh: '更新密码后，旧会话会立即失效；当前标签页会自动续成新会话（仅在认证开启时）。',
+    en: 'Updating the password invalidates old sessions immediately. This tab gets a fresh session automatically while auth is enabled.'
+  },
+  authPasswordAction: { zh: '更新密码', en: 'Update Password' },
+  authPasswordUpdating: { zh: '更新中...', en: 'Updating...' },
+  authLogoutAction: { zh: '退出当前标签页', en: 'Sign Out This Tab' },
+  authSessionMemoryNotice: {
+    zh: '当前版本的会话只保存在服务端内存里。NextClaw UI 进程重启后，需要重新登录。',
+    en: 'Sessions are stored only in server memory for now. You will need to sign in again after the NextClaw UI process restarts.'
+  },
   dmScope: { zh: '私聊范围', en: 'DM Scope' },
   dmScopeHelp: { zh: '控制私聊会话如何隔离。', en: 'Control how direct-message sessions are isolated.' },
   defaultContextTokens: { zh: '默认上下文 Token', en: 'Default Context Tokens' },
@@ -600,6 +671,7 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   chatToolOutput: { zh: '查看输出', en: 'View Output' },
   chatToolNoOutput: { zh: '无输出（执行完成）', en: 'No output (completed)' },
   chatReasoning: { zh: '查看推理内容', en: 'Show reasoning' },
+  chatUnknownPart: { zh: '未知消息片段', en: 'Unknown message part' },
   chatCodeCopy: { zh: '复制代码', en: 'Copy' },
   chatCodeCopied: { zh: '已复制', en: 'Copied' },
 

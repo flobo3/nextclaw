@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { Server } from "node:http";
+import { UiAuthService } from "./auth.service.js";
 import { createUiRouter } from "./router.js";
 import type { UiServerEvent, UiServerHandle, UiServerOptions } from "./types.js";
 import { serveStatic } from "hono/serve-static";
@@ -25,7 +26,8 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
   const app = new Hono();
   app.use("/*", compress());
   const origin = options.corsOrigins ?? DEFAULT_CORS_ORIGINS;
-  app.use("/api/*", cors({ origin }));
+  const authService = new UiAuthService(options.configPath);
+  app.use("/api/*", cors({ origin, credentials: true }));
 
   const clients = new Set<WebSocket>();
 
@@ -46,7 +48,8 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
       publish,
       marketplace: options.marketplace,
       cronService: options.cronService,
-      chatRuntime: options.chatRuntime
+      chatRuntime: options.chatRuntime,
+      authService
     })
   );
 
@@ -89,9 +92,23 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
     hostname: options.host
   });
 
-  const wss = new WebSocketServer({
-    server: server as unknown as Server,
-    path: "/ws"
+  const httpServer = server as unknown as Server;
+  const wss = new WebSocketServer({ noServer: true });
+  httpServer.on("upgrade", (request, socket, head) => {
+    const host = request.headers.host ?? "127.0.0.1";
+    const url = request.url ?? "/";
+    const pathname = new URL(url, `http://${host}`).pathname;
+    if (pathname !== "/ws") {
+      return;
+    }
+    if (!authService.isSocketAuthenticated(request)) {
+      socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit("connection", ws, request);
+    });
   });
   wss.on("connection", (socket) => {
     clients.add(socket);

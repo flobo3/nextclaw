@@ -50,6 +50,7 @@ async function apiRequest<T>(
   const method = (options.method || 'GET').toUpperCase();
 
   const response = await fetch(url, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers
