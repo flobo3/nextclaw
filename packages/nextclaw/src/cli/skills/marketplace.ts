@@ -61,22 +61,21 @@ export async function installMarketplaceSkill(options: MarketplaceSkillInstallOp
   const destinationDir = isAbsolute(dirName) ? resolve(dirName, slug) : resolve(workdir, dirName, slug);
   const skillFile = join(destinationDir, "SKILL.md");
 
-  if (!options.force && existsSync(destinationDir)) {
-    if (existsSync(skillFile)) {
-      return {
-        slug,
-        destinationDir,
-        alreadyInstalled: true,
-        source: "marketplace"
-      };
-    }
-    throw new Error(`Skill directory already exists: ${destinationDir} (use --force)`);
-  }
-
   const apiBase = resolveMarketplaceApiBase(options.apiBaseUrl);
   const item = await fetchMarketplaceSkillItem(apiBase, slug);
 
   if (item.install.kind === "builtin") {
+    if (!options.force && existsSync(destinationDir)) {
+      if (existsSync(skillFile)) {
+        return {
+          slug,
+          destinationDir,
+          alreadyInstalled: true,
+          source: "builtin"
+        };
+      }
+      throw new Error(`Skill directory already exists: ${destinationDir} (use --force)`);
+    }
     if (existsSync(destinationDir) && options.force) {
       rmSync(destinationDir, { recursive: true, force: true });
     }
@@ -89,6 +88,23 @@ export async function installMarketplaceSkill(options: MarketplaceSkillInstallOp
   }
 
   const filesPayload = await fetchMarketplaceSkillFiles(apiBase, slug);
+
+  if (!options.force && existsSync(destinationDir)) {
+    const existingDirState = inspectMarketplaceSkillDirectory(destinationDir, filesPayload.files);
+    if (existingDirState === "installed") {
+      return {
+        slug,
+        destinationDir,
+        alreadyInstalled: true,
+        source: "marketplace"
+      };
+    }
+    if (existingDirState === "recoverable") {
+      rmSync(destinationDir, { recursive: true, force: true });
+    } else {
+      throw new Error(`Skill directory already exists: ${destinationDir} (use --force)`);
+    }
+  }
 
   if (existsSync(destinationDir) && options.force) {
     rmSync(destinationDir, { recursive: true, force: true });
@@ -118,6 +134,62 @@ export async function installMarketplaceSkill(options: MarketplaceSkillInstallOp
     destinationDir,
     source: "marketplace"
   };
+}
+
+function inspectMarketplaceSkillDirectory(
+  destinationDir: string,
+  files: MarketplaceSkillFileManifestEntry[]
+): "installed" | "recoverable" | "conflict" {
+  if (existsSync(join(destinationDir, "SKILL.md"))) {
+    return "installed";
+  }
+
+  const discoveredFiles = collectRelativeFiles(destinationDir);
+  if (discoveredFiles === null) {
+    return "conflict";
+  }
+
+  const relevantFiles = discoveredFiles.filter((file) => !isIgnorableMarketplaceResidue(file));
+  if (relevantFiles.length === 0) {
+    return "recoverable";
+  }
+
+  const manifestPaths = new Set(files.map((file) => normalizeMarketplaceRelativePath(file.path)));
+  return relevantFiles.every((file) => manifestPaths.has(normalizeMarketplaceRelativePath(file)))
+    ? "recoverable"
+    : "conflict";
+}
+
+function collectRelativeFiles(rootDir: string): string[] | null {
+  const output: string[] = [];
+  const walk = (dir: string): boolean => {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const absolute = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!walk(absolute)) {
+          return false;
+        }
+        continue;
+      }
+      if (!entry.isFile()) {
+        return false;
+      }
+      const relativePath = relative(rootDir, absolute);
+      output.push(normalizeMarketplaceRelativePath(relativePath));
+    }
+    return true;
+  };
+
+  return walk(rootDir) ? output : null;
+}
+
+function normalizeMarketplaceRelativePath(path: string): string {
+  return path.replace(/\\/g, "/");
+}
+
+function isIgnorableMarketplaceResidue(path: string): boolean {
+  return path === ".DS_Store";
 }
 
 export async function publishMarketplaceSkill(options: MarketplaceSkillPublishOptions): Promise<{
