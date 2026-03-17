@@ -28,6 +28,7 @@ export class AgentRunExecutor {
           sessionId: envelope.sessionId,
           messages: [envelope.message],
           correlationId: envelope.correlationId,
+          metadata: envelope.metadata,
         },
         { signal: controller.signal },
       )) {

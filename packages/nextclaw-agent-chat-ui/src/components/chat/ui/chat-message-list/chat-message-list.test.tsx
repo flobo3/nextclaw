@@ -62,6 +62,8 @@ describe('ChatMessageList', () => {
     expect(screen.getByText('Assistant · 10:01')).toBeTruthy();
     expect(screen.getByText('Tool Result')).toBeTruthy();
     expect(screen.getByText('Typing...')).toBeTruthy();
+    expect(screen.getByTestId('chat-message-avatar-user')).toBeTruthy();
+    expect(screen.getAllByTestId('chat-message-avatar-assistant').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     await waitFor(() => {

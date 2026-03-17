@@ -49,6 +49,7 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
       marketplace: options.marketplace,
       cronService: options.cronService,
       chatRuntime: options.chatRuntime,
+      ncpAgent: options.ncpAgent,
       authService
     })
   );
@@ -122,7 +123,11 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
     close: () =>
       new Promise((resolve) => {
         wss.close(() => {
-          server.close(() => resolve());
+          server.close(() => {
+            Promise.resolve(options.ncpAgent?.agentClientEndpoint.stop())
+              .catch(() => undefined)
+              .finally(() => resolve());
+          });
         });
       })
   };

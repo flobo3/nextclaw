@@ -396,6 +396,7 @@ export class DefaultNcpAgentBackend
       sessionId,
       messages: readMessages(snapshot),
       updatedAt: now(),
+      metadata: session.activeExecution?.requestEnvelope.metadata,
     });
   }
 }
@@ -423,6 +424,7 @@ function toSessionSummary(
     messageCount: session.messages.length,
     updatedAt: session.updatedAt,
     status: liveSession?.activeExecution ? "running" : "idle",
+    ...(session.metadata ? { metadata: structuredClone(session.metadata) } : {}),
   };
 }
 
@@ -433,6 +435,9 @@ function toLiveSessionSummary(session: LiveSessionState): NcpSessionSummary {
     messageCount: readMessages(snapshot).length,
     updatedAt: now(),
     status: session.activeExecution ? "running" : "idle",
+    ...(session.activeExecution?.requestEnvelope.metadata
+      ? { metadata: structuredClone(session.activeExecution.requestEnvelope.metadata) }
+      : {}),
   };
 }
 

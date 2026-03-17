@@ -96,6 +96,7 @@ describe('ChatInputBar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(onSend).toHaveBeenCalled();
+    expect(screen.queryByTestId('chat-stop-icon')).toBeNull();
 
     rerender(
       <ChatInputBar
@@ -118,6 +119,7 @@ describe('ChatInputBar', () => {
       />
     );
 
+    expect(screen.getByTestId('chat-stop-icon').className).toContain('bg-gray-700');
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(onStop).toHaveBeenCalled();
   });

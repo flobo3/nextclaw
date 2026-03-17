@@ -1,7 +1,17 @@
 import { ChatButton } from '../../default-skin/button';
 import { ChatUiPrimitives } from '../primitives/chat-ui-primitives';
 import type { ChatInputBarActionsProps } from '../../view-models/chat-ui.types';
-import { ArrowUp, Square } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
+
+function StopIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="chat-stop-icon"
+      className="block h-3 w-3 rounded-[2px] bg-gray-700 shadow-[inset_0_0_0_1px_rgba(17,24,39,0.06)]"
+    />
+  );
+}
 
 export function ChatInputBarActions(props: ChatInputBarActionsProps) {
   const { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } = ChatUiPrimitives;
@@ -21,7 +31,7 @@ export function ChatInputBarActions(props: ChatInputBarActionsProps) {
               onClick={() => void props.onStop()}
               disabled={props.stopDisabled}
             >
-              <Square className="h-3 w-3 fill-current" />
+              <StopIcon />
             </ChatButton>
           ) : (
             <TooltipProvider>
@@ -35,7 +45,7 @@ export function ChatInputBarActions(props: ChatInputBarActionsProps) {
                       aria-label={props.stopButtonLabel}
                       disabled
                     >
-                      <Square className="h-3 w-3 fill-current" />
+                      <StopIcon />
                     </ChatButton>
                   </span>
                 </TooltipTrigger>

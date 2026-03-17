@@ -5,7 +5,10 @@ import {
   type NcpAgentConversationSnapshot,
   type NcpEndpointEvent,
   type NcpMessage,
+  type NcpRequestEnvelope,
 } from "@nextclaw/ncp";
+
+export type NcpAgentSendInput = string | NcpRequestEnvelope;
 
 export type UseNcpAgentResult = {
   snapshot: NcpAgentConversationSnapshot;
@@ -13,7 +16,7 @@ export type UseNcpAgentResult = {
   activeRunId: string | null;
   isRunning: boolean;
   isSending: boolean;
-  send: (content: string) => Promise<void>;
+  send: (input: NcpAgentSendInput) => Promise<void>;
   abort: () => Promise<void>;
   streamRun: () => Promise<void>;
 };
@@ -38,6 +41,48 @@ function shouldDispatchEventToSession(event: NcpEndpointEvent, sessionId: string
     return true;
   }
   return payload.sessionId === sessionId;
+}
+
+function hasMessageContent(message: NcpMessage): boolean {
+  return message.parts.some((part) => {
+    if (part.type === "text" || part.type === "rich-text" || part.type === "reasoning") {
+      return part.text.trim().length > 0;
+    }
+    return true;
+  });
+}
+
+function normalizeSendEnvelope(input: NcpAgentSendInput, sessionId: string): NcpRequestEnvelope | null {
+  if (typeof input === "string") {
+    const content = input.trim();
+    if (!content) {
+      return null;
+    }
+    return {
+      sessionId,
+      message: {
+        id: `user-${Date.now().toString(36)}`,
+        sessionId,
+        role: "user",
+        status: "final",
+        parts: [{ type: "text", text: content }],
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  if (!hasMessageContent(input.message)) {
+    return null;
+  }
+
+  return {
+    ...input,
+    sessionId: input.sessionId,
+    message: {
+      ...input.message,
+      sessionId: input.message.sessionId || input.sessionId,
+    },
+  };
 }
 
 export function useScopedAgentManager(sessionId: string): DefaultNcpAgentConversationStateManager {
@@ -88,24 +133,18 @@ export function useNcpAgentRuntime({
   const activeRunId = snapshot.activeRun?.runId ?? null;
   const isRunning = !!snapshot.activeRun;
 
-  const send = async (content: string) => {
-    if (!content.trim() || isSending || isRunning) {
+  const send = async (input: NcpAgentSendInput) => {
+    if (isSending || isRunning) {
+      return;
+    }
+    const envelope = normalizeSendEnvelope(input, sessionId);
+    if (!envelope) {
       return;
     }
 
     setIsSending(true);
     try {
-      await client.send({
-        sessionId,
-        message: {
-          id: `user-${Date.now().toString(36)}`,
-          sessionId,
-          role: "user",
-          status: "final",
-          parts: [{ type: "text", text: content.trim() }],
-          timestamp: new Date().toISOString(),
-        },
-      });
+      await client.send(envelope);
     } finally {
       setIsSending(false);
     }

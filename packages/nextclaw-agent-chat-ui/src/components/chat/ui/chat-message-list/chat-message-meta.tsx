@@ -8,7 +8,12 @@ type ChatMessageMetaProps = {
 
 export function ChatMessageMeta(props: ChatMessageMetaProps) {
   return (
-    <div className={cn('px-1 text-[11px]', props.isUser ? 'text-primary-300' : 'text-gray-400')}>
+    <div
+      className={cn(
+        'px-1 text-[11px] leading-4 text-gray-400',
+        props.isUser ? 'text-right' : 'text-left'
+      )}
+    >
       {props.roleLabel} · {props.timestampLabel}
     </div>
   );

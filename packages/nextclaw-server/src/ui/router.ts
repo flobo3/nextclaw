@@ -1,10 +1,12 @@
 import { Hono } from "hono";
+import { mountNcpHttpAgentRoutes } from "@nextclaw/ncp-http-agent-server";
 import { UiAuthService } from "./auth.service.js";
 import { AppRoutesController } from "./router/app.controller.js";
 import { AuthRoutesController } from "./router/auth.controller.js";
 import { ChatRoutesController } from "./router/chat.controller.js";
 import { ConfigRoutesController } from "./router/config.controller.js";
 import { CronRoutesController } from "./router/cron.controller.js";
+import { NcpSessionRoutesController } from "./router/ncp-session.controller.js";
 import {
   normalizeMarketplaceBaseUrl,
   PluginMarketplaceController,
@@ -25,6 +27,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   const chatController = new ChatRoutesController(options);
   const sessionController = new SessionRoutesController(options);
   const cronController = new CronRoutesController(options);
+  const ncpSessionController = new NcpSessionRoutesController(options);
   const pluginMarketplaceController = new PluginMarketplaceController(options, marketplaceBaseUrl);
   const skillMarketplaceController = new SkillMarketplaceController(options, marketplaceBaseUrl);
 
@@ -84,6 +87,18 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   app.get("/api/sessions/:key/history", sessionController.getSessionHistory);
   app.put("/api/sessions/:key", sessionController.patchSession);
   app.delete("/api/sessions/:key", sessionController.deleteSession);
+
+  if (options.ncpAgent) {
+    mountNcpHttpAgentRoutes(app, {
+      basePath: options.ncpAgent.basePath ?? "/api/ncp/agent",
+      agentClientEndpoint: options.ncpAgent.agentClientEndpoint,
+      streamProvider: options.ncpAgent.streamProvider
+    });
+    app.get("/api/ncp/sessions", ncpSessionController.listSessions);
+    app.get("/api/ncp/sessions/:sessionId", ncpSessionController.getSession);
+    app.get("/api/ncp/sessions/:sessionId/messages", ncpSessionController.listSessionMessages);
+    app.delete("/api/ncp/sessions/:sessionId", ncpSessionController.deleteSession);
+  }
 
   app.get("/api/cron", cronController.listJobs);
   app.delete("/api/cron/:id", cronController.deleteJob);

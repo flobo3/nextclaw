@@ -649,6 +649,15 @@ importers:
       '@nextclaw/core':
         specifier: workspace:*
         version: link:../nextclaw-core
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp
+      '@nextclaw/ncp-agent-runtime':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp-agent-runtime
+      '@nextclaw/ncp-toolkit':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp-toolkit
       '@nextclaw/openclaw-compat':
         specifier: workspace:*
         version: link:../nextclaw-openclaw-compat
@@ -931,6 +940,12 @@ importers:
       '@nextclaw/core':
         specifier: workspace:*
         version: link:../nextclaw-core
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp
+      '@nextclaw/ncp-http-agent-server':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp-http-agent-server
       '@nextclaw/openclaw-compat':
         specifier: workspace:*
         version: link:../nextclaw-openclaw-compat
@@ -974,6 +989,15 @@ importers:
       '@nextclaw/agent-chat-ui':
         specifier: workspace:*
         version: link:../nextclaw-agent-chat-ui
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp
+      '@nextclaw/ncp-http-agent-client':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp-http-agent-client
+      '@nextclaw/ncp-react':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp-react
       '@radix-ui/react-dialog':
         specifier: ^1.1.2
         version: 1.1.15(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

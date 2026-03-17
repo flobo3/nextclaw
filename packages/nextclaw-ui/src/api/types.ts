@@ -1,3 +1,5 @@
+import type { NcpMessage, NcpSessionStatus, NcpSessionSummary } from '@nextclaw/ncp';
+
 // API Types - matching backend response format
 export type ApiError = {
   code: string;
@@ -260,6 +262,23 @@ export type SessionHistoryView = {
   messages: SessionMessageView[];
   events: SessionEventView[];
 };
+
+export type NcpSessionSummaryView = NcpSessionSummary;
+
+export type NcpSessionsListView = {
+  sessions: NcpSessionSummaryView[];
+  total: number;
+};
+
+export type NcpMessageView = NcpMessage;
+
+export type NcpSessionMessagesView = {
+  sessionId: string;
+  messages: NcpMessageView[];
+  total: number;
+};
+
+export type NcpSessionStatusView = NcpSessionStatus;
 
 export type SessionPatchUpdate = {
   label?: string | null;

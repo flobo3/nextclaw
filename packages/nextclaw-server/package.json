@@ -22,6 +22,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.3",
+    "@nextclaw/ncp": "workspace:*",
+    "@nextclaw/ncp-http-agent-server": "workspace:*",
     "@nextclaw/openclaw-compat": "workspace:*",
     "@nextclaw/runtime": "workspace:*",
     "hono": "^4.6.2",

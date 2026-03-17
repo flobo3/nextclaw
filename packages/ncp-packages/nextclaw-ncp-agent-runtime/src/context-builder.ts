@@ -9,6 +9,48 @@ import type {
 import type { NcpAgentRunInput } from "@nextclaw/ncp";
 import type { NcpToolRegistry } from "@nextclaw/ncp";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readOptionalString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function mergeMessageAndRequestMetadata(input: NcpAgentRunInput): Record<string, unknown> {
+  const messageMetadata = input.messages
+    .slice()
+    .reverse()
+    .find((message) => isRecord(message.metadata))?.metadata;
+  return {
+    ...(isRecord(messageMetadata) ? messageMetadata : {}),
+    ...(isRecord(input.metadata) ? input.metadata : {}),
+  };
+}
+
+function readRequestedToolNames(metadata: Record<string, unknown>): string[] {
+  const raw =
+    metadata.requested_tools ??
+    metadata.requestedTools ??
+    metadata.requested_skills ??
+    metadata.requestedSkills;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const deduped = new Set<string>();
+  for (const item of raw) {
+    const value = readOptionalString(item);
+    if (value) {
+      deduped.add(value);
+    }
+  }
+  return [...deduped];
+}
+
 function messageToOpenAI(msg: NcpMessage): OpenAIChatMessage[] {
   const role = msg.role as "user" | "assistant" | "system" | "tool";
   const parts = msg.parts ?? [];
@@ -88,6 +130,9 @@ export class DefaultNcpContextBuilder implements NcpContextBuilder {
     const sessionMessages = options?.sessionMessages ?? [];
     const systemPrompt = options?.systemPrompt;
 
+    const requestMetadata = mergeMessageAndRequestMetadata(input);
+    const requestedToolNames = readRequestedToolNames(requestMetadata);
+
     const messages: OpenAIChatMessage[] = [];
     if (systemPrompt) {
       messages.push({ role: "system", content: systemPrompt });
@@ -101,20 +146,35 @@ export class DefaultNcpContextBuilder implements NcpContextBuilder {
       messages.push(...messageToOpenAI(msg));
     }
 
-    const tools: OpenAITool[] | undefined = this.toolRegistry
-      ? this.toolRegistry.getToolDefinitions().map((d) => ({
-          type: "function" as const,
-          function: {
-            name: d.name,
-            description: d.description,
-            parameters: d.parameters,
-          },
-        }))
-      : undefined;
+    const toolDefinitions = this.toolRegistry?.getToolDefinitions() ?? [];
+    const filteredToolDefinitions =
+      requestedToolNames.length > 0
+        ? toolDefinitions.filter((definition) => requestedToolNames.includes(definition.name))
+        : toolDefinitions;
+    const tools: OpenAITool[] | undefined = filteredToolDefinitions.map((definition) => ({
+      type: "function" as const,
+      function: {
+        name: definition.name,
+        description: definition.description,
+        parameters: definition.parameters,
+      },
+    }));
 
     return {
       messages,
       tools: tools && tools.length > 0 ? tools : undefined,
+      model:
+        readOptionalString(requestMetadata.model) ??
+        readOptionalString(requestMetadata.llm_model) ??
+        readOptionalString(requestMetadata.agent_model) ??
+        undefined,
+      thinkingLevel:
+        readOptionalString(requestMetadata.thinking) ??
+        readOptionalString(requestMetadata.thinking_level) ??
+        readOptionalString(requestMetadata.thinkingLevel) ??
+        readOptionalString(requestMetadata.thinking_effort) ??
+        readOptionalString(requestMetadata.thinkingEffort) ??
+        null,
     };
   };
 }

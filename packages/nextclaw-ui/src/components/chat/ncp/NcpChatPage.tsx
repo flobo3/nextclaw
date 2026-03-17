@@ -1,0 +1,338 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NcpHttpAgentClientEndpoint } from '@nextclaw/ncp-http-agent-client';
+import { useHydratedNcpAgent, type NcpConversationSeed } from '@nextclaw/ncp-react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { API_BASE } from '@/api/client';
+import { fetchNcpSessionMessages } from '@/api/config';
+import type { ChatRunView } from '@/api/types';
+import { sessionDisplayName } from '@/components/chat/chat-page-data';
+import { ChatPageLayout, type ChatPageProps, useChatSessionSync } from '@/components/chat/chat-page-shell';
+import { parseSessionKeyFromRoute, resolveAgentIdFromSessionKey } from '@/components/chat/chat-session-route';
+import { useNcpChatPageData } from '@/components/chat/ncp/ncp-chat-page-data';
+import { NcpChatPresenter } from '@/components/chat/ncp/ncp-chat.presenter';
+import { adaptNcpMessagesToUiMessages, createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
+import { ChatPresenterProvider } from '@/components/chat/presenter/chat-presenter-context';
+import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
+import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { normalizeRequestedSkills } from '@/lib/chat-runtime-utils';
+
+function createFetchWithCredentials(): typeof fetch {
+  return (input, init) =>
+    fetch(input, {
+      credentials: 'include',
+      ...init
+    });
+}
+
+function buildNcpSendMetadata(payload: {
+  model?: string;
+  thinkingLevel?: string;
+  sessionType?: string;
+  requestedSkills?: string[];
+}): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {};
+  if (payload.model?.trim()) {
+    metadata.model = payload.model.trim();
+    metadata.preferred_model = payload.model.trim();
+  }
+  if (payload.thinkingLevel?.trim()) {
+    metadata.thinking = payload.thinkingLevel.trim();
+    metadata.preferred_thinking = payload.thinkingLevel.trim();
+  }
+  if (payload.sessionType?.trim()) {
+    metadata.session_type = payload.sessionType.trim();
+  }
+  const requestedSkills = normalizeRequestedSkills(payload.requestedSkills);
+  if (requestedSkills.length > 0) {
+    metadata.requested_skills = requestedSkills;
+  }
+  return metadata;
+}
+
+export function NcpChatPage({ view }: ChatPageProps) {
+  const [presenter] = useState(() => new NcpChatPresenter());
+  const [draftSessionId, setDraftSessionId] = useState(() => createNcpSessionId());
+  const query = useChatSessionListStore((state) => state.snapshot.query);
+  const selectedSessionKey = useChatSessionListStore((state) => state.snapshot.selectedSessionKey);
+  const selectedAgentId = useChatSessionListStore((state) => state.snapshot.selectedAgentId);
+  const pendingSessionType = useChatInputStore((state) => state.snapshot.pendingSessionType);
+  const { confirm, ConfirmDialog } = useConfirmDialog();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { sessionId: routeSessionIdParam } = useParams<{ sessionId?: string }>();
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
+  const thinkingHydratedSessionKeyRef = useRef<string | null>(null);
+  const routeSessionKey = useMemo(
+    () => parseSessionKeyFromRoute(routeSessionIdParam),
+    [routeSessionIdParam]
+  );
+  const {
+    sessionsQuery,
+    installedSkillsQuery,
+    isProviderStateResolved,
+    modelOptions,
+    sessionSummaries,
+    sessions,
+    skillRecords,
+    selectedSession,
+    selectedSessionThinkingLevel,
+    sessionTypeOptions,
+    defaultSessionType,
+    selectedSessionType,
+    canEditSessionType,
+    sessionTypeUnavailable,
+    sessionTypeUnavailableMessage
+  } = useNcpChatPageData({
+    query,
+    selectedSessionKey,
+    pendingSessionType,
+    setPendingSessionType: presenter.chatInputManager.setPendingSessionType,
+    setSelectedModel: presenter.chatInputManager.setSelectedModel
+  });
+
+  const activeSessionId = selectedSessionKey ?? draftSessionId;
+  const sessionSummariesRef = useRef(sessionSummaries);
+  useEffect(() => {
+    sessionSummariesRef.current = sessionSummaries;
+  }, [sessionSummaries]);
+
+  const [ncpClient] = useState(
+    () =>
+      new NcpHttpAgentClientEndpoint({
+      baseUrl: API_BASE,
+      basePath: '/api/ncp/agent',
+      fetchImpl: createFetchWithCredentials()
+      })
+  );
+
+  const loadSeed = useCallback(async (sessionId: string): Promise<NcpConversationSeed> => {
+    const sessionSummary = sessionSummariesRef.current.find((item) => item.sessionId === sessionId) ?? null;
+    if (!sessionSummary) {
+      return {
+        messages: [],
+        status: 'idle'
+      };
+    }
+    const history = await fetchNcpSessionMessages(sessionId, 300);
+    return {
+      messages: history.messages,
+      status: sessionSummary.status === 'running' ? 'running' : 'idle'
+    };
+  }, []);
+
+  const agent = useHydratedNcpAgent({
+    sessionId: activeSessionId,
+    client: ncpClient,
+    loadSeed
+  });
+
+  useEffect(() => {
+    presenter.setDraftSessionId(draftSessionId);
+  }, [draftSessionId, presenter]);
+
+  useEffect(() => {
+    if (selectedSessionKey === null) {
+      const nextDraftSessionId = createNcpSessionId();
+      setDraftSessionId(nextDraftSessionId);
+      presenter.setDraftSessionId(nextDraftSessionId);
+    }
+  }, [presenter, selectedSessionKey]);
+
+  const uiMessages = useMemo(
+    () => adaptNcpMessagesToUiMessages(agent.visibleMessages),
+    [agent.visibleMessages]
+  );
+  const isSending = agent.isSending || agent.isRunning;
+  const isAwaitingAssistantOutput = agent.isRunning;
+  const canStopCurrentRun = agent.isRunning;
+  const stopDisabledReason = agent.isRunning ? null : '__preparing__';
+  const lastSendError = agent.hydrateError?.message ?? agent.snapshot.error?.message ?? null;
+  const activeBackendRunId = agent.activeRunId;
+  const sessionRunStatusByKey = useMemo(() => {
+    const map = new Map<string, 'running'>();
+    for (const sessionSummary of sessionSummaries) {
+      if (sessionSummary.status === 'running') {
+        map.set(sessionSummary.sessionId, 'running');
+      }
+    }
+    return map;
+  }, [sessionSummaries]);
+
+  useEffect(() => {
+    presenter.chatStreamActionsManager.bind({
+      sendMessage: async (payload) => {
+        if (payload.sessionKey !== activeSessionId) {
+          return;
+        }
+        const metadata = buildNcpSendMetadata({
+          model: payload.model,
+          thinkingLevel: payload.thinkingLevel,
+          sessionType: payload.sessionType,
+          requestedSkills: payload.requestedSkills
+        });
+        try {
+          void sessionsQuery.refetch();
+          await agent.send({
+            sessionId: payload.sessionKey,
+            message: {
+              id: `user-${Date.now().toString(36)}`,
+              sessionId: payload.sessionKey,
+              role: 'user',
+              status: 'final',
+              parts: [{ type: 'text', text: payload.message }],
+              timestamp: new Date().toISOString(),
+              ...(Object.keys(metadata).length > 0 ? { metadata } : {})
+            },
+            ...(Object.keys(metadata).length > 0 ? { metadata } : {})
+          });
+          await sessionsQuery.refetch();
+        } catch (error) {
+          if (payload.restoreDraftOnError) {
+            presenter.chatInputManager.setDraft((currentDraft) =>
+              currentDraft.trim().length === 0 ? payload.message : currentDraft
+            );
+          }
+          throw error;
+        }
+      },
+      stopCurrentRun: async () => {
+        await agent.abort();
+        await sessionsQuery.refetch();
+      },
+      resumeRun: async (run: ChatRunView) => {
+        if (run.sessionKey !== activeSessionId) {
+          return;
+        }
+        await agent.streamRun();
+      },
+      resetStreamState: () => {
+        selectedSessionKeyRef.current = null;
+      },
+      applyHistoryMessages: () => {}
+    });
+  }, [activeSessionId, agent, presenter, sessionsQuery]);
+
+  useChatSessionSync({
+    view,
+    routeSessionKey,
+    selectedSessionKey,
+    selectedAgentId,
+    setSelectedSessionKey: presenter.chatSessionListManager.setSelectedSessionKey,
+    setSelectedAgentId: presenter.chatSessionListManager.setSelectedAgentId,
+    selectedSessionKeyRef,
+    resetStreamState: presenter.chatStreamActionsManager.resetStreamState,
+    resolveAgentIdFromSessionKey
+  });
+
+  useEffect(() => {
+    presenter.chatUiManager.syncState({
+      pathname: location.pathname
+    });
+    presenter.chatUiManager.bindActions({
+      navigate,
+      confirm
+    });
+  }, [confirm, location.pathname, navigate, presenter]);
+
+  const currentSessionDisplayName = selectedSession ? sessionDisplayName(selectedSession) : undefined;
+
+  useEffect(() => {
+    presenter.chatThreadManager.bindActions({
+      refetchSessions: sessionsQuery.refetch
+    });
+  }, [presenter, sessionsQuery.refetch]);
+
+  useEffect(() => {
+    const shouldHydrateThinkingFromSession =
+      !isSending &&
+      !isAwaitingAssistantOutput &&
+      !agent.isHydrating &&
+      selectedSessionKey !== thinkingHydratedSessionKeyRef.current;
+
+    presenter.chatInputManager.syncSnapshot({
+      isProviderStateResolved,
+      defaultSessionType,
+      canStopGeneration: canStopCurrentRun,
+      stopDisabledReason,
+      stopSupported: true,
+      stopReason: undefined,
+      sendError: lastSendError,
+      isSending,
+      modelOptions,
+      sessionTypeOptions,
+      selectedSessionType,
+      ...(shouldHydrateThinkingFromSession ? { selectedThinkingLevel: selectedSessionThinkingLevel } : {}),
+      canEditSessionType,
+      sessionTypeUnavailable,
+      skillRecords,
+      isSkillsLoading: installedSkillsQuery.isLoading
+    });
+    if (shouldHydrateThinkingFromSession) {
+      thinkingHydratedSessionKeyRef.current = selectedSessionKey;
+    }
+    if (!selectedSessionKey) {
+      thinkingHydratedSessionKeyRef.current = null;
+    }
+    presenter.chatSessionListManager.syncSnapshot({
+      sessions,
+      query,
+      isLoading: sessionsQuery.isLoading || agent.isHydrating
+    });
+    presenter.chatRunStatusManager.syncSnapshot({
+      sessionRunStatusByKey,
+      isLocallyRunning: isSending || Boolean(activeBackendRunId),
+      activeBackendRunId
+    });
+    presenter.chatThreadManager.syncSnapshot({
+      isProviderStateResolved,
+      modelOptions,
+      sessionTypeUnavailable,
+      sessionTypeUnavailableMessage,
+      selectedSessionKey,
+      sessionDisplayName: currentSessionDisplayName,
+      canDeleteSession: Boolean(selectedSession),
+      threadRef,
+      isHistoryLoading: agent.isHydrating,
+      uiMessages,
+      isSending,
+      isAwaitingAssistantOutput
+    });
+  }, [
+    activeBackendRunId,
+    agent.isHydrating,
+    canEditSessionType,
+    canStopCurrentRun,
+    currentSessionDisplayName,
+    defaultSessionType,
+    installedSkillsQuery.isLoading,
+    isAwaitingAssistantOutput,
+    isProviderStateResolved,
+    isSending,
+    lastSendError,
+    modelOptions,
+    presenter,
+    query,
+    selectedSession,
+    selectedSessionKey,
+    selectedSessionThinkingLevel,
+    selectedSessionType,
+    sessionRunStatusByKey,
+    sessionTypeOptions,
+    sessionTypeUnavailable,
+    sessionTypeUnavailableMessage,
+    sessions,
+    sessionsQuery.isLoading,
+    skillRecords,
+    stopDisabledReason,
+    threadRef,
+    uiMessages
+  ]);
+
+  return (
+    <ChatPresenterProvider presenter={presenter}>
+      <ChatPageLayout view={view} confirmDialog={<ConfirmDialog />} />
+    </ChatPresenterProvider>
+  );
+}

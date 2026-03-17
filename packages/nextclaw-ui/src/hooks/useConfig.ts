@@ -19,8 +19,11 @@ import {
   executeConfigAction,
   fetchSessions,
   fetchSessionHistory,
+  fetchNcpSessions,
+  fetchNcpSessionMessages,
   updateSession,
   deleteSession,
+  deleteNcpSession,
   sendChatTurn,
   fetchChatRun,
   fetchChatRuns,
@@ -252,6 +255,29 @@ export function useSessionHistory(key: string | null, limit = 200) {
   });
 }
 
+export function useNcpSessions(params?: { limit?: number }) {
+  return useQuery({
+    queryKey: ['ncp-sessions', params?.limit ?? null],
+    queryFn: () => fetchNcpSessions(params),
+    staleTime: 5_000,
+    retry: false,
+    refetchInterval: (query) => {
+      const hasRunningSession = Boolean(query.state.data?.sessions.some((session) => session.status === 'running'));
+      return hasRunningSession ? 800 : false;
+    }
+  });
+}
+
+export function useNcpSessionMessages(sessionId: string | null, limit = 200) {
+  return useQuery({
+    queryKey: ['ncp-session-messages', sessionId, limit],
+    queryFn: () => fetchNcpSessionMessages(sessionId as string, limit),
+    enabled: Boolean(sessionId),
+    staleTime: 5_000,
+    retry: false
+  });
+}
+
 export function useUpdateSession() {
   const queryClient = useQueryClient();
 
@@ -277,6 +303,22 @@ export function useDeleteSession() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       queryClient.invalidateQueries({ queryKey: ['session-history'] });
+      toast.success(t('configSavedApplied'));
+    },
+    onError: (error: Error) => {
+      toast.error(t('configSaveFailed') + ': ' + error.message);
+    }
+  });
+}
+
+export function useDeleteNcpSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ sessionId }: { sessionId: string }) => deleteNcpSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ncp-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['ncp-session-messages'] });
       toast.success(t('configSavedApplied'));
     },
     onError: (error: Error) => {

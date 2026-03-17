@@ -49,6 +49,7 @@ export type NcpLLMApiInput = {
   messages: OpenAIChatMessage[];
   tools?: OpenAITool[];
   model?: string;
+  thinkingLevel?: string | null;
   max_tokens?: number;
 };
 

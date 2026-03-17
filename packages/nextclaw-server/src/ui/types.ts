@@ -1,4 +1,6 @@
 import type { CronService, ThinkingLevel } from "@nextclaw/core";
+import type { NcpAgentClientEndpoint, NcpMessage, NcpSessionApi, NcpSessionSummary } from "@nextclaw/ncp";
+import type { NcpHttpAgentStreamProvider } from "@nextclaw/ncp-http-agent-server";
 
 export type ApiError = {
   code: string;
@@ -498,6 +500,24 @@ export type UiChatRuntime = {
   stopTurn?: (params: ChatTurnStopRequest) => Promise<ChatTurnStopResult> | ChatTurnStopResult;
 };
 
+export type UiNcpSessionListView = {
+  sessions: NcpSessionSummary[];
+  total: number;
+};
+
+export type UiNcpSessionMessagesView = {
+  sessionId: string;
+  messages: NcpMessage[];
+  total: number;
+};
+
+export type UiNcpAgent = {
+  agentClientEndpoint: NcpAgentClientEndpoint;
+  streamProvider?: NcpHttpAgentStreamProvider;
+  sessionApi?: NcpSessionApi;
+  basePath?: string;
+};
+
 export type ConfigView = {
   agents: {
     defaults: {
@@ -878,6 +898,7 @@ export type UiServerOptions = {
   marketplace?: MarketplaceApiConfig;
   cronService?: CronService;
   chatRuntime?: UiChatRuntime;
+  ncpAgent?: UiNcpAgent;
 };
 
 export type UiServerHandle = {

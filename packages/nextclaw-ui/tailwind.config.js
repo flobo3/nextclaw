@@ -1,7 +1,13 @@
+import tailwindcssAnimate from 'tailwindcss-animate';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ['class'],
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    '../nextclaw-agent-chat-ui/src/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
       colors: {
@@ -146,6 +152,5 @@ export default {
       },
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  plugins: [require('tailwindcss-animate')],
+  plugins: [tailwindcssAnimate],
 };

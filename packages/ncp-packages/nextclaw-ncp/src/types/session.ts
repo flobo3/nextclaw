@@ -7,6 +7,7 @@ export type NcpSessionSummary = {
   messageCount: number;
   updatedAt: string;
   status?: NcpSessionStatus;
+  metadata?: Record<string, unknown>;
 };
 
 export type ListSessionsOptions = {

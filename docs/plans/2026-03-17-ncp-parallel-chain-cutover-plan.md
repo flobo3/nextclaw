@@ -101,6 +101,11 @@
 - 链路能力对照表（Legacy vs NCP）
 - 切换开关 ADR（放在 docs/designs 或 docs/plans）
 
+Phase 0 已冻结文档：
+
+- [`NCP Phase 0 能力冻结与切换基线`](./2026-03-17-ncp-phase0-capability-freeze.md)
+- [`ADR: Chat 前端链路切换点`](../designs/2026-03-17-chat-frontend-chain-switch-adr.md)
+
 ## Phase 1：并行后端链路落地（存储不迁移）
 
 1. 建立 NCP backend 主链路（session-centric）。
@@ -173,6 +178,8 @@
 - 后端语义基线：[`NCP Session-Centric Agent Backend Design`](./2026-03-17-ncp-session-centric-agent-backend-design.md)
 - UI 积木基线：[`@nextclaw/ncp-react-ui 设计文档`](./2026-03-17-ncp-react-ui-design.md)
 - 当前共享展示层实现：[`@nextclaw/agent-chat-ui`](../../../packages/nextclaw-agent-chat-ui/README.md)
+- Phase 0 能力冻结：[`NCP Phase 0 能力冻结与切换基线`](./2026-03-17-ncp-phase0-capability-freeze.md)
+- Phase 0 切换 ADR：[`ADR: Chat 前端链路切换点`](../designs/2026-03-17-chat-frontend-chain-switch-adr.md)
 
 ## 9. 执行口径
 
