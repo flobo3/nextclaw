@@ -11,6 +11,7 @@ import type {
 } from '@/api/types';
 import { fetchMarketplacePluginContent, fetchMarketplaceSkillContent } from '@/api/marketplace';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs } from '@/components/ui/tabs-custom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDocBrowser } from '@/components/doc-browser';
@@ -30,6 +31,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 const PAGE_SIZE = 12;
+const SKELETON_CARD_COUNT = PAGE_SIZE;
 
 type ScopeType = 'all' | 'installed';
 
@@ -362,16 +364,16 @@ function MarketplaceListCard(props: {
   onInstall: (item: MarketplaceItemSummary) => void;
   onManage: (action: MarketplaceManageAction, record: MarketplaceInstalledRecord) => void;
 }) {
-  const record = props.record;
+  const { item, record, localeFallbacks, installState, manageState, onOpen, onInstall, onManage } = props;
   const pluginRecord = record?.type === 'plugin' ? record : undefined;
-  const type = props.item?.type ?? record?.type;
-  const title = props.item?.name ?? record?.label ?? record?.id ?? record?.spec ?? t('marketplaceUnknownItem');
-  const summary = pickLocalizedText(props.item?.summaryI18n, props.item?.summary, props.localeFallbacks)
+  const type = item?.type ?? record?.type;
+  const title = item?.name ?? record?.label ?? record?.id ?? record?.spec ?? t('marketplaceUnknownItem');
+  const summary = pickLocalizedText(item?.summaryI18n, item?.summary, localeFallbacks)
     || (record ? t('marketplaceInstalledLocalSummary') : '');
-  const spec = props.item?.install.spec ?? record?.spec ?? '';
+  const spec = item?.install.spec ?? record?.spec ?? '';
 
   const targetId = record?.id || record?.spec;
-  const busyForRecord = Boolean(targetId) && props.manageState.isPending && props.manageState.targetId === targetId;
+  const busyForRecord = Boolean(targetId) && manageState.isPending && manageState.targetId === targetId;
 
   const canToggle = Boolean(pluginRecord);
   const canUninstallPlugin = record?.type === 'plugin' && record.origin !== 'bundled';
@@ -379,14 +381,14 @@ function MarketplaceListCard(props: {
   const canUninstall = Boolean(canUninstallPlugin || canUninstallSkill);
 
   const isDisabled = record ? (record.enabled === false || record.runtimeStatus === 'disabled') : false;
-  const installSpec = props.item?.install.spec;
-  const isInstalling = typeof installSpec === 'string' && props.installState.installingSpecs.has(installSpec);
+  const installSpec = item?.install.spec;
+  const isInstalling = typeof installSpec === 'string' && installState.installingSpecs.has(installSpec);
 
   const displayType = type === 'plugin' ? t('marketplaceTypePlugin') : type === 'skill' ? t('marketplaceTypeSkill') : t('marketplaceTypeExtension');
 
   return (
     <article
-      onClick={props.onOpen}
+      onClick={onOpen}
       className="group bg-white border border-gray-200/40 hover:border-blue-300/80 rounded-2xl px-5 py-4 hover:shadow-md shadow-sm transition-all flex items-start gap-3.5 justify-between cursor-pointer"
     >
       <div className="flex gap-3 min-w-0 flex-1 h-full items-start">
@@ -434,11 +436,11 @@ function MarketplaceListCard(props: {
       </div>
 
       <div className="shrink-0 flex items-center h-full">
-        {props.item && !record && (
+        {item && !record && (
           <button
             onClick={(event) => {
               event.stopPropagation();
-              props.onInstall(props.item as MarketplaceItemSummary);
+              onInstall(item);
             }}
             disabled={isInstalling}
             className="inline-flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-medium bg-primary text-white hover:bg-primary-600 disabled:opacity-50 transition-colors"
@@ -449,33 +451,65 @@ function MarketplaceListCard(props: {
 
         {pluginRecord && canToggle && (
           <button
-            disabled={props.manageState.isPending}
+            disabled={manageState.isPending}
             onClick={(event) => {
               event.stopPropagation();
-              props.onManage(isDisabled ? 'enable' : 'disable', pluginRecord);
+              onManage(isDisabled ? 'enable' : 'disable', pluginRecord);
             }}
             className="inline-flex items-center h-8 px-4 rounded-xl text-xs font-medium border border-gray-200/80 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-colors"
           >
-            {busyForRecord && props.manageState.action !== 'uninstall'
-              ? (props.manageState.action === 'enable' ? t('marketplaceEnabling') : t('marketplaceDisabling'))
+            {busyForRecord && manageState.action !== 'uninstall'
+              ? (manageState.action === 'enable' ? t('marketplaceEnabling') : t('marketplaceDisabling'))
               : (isDisabled ? t('marketplaceEnable') : t('marketplaceDisable'))}
           </button>
         )}
 
         {record && canUninstall && (
           <button
-            disabled={props.manageState.isPending}
+            disabled={manageState.isPending}
             onClick={(event) => {
               event.stopPropagation();
-              props.onManage('uninstall', record);
+              onManage('uninstall', record);
             }}
             className="inline-flex items-center h-8 px-4 rounded-xl text-xs font-medium border border-rose-100 text-rose-500 bg-white hover:bg-rose-50 hover:border-rose-200 disabled:opacity-50 transition-colors"
           >
-            {busyForRecord && props.manageState.action === 'uninstall' ? t('marketplaceRemoving') : t('marketplaceUninstall')}
+            {busyForRecord && manageState.action === 'uninstall' ? t('marketplaceRemoving') : t('marketplaceUninstall')}
           </button>
         )}
       </div>
     </article>
+  );
+}
+
+function MarketplaceListSkeleton(props: {
+  count?: number;
+}) {
+  const count = props.count ?? SKELETON_CARD_COUNT;
+
+  return (
+    <>
+      {Array.from({ length: count }, (_, index) => (
+        <article
+          key={`marketplace-skeleton-${index}`}
+          className="rounded-2xl border border-gray-200/40 bg-white px-5 py-4 shadow-sm"
+        >
+          <div className="flex items-start gap-3.5 justify-between">
+            <div className="flex min-w-0 flex-1 gap-3">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+              <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+                <Skeleton className="h-4 w-32 max-w-[70%]" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="h-3 w-full" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-20 shrink-0 rounded-xl" />
+          </div>
+        </article>
+      ))}
+    </>
   );
 }
 
@@ -510,11 +544,11 @@ function PaginationBar(props: {
 }
 
 export function MarketplacePage(props: MarketplacePageProps = {}) {
+  const { forcedType } = props;
   const navigate = useNavigate();
   const params = useParams<{ type?: string }>();
   const { language } = useI18n();
   const docBrowser = useDocBrowser();
-  const forcedType = props.forcedType;
 
   const routeType: MarketplaceRouteType | null = useMemo(() => {
     if (forcedType === 'plugins' || forcedType === 'skills') {
@@ -650,10 +684,17 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
 
   const total = scope === 'installed' ? installedEntries.length : (itemsQuery.data?.total ?? 0);
   const totalPages = scope === 'installed' ? 1 : (itemsQuery.data?.totalPages ?? 0);
+  const showCatalogSkeleton = scope === 'all' && itemsQuery.isLoading && !itemsQuery.data;
+  const showInstalledSkeleton = scope === 'installed' && installedQuery.isLoading && !installedQuery.data;
+  const showListSkeleton = showCatalogSkeleton || showInstalledSkeleton;
+  const isListRefreshing = !showListSkeleton && (
+    (scope === 'all' && itemsQuery.isFetching)
+    || (scope === 'installed' && installedQuery.isFetching)
+  );
 
   const listSummary = useMemo(() => {
     if (scope === 'installed') {
-      if (installedQuery.isLoading) {
+      if (installedQuery.isLoading && !installedQuery.data) {
         return t('loading');
       }
       return `${installedEntries.length} ${t(copyKeys.installedCountSuffix)}`;
@@ -664,7 +705,7 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
     }
 
     return `${allItems.length} / ${total}`;
-  }, [scope, installedQuery.isLoading, installedEntries.length, itemsQuery.data, allItems.length, total, copyKeys.installedCountSuffix]);
+  }, [scope, installedQuery.data, installedQuery.isLoading, installedEntries.length, itemsQuery.data, allItems.length, total, copyKeys.installedCountSuffix]);
 
   const installState: InstallState = { installingSpecs };
 
@@ -868,9 +909,17 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1">
-          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
-            {scope === 'all' && allItems.map((item) => (
+        <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1" aria-busy={showListSkeleton || isListRefreshing}>
+          <div
+            data-testid={showListSkeleton ? 'marketplace-list-skeleton' : undefined}
+            className={cn(
+              'grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3 transition-opacity',
+              isListRefreshing ? 'opacity-70' : 'opacity-100'
+            )}
+          >
+            {showListSkeleton && <MarketplaceListSkeleton />}
+
+            {!showListSkeleton && scope === 'all' && allItems.map((item) => (
               <MarketplaceListCard
                 key={item.id}
                 item={item}
@@ -884,7 +933,7 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
               />
             ))}
 
-            {scope === 'installed' && installedEntries.map((entry) => (
+            {!showListSkeleton && scope === 'installed' && installedEntries.map((entry) => (
               <MarketplaceListCard
                 key={entry.key}
                 item={entry.item}
@@ -899,16 +948,16 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
             ))}
           </div>
 
-          {scope === 'all' && !itemsQuery.isLoading && !itemsQuery.isError && allItems.length === 0 && (
+          {scope === 'all' && !showListSkeleton && !itemsQuery.isError && allItems.length === 0 && (
             <div className="text-[13px] text-gray-500 py-8 text-center">{t(copyKeys.emptyData)}</div>
           )}
-          {scope === 'installed' && !installedQuery.isLoading && !installedQuery.isError && installedEntries.length === 0 && (
+          {scope === 'installed' && !showListSkeleton && !installedQuery.isError && installedEntries.length === 0 && (
             <div className="text-[13px] text-gray-500 py-8 text-center">{t(copyKeys.emptyInstalled)}</div>
           )}
         </div>
       </section>
 
-      {scope === 'all' && (
+      {scope === 'all' && !showCatalogSkeleton && (
         <div className="shrink-0">
           <PaginationBar
             page={page}

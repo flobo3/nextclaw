@@ -16,6 +16,15 @@ export function useMarketplaceItems(params: MarketplaceListParams) {
   return useQuery({
     queryKey: ['marketplace-items', params],
     queryFn: () => fetchMarketplaceItems(params),
+    placeholderData: (previousData, previousQuery) => {
+      const previousParams = previousQuery?.queryKey?.[1];
+      if (!previousParams || typeof previousParams !== 'object' || previousParams === null) {
+        return undefined;
+      }
+
+      const previousType = 'type' in previousParams ? previousParams.type : undefined;
+      return previousType === params.type ? previousData : undefined;
+    },
     staleTime: 15_000
   });
 }

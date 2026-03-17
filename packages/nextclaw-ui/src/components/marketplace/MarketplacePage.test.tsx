@@ -1,0 +1,170 @@
+import { render, screen } from '@testing-library/react';
+import { MarketplacePage } from '@/components/marketplace/MarketplacePage';
+import type {
+  MarketplaceInstalledView,
+  MarketplaceItemSummary,
+  MarketplaceListView
+} from '@/api/types';
+
+type ItemsQueryState = {
+  data?: MarketplaceListView;
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  error: Error | null;
+};
+
+type InstalledQueryState = {
+  data?: MarketplaceInstalledView;
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  error: Error | null;
+};
+
+const mocks = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  docOpen: vi.fn(),
+  confirm: vi.fn(),
+  itemsQuery: null as unknown as ItemsQueryState,
+  installedQuery: null as unknown as InstalledQueryState,
+  installMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+    variables: undefined
+  },
+  manageMutation: {
+    mutate: vi.fn(),
+    isPending: false,
+    variables: undefined
+  }
+}));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...(actual as object),
+    useNavigate: () => mocks.navigate,
+    useParams: () => ({})
+  };
+});
+
+vi.mock('@/components/doc-browser', () => ({
+  useDocBrowser: () => ({
+    open: mocks.docOpen
+  })
+}));
+
+vi.mock('@/components/providers/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'en'
+  })
+}));
+
+vi.mock('@/hooks/useConfirmDialog', () => ({
+  useConfirmDialog: () => ({
+    confirm: mocks.confirm,
+    ConfirmDialog: () => null
+  })
+}));
+
+vi.mock('@/hooks/useMarketplace', () => ({
+  useMarketplaceItems: () => mocks.itemsQuery,
+  useMarketplaceInstalled: () => mocks.installedQuery,
+  useInstallMarketplaceItem: () => mocks.installMutation,
+  useManageMarketplaceItem: () => mocks.manageMutation
+}));
+
+function createMarketplaceItem(overrides: Partial<MarketplaceItemSummary> = {}): MarketplaceItemSummary {
+  return {
+    id: 'skill-web-search',
+    slug: 'web-search',
+    type: 'skill',
+    name: 'Web Search',
+    summary: 'Search the web from the marketplace',
+    summaryI18n: { en: 'Search the web from the marketplace' },
+    tags: ['search'],
+    author: 'NextClaw',
+    install: {
+      kind: 'marketplace',
+      spec: '@nextclaw/web-search',
+      command: 'nextclaw skills install @nextclaw/web-search'
+    },
+    updatedAt: '2026-03-17T00:00:00.000Z',
+    ...overrides
+  };
+}
+
+function createItemsQuery(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    data: undefined as MarketplaceListView | undefined,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    ...overrides
+  };
+}
+
+function createInstalledQuery(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    data: {
+      type: 'skill',
+      total: 0,
+      specs: [],
+      records: []
+    } satisfies MarketplaceInstalledView,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    ...overrides
+  };
+}
+
+describe('MarketplacePage', () => {
+  beforeEach(() => {
+    mocks.navigate.mockReset();
+    mocks.docOpen.mockReset();
+    mocks.confirm.mockReset();
+    mocks.installMutation.mutateAsync.mockReset();
+    mocks.manageMutation.mutate.mockReset();
+    mocks.installMutation.isPending = false;
+    mocks.installMutation.variables = undefined;
+    mocks.manageMutation.isPending = false;
+    mocks.manageMutation.variables = undefined;
+    mocks.itemsQuery = createItemsQuery();
+    mocks.installedQuery = createInstalledQuery();
+  });
+
+  it('renders skeleton cards during initial skills loading', () => {
+    mocks.itemsQuery = createItemsQuery({
+      isLoading: true,
+      isFetching: true
+    });
+
+    const { container } = render(<MarketplacePage forcedType="skills" />);
+
+    expect(screen.getByTestId('marketplace-list-skeleton')).toBeTruthy();
+    expect(container.querySelectorAll('[data-testid="marketplace-list-skeleton"] > article')).toHaveLength(12);
+  });
+
+  it('keeps loaded cards visible during background refresh', () => {
+    mocks.itemsQuery = createItemsQuery({
+      data: {
+        total: 1,
+        page: 1,
+        pageSize: 12,
+        totalPages: 1,
+        sort: 'relevance',
+        items: [createMarketplaceItem()]
+      } satisfies MarketplaceListView,
+      isFetching: true
+    });
+
+    render(<MarketplacePage forcedType="skills" />);
+
+    expect(screen.queryByTestId('marketplace-list-skeleton')).toBeNull();
+    expect(screen.getByText('Web Search')).toBeTruthy();
+  });
+});
