@@ -84,6 +84,21 @@ def normalize_path(path_text: str) -> str:
     return PurePosixPath(raw).as_posix()
 
 
+def list_code_files_under(path_text: str) -> list[str]:
+    root = ROOT / path_text
+    if not root.exists() or not root.is_dir():
+        return []
+
+    files: list[str] = []
+    for child in root.rglob("*"):
+        if not child.is_file():
+            continue
+        child_path = normalize_path(child.relative_to(ROOT).as_posix())
+        if child_path and is_code_path(child_path):
+            files.append(child_path)
+    return files
+
+
 def list_changed_paths() -> list[str]:
     output = run_git("status", "--porcelain")
     paths: list[str] = []
@@ -94,6 +109,10 @@ def list_changed_paths() -> list[str]:
         if " -> " in payload:
             payload = payload.split(" -> ", 1)[1]
         path_text = normalize_path(payload)
+        absolute_path = ROOT / path_text
+        if absolute_path.is_dir():
+            paths.extend(list_code_files_under(path_text))
+            continue
         if path_text and is_code_path(path_text):
             paths.append(path_text)
     seen: set[str] = set()
@@ -135,7 +154,7 @@ def choose_budget(path_text: str) -> Budget:
     if any(token in name for token in (".test.", ".spec.")) or any(segment in {"__tests__", "tests"} for segment in segments):
         return Budget(900, "test")
 
-    if stem in {"types", "schema", "schemas", "constants", "config"} or name.endswith(
+    if stem in {"types", "schema", "schemas", "constants"} or name.endswith(
         (".types.ts", ".schema.ts", ".constants.ts", ".config.ts")
     ):
         return Budget(900, "types-or-config")

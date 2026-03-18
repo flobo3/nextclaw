@@ -52,9 +52,9 @@ python3 .codex/skills/post-edit-maintainability-guard/scripts/check_maintainabil
 - React 页面或 App 入口：650 行。
 - UI 组件 / form / dialog / panel：500 行。
 - 测试文件：900 行。
-- `types` / `schema` / `constants` / 纯配置文件：900 行。
+- `types` / `schema` / `constants` / 明确的纯配置文件（如 `*.config.ts`）：900 行。
 
-预算只是启发式边界，不代表文件低于预算就一定设计良好。即使文件没超限，只要职责明显混杂，也应指出风险。
+预算只是启发式边界，不代表文件低于预算就一定设计良好。像裸名 `config.ts` 这类文件，若承载运行逻辑，不应自动按“纯配置文件”放宽预算。即使文件没超限，只要职责明显混杂，也应指出风险。
 
 ## 输出约定
 

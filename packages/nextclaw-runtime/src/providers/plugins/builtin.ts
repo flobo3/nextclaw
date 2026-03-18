@@ -268,7 +268,7 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = {
       detectByKeyPrefix: "",
       detectByBaseKeyword: "",
       defaultApiBase: "https://api.minimaxi.com/v1",
-      defaultModels: ["minimax/codex-MiniMax-M2.7", "minimax/MiniMax-M2.5"],
+      defaultModels: ["minimax/MiniMax-M2.7", "minimax/MiniMax-M2.7-highspeed", "minimax/MiniMax-M2.5", "minimax/MiniMax-M2.5-highspeed"],
       stripModelPrefix: false,
       modelOverrides: [],
       supportsWireApi: true,
@@ -276,8 +276,8 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = {
       defaultWireApi: "chat",
       logo: "minimax.svg",
       apiBaseHelp: {
-        zh: "MiniMax 中国区请使用 https://api.minimaxi.com/v1；海外请使用 https://api.minimax.io/v1。AI Coding Plan 推荐使用 codex-MiniMax-M2.7，并将 Wire API 设为 Chat。",
-        en: "Use https://api.minimaxi.com/v1 for Mainland China accounts, and https://api.minimax.io/v1 for overseas accounts. For AI Coding Plan, prefer codex-MiniMax-M2.7 with Wire API set to Chat."
+        zh: "MiniMax 中国区请使用 https://api.minimaxi.com/v1；海外请使用 https://api.minimax.io/v1。AI Coding Tools 推荐使用 MiniMax-M2.7，并将 Wire API 设为 Chat。",
+        en: "Use https://api.minimaxi.com/v1 for Mainland China accounts, and https://api.minimax.io/v1 for overseas accounts. For AI Coding Tools, prefer MiniMax-M2.7 with Wire API set to Chat."
       }
     },
     {
