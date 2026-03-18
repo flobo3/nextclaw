@@ -1,4 +1,4 @@
-# @nextclaw/ncp-agent-runtime
+# @nextclaw/ncp-react-ui
 
 ## 0.2.0
 
@@ -10,10 +10,3 @@
 
 - Updated dependencies
   - @nextclaw/ncp@0.3.0
-
-## 0.1.1
-
-### Patch Changes
-
-- Updated dependencies
-  - @nextclaw/ncp@0.2.0

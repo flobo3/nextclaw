@@ -1,5 +1,22 @@
 # nextclaw
 
+## 0.11.0
+
+### Minor Changes
+
+- Unify the latest NCP native chat chain, runtime capability assembly, chat UI alignment, stream/reasoning/tool fixes, and marketplace metadata publishing into a single minor release.
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/core@0.9.0
+  - @nextclaw/ncp@0.3.0
+  - @nextclaw/ncp-agent-runtime@0.2.0
+  - @nextclaw/ncp-toolkit@0.3.0
+  - @nextclaw/openclaw-compat@0.3.0
+  - @nextclaw/runtime@0.2.0
+  - @nextclaw/server@0.8.0
+
 ## 0.10.0
 
 ### Minor Changes

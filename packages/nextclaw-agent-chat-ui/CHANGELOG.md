@@ -1,5 +1,11 @@
 # @nextclaw/agent-chat-ui
 
+## 0.2.0
+
+### Minor Changes
+
+- Unify the latest NCP native chat chain, runtime capability assembly, chat UI alignment, stream/reasoning/tool fixes, and marketplace metadata publishing into a single minor release.
+
 ## 0.1.1
 
 ### Patch Changes
