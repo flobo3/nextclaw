@@ -1,4 +1,8 @@
-import type { NcpEndpointEvent } from "@nextclaw/ncp";
+import {
+  NcpAssistantTextStreamNormalizer,
+  type NcpAssistantReasoningNormalizationMode,
+  type NcpEndpointEvent,
+} from "@nextclaw/ncp";
 import { NcpEventType } from "@nextclaw/ncp";
 
 export type ToolCallBuffer = {
@@ -19,6 +23,11 @@ export type DeltaLike = {
   reasoning_content?: string;
   reasoning?: string;
   tool_calls?: ToolCallDelta[];
+};
+
+export type StreamContentState = {
+  textStarted: boolean;
+  normalizer: NcpAssistantTextStreamNormalizer | null;
 };
 
 export function getToolCallIndex(toolDelta: ToolCallDelta, fallback: number): number {
@@ -46,18 +55,82 @@ export function applyToolDelta(current: ToolCallBuffer, toolDelta: ToolCallDelta
 export function* emitTextDeltas(
   delta: DeltaLike,
   ctx: { sessionId: string; messageId: string },
-  state: { textStarted: boolean },
-): Generator<NcpEndpointEvent, { textStarted: boolean }> {
+  state: StreamContentState,
+): Generator<NcpEndpointEvent, StreamContentState> {
   const content = delta.content;
   if (typeof content !== "string" || content.length === 0) return state;
+
+  if (state.normalizer) {
+    let textStarted = state.textStarted;
+    for (const segment of state.normalizer.push(content)) {
+      if (segment.type === "reasoning") {
+        yield {
+          type: NcpEventType.MessageReasoningDelta,
+          payload: { ...ctx, delta: segment.text },
+        };
+        continue;
+      }
+
+      if (!textStarted) {
+        yield { type: NcpEventType.MessageTextStart, payload: ctx };
+        textStarted = true;
+      }
+      yield {
+        type: NcpEventType.MessageTextDelta,
+        payload: { ...ctx, delta: segment.text },
+      };
+    }
+
+    return {
+      ...state,
+      textStarted,
+    };
+  }
 
   if (!state.textStarted) {
     yield { type: NcpEventType.MessageTextStart, payload: ctx };
     yield { type: NcpEventType.MessageTextDelta, payload: { ...ctx, delta: content } };
-    return { textStarted: true };
+    return {
+      ...state,
+      textStarted: true,
+    };
   }
   yield { type: NcpEventType.MessageTextDelta, payload: { ...ctx, delta: content } };
   return state;
+}
+
+export function* flushTextDeltas(
+  ctx: { sessionId: string; messageId: string },
+  state: StreamContentState,
+): Generator<NcpEndpointEvent, StreamContentState> {
+  if (!state.normalizer) {
+    return state;
+  }
+
+  let textStarted = state.textStarted;
+  for (const segment of state.normalizer.finish()) {
+    if (segment.type === "reasoning") {
+      yield {
+        type: NcpEventType.MessageReasoningDelta,
+        payload: { ...ctx, delta: segment.text },
+      };
+      continue;
+    }
+
+    if (!textStarted) {
+      yield { type: NcpEventType.MessageTextStart, payload: ctx };
+      textStarted = true;
+    }
+    yield {
+      type: NcpEventType.MessageTextDelta,
+      payload: { ...ctx, delta: segment.text },
+    };
+  }
+
+  return {
+    ...state,
+    textStarted,
+  };
 }
 
 export function* emitReasoningDelta(
@@ -111,4 +184,16 @@ export function* flushToolCalls(
       payload: { ...ctx, toolCallId: buf.id },
     };
   }
+}
+
+export function createStreamContentState(
+  reasoningNormalizationMode: NcpAssistantReasoningNormalizationMode,
+): StreamContentState {
+  return {
+    textStarted: false,
+    normalizer:
+      reasoningNormalizationMode === "think-tags"
+        ? new NcpAssistantTextStreamNormalizer(reasoningNormalizationMode)
+        : null,
+  };
 }

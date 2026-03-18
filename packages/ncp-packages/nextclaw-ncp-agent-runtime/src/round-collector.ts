@@ -1,4 +1,8 @@
-import type { OpenAIChatChunk } from "@nextclaw/ncp";
+import {
+  normalizeAssistantText,
+  type NcpAssistantReasoningNormalizationMode,
+  type OpenAIChatChunk,
+} from "@nextclaw/ncp";
 import { applyToolDelta, getToolCallIndex, type DeltaLike, type ToolCallBuffer } from "./stream-encoder.utils.js";
 
 export type CollectedToolCall = {
@@ -8,13 +12,17 @@ export type CollectedToolCall = {
 };
 
 export class DefaultNcpRoundCollector {
-  private text = "";
-  private reasoning = "";
+  private rawText = "";
+  private explicitReasoning = "";
   private readonly toolCallBuffers = new Map<number, ToolCallBuffer>();
 
+  constructor(
+    private readonly reasoningNormalizationMode: NcpAssistantReasoningNormalizationMode = "off",
+  ) {}
+
   clear(): void {
-    this.text = "";
-    this.reasoning = "";
+    this.rawText = "";
+    this.explicitReasoning = "";
     this.toolCallBuffers.clear();
   }
 
@@ -30,12 +38,12 @@ export class DefaultNcpRoundCollector {
     }
 
     if (typeof delta.content === "string" && delta.content.length > 0) {
-      this.text += delta.content;
+      this.rawText += delta.content;
     }
 
     const reasoning = delta.reasoning_content ?? delta.reasoning;
     if (typeof reasoning === "string" && reasoning.length > 0) {
-      this.reasoning += reasoning;
+      this.explicitReasoning += reasoning;
     }
 
     const toolDeltas = delta.tool_calls;
@@ -52,11 +60,20 @@ export class DefaultNcpRoundCollector {
   }
 
   getText(): string {
-    return this.text;
+    if (this.reasoningNormalizationMode !== "think-tags") {
+      return this.rawText;
+    }
+    return normalizeAssistantText(this.rawText, this.reasoningNormalizationMode).text;
   }
 
   getReasoning(): string {
-    return this.reasoning;
+    if (this.explicitReasoning.length > 0) {
+      return this.explicitReasoning;
+    }
+    if (this.reasoningNormalizationMode !== "think-tags") {
+      return "";
+    }
+    return normalizeAssistantText(this.rawText, this.reasoningNormalizationMode).reasoning;
   }
 
   getToolCalls(): CollectedToolCall[] {

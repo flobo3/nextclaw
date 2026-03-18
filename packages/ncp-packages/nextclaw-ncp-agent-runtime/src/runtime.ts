@@ -1,4 +1,5 @@
 import {
+  type NcpAssistantReasoningNormalizationMode,
   type NcpAgentConversationStateManager,
   type NcpAgentRunInput,
   type NcpAgentRunOptions,
@@ -30,6 +31,7 @@ export type DefaultNcpAgentRuntimeConfig = {
   toolRegistry: NcpToolRegistry;
   stateManager: NcpAgentConversationStateManager;
   streamEncoder?: NcpStreamEncoder;
+  reasoningNormalizationMode?: NcpAssistantReasoningNormalizationMode;
 };
 
 export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
@@ -38,13 +40,19 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
   private readonly toolRegistry: NcpToolRegistry;
   private readonly stateManager: NcpAgentConversationStateManager;
   private readonly streamEncoder: NcpStreamEncoder;
+  private readonly reasoningNormalizationMode: NcpAssistantReasoningNormalizationMode;
 
   constructor(config: DefaultNcpAgentRuntimeConfig) {
     this.contextBuilder = config.contextBuilder;
     this.llmApi = config.llmApi;
     this.toolRegistry = config.toolRegistry;
     this.stateManager = config.stateManager;
-    this.streamEncoder = config.streamEncoder ?? new DefaultNcpStreamEncoder();
+    this.reasoningNormalizationMode = config.reasoningNormalizationMode ?? "off";
+    this.streamEncoder =
+      config.streamEncoder ??
+      new DefaultNcpStreamEncoder({
+        reasoningNormalizationMode: this.reasoningNormalizationMode,
+      });
   }
 
   run = async function* (
@@ -95,7 +103,7 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
     ctx: NcpEncodeContext,
     options?: NcpAgentRunOptions,
   ): AsyncGenerator<NcpEndpointEvent> {
-    const roundCollector = new DefaultNcpRoundCollector();
+    const roundCollector = new DefaultNcpRoundCollector(this.reasoningNormalizationMode);
     let currentInput = llmInput;
     let done = false;
 

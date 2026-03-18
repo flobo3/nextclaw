@@ -12,3 +12,14 @@ export {
   stripReplyTagsFromText,
 } from "./reply-tags.js";
 export type { NcpReplyTagParseResult } from "./reply-tags.js";
+export {
+  NcpAssistantTextStreamNormalizer,
+  normalizeAssistantText,
+  readAssistantReasoningNormalizationMode,
+  readAssistantReasoningNormalizationModeFromMetadata,
+  writeAssistantReasoningNormalizationModeToMetadata,
+} from "./reasoning-normalization.js";
+export type {
+  NcpAssistantReasoningNormalizationMode,
+  NcpAssistantReasoningSegment,
+} from "./reasoning-normalization.js";
