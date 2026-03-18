@@ -293,6 +293,287 @@ MCP server 不能只是配置对象，还必须有运行时生命周期管理层
 - registry 与 transport manager 是平台能力
 - runtime adapter 只是消费层
 
+## 代码组织与解耦边界
+
+如果这件事要保持长期可维护，最重要的不是先写哪段代码，而是先锁死依赖方向。
+
+推荐原则：
+
+- MCP 只能有一个平台级实现，不允许每个 runtime 各写一套。
+- 现有 `NCP runtime`、`UI`、`CLI` 都只能通过薄组合层接入 MCP，不能直接承载 MCP 的核心复杂度。
+- `schema`、`registry`、`lifecycle`、`adapter` 必须分层，禁止写成一个“既懂配置又懂进程又懂 runtime”的大模块。
+
+### 1. 推荐包边界
+
+推荐新增一个独立平台包，例如：
+
+```text
+packages/nextclaw-mcp
+```
+
+它应作为 MCP 领域能力的唯一拥有者。
+
+不建议把 MCP 核心逻辑放进这些位置：
+
+- `packages/nextclaw-core`
+- `packages/nextclaw`
+- `packages/nextclaw-server`
+- `packages/extensions/*`
+
+原因分别是：
+
+- `nextclaw-core` 应只承载配置 schema、基础类型与纯函数，不应掺入进程/网络生命周期。
+- `nextclaw` 是 CLI 应用层，不应拥有 MCP 业务核心。
+- `nextclaw-server` 是服务承载层，不应反向拥有平台级工具治理逻辑。
+- `packages/extensions/*` 更适合具体 runtime/channel/plugin 扩展，不适合承载跨 runtime 的平台基础设施。
+
+### 2. 各层职责分工
+
+建议按下面四层收敛：
+
+#### A. Core Schema Layer
+
+位置：
+
+- `packages/nextclaw-core`
+
+职责：
+
+- 定义 `mcp` 配置 schema
+- 定义 `McpServerDefinition` 等纯类型
+- 提供默认值、解析、序列化相关纯函数
+
+禁止：
+
+- 启动进程
+- 发网络请求
+- 管理连接状态
+- 依赖 CLI、server、runtime
+
+#### B. MCP Domain Layer
+
+位置：
+
+- `packages/nextclaw-mcp`
+
+职责：
+
+- registry 增删改查
+- transport factory
+- lifecycle manager
+- doctor/diagnostics
+- scope resolution
+- 只读 catalog projection
+
+这是 MCP 的主包。
+
+#### C. App Composition Layer
+
+位置：
+
+- `packages/nextclaw`
+- 后续如有需要，可在 `packages/nextclaw-server` 加组合入口
+
+职责：
+
+- 把 CLI 命令接到 `nextclaw-mcp`
+- 在应用启动时按需初始化 lifecycle manager
+- 组装 config path、logger、secret resolver 等外部依赖
+
+这层只负责组合，不负责定义 MCP 领域模型。
+
+#### D. Runtime Consumer Layer
+
+位置：
+
+- 当前先预留给未来 `native` consumer
+- 未来 `codex`、其它 runtime 再各自实现薄 adapter
+
+职责：
+
+- 从 `nextclaw-mcp` 读取只读视图
+- 将可见 server 转换为 runtime 自己需要的消费格式
+
+禁止：
+
+- 自己维护第二份 MCP registry
+- 自己实现 transport 生命周期
+- 自己保存 enable/disable 状态
+
+### 3. 依赖方向必须固定
+
+推荐依赖图：
+
+```text
+nextclaw-core
+  -> no dependency on mcp runtime logic
+
+nextclaw-mcp
+  -> depends on nextclaw-core types/schema only
+
+nextclaw / nextclaw-server / future runtime consumers
+  -> depend on nextclaw-mcp
+```
+
+明确禁止的反向依赖：
+
+- `nextclaw-core -> nextclaw-mcp`
+- `nextclaw-mcp -> nextclaw-server`
+- `nextclaw-mcp -> specific runtime package`
+
+否则后面一定会出现循环依赖和职责混乱。
+
+### 4. 推荐目录结构
+
+`packages/nextclaw-mcp` 内部建议不要按技术栈杂糅，而是按领域切层：
+
+```text
+src/
+  config/
+    mcp-config-types.ts
+    mcp-config-normalizer.ts
+  registry/
+    mcp-server-definition-store.ts
+    mcp-registry-service.ts
+    mcp-scope-resolver.ts
+    mcp-catalog-view.ts
+  transport/
+    mcp-transport.ts
+    mcp-transport-factory.ts
+    stdio/
+      stdio-mcp-transport.ts
+    http/
+      http-mcp-transport.ts
+    sse/
+      sse-mcp-transport.ts
+  lifecycle/
+    mcp-server-lifecycle-manager.ts
+    mcp-server-state-store.ts
+  doctor/
+    mcp-doctor-service.ts
+    mcp-diagnostic-types.ts
+  application/
+    mcp-application-service.ts
+  index.ts
+```
+
+这里有几个刻意的取舍：
+
+- `application/` 负责把多个 domain service 组合成 CLI/UI 更容易调用的服务，但不直接依附某个 app。
+- `transport/stdio/http/sse` 分目录，防止一个 transport 文件越长越难拆。
+- `registry/` 与 `lifecycle/` 分开，避免“读配置”和“管理运行时状态”搅在一起。
+
+### 5. 最小公开接口
+
+为了减少后续扩散，`nextclaw-mcp` 对外只推荐暴露少量稳定接口：
+
+- `McpRegistryService`
+- `McpApplicationService`
+- `McpServerLifecycleManager`
+- `McpDoctorService`
+- `McpCatalogView`
+- 纯类型定义
+
+不建议把 transport 实现细节直接暴露给应用层。
+
+### 6. 对现有仓库的最小接入点
+
+如果按“尽量不污染现有模块”的原则落地，首期只需要触达少量清晰的组合点：
+
+- `packages/nextclaw-core/src/config/schema.ts`
+  - 新增顶层 `mcp` schema
+- `packages/nextclaw/src/cli/index.ts`
+  - 新增 `mcp` 命令组
+- `packages/nextclaw/src/cli/...`
+  - 新增 MCP CLI handler 文件
+- 未来 `native` consumer 的组合点
+  - 在 runtime 装配阶段读取 `McpCatalogView`
+
+不应首期就把 MCP 改动散落到：
+
+- 各个 UI 页面
+- 各个 runtime 包
+- `nextclaw-server` 的多个 controller
+- 各种已有 plugin 模块
+
+### 7. 为什么不建议直接写进现有模块
+
+看起来把 MCP 直接塞进现有 `runtime registry`、`server`、`CLI` 文件里会更快，但实际会产生三个坏结果：
+
+1. 生命周期逻辑会横切到多个模块，后续难定位问题。
+2. `stdio/http/sse` 三种 transport 很快会把已有文件推成 God Object。
+3. 以后要支持第二个 consumer 时，会发现没有清晰复用边界，只能再抽一次。
+
+所以正确策略不是“改动越少越好”，而是“改动尽量集中在新包和少量组合点”。
+
+## 实施时的代码级拆分建议
+
+在进入编码阶段前，建议先把实施任务按“不会彼此污染”的写集拆开。
+
+### Slice 1: Schema 与纯类型
+
+写集：
+
+- `packages/nextclaw-core/src/config/schema.ts`
+- `packages/nextclaw-mcp/src/config/*`
+
+目标：
+
+- 先把顶层 `mcp` 配置模型立住
+- 不引入任何运行时代码
+
+### Slice 2: Registry 与 Application Service
+
+写集：
+
+- `packages/nextclaw-mcp/src/registry/*`
+- `packages/nextclaw-mcp/src/application/*`
+
+目标：
+
+- 打通 CRUD 与读取视图
+- 先不做真实 transport 连接
+
+### Slice 3: CLI
+
+写集：
+
+- `packages/nextclaw/src/cli/index.ts`
+- `packages/nextclaw/src/cli/commands/mcp/*`
+
+目标：
+
+- 让 `nextclaw mcp add/list/remove/enable/disable` 可用
+- 只依赖 application service
+
+### Slice 4: Lifecycle 与 Doctor
+
+写集：
+
+- `packages/nextclaw-mcp/src/transport/*`
+- `packages/nextclaw-mcp/src/lifecycle/*`
+- `packages/nextclaw-mcp/src/doctor/*`
+
+目标：
+
+- 真正引入 `stdio/http/sse` transport 与状态管理
+
+### Slice 5: 首个 Consumer
+
+写集：
+
+- 未来 `native` runtime 的装配点
+
+目标：
+
+- 验证“平台级 MCP registry -> runtime consumer”这条主链路是成立的
+
+这样拆的意义是：
+
+- 每一阶段都能形成清晰边界
+- 不需要一开始就把 runtime 适配、UI、Marketplace 全部混进同一轮
+- 更容易在中途发现边界问题并调整
+
 ## 配置模型建议
 
 建议在 Core config schema 中新增顶层 `mcp`：
@@ -474,6 +755,7 @@ MCP 失败如果只表现为“工具没出现”，用户会非常困惑。
 - Core config schema 新增 `mcp`
 - `McpServerDefinition` 与三类 transport union
 - `McpRegistry` 读写接口
+- 新建独立包 `packages/nextclaw-mcp`
 - CLI：`add/list/remove/enable/disable`
 - `doctor` 最小版
 
@@ -501,6 +783,12 @@ MCP 失败如果只表现为“工具没出现”，用户会非常困惑。
 
 - 本次规划明确不同时推进其它 runtime adapter
 - 但接口设计必须保证未来 `codex` 可直接接上
+
+这一阶段的重点不是功能覆盖面，而是验证解耦边界：
+
+- `native` consumer 不拥有 registry
+- consumer 只读取 `McpCatalogView`
+- transport/lifecycle 复杂度仍留在 `nextclaw-mcp`
 
 ### Phase 4: UI 与 Marketplace
 
