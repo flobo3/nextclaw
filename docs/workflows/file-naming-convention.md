@@ -45,6 +45,7 @@
 - `.constants.ts`: 常量定义。
 - `.utils.ts`: 纯工具函数（无状态、无副作用优先）。
 - `.mapper.ts`: 结构映射/转换。
+- `.cache.ts` / `*-cache.ts`: 缓存键、缓存读写、失效、query client 协调或 optimistic cache 更新；若文件只做纯映射、去重、拼装或 view updater，不应命名为 `cache`。
 - `.config.ts`: 配置加载与组装。
 
 ## 4. 测试文件命名
@@ -71,6 +72,7 @@
 - `chat_controller.ts`（snake_case）
 - `controller.ts`（无业务域前缀，语义过弱）
 - `chat.service.manager.ts`（多角色混合）
+- `marketplace-installed-cache.ts`（如果实现只有纯映射 / view updater，而没有缓存协调）
 
 ## 7. 渐进迁移策略
 

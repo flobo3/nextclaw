@@ -37,6 +37,46 @@ export const FUNCTION_RULE_IDS = new Set([
 export const DISABLE_GUARD_RULE_IDS = new Set([...FUNCTION_RULE_IDS, "max-lines"]);
 const DISABLE_COMMENT_PATTERN = /eslint-disable(?:-next-line|-line)?/;
 const DIFF_HUNK_PATTERN = /@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
+const ROLE_SUFFIXES = new Set([
+  "controller",
+  "manager",
+  "store",
+  "service",
+  "repository",
+  "adapter",
+  "gateway",
+  "middleware",
+  "guard",
+  "interceptor",
+  "factory",
+  "schema",
+  "types",
+  "constants",
+  "utils",
+  "mapper",
+  "config",
+  "cache"
+]);
+const CACHE_EXPECTATION_SIGNALS = [
+  { label: "queryClient", pattern: /\bqueryClient\b/ },
+  { label: "getQueryData", pattern: /\bgetQueryData\b/ },
+  { label: "setQueryData", pattern: /\bsetQueryData\b/ },
+  { label: "invalidateQueries", pattern: /\binvalidateQueries\b/ },
+  { label: "cache", pattern: /\bcache(?:d)?\b/i },
+  { label: "staleTime", pattern: /\bstaleTime\b/ },
+  { label: "ttl", pattern: /\bttl\b/i },
+  { label: "Map", pattern: /\b(?:Weak)?Map\b/ },
+  { label: "memo", pattern: /\bmemo(?:ize)?\b/i }
+];
+const CACHE_MAPPER_SIGNALS = [
+  { label: "apply*", pattern: /\bapply[A-Z][A-Za-z0-9]*\b/ },
+  { label: "build*", pattern: /\bbuild[A-Z][A-Za-z0-9]*\b/ },
+  { label: "normalize*", pattern: /\bnormalize[A-Z][A-Za-z0-9]*\b/ },
+  { label: "map*", pattern: /\bmap[A-Z][A-Za-z0-9]*\b/ },
+  { label: "transform*", pattern: /\btransform[A-Z][A-Za-z0-9]*\b/ },
+  { label: "dedupe*", pattern: /\bdedupe[A-Z][A-Za-z0-9]*\b/ },
+  { label: "ensure*", pattern: /\bensure[A-Z][A-Za-z0-9]*\b/ }
+];
 
 export function runGit(args, check = true) {
   const result = spawnSync("git", args, {
@@ -55,6 +95,17 @@ export function normalizePath(pathText) {
     return raw;
   }
   return raw.split(path.sep).join(path.posix.sep);
+}
+
+export function inferPrimaryRole(pathText) {
+  const normalized = normalizePath(pathText);
+  const stem = path.posix.basename(normalized, path.posix.extname(normalized)).toLowerCase();
+  const tokens = stem.split(/[.-]/g).filter(Boolean);
+  if (tokens.length === 0) {
+    return null;
+  }
+  const candidate = tokens[tokens.length - 1];
+  return ROLE_SUFFIXES.has(candidate) ? candidate : null;
 }
 
 export function isCodePath(pathText) {
@@ -186,6 +237,39 @@ export function suggestSeam(pathText, ruleId = null) {
     return "split fixtures/builders from behavior-focused test cases";
   }
   return "split mixed responsibilities into smaller domain-focused modules";
+}
+
+export function suggestNamingSeam(pathText, role) {
+  if (role === "cache") {
+    return "rename toward a mapper/utils-style file, or move real cache coordination into a dedicated cache module";
+  }
+  return `rename the file so its suffix matches the dominant responsibility instead of '${role}'`;
+}
+
+function collectSignalLabels(content, signals) {
+  return signals.filter((signal) => signal.pattern.test(content)).map((signal) => signal.label);
+}
+
+export function inspectNamingResponsibility(pathText, content) {
+  const role = inferPrimaryRole(pathText);
+  if (role !== "cache") {
+    return [];
+  }
+
+  const cacheSignals = collectSignalLabels(content, CACHE_EXPECTATION_SIGNALS);
+  const mapperSignals = collectSignalLabels(content, CACHE_MAPPER_SIGNALS);
+
+  if (cacheSignals.length > 0 || mapperSignals.length === 0) {
+    return [];
+  }
+
+  return [{
+    role,
+    ruleId: "filename-role-alignment",
+    matchedSignals: mapperSignals,
+    message: "filename suggests a cache module, but the implementation looks like pure mapping/update logic and lacks cache coordination signals",
+    suggestedSeam: suggestNamingSeam(pathText, role)
+  }];
 }
 
 export function parseChangedPatch(pathText) {

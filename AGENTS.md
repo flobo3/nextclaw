@@ -264,11 +264,17 @@
   - 反例：将 `@nextclaw/core` 写成 `^0.7.1` 导致 desktop 打包混入旧版依赖，运行时出现导出不匹配并启动失败。
   - 执行方式：改动内部依赖后必须执行 `pnpm install` 更新锁文件；验证按影响范围最小化选择，至少覆盖受影响包的 `build`、`lint`、`tsc`。仅当改动触达 desktop 打包链路时，才要求执行 `pnpm desktop:package` 与 `pnpm desktop:package:verify`（或等效三平台验证）。
   - 维护责任人：当前助手。
+- **file-name-must-match-primary-responsibility**：
+  - 约束/适用范围：凡本仓库新增或触达源码、脚本、测试文件，文件名必须与主职责一致，并遵循 [`docs/workflows/file-naming-convention.md`](docs/workflows/file-naming-convention.md)。命名不仅要求格式正确，还要求角色语义准确；当文件名暗示 `cache`、`mapper`、`utils`、`manager` 等角色时，实现必须与该角色的主职责相符。
+  - 示例：负责结构转换、纯映射、view updater 的文件命名为 `marketplace-installed-view.mapper.ts`；真正负责 query key、缓存读写、失效或 optimistic cache 协调的文件才命名为 `*.cache.ts` / `*-cache.ts`。
+  - 反例：文件名包含 `cache`，实现却只有纯映射、拼装、去重或 view updater 逻辑；或文件名同时表达多个角色，导致维护者无法从文件名判断边界。
+  - 执行方式：新增文件时先按主职责选定单一 role suffix；触达存量文件时按“改动即治理”评估是否需要顺手重命名；收尾阶段通过 `post-edit-maintainability-guard` 执行 diff-only 命名职责检查，并在保留债务时说明是否为历史遗留、为何暂不重命名以及下一步迁移位点。
+  - 维护责任人：当前助手。
 - **post-edit-maintainability-guard-required**：
   - 约束/适用范围：凡本次任务触达项目代码、脚本、测试或影响运行链路的配置，收尾前必须执行项目内 skill `post-edit-maintainability-guard` 的自检；纯文档、措辞或元信息微调不适用，但必须明确说明“不适用”。
-  - 示例：修改 `packages/nextclaw/src/cli/commands/service.ts` 后，在最终回复前运行 `node .codex/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs`，并说明是否存在“新文件超预算 / 超限文件继续增长 / 穿越预算线”。
+  - 示例：修改 `packages/nextclaw/src/cli/commands/service.ts` 后，在最终回复前运行 `node .codex/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs`，并说明是否存在“新文件超预算 / 超限文件继续增长 / 穿越预算线 / 新增的文件名-职责错配”。
   - 反例：代码改完只跑功能验证，不做任何可维护性自检；或发现超长文件继续增长却不提示风险和拆分缝。
-  - 执行方式：默认在收尾阶段运行 `node .codex/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs`；如只需检查特定文件，可加 `--paths <file...>`；若出现阻塞项，优先继续拆分，否则需在结果中明确债务、原因与下一步拆分位点。
+  - 执行方式：默认在收尾阶段运行 `node .codex/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs`；如只需检查特定文件，可加 `--paths <file...>`；结果除文件级/函数级预算外，还要关注 diff-only 的命名职责一致性告警；若出现阻塞项，优先继续拆分或更名，否则需在结果中明确债务、原因与下一步拆分位点。
   - 维护责任人：当前助手。
 - **legacy-freeze-before-removal**：
   - 约束/适用范围：凡涉及 `nextclaw` chat 链路演进，默认停止给 legacy 链路新增任何功能、适配或产品增强；legacy 只允许做三类改动：阻塞 NCP 迁移的必要修复、删除 legacy 前必须完成的兼容性清理、以及用户明确要求的临时回滚保障。

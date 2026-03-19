@@ -3,6 +3,7 @@ import {
   collectDisableCommentFindings,
   countLinesInText,
   getHeadContent,
+  inspectNamingResponsibility,
   isCodePath,
   normalizePath,
   parseChangedPatch,
@@ -29,7 +30,9 @@ function toPayload(item) {
     line: item.line ?? null,
     end_line: item.end_line ?? null,
     metric_value: item.metric_value ?? null,
-    previous_metric_value: item.previous_metric_value ?? null
+    previous_metric_value: item.previous_metric_value ?? null,
+    naming_role: item.naming_role ?? null,
+    matched_signals: item.matched_signals ?? null
   };
 }
 
@@ -99,6 +102,49 @@ export function inspectPaths(paths) {
         addedLines
       })
     );
+
+    const currentNamingFindings = inspectNamingResponsibility(pathText, currentContent);
+    const previousNamingSignatures = new Set(
+      (previousContent == null ? [] : inspectNamingResponsibility(pathText, previousContent))
+        .map((finding) => `${finding.ruleId}::${finding.role}`)
+    );
+
+    for (const namingFinding of currentNamingFindings) {
+      const signature = `${namingFinding.ruleId}::${namingFinding.role}`;
+      const existedBefore = previousNamingSignatures.has(signature);
+      let level = "error";
+      let message = namingFinding.message;
+
+      if (previousContent == null) {
+        message = "new file name does not match its primary responsibility";
+      } else if (existedBefore) {
+        level = "warn";
+        message = "touched file name still does not match its primary responsibility";
+      } else {
+        message = "changed file introduced a new file-name-to-responsibility mismatch";
+      }
+
+      findings.push({
+        level,
+        source: "filename-role",
+        path: pathText,
+        category: "naming",
+        budget: null,
+        current_lines: currentLines,
+        previous_lines: previousLines,
+        delta_lines: deltaLines,
+        message,
+        suggested_seam: namingFinding.suggestedSeam,
+        rule_id: namingFinding.ruleId,
+        symbol_name: null,
+        line: null,
+        end_line: null,
+        metric_value: null,
+        previous_metric_value: null,
+        naming_role: namingFinding.role,
+        matched_signals: namingFinding.matchedSignals
+      });
+    }
 
     const currentLintFindings = lintContent(pathText, currentContent);
     const previousLintFindings = previousContent == null ? [] : lintContent(pathText, previousContent);
@@ -187,7 +233,8 @@ export function inspectPaths(paths) {
     },
     findings: findings.map(toPayload),
     file_findings: findings.filter((item) => item.source === "file-budget").map(toPayload),
-    function_findings: findings.filter((item) => item.source !== "file-budget").map(toPayload)
+    function_findings: findings.filter((item) => item.source === "eslint-function-budget" || item.source === "disable-comment").map(toPayload),
+    naming_findings: findings.filter((item) => item.source === "filename-role").map(toPayload)
   };
 }
 
@@ -222,8 +269,12 @@ export function printHuman(report) {
       const previousMetricText = item.previous_metric_value == null ? "n/a" : String(item.previous_metric_value);
       metricText = `, metric=${item.metric_value}, previous_metric=${previousMetricText}`;
     }
+    const namingRoleText = item.naming_role ? `, naming_role=${item.naming_role}` : "";
+    const matchedSignalsText = Array.isArray(item.matched_signals) && item.matched_signals.length > 0
+      ? `, matched_signals=${item.matched_signals.join("|")}`
+      : "";
     console.log(
-      `- [${item.level}] ${item.path} (source=${item.source}, current=${item.current_lines}, previous=${previousText}, delta=${deltaText}${budgetText}${ruleText}${symbolText}${locationText}${metricText})`
+      `- [${item.level}] ${item.path} (source=${item.source}, current=${item.current_lines}, previous=${previousText}, delta=${deltaText}${budgetText}${ruleText}${symbolText}${locationText}${metricText}${namingRoleText}${matchedSignalsText})`
     );
     console.log(`  ${item.message}`);
     console.log(`  seam: ${item.suggested_seam}`);
