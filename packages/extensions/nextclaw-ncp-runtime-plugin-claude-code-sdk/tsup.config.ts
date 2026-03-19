@@ -5,7 +5,7 @@ export default defineConfig({
   format: ["esm"],
   dts: true,
   outDir: "dist",
-  bundle: false,
+  bundle: true,
   target: "es2022",
   clean: true
 });

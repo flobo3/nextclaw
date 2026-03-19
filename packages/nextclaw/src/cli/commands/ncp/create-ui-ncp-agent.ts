@@ -172,6 +172,7 @@ export async function createUiNcpAgent(params: {
         kind: registration.kind,
         label: registration.label,
         createRuntime: registration.createRuntime,
+        describeSessionType: registration.describeSessionType,
       }));
     }
   };

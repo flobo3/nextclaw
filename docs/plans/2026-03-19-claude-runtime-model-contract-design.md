@@ -37,6 +37,35 @@
 
 ## 已确认事实
 
+### 0. 2026-03-19 本机运行时补充验证
+
+这部分是本次在 `nextbot` 本机仓库里，基于当前安装的
+
+- `@anthropic-ai/claude-agent-sdk@0.2.63`
+- `claude_code_version=2.1.63`
+
+做出的真实补充验证，优先级高于任何臆测。
+
+已确认：
+
+- Claude Agent SDK 的 `query/session` 路径默认不会自动读取 `~/.claude/settings.json`
+- 只有显式传入 `settingSources: ["user"]` 后，`initializationResult().account.tokenSource` 才能读到用户级 `ANTHROPIC_AUTH_TOKEN`
+- 单靠 `supportedModels()` 不能代表“真实可回复”
+- 在当前机器上，即使已经读到 `ANTHROPIC_AUTH_TOKEN`，真实推理仍可能返回
+  - `Failed to authenticate. API Error: 403 用户没有有效的claudecode订阅`
+- 因此 `Claude ready` 不能再靠“SDK 能初始化 + models 能列出来”判定，必须基于一次真实执行探测
+
+还确认了一个很关键的负面事实：
+
+- 在本机对当前 JS CLI 路径做最小实验时，显式设置本地 `ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN` 并不能让 `query()` 真正打到本地 stub relay
+- 也就是说，至少在当前验证到的 `claude-agent-sdk/js cli` 路径上，“立刻在 NextClaw 内嵌一个本地 Anthropic relay 然后直接跑通 Claude 回复”这条路当前不能被当成已可执行结论
+
+所以本轮产品与实现必须遵守：
+
+- 默认优先 Claude 自身 settings / gateway / auth
+- 默认不再把 NextClaw provider `apiKey/apiBase` 直接覆盖到 Claude runtime
+- `ready` 必须由真实执行探测兜底
+
 ### 1. NextClaw 当前产品模型已经是统一心智
 
 当前 NCP 会话发送链路里，前端会把用户选中的模型写入消息 metadata：

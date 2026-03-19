@@ -317,6 +317,12 @@ export type ChatTurnStreamReadyEvent = {
   stopReason?: string;
 };
 
+export type {
+  ChatSessionTypeCtaView,
+  ChatSessionTypeOptionView,
+  ChatSessionTypesView,
+} from './chat-session-type.types';
+
 export type ChatTurnStreamDeltaEvent = {
   delta: string;
 };
@@ -333,16 +339,6 @@ export type ChatTurnStreamErrorEvent = {
 export type ChatCapabilitiesView = {
   stopSupported: boolean;
   stopReason?: string;
-};
-
-export type ChatSessionTypeOptionView = {
-  value: string;
-  label: string;
-};
-
-export type ChatSessionTypesView = {
-  defaultType: string;
-  options: ChatSessionTypeOptionView[];
 };
 
 export type ChatCommandOptionView = {

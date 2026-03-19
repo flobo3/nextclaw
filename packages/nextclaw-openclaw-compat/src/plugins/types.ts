@@ -66,6 +66,33 @@ export type OpenClawPluginNcpAgentRuntimeRegistration = {
   kind: string;
   label?: string;
   createRuntime: (params: RuntimeFactoryParams) => NcpAgentRuntime;
+  describeSessionType?: () =>
+    | Promise<{
+        ready?: boolean;
+        reason?: string | null;
+        reasonMessage?: string | null;
+        supportedModels?: string[];
+        recommendedModel?: string | null;
+        cta?: {
+          kind: string;
+          label?: string;
+          href?: string;
+        } | null;
+      } | null | undefined>
+    | {
+        ready?: boolean;
+        reason?: string | null;
+        reasonMessage?: string | null;
+        supportedModels?: string[];
+        recommendedModel?: string | null;
+        cta?: {
+          kind: string;
+          label?: string;
+          href?: string;
+        } | null;
+      }
+    | null
+    | undefined;
 };
 
 export type OpenClawProviderPlugin = {
@@ -250,6 +277,7 @@ export type PluginNcpAgentRuntimeRegistration = {
   kind: string;
   label: string;
   createRuntime: (params: RuntimeFactoryParams) => NcpAgentRuntime;
+  describeSessionType?: OpenClawPluginNcpAgentRuntimeRegistration["describeSessionType"];
   source: string;
 };
 

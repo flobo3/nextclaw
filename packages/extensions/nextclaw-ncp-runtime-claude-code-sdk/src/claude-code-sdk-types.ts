@@ -6,6 +6,7 @@ import type {
 export type ClaudeCodeMessage = {
   type?: string;
   subtype?: string;
+  is_error?: boolean;
   session_id?: string;
   message?: {
     content?: unknown;
@@ -18,6 +19,19 @@ export type ClaudeCodeMessage = {
 
 export type ClaudeCodeQuery = AsyncIterable<ClaudeCodeMessage> & {
   close?: () => void;
+  initializationResult?: () => Promise<{
+    account?: unknown;
+    models?: Array<{
+      value?: string;
+      displayName?: string;
+      description?: string;
+    }>;
+  }>;
+  supportedModels?: () => Promise<Array<{
+    value?: string;
+    displayName?: string;
+    description?: string;
+  }>>;
 };
 
 export type ClaudeCodeQueryOptions = {
@@ -34,6 +48,22 @@ export type ClaudeCodeSdkModule = {
     prompt: string;
     options?: ClaudeCodeQueryOptions;
   }) => ClaudeCodeQuery;
+  unstable_v2_createSession?: (options: ClaudeCodeQueryOptions & {
+    model: string;
+    executable?: string;
+    executableArgs?: string[];
+    pathToClaudeCodeExecutable?: string;
+    allowedTools?: string[];
+    disallowedTools?: string[];
+    permissionMode?: string;
+    persistSession?: boolean;
+  }) => {
+    close: () => void;
+    query?: {
+      initializationResult?: ClaudeCodeQuery["initializationResult"];
+      supportedModels?: ClaudeCodeQuery["supportedModels"];
+    };
+  };
 };
 
 export type TextStreamState = {
@@ -48,6 +78,7 @@ export type ClaudeCodeLoader = {
 export type ClaudeCodeSdkNcpAgentRuntimeConfig = {
   sessionId: string;
   apiKey: string;
+  authToken?: string;
   apiBase?: string;
   model?: string;
   workingDirectory: string;

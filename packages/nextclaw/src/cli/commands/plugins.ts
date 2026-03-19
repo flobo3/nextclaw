@@ -17,7 +17,6 @@ import {
 import {
   loadConfig,
   type Config,
-  type ExtensionRegistry,
   getWorkspacePath
 } from "@nextclaw/core";
 import { createInterface } from "node:readline";
@@ -36,10 +35,10 @@ import {
   type PluginUninstallMutationResult,
   uninstallPluginMutation,
 } from "./plugin-mutation-actions.js";
-
-export type NextclawExtensionRegistry = ExtensionRegistry & {
-  ncpAgentRuntimes: PluginNcpAgentRuntimeRegistration[];
-};
+export {
+  type NextclawExtensionRegistry,
+  toExtensionRegistry,
+} from "./plugin-extension-registry.js";
 
 export function loadPluginRegistry(config: Config, workspaceDir: string): PluginRegistry {
   const workspaceExtensionsDir = process.env.NEXTCLAW_DEV_FIRST_PARTY_PLUGIN_DIR;
@@ -60,42 +59,6 @@ export function loadPluginRegistry(config: Config, workspaceDir: string): Plugin
       debug: (message) => console.debug(message)
     }
   });
-}
-
-export function toExtensionRegistry(pluginRegistry: PluginRegistry): NextclawExtensionRegistry {
-  return {
-    tools: pluginRegistry.tools.map((tool) => ({
-      extensionId: tool.pluginId,
-      factory: tool.factory,
-      names: tool.names,
-      optional: tool.optional,
-      source: tool.source
-    })),
-    channels: pluginRegistry.channels.map((channel) => ({
-      extensionId: channel.pluginId,
-      channel: channel.channel,
-      source: channel.source
-    })),
-    engines: pluginRegistry.engines.map((engine) => ({
-      extensionId: engine.pluginId,
-      kind: engine.kind,
-      factory: engine.factory,
-      source: engine.source
-    })),
-    ncpAgentRuntimes: pluginRegistry.ncpAgentRuntimes.map((runtime) => ({
-      pluginId: runtime.pluginId,
-      kind: runtime.kind,
-      label: runtime.label,
-      createRuntime: runtime.createRuntime,
-      source: runtime.source
-    })),
-    diagnostics: pluginRegistry.diagnostics.map((diag) => ({
-      level: diag.level,
-      message: diag.message,
-      extensionId: diag.pluginId,
-      source: diag.source
-    }))
-  };
 }
 
 export function logPluginDiagnostics(registry: PluginRegistry): void {

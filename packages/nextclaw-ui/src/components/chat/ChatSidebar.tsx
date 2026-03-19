@@ -85,6 +85,16 @@ function resolveSessionTypeLabel(
     .join(' ');
 }
 
+function resolveSessionTypeStatusText(option: {
+  ready?: boolean;
+  reasonMessage?: string | null;
+}): string {
+  if (option.ready === false) {
+    return option.reasonMessage?.trim() || t('statusSetup');
+  }
+  return t('statusReady');
+}
+
 const navItems = [
   { target: '/cron', label: () => t('chatSidebarScheduledTasks'), icon: AlarmClock },
   { target: '/skills', label: () => t('chatSidebarSkills'), icon: BrainCircuit },
@@ -168,8 +178,22 @@ export function ChatSidebar() {
                       }}
                       className="w-full rounded-xl px-3 py-2 text-left transition-colors hover:bg-gray-100"
                     >
-                      <div className="text-[13px] font-medium text-gray-900">{option.label}</div>
-                      <div className="mt-0.5 text-[11px] text-gray-500">{t('chatSidebarNewTask')}</div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-[13px] font-medium text-gray-900">{option.label}</div>
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                            option.ready === false
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-emerald-100 text-emerald-700'
+                          )}
+                        >
+                          {option.ready === false ? t('statusSetup') : t('statusReady')}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-gray-500">
+                        {resolveSessionTypeStatusText(option)}
+                      </div>
                     </button>
                   ))}
                 </div>

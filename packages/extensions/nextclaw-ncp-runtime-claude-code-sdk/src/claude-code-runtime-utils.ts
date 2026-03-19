@@ -47,6 +47,9 @@ export function buildQueryEnv(
   if (config.apiKey.trim()) {
     env.ANTHROPIC_API_KEY = config.apiKey;
   }
+  if (config.authToken?.trim()) {
+    env.ANTHROPIC_AUTH_TOKEN = config.authToken.trim();
+  }
   if (config.apiBase?.trim()) {
     env.ANTHROPIC_BASE_URL = config.apiBase.trim();
     env.ANTHROPIC_API_URL = config.apiBase.trim();
@@ -124,6 +127,15 @@ export function extractAssistantDelta(message: ClaudeCodeMessage): string {
 
 export function extractFailureMessage(message: ClaudeCodeMessage): string | null {
   if (message.type === "result") {
+    if (message.is_error === true) {
+      if (typeof message.result === "string" && message.result.trim()) {
+        return message.result.trim();
+      }
+      const errors = Array.isArray(message.errors)
+        ? message.errors.map((entry) => String(entry)).filter(Boolean)
+        : [];
+      return errors.join("; ") || "claude execution failed";
+    }
     if (message.subtype === "success") {
       return null;
     }

@@ -7,12 +7,26 @@ export const DEFAULT_UI_NCP_RUNTIME_KIND = "native";
 export type UiNcpSessionTypeOption = {
   value: string;
   label: string;
+  ready?: boolean;
+  reason?: string | null;
+  reasonMessage?: string | null;
+  supportedModels?: string[];
+  recommendedModel?: string | null;
+  cta?: {
+    kind: string;
+    label?: string;
+    href?: string;
+  } | null;
 };
 
 export type UiNcpRuntimeRegistration = {
   kind: string;
   label: string;
   createRuntime: (params: RuntimeFactoryParams) => NcpAgentRuntime;
+  describeSessionType?: () => Promise<Omit<UiNcpSessionTypeOption, "value" | "label"> | null | undefined>
+    | Omit<UiNcpSessionTypeOption, "value" | "label">
+    | null
+    | undefined;
 };
 
 type RuntimeRegistrationEntry = UiNcpRuntimeRegistration & {
@@ -80,15 +94,29 @@ export class UiNcpRuntimeRegistry {
     });
   }
 
-  listSessionTypes(): {
+  async listSessionTypes(): Promise<{
     defaultType: string;
     options: UiNcpSessionTypeOption[];
-  } {
-    const options = [...this.registrations.values()]
-      .map((registration) => ({
-        value: registration.kind,
-        label: registration.label,
-      }))
+  }> {
+    const options = await Promise.all(
+      [...this.registrations.values()].map(async (registration) => {
+        const descriptor = await registration.describeSessionType?.();
+        return {
+          value: registration.kind,
+          label: registration.label,
+          ready: descriptor?.ready ?? true,
+          reason: descriptor?.reason ?? null,
+          reasonMessage: descriptor?.reasonMessage ?? null,
+          recommendedModel: descriptor?.recommendedModel ?? null,
+          cta: descriptor?.cta ?? null,
+          ...(descriptor?.supportedModels ? { supportedModels: descriptor.supportedModels } : {}),
+        };
+      }),
+    );
+
+    return {
+      defaultType: this.defaultKind,
+      options: options
       .sort((left, right) => {
         if (left.value === this.defaultKind) {
           return -1;
@@ -97,11 +125,7 @@ export class UiNcpRuntimeRegistry {
           return 1;
         }
         return left.value.localeCompare(right.value);
-      });
-
-    return {
-      defaultType: this.defaultKind,
-      options,
+      }),
     };
   }
 }

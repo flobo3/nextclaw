@@ -1,6 +1,4 @@
-import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, join } from "node:path";
 import {
   type NcpAgentRunInput,
   type NcpAgentRunOptions,
@@ -25,29 +23,21 @@ import {
   readUserText,
   toAbortError,
 } from "./claude-code-runtime-utils.js";
+import {
+  resolveBundledClaudeAgentSdkCliPath,
+  resolveCurrentProcessExecutable,
+} from "./claude-code-process-resolution.js";
 
 const require = createRequire(import.meta.url);
 const claudeCodeLoader = require("../claude-code-loader.cjs") as ClaudeCodeLoader;
 
-function resolveBundledClaudeAgentSdkCliPath(): string | undefined {
-  try {
-    const packageJsonPath = require.resolve("@anthropic-ai/claude-agent-sdk/package.json");
-    const cliPath = join(dirname(packageJsonPath), "cli.js");
-    return existsSync(cliPath) ? cliPath : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function resolveCurrentProcessExecutable(): string | undefined {
-  const execPath = process.execPath?.trim();
-  if (!execPath || !isAbsolute(execPath)) {
-    return undefined;
-  }
-  return existsSync(execPath) ? execPath : undefined;
-}
-
 export type { ClaudeCodeSdkNcpAgentRuntimeConfig } from "./claude-code-sdk-types.js";
+export {
+  loadAndProbeClaudeCodeSdkCapability,
+  probeClaudeCodeSdkCapability,
+  type ClaudeCodeSdkCapabilityProbeConfig,
+  type ClaudeCodeSdkCapabilityProbeResult,
+} from "./claude-code-capability-probe.js";
 
 export class ClaudeCodeSdkNcpAgentRuntime implements NcpAgentRuntime {
   private sdkModulePromise: Promise<ClaudeCodeSdkModule> | null = null;

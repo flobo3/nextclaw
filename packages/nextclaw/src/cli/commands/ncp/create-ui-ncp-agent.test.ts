@@ -107,8 +107,8 @@ describe("createUiNcpAgent session types", () => {
     expect(sessionTypes?.defaultType).toBe("native");
     expect(sessionTypes?.options).toEqual(
       expect.arrayContaining([
-        { value: "native", label: "Native" },
-        { value: "codex", label: "Codex" },
+        expect.objectContaining({ value: "native", label: "Native", ready: true }),
+        expect.objectContaining({ value: "codex", label: "Codex", ready: true }),
       ]),
     );
   });
@@ -133,6 +133,7 @@ describe("createUiNcpAgent session types", () => {
             enabled: true,
             config: {
               apiKey: "test-claude-api-key",
+              capabilityProbe: false,
             },
           },
         },
@@ -152,8 +153,13 @@ describe("createUiNcpAgent session types", () => {
     expect(sessionTypes?.defaultType).toBe("native");
     expect(sessionTypes?.options).toEqual(
       expect.arrayContaining([
-        { value: "native", label: "Native" },
-        { value: "claude", label: "Claude" },
+        expect.objectContaining({ value: "native", label: "Native", ready: true }),
+        expect.objectContaining({
+          value: "claude",
+          label: "Claude",
+          ready: true,
+          recommendedModel: "anthropic/claude-sonnet-4-5",
+        }),
       ]),
     );
   });
@@ -191,7 +197,7 @@ describe("createUiNcpAgent session types", () => {
 
     expect(await ncpAgent.listSessionTypes?.()).toEqual({
       defaultType: "native",
-      options: [{ value: "native", label: "Native" }],
+      options: [{ value: "native", label: "Native", ready: true, reason: null, reasonMessage: null, recommendedModel: null, cta: null }],
     });
 
     const enabledConfig = ConfigSchema.parse({
@@ -216,8 +222,8 @@ describe("createUiNcpAgent session types", () => {
     expect(enabledSessionTypes?.defaultType).toBe("native");
     expect(enabledSessionTypes?.options).toEqual(
       expect.arrayContaining([
-        { value: "native", label: "Native" },
-        { value: "codex", label: "Codex" },
+        expect.objectContaining({ value: "native", label: "Native", ready: true }),
+        expect.objectContaining({ value: "codex", label: "Codex", ready: true }),
       ]),
     );
 
@@ -231,7 +237,7 @@ describe("createUiNcpAgent session types", () => {
 
     expect(await ncpAgent.listSessionTypes?.()).toEqual({
       defaultType: "native",
-      options: [{ value: "native", label: "Native" }],
+      options: [{ value: "native", label: "Native", ready: true, reason: null, reasonMessage: null, recommendedModel: null, cta: null }],
     });
   });
 });

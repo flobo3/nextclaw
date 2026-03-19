@@ -18,7 +18,20 @@ export type ChatInputSnapshot = {
   modelOptions: ChatModelOption[];
   selectedModel: string;
   selectedThinkingLevel: ThinkingLevel | null;
-  sessionTypeOptions: Array<{ value: string; label: string }>;
+  sessionTypeOptions: Array<{
+    value: string;
+    label: string;
+    ready?: boolean;
+    reason?: string | null;
+    reasonMessage?: string | null;
+    supportedModels?: string[];
+    recommendedModel?: string | null;
+    cta?: {
+      kind: string;
+      label?: string;
+      href?: string;
+    } | null;
+  }>;
   selectedSessionType?: string;
   stopSupported: boolean;
   stopReason?: string;

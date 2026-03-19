@@ -200,6 +200,14 @@ export type SessionConfigView = {
   };
 };
 
+import type { ChatSessionTypesView } from "./chat-session-type.types.js";
+
+export type {
+  ChatSessionTypeCtaView,
+  ChatSessionTypeOptionView,
+  ChatSessionTypesView,
+} from "./chat-session-type.types.js";
+
 export type SessionEntryView = {
   key: string;
   createdAt: string;
@@ -419,16 +427,6 @@ export type ChatTurnView = {
 export type ChatCapabilitiesView = {
   stopSupported: boolean;
   stopReason?: string;
-};
-
-export type ChatSessionTypeOptionView = {
-  value: string;
-  label: string;
-};
-
-export type ChatSessionTypesView = {
-  defaultType: string;
-  options: ChatSessionTypeOptionView[];
 };
 
 export type ChatCommandOptionView = {

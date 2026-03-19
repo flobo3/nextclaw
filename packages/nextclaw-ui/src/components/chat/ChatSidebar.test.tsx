@@ -68,8 +68,8 @@ describe('ChatSidebar', () => {
         ...useChatInputStore.getState().snapshot,
         defaultSessionType: 'native',
         sessionTypeOptions: [
-          { value: 'native', label: 'Native' },
-          { value: 'codex', label: 'Codex' }
+          { value: 'native', label: 'Native', ready: true },
+          { value: 'codex', label: 'Codex', ready: true }
         ]
       }
     });
@@ -103,6 +103,35 @@ describe('ChatSidebar', () => {
     await waitFor(() => {
       expect(screen.queryByText('Codex')).toBeNull();
     });
+  });
+
+  it('shows setup required status for runtime session types that are not ready yet', () => {
+    useChatInputStore.setState({
+      snapshot: {
+        ...useChatInputStore.getState().snapshot,
+        sessionTypeOptions: [
+          { value: 'native', label: 'Native', ready: true },
+          {
+            value: 'claude',
+            label: 'Claude',
+            ready: false,
+            reasonMessage: 'Configure a provider API key first.'
+          }
+        ]
+      }
+    });
+
+    render(
+      <MemoryRouter>
+        <ChatSidebar />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByLabelText('Session Type'));
+
+    expect(screen.getByText('Claude')).not.toBeNull();
+    expect(screen.getByText('Setup')).not.toBeNull();
+    expect(screen.getByText('Configure a provider API key first.')).not.toBeNull();
   });
 
   it('shows a session type badge for non-native sessions in the list', () => {

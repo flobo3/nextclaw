@@ -55,4 +55,33 @@ describe('useChatSessionTypeState', () => {
 
     expect(setPendingSessionType).toHaveBeenCalledWith('codex-sdk');
   });
+
+  it('marks the selected draft session type as unavailable when runtime setup is incomplete', () => {
+    const setPendingSessionType = vi.fn();
+
+    const { result } = renderHook(() =>
+      useChatSessionTypeState({
+        selectedSession: null,
+        selectedSessionKey: null,
+        pendingSessionType: 'claude',
+        setPendingSessionType,
+        sessionTypesData: {
+          defaultType: 'native',
+          options: [
+            { value: 'native', label: 'Native', ready: true },
+            {
+              value: 'claude',
+              label: 'Claude',
+              ready: false,
+              reasonMessage: 'Configure a provider API key first.'
+            }
+          ]
+        }
+      })
+    );
+
+    expect(result.current.selectedSessionTypeOption?.ready).toBe(false);
+    expect(result.current.sessionTypeUnavailable).toBe(true);
+    expect(result.current.sessionTypeUnavailableMessage).toBe('Configure a provider API key first.');
+  });
 });
