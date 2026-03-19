@@ -27,6 +27,7 @@ export function resolveSelectedModelValue(params: {
   fallbackPreferredModel?: string;
   defaultModel?: string;
   preferSessionPreferredModel?: boolean;
+  preserveCurrentSelectedModelOnSessionChange?: boolean;
 }): string {
   const {
     currentSelectedModel,
@@ -34,12 +35,16 @@ export function resolveSelectedModelValue(params: {
     selectedSessionPreferredModel,
     fallbackPreferredModel,
     defaultModel,
-    preferSessionPreferredModel = false
+    preferSessionPreferredModel = false,
+    preserveCurrentSelectedModelOnSessionChange = false
   } = params;
   if (modelOptions.length === 0) {
     return '';
   }
-  if (!preferSessionPreferredModel && hasModelOption(modelOptions, currentSelectedModel)) {
+  if (
+    hasModelOption(modelOptions, currentSelectedModel) &&
+    (!preferSessionPreferredModel || preserveCurrentSelectedModelOnSessionChange)
+  ) {
     return currentSelectedModel.trim();
   }
   if (hasModelOption(modelOptions, selectedSessionPreferredModel)) {
@@ -86,6 +91,7 @@ export function resolveRecentSessionPreferredModel(params: {
 export function useSyncSelectedModel(params: {
   modelOptions: ChatModelOption[];
   selectedSessionKey?: string | null;
+  selectedSessionExists?: boolean;
   selectedSessionPreferredModel?: string;
   fallbackPreferredModel?: string;
   defaultModel?: string;
@@ -94,6 +100,7 @@ export function useSyncSelectedModel(params: {
   const {
     modelOptions,
     selectedSessionKey,
+    selectedSessionExists = false,
     selectedSessionPreferredModel,
     fallbackPreferredModel,
     defaultModel,
@@ -115,11 +122,21 @@ export function useSyncSelectedModel(params: {
         selectedSessionPreferredModel,
         fallbackPreferredModel,
         defaultModel,
-        preferSessionPreferredModel: sessionChanged
+        preferSessionPreferredModel: sessionChanged,
+        preserveCurrentSelectedModelOnSessionChange:
+          sessionChanged && Boolean(selectedSessionKey) && !selectedSessionExists
       });
     });
     previousSessionKeyRef.current = selectedSessionKey;
-  }, [defaultModel, fallbackPreferredModel, modelOptions, selectedSessionKey, selectedSessionPreferredModel, setSelectedModel]);
+  }, [
+    defaultModel,
+    fallbackPreferredModel,
+    modelOptions,
+    selectedSessionExists,
+    selectedSessionKey,
+    selectedSessionPreferredModel,
+    setSelectedModel
+  ]);
 }
 
 export function useSessionRunStatus(params: {

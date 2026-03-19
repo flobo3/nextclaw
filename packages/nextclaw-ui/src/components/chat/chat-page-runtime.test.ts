@@ -82,6 +82,32 @@ describe('resolveSelectedModelValue', () => {
     ).toBe('openai/gpt-5');
   });
 
+  it('preserves the current valid model when a draft session materializes before the new session metadata exists', () => {
+    expect(
+      resolveSelectedModelValue({
+        currentSelectedModel: 'openai/gpt-5',
+        modelOptions,
+        fallbackPreferredModel: 'anthropic/claude-sonnet-4',
+        defaultModel: 'anthropic/claude-sonnet-4',
+        preferSessionPreferredModel: true,
+        preserveCurrentSelectedModelOnSessionChange: true
+      })
+    ).toBe('openai/gpt-5');
+  });
+
+  it('still falls back when the current model is no longer valid during draft session materialization', () => {
+    expect(
+      resolveSelectedModelValue({
+        currentSelectedModel: 'missing/model',
+        modelOptions,
+        fallbackPreferredModel: 'openai/gpt-5',
+        defaultModel: 'anthropic/claude-sonnet-4',
+        preferSessionPreferredModel: true,
+        preserveCurrentSelectedModelOnSessionChange: true
+      })
+    ).toBe('openai/gpt-5');
+  });
+
   it('uses the recent same-runtime model when the current session has no valid preferred model', () => {
     expect(
       resolveSelectedModelValue({

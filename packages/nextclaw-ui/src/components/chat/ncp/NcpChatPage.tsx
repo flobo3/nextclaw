@@ -71,7 +71,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
   const { sessionId: routeSessionIdParam } = useParams<{ sessionId?: string }>();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
-  const modelHydratedSessionKeyRef = useRef<string | null>(null);
   const thinkingHydratedSessionKeyRef = useRef<string | null>(null);
   const routeSessionKey = useMemo(
     () => parseSessionKeyFromRoute(routeSessionIdParam),
@@ -86,7 +85,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
     sessions,
     skillRecords,
     selectedSession,
-    hydratedSessionModel,
     selectedSessionThinkingLevel,
     sessionTypeOptions,
     defaultSessionType,
@@ -278,13 +276,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
   }, [presenter, sessionsQuery.refetch]);
 
   useEffect(() => {
-    const shouldHydrateModelFromSession =
-      !isSending &&
-      !isAwaitingAssistantOutput &&
-      !sessionsQuery.isLoading &&
-      isProviderStateResolved &&
-      modelOptions.length > 0 &&
-      selectedSessionKey !== modelHydratedSessionKeyRef.current;
     const shouldHydrateThinkingFromSession =
       !isSending &&
       !isAwaitingAssistantOutput &&
@@ -303,7 +294,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
       sendError: lastSendError,
       isSending,
       modelOptions,
-      ...(shouldHydrateModelFromSession ? { selectedModel: hydratedSessionModel } : {}),
       sessionTypeOptions,
       selectedSessionType,
       ...(shouldHydrateThinkingFromSession ? { selectedThinkingLevel: selectedSessionThinkingLevel } : {}),
@@ -312,14 +302,10 @@ export function NcpChatPage({ view }: ChatPageProps) {
       skillRecords,
       isSkillsLoading: installedSkillsQuery.isLoading
     });
-    if (shouldHydrateModelFromSession) {
-      modelHydratedSessionKeyRef.current = selectedSessionKey;
-    }
     if (shouldHydrateThinkingFromSession) {
       thinkingHydratedSessionKeyRef.current = selectedSessionKey;
     }
     if (!selectedSessionKey) {
-      modelHydratedSessionKeyRef.current = null;
       thinkingHydratedSessionKeyRef.current = null;
     }
     presenter.chatSessionListManager.syncSnapshot({
@@ -357,7 +343,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
     defaultSessionType,
     installedSkillsQuery.isLoading,
     isAwaitingAssistantOutput,
-    hydratedSessionModel,
     isProviderStateResolved,
     isSending,
     lastSendError,

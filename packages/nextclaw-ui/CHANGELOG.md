@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.9.2
+
+### Patch Changes
+
+- Fix Codex chat model selection being overwritten by stale session hydration after the first send.
+
 ## 0.9.1
 
 ### Patch Changes
