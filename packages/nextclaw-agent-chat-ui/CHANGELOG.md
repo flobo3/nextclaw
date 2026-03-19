@@ -1,5 +1,11 @@
 # @nextclaw/agent-chat-ui
 
+## 0.2.1
+
+### Patch Changes
+
+- Release the tokenized chat composer, IME fixes, and inline skill chip UI improvements.
+
 ## 0.2.0
 
 ### Minor Changes

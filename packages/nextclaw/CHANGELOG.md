@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.12.4
+
+### Patch Changes
+
+- Release the tokenized chat composer, IME fixes, and inline skill chip UI improvements.
+
 ## 0.12.3
 
 ### Patch Changes
