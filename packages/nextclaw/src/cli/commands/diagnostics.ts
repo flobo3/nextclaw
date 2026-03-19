@@ -18,6 +18,8 @@ import {
   resolveUiApiBase,
   resolveUiConfig
 } from "../utils.js";
+import { printDoctorReport, printStatusReport, type DoctorCheck } from "./diagnostics-render.js";
+import { resolveRemoteStatusSnapshot } from "../remote/remote-status-store.js";
 import type {
   DoctorCommandOptions,
   HealthProbe,
@@ -39,71 +41,7 @@ export class DiagnosticsCommands {
       process.exitCode = 0;
       return;
     }
-
-    console.log(`${this.deps.logo} ${APP_NAME} Status`);
-    console.log(`Level: ${report.level}`);
-    console.log(`Generated: ${report.generatedAt}`);
-    console.log("");
-
-    const processLabel = report.process.running
-      ? `running (PID ${report.process.pid})`
-      : report.process.staleState
-        ? "stale-state"
-        : "stopped";
-
-    console.log(`Process: ${processLabel}`);
-    console.log(`State file: ${report.serviceStatePath} ${report.serviceStateExists ? "✓" : "✗"}`);
-    if (report.process.startedAt) {
-      console.log(`Started: ${report.process.startedAt}`);
-    }
-
-    console.log(`Managed health: ${report.health.managed.state} (${report.health.managed.detail})`);
-    if (!report.process.running) {
-      console.log(`Configured health: ${report.health.configured.state} (${report.health.configured.detail})`);
-    }
-
-    console.log(`UI: ${report.endpoints.uiUrl ?? report.endpoints.configuredUiUrl}`);
-    console.log(`API: ${report.endpoints.apiUrl ?? report.endpoints.configuredApiUrl}`);
-    console.log(`Config: ${report.configPath} ${report.configExists ? "✓" : "✗"}`);
-    console.log(`Workspace: ${report.workspacePath} ${report.workspaceExists ? "✓" : "✗"}`);
-    console.log(`Model: ${report.model}`);
-
-    for (const provider of report.providers) {
-      console.log(`${provider.name}: ${provider.configured ? "✓" : "not set"}${provider.detail ? ` (${provider.detail})` : ""}`);
-    }
-
-    if (report.fixActions.length > 0) {
-      console.log("");
-      console.log("Fix actions:");
-      for (const action of report.fixActions) {
-        console.log(`- ${action}`);
-      }
-    }
-
-    if (report.issues.length > 0) {
-      console.log("");
-      console.log("Issues:");
-      for (const issue of report.issues) {
-        console.log(`- ${issue}`);
-      }
-    }
-
-    if (report.recommendations.length > 0) {
-      console.log("");
-      console.log("Recommendations:");
-      for (const recommendation of report.recommendations) {
-        console.log(`- ${recommendation}`);
-      }
-    }
-
-    if (opts.verbose && report.logTail.length > 0) {
-      console.log("");
-      console.log("Recent logs:");
-      for (const line of report.logTail) {
-        console.log(line);
-      }
-    }
-
+    printStatusReport({ logo: this.deps.logo, report, verbose: Boolean(opts.verbose) });
     process.exitCode = 0;
   }
 
@@ -127,7 +65,7 @@ export class DiagnosticsCommands {
 
     const providerConfigured = report.providers.some((provider) => provider.configured);
 
-    const checks = [
+    const checks: DoctorCheck[] = [
       {
         name: "config-file",
         status: report.configExists ? "pass" : "fail",
@@ -193,31 +131,14 @@ export class DiagnosticsCommands {
       return;
     }
 
-    console.log(`${this.deps.logo} ${APP_NAME} Doctor`);
-    console.log(`Generated: ${report.generatedAt}`);
-    console.log("");
-
-    for (const check of checks) {
-      const icon = check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "✗";
-      console.log(`${icon} ${check.name}: ${check.detail}`);
-    }
-
-    if (report.recommendations.length > 0) {
-      console.log("");
-      console.log("Recommendations:");
-      for (const recommendation of report.recommendations) {
-        console.log(`- ${recommendation}`);
-      }
-    }
-
-    if (opts.verbose && report.logTail.length > 0) {
-      console.log("");
-      console.log("Recent logs:");
-      for (const line of report.logTail) {
-        console.log(line);
-      }
-    }
-
+    printDoctorReport({
+      logo: this.deps.logo,
+      generatedAt: report.generatedAt,
+      checks,
+      recommendations: report.recommendations,
+      verbose: Boolean(opts.verbose),
+      logTail: report.logTail
+    });
     process.exitCode = exitCode;
   }
 
@@ -252,70 +173,25 @@ export class DiagnosticsCommands {
       : { state: "unreachable", detail: "service not running" };
 
     const configuredHealth = await this.probeApiHealth(`${configuredApiUrl}/health`, 900);
-
+    const remote = resolveRemoteStatusSnapshot(config);
     const orphanSuspected = !running && configuredHealth.state === "ok";
-
-    const providers = listBuiltinProviders().map((spec) => {
-      const provider = (config.providers as Record<string, { apiKey?: string; apiBase?: string } | undefined>)[spec.name];
-      const apiKeyRefSet = hasSecretRef(config, `providers.${spec.name}.apiKey`);
-      if (!provider) {
-        return { name: spec.displayName ?? spec.name, configured: false, detail: "missing config" };
-      }
-      if (spec.isLocal) {
-        return {
-          name: spec.displayName ?? spec.name,
-          configured: Boolean(provider.apiBase),
-          detail: provider.apiBase ? provider.apiBase : "apiBase not set"
-        };
-      }
-      return {
-        name: spec.displayName ?? spec.name,
-        configured: Boolean(provider.apiKey) || apiKeyRefSet,
-        detail: provider.apiKey ? "apiKey set" : apiKeyRefSet ? "apiKey ref set" : "apiKey not set"
-      };
-    });
+    const providers = this.listProviderStatuses(config);
 
     const issues: string[] = [];
     const recommendations: string[] = [];
 
-    if (!existsSync(configPath)) {
-      issues.push("Config file is missing.");
-      recommendations.push(`Run ${APP_NAME} init to create config files.`);
-    }
-
-    if (!existsSync(workspacePath)) {
-      issues.push("Workspace directory does not exist.");
-      recommendations.push(`Run ${APP_NAME} init to create workspace templates.`);
-    }
-
-    if (staleState) {
-      issues.push("Service state is stale (state exists but process is not running).");
-      recommendations.push(`Run ${APP_NAME} status --fix to clean stale state.`);
-    }
-
-    if (running && managedHealth.state !== "ok") {
-      issues.push(`Managed service health check failed: ${managedHealth.detail}`);
-      recommendations.push(`Check logs at ${serviceState?.logPath ?? resolveServiceLogPath()}.`);
-    }
-
-    if (running && serviceState?.startupState === "degraded" && managedHealth.state !== "ok") {
-      const startupHint = serviceState.startupLastProbeError ? ` (${serviceState.startupLastProbeError})` : "";
-      issues.push(`Service is in degraded startup state${startupHint}.`);
-      recommendations.push(`Wait and re-check ${APP_NAME} status; if it does not recover, inspect logs and restart.`);
-    }
-
-    if (!running) {
-      recommendations.push(`Run ${APP_NAME} start to launch the service.`);
-    }
-
-    if (orphanSuspected) {
-      issues.push("A service appears healthy on configured API endpoint, but state is missing/stale.");
-      recommendations.push("Another process may be occupying the UI port; stop it or use --ui-port with a free port.");
-    }
-
-    if (!providers.some((provider) => provider.configured)) {
-      recommendations.push("Configure at least one provider API key in UI or config before expecting agent replies.");
-    }
+    this.collectRuntimeIssues({
+      configPath,
+      workspacePath,
+      staleState,
+      running,
+      managedHealth,
+      serviceState,
+      orphanSuspected,
+      providers,
+      issues,
+      recommendations
+    });
 
     const logTail = params.verbose
       ? this.readLogTail((serviceState?.logPath ?? resolveServiceLogPath()), 25)
@@ -363,6 +239,7 @@ export class DiagnosticsCommands {
       issues,
       recommendations,
       logTail,
+      remote,
       level,
       exitCode
     };
@@ -388,6 +265,73 @@ export class DiagnosticsCommands {
       return { state: "unreachable", detail: String(error) };
     } finally {
       clearTimeout(timer);
+    }
+  }
+
+  private listProviderStatuses(config: ReturnType<typeof loadConfig>): RuntimeStatusReport["providers"] {
+    return listBuiltinProviders().map((spec) => {
+      const provider = (config.providers as Record<string, { apiKey?: string; apiBase?: string } | undefined>)[spec.name];
+      const apiKeyRefSet = hasSecretRef(config, `providers.${spec.name}.apiKey`);
+      if (!provider) {
+        return { name: spec.displayName ?? spec.name, configured: false, detail: "missing config" };
+      }
+      if (spec.isLocal) {
+        return {
+          name: spec.displayName ?? spec.name,
+          configured: Boolean(provider.apiBase),
+          detail: provider.apiBase ? provider.apiBase : "apiBase not set"
+        };
+      }
+      return {
+        name: spec.displayName ?? spec.name,
+        configured: Boolean(provider.apiKey) || apiKeyRefSet,
+        detail: provider.apiKey ? "apiKey set" : apiKeyRefSet ? "apiKey ref set" : "apiKey not set"
+      };
+    });
+  }
+
+  private collectRuntimeIssues(params: {
+    configPath: string;
+    workspacePath: string;
+    staleState: boolean;
+    running: boolean;
+    managedHealth: HealthProbe;
+    serviceState: ReturnType<typeof readServiceState>;
+    orphanSuspected: boolean;
+    providers: RuntimeStatusReport["providers"];
+    issues: string[];
+    recommendations: string[];
+  }): void {
+    if (!existsSync(params.configPath)) {
+      params.issues.push("Config file is missing.");
+      params.recommendations.push(`Run ${APP_NAME} init to create config files.`);
+    }
+    if (!existsSync(params.workspacePath)) {
+      params.issues.push("Workspace directory does not exist.");
+      params.recommendations.push(`Run ${APP_NAME} init to create workspace templates.`);
+    }
+    if (params.staleState) {
+      params.issues.push("Service state is stale (state exists but process is not running).");
+      params.recommendations.push(`Run ${APP_NAME} status --fix to clean stale state.`);
+    }
+    if (params.running && params.managedHealth.state !== "ok") {
+      params.issues.push(`Managed service health check failed: ${params.managedHealth.detail}`);
+      params.recommendations.push(`Check logs at ${params.serviceState?.logPath ?? resolveServiceLogPath()}.`);
+    }
+    if (params.running && params.serviceState?.startupState === "degraded" && params.managedHealth.state !== "ok") {
+      const startupHint = params.serviceState.startupLastProbeError ? ` (${params.serviceState.startupLastProbeError})` : "";
+      params.issues.push(`Service is in degraded startup state${startupHint}.`);
+      params.recommendations.push(`Wait and re-check ${APP_NAME} status; if it does not recover, inspect logs and restart.`);
+    }
+    if (!params.running) {
+      params.recommendations.push(`Run ${APP_NAME} start to launch the service.`);
+    }
+    if (params.orphanSuspected) {
+      params.issues.push("A service appears healthy on configured API endpoint, but state is missing/stale.");
+      params.recommendations.push("Another process may be occupying the UI port; stop it or use --ui-port with a free port.");
+    }
+    if (!params.providers.some((provider) => provider.configured)) {
+      params.recommendations.push("Configure at least one provider API key in UI or config before expecting agent replies.");
     }
   }
 

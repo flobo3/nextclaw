@@ -24,7 +24,8 @@ const GROUP_LABELS: Record<string, string> = {
   secrets: "Secrets",
   plugins: "Plugins",
   gateway: "Gateway",
-  ui: "UI"
+  ui: "UI",
+  remote: "Remote Access"
 };
 
 const GROUP_ORDER: Record<string, number> = {
@@ -36,7 +37,8 @@ const GROUP_ORDER: Record<string, number> = {
   secrets: 53,
   plugins: 55,
   gateway: 60,
-  ui: 70
+  ui: 70,
+  remote: 75
 };
 
 const FIELD_PLACEHOLDERS: Record<string, string> = {
@@ -44,6 +46,8 @@ const FIELD_PLACEHOLDERS: Record<string, string> = {
   "gateway.port": "18790",
   "ui.host": "0.0.0.0",
   "ui.port": "18791",
+  "remote.platformApiBase": "https://ai-gateway-api.nextclaw.io/v1",
+  "remote.deviceName": "My NextClaw Workstation",
   "providers.*.displayName": "Custom Relay A",
   "providers.*.apiBase": "https://api.example.com",
   "providers.*.models": "gpt-5.1",

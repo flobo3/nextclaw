@@ -1,4 +1,5 @@
 import type { RestartStrategy } from "./restart-coordinator.js";
+import type { RemoteRuntimeState } from "./utils.js";
 
 export type GatewayCommandOptions = {
   ui?: boolean;
@@ -40,6 +41,19 @@ export type RemoteConnectCommandOptions = {
   localOrigin?: string;
   name?: string;
   once?: boolean;
+};
+
+export type RemoteEnableCommandOptions = {
+  apiBase?: string;
+  name?: string;
+};
+
+export type RemoteStatusCommandOptions = {
+  json?: boolean;
+};
+
+export type RemoteDoctorCommandOptions = {
+  json?: boolean;
 };
 
 export type PluginsListOptions = {
@@ -198,6 +212,10 @@ export type RuntimeStatusReport = {
   issues: string[];
   recommendations: string[];
   logTail: string[];
+  remote: {
+    configuredEnabled: boolean;
+    runtime: RemoteRuntimeState | null;
+  };
   level: "healthy" | "degraded" | "stopped";
   exitCode: 0 | 1 | 2;
 };

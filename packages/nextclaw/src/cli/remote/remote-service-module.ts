@@ -1,0 +1,83 @@
+import type { Config } from "@nextclaw/core";
+import { RemoteConnector } from "./remote-connector.js";
+import { RemoteStatusStore } from "./remote-status-store.js";
+
+type RemoteServiceLogger = {
+  info: (message: string) => void;
+  warn: (message: string) => void;
+  error: (message: string) => void;
+};
+
+export class RemoteServiceModule {
+  private abortController: AbortController | null = null;
+  private runTask: Promise<void> | null = null;
+  private readonly statusStore = new RemoteStatusStore("service");
+
+  constructor(
+    private readonly deps: {
+      config: Config;
+      localOrigin: string;
+      logger?: RemoteServiceLogger;
+    }
+  ) {}
+
+  start(): Promise<void> | null {
+    if (!this.deps.config.remote.enabled) {
+      this.statusStore.write({
+        enabled: false,
+        state: "disabled",
+        deviceName: undefined,
+        deviceId: undefined,
+        platformBase: undefined,
+        localOrigin: this.deps.localOrigin,
+        lastError: null,
+        lastConnectedAt: null
+      });
+      return null;
+    }
+
+    const logger = this.deps.logger ?? {
+      info: (message: string) => console.log(`[remote] ${message}`),
+      warn: (message: string) => console.warn(`[remote] ${message}`),
+      error: (message: string) => console.error(`[remote] ${message}`)
+    };
+
+    this.abortController = new AbortController();
+    const connector = new RemoteConnector(logger);
+    this.runTask = connector.run({
+      mode: "service",
+      signal: this.abortController.signal,
+      autoReconnect: this.deps.config.remote.autoReconnect,
+      localOrigin: this.deps.localOrigin,
+      statusStore: this.statusStore
+    });
+
+    void this.runTask.catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      this.statusStore.write({
+        enabled: true,
+        state: "error",
+        deviceName: this.deps.config.remote.deviceName || undefined,
+        deviceId: undefined,
+        platformBase: this.deps.config.remote.platformApiBase || undefined,
+        localOrigin: this.deps.localOrigin,
+        lastError: message
+      });
+      logger.error(message);
+    });
+
+    return this.runTask;
+  }
+
+  async stop(): Promise<void> {
+    this.abortController?.abort();
+    try {
+      await this.runTask;
+    } catch {
+      // Ignore connector shutdown errors after abort.
+    } finally {
+      this.abortController = null;
+      this.runTask = null;
+    }
+  }
+}

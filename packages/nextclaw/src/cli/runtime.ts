@@ -50,6 +50,7 @@ import { PlatformAuthCommands } from "./commands/platform-auth.js";
 import { RemoteCommands } from "./commands/remote.js";
 import { DiagnosticsCommands } from "./commands/diagnostics.js";
 import { ServiceCommands } from "./commands/service.js";
+import { RemoteRuntimeActions } from "./remote/remote-runtime-actions.js";
 import { WorkspaceManager } from "./workspace.js";
 import type {
   AgentCommandOptions,
@@ -63,7 +64,6 @@ import type {
   McpAddCommandOptions,
   McpDoctorOptions,
   McpListOptions,
-  RemoteConnectCommandOptions,
   PluginsInfoOptions,
   PluginsInstallOptions,
   PluginsListOptions,
@@ -99,7 +99,6 @@ export class CliRuntime {
   private restartCoordinator: RestartCoordinator;
   private serviceRestartTask: Promise<boolean> | null = null;
   private selfRelaunchArmed = false;
-
   private workspaceManager: WorkspaceManager;
   private serviceCommands: ServiceCommands;
   private configCommands: ConfigCommands;
@@ -110,8 +109,8 @@ export class CliRuntime {
   private cronCommands: CronCommands;
   private platformAuthCommands: PlatformAuthCommands;
   private remoteCommands: RemoteCommands;
+  readonly remote: RemoteRuntimeActions;
   private diagnosticsCommands: DiagnosticsCommands;
-
   constructor(options: { logo?: string } = {}) {
     this.logo = options.logo ?? LOGO;
     this.workspaceManager = new WorkspaceManager(this.logo);
@@ -135,6 +134,11 @@ export class CliRuntime {
     this.cronCommands = new CronCommands();
     this.platformAuthCommands = new PlatformAuthCommands();
     this.remoteCommands = new RemoteCommands();
+    this.remote = new RemoteRuntimeActions({
+      initAuto: (source) => this.init({ source, auto: true }),
+      remoteCommands: this.remoteCommands,
+      restartBackgroundService: (reason) => this.restartBackgroundService(reason),
+    });
     this.diagnosticsCommands = new DiagnosticsCommands({ logo: this.logo });
 
     this.restartCoordinator = new RestartCoordinator({
@@ -431,10 +435,6 @@ export class CliRuntime {
   async login(opts: LoginCommandOptions = {}): Promise<void> {
     await this.init({ source: "login", auto: true });
     await this.platformAuthCommands.login(opts);
-  }
-
-  async remoteConnect(opts: RemoteConnectCommandOptions = {}): Promise<void> {
-    await this.remoteCommands.connect(opts);
   }
 
   async gateway(opts: GatewayCommandOptions): Promise<void> {

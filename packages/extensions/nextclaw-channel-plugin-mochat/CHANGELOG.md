@@ -1,5 +1,11 @@
 # @nextclaw/channel-plugin-mochat
 
+## 0.2.5
+
+### Patch Changes
+
+- @nextclaw/channel-runtime@0.2.5
+
 ## 0.2.4
 
 ### Patch Changes

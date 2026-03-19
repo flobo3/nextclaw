@@ -483,7 +483,11 @@ Created under the workspace:
 | `nextclaw init` | Initialize workspace and template files |
 | `nextclaw init --force` | Re-run init and overwrite templates |
 | `nextclaw login --api-base <url>` | Login to NextClaw Platform and save the platform token locally |
-| `nextclaw remote connect` | Register this machine for remote access and keep the connector online |
+| `nextclaw remote enable` | Enable service-managed remote access |
+| `nextclaw remote disable` | Disable service-managed remote access |
+| `nextclaw remote status` | Show remote runtime/config status |
+| `nextclaw remote doctor` | Diagnose remote readiness |
+| `nextclaw remote connect` | Foreground debug mode: register this machine and keep the connector online |
 | `nextclaw update` | Self-update the CLI |
 | `nextclaw plugins list` | List discovered OpenClaw-compatible plugins |
 | `nextclaw plugins info <id>` | Show plugin details |
@@ -518,10 +522,16 @@ If service is already running, new UI port flags do not hot-apply; use `nextclaw
 
 Remote access quick start:
 
-1. Start your local NextClaw UI: `nextclaw start` or `nextclaw serve`.
-2. Login once on that device: `nextclaw login --api-base https://ai-gateway-api.nextclaw.io/v1`.
-3. Keep the remote connector online: `nextclaw remote connect`.
-4. Open the same account in NextClaw Platform, find the device under "我的设备", then click `Open`.
+1. Login once on that device: `nextclaw login --api-base https://ai-gateway-api.nextclaw.io/v1`.
+2. Enable service-managed remote access: `nextclaw remote enable`.
+3. Start your local NextClaw service: `nextclaw start`.
+4. Check status if needed: `nextclaw remote status`.
+5. Open the same account in NextClaw Platform, find the device under "我的设备", then click `Open`.
+
+Notes:
+
+- `nextclaw remote connect` is now the foreground debug path. It is useful for troubleshooting, but it is no longer the recommended daily workflow.
+- `nextclaw status` now includes remote state summary, and `nextclaw remote doctor` focuses on remote-specific checks.
 
 Status/diagnostics tips:
 

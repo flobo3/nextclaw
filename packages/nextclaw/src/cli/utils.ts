@@ -19,6 +19,20 @@ export type ServiceState = {
   startupLastProbeError?: string | null;
   startupTimeoutMs?: number;
   startupCheckedAt?: string;
+  remote?: RemoteRuntimeState;
+};
+
+export type RemoteRuntimeState = {
+  enabled: boolean;
+  mode: "service" | "foreground";
+  state: "disabled" | "connecting" | "connected" | "disconnected" | "error";
+  deviceId?: string;
+  deviceName?: string;
+  platformBase?: string;
+  localOrigin?: string;
+  lastConnectedAt?: string | null;
+  lastError?: string | null;
+  updatedAt: string;
 };
 
 export function resolveUiConfig(config: Config, overrides?: Partial<Config["ui"]>): Config["ui"] {
@@ -92,6 +106,16 @@ export function writeServiceState(state: ServiceState): void {
   const path = resolveServiceStatePath();
   mkdirSync(resolve(path, ".."), { recursive: true });
   writeFileSync(path, JSON.stringify(state, null, 2));
+}
+
+export function updateServiceState(updater: (state: ServiceState) => ServiceState): ServiceState | null {
+  const current = readServiceState();
+  if (!current) {
+    return null;
+  }
+  const next = updater(current);
+  writeServiceState(next);
+  return next;
 }
 
 export function clearServiceState(): void {

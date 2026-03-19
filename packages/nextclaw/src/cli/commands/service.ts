@@ -31,9 +31,7 @@ import {
   resolveUiConfig,
   resolveUiStaticDir,
   resolvePublicIp,
-  waitForExit,
-  writeServiceState,
-  type ServiceState
+  waitForExit
 } from "../utils.js";
 import {
   loadPluginRegistry,
@@ -45,11 +43,21 @@ import {
 } from "./plugins.js";
 import { ServiceMarketplaceInstaller } from "./service-marketplace-installer.js";
 import { reloadServicePlugins } from "./service-plugin-reload.js";
+import {
+  logPluginGatewayDiagnostics,
+  pluginGatewayLogger,
+  startGatewaySupportServices
+} from "./service-startup-support.js";
 import type { RequestRestartParams } from "../types.js";
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
 import { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
 import { resolveCliSubcommandEntry } from "./cli-subcommand-launch.js";
 import { createUiNcpAgent, type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
+import {
+  createManagedRemoteModule,
+  writeInitialManagedServiceState,
+  writeReadyManagedServiceState
+} from "./service-remote-runtime.js";
 import { UiChatRunCoordinator } from "./ui-chat-run-coordinator.js";
 
 export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-marketplace-helpers.js";
@@ -126,31 +134,13 @@ export class ServiceCommands {
     const sessionManager = new SessionManager(workspace);
 
     let pluginGatewayHandles: Awaited<ReturnType<typeof startPluginChannelGateways>>["handles"] = [];
-    const pluginGatewayLogger = {
-      info: (message: string) => console.log(`[plugins] ${message}`),
-      warn: (message: string) => console.warn(`[plugins] ${message}`),
-      error: (message: string) => console.error(`[plugins] ${message}`),
-      debug: (message: string) => console.debug(`[plugins] ${message}`)
-    };
-    const logPluginGatewayDiagnostics = (
-      diagnostics: Awaited<ReturnType<typeof startPluginChannelGateways>>["diagnostics"]
-    ): void => {
-      for (const diag of diagnostics) {
-        const prefix = diag.pluginId ? `${diag.pluginId}: ` : "";
-        const text = `${prefix}${diag.message}`;
-        if (diag.level === "error") {
-          console.error(`[plugins] ${text}`);
-        } else {
-          console.warn(`[plugins] ${text}`);
-        }
-      }
-    };
 
     const cronStorePath = join(getDataDir(), "cron", "jobs.json");
     const cron = new CronService(cronStorePath);
 
     const uiConfig = resolveUiConfig(config, options.uiOverrides);
     const uiStaticDir = options.uiStaticDir === undefined ? resolveUiStaticDir() : options.uiStaticDir;
+    const localOrigin = resolveUiApiBase(uiConfig.host, uiConfig.port);
     if (!provider) {
       console.warn("Warning: No API key configured. The gateway is running, but agent replies are disabled until provider config is set.");
     }
@@ -361,16 +351,14 @@ export class ServiceCommands {
         }),
     );
 
-    const cronStatus = cron.status();
-    if (cronStatus.jobs > 0) {
-      console.log(`✓ Cron: ${cronStatus.jobs} scheduled jobs`);
-    }
-    console.log("✓ Heartbeat: every 30m");
-
-    this.watchConfigFile(reloader);
-
-    await cron.start();
-    await heartbeat.start();
+    const remoteModule = createManagedRemoteModule({ config, localOrigin });
+    await startGatewaySupportServices({
+      cronJobs: cron.status().jobs,
+      remoteModule,
+      watchConfigFile: () => this.watchConfigFile(reloader),
+      startCron: () => cron.start(),
+      startHeartbeat: () => heartbeat.start()
+    });
 
     try {
       const startedPluginGateways = await startPluginChannelGateways({
@@ -386,6 +374,7 @@ export class ServiceCommands {
     } finally {
       this.applyLiveConfigReload = null;
       this.liveUiNcpAgent = null;
+      await remoteModule?.stop();
       await stopPluginChannelGateways(pluginGatewayHandles);
       setPluginRuntimeBridge(null);
     }
@@ -666,9 +655,7 @@ export class ServiceCommands {
     );
     console.log(`Starting ${APP_NAME} background service (readiness timeout ${Math.ceil(readinessTimeoutMs / 1000)}s)...`);
 
-    const serveArgs = buildServeArgs({
-      uiPort: uiConfig.port
-    });
+    const serveArgs = buildServeArgs({ uiPort: uiConfig.port });
     this.appendStartupStage(logPath, `spawning background process: ${process.execPath} ${[...process.execArgv, ...serveArgs].join(" ")}`);
     const child = spawn(process.execPath, [...process.execArgv, ...serveArgs], {
       env: process.env,
@@ -689,6 +676,12 @@ export class ServiceCommands {
       });
       return;
     }
+
+    writeInitialManagedServiceState({
+      config,
+      readinessTimeoutMs,
+      snapshot: { pid: child.pid, uiUrl, apiUrl, uiHost: uiConfig.host, uiPort: uiConfig.port, logPath }
+    });
 
     this.appendStartupStage(logPath, `health probe started: ${healthUrl} (phase=quick, timeoutMs=${quickPhaseTimeoutMs})`);
     let readiness = await this.waitForBackgroundServiceReady({
@@ -735,20 +728,11 @@ export class ServiceCommands {
 
     child.unref();
 
-    const state: ServiceState = {
-      pid: child.pid,
-      startedAt: new Date().toISOString(),
-      uiUrl,
-      apiUrl,
-      uiHost: uiConfig.host,
-      uiPort: uiConfig.port,
-      logPath,
-      startupState: readiness.ready ? "ready" : "degraded",
-      startupLastProbeError: readiness.lastProbeError,
-      startupTimeoutMs: readinessTimeoutMs,
-      startupCheckedAt: new Date().toISOString()
-    };
-    writeServiceState(state);
+    const state = writeReadyManagedServiceState({
+      readinessTimeoutMs,
+      readiness,
+      snapshot: { pid: child.pid, uiUrl, apiUrl, uiHost: uiConfig.host, uiPort: uiConfig.port, logPath }
+    });
 
     if (!readiness.ready) {
       const hint = readiness.lastProbeError ? ` Last probe error: ${readiness.lastProbeError}` : "";

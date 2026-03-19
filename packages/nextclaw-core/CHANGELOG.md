@@ -1,5 +1,15 @@
 # nextclaw-core
 
+## 0.9.5
+
+### Patch Changes
+
+- Add service-managed remote access configuration and CLI commands for NextClaw.
+  - add `remote.enabled`, `remote.deviceName`, `remote.platformApiBase`, and `remote.autoReconnect` to the shared config schema
+  - add `nextclaw remote enable|disable|status|doctor` and keep `remote connect` as foreground debug mode
+  - run the remote connector inside the managed service lifecycle and surface remote state in `nextclaw status`
+  - redact websocket relay tokens from service logs
+
 ## 0.9.4
 
 ### Patch Changes

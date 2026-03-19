@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { APP_NAME, APP_TAGLINE } from "@nextclaw/core";
 import { CliRuntime, LOGO } from "./runtime.js";
+import { registerRemoteCommands } from "./remote/register-remote-commands.js";
 import { getPackageVersion } from "./utils.js";
 
 const program = new Command();
@@ -32,16 +33,7 @@ program
   .option("--register", "Register first, then login", false)
   .action(async (opts) => runtime.login(opts));
 
-const remote = program.command("remote").description("Manage remote access");
-
-remote
-  .command("connect")
-  .description("Register this machine as a remote device and keep the connector online")
-  .option("--api-base <url>", "Platform API base (supports /v1 suffix)")
-  .option("--local-origin <url>", "Local NextClaw UI origin (default: active service or http://127.0.0.1:18791)")
-  .option("--name <name>", "Device display name")
-  .option("--once", "Connect once without auto-reconnect", false)
-  .action(async (opts) => runtime.remoteConnect(opts));
+registerRemoteCommands(program, runtime.remote);
 
 program
   .command("gateway")

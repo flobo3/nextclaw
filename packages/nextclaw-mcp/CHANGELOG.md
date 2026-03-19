@@ -1,5 +1,17 @@
 # @nextclaw/mcp
 
+## 0.1.4
+
+### Patch Changes
+
+- Fix Codex chat startup and plugin resolution when running NextClaw from source in dev mode.
+  - prefer repo-local first-party plugins from `packages/extensions` when `NEXTCLAW_DEV_FIRST_PARTY_PLUGIN_DIR` is unset
+  - avoid loading stale installed Codex runtime plugins from `~/.nextclaw/extensions` during source-mode smoke tests
+  - keep the release group for `@nextclaw/mcp`, `@nextclaw/server`, and `nextclaw` in sync while shipping the Codex chat fix
+
+- Updated dependencies
+  - @nextclaw/core@0.9.5
+
 ## 0.1.3
 
 ### Patch Changes

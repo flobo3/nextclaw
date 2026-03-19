@@ -1,5 +1,28 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.8
+
+### Patch Changes
+
+- Fix Codex chat startup and plugin resolution when running NextClaw from source in dev mode.
+  - prefer repo-local first-party plugins from `packages/extensions` when `NEXTCLAW_DEV_FIRST_PARTY_PLUGIN_DIR` is unset
+  - avoid loading stale installed Codex runtime plugins from `~/.nextclaw/extensions` during source-mode smoke tests
+  - keep the release group for `@nextclaw/mcp`, `@nextclaw/server`, and `nextclaw` in sync while shipping the Codex chat fix
+
+- Updated dependencies
+  - @nextclaw/core@0.9.5
+  - @nextclaw/channel-runtime@0.2.5
+  - @nextclaw/channel-plugin-dingtalk@0.2.5
+  - @nextclaw/channel-plugin-discord@0.2.5
+  - @nextclaw/channel-plugin-email@0.2.5
+  - @nextclaw/channel-plugin-feishu@0.2.5
+  - @nextclaw/channel-plugin-mochat@0.2.5
+  - @nextclaw/channel-plugin-qq@0.2.5
+  - @nextclaw/channel-plugin-slack@0.2.5
+  - @nextclaw/channel-plugin-telegram@0.2.5
+  - @nextclaw/channel-plugin-wecom@0.2.5
+  - @nextclaw/channel-plugin-whatsapp@0.2.5
+
 ## 0.3.7
 
 ### Patch Changes

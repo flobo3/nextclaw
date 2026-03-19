@@ -365,6 +365,13 @@ export const UiConfigSchema = z.object({
   ncp: UiNcpConfigSchema.default({})
 });
 
+export const RemoteConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  deviceName: z.string().default(""),
+  platformApiBase: z.string().default(""),
+  autoReconnect: z.boolean().default(true)
+});
+
 const mcpNamedStringSchema = z.string().trim().min(1);
 
 export const McpServerScopeSchema = z.object({
@@ -547,6 +554,7 @@ export const ConfigSchema = z.object({
   session: SessionConfigSchema.default({}),
   gateway: GatewayConfigSchema.default({}),
   ui: UiConfigSchema.default({}),
+  remote: RemoteConfigSchema.default({}),
   tools: ToolsConfigSchema.default({}),
   secrets: SecretsConfigSchema.default({})
 });
