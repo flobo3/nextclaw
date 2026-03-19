@@ -1,7 +1,8 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatInputBarProps } from '../../view-models/chat-ui.types';
-import { ChatInputBarTextarea } from './chat-input-bar-textarea';
 import { ChatSlashMenu } from './chat-slash-menu';
 import { ChatInputBarToolbar } from './chat-input-bar-toolbar';
+import { ChatInputBarTokenizedComposer, type ChatInputBarTokenizedComposerHandle } from './chat-input-bar-tokenized-composer';
 
 function InputBarHint({ hint }: { hint: ChatInputBarProps['hint'] }) {
   if (!hint) {
@@ -43,25 +44,88 @@ function InputBarHint({ hint }: { hint: ChatInputBarProps['hint'] }) {
 }
 
 export function ChatInputBar(props: ChatInputBarProps) {
+  const composerRef = useRef<ChatInputBarTokenizedComposerHandle | null>(null);
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const [activeSlashIndex, setActiveSlashIndex] = useState(0);
+  const isSlashPanelOpen = slashQuery !== null;
+  const activeSlashItem = props.slashMenu.items[activeSlashIndex] ?? null;
+
+  useEffect(() => {
+    setActiveSlashIndex((current) => {
+      if (props.slashMenu.items.length === 0) {
+        return 0;
+      }
+      return Math.min(current, props.slashMenu.items.length - 1);
+    });
+  }, [props.slashMenu.items.length]);
+
+  useEffect(() => {
+    if (slashQuery !== null) {
+      setActiveSlashIndex(0);
+    }
+  }, [slashQuery]);
+
+  const toolbar = useMemo(() => {
+    if (!props.toolbar.skillPicker) {
+      return props.toolbar;
+    }
+    return {
+      ...props.toolbar,
+      skillPicker: {
+        ...props.toolbar.skillPicker,
+        onSelectedKeysChange: (nextKeys: string[]) => {
+          composerRef.current?.syncSelectedSkills(nextKeys, props.toolbar.skillPicker?.options ?? []);
+        }
+      }
+    };
+  }, [props.toolbar]);
+
   return (
     <div className="border-t border-gray-200/80 bg-white p-4">
       <div className="mx-auto w-full max-w-[min(1120px,100%)]">
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-card">
           <div className="relative">
-            <ChatInputBarTextarea
-              value={props.value}
-              placeholder={props.placeholder}
-              disabled={props.disabled}
-              selectedItems={props.selectedItems.items}
-              onRemoveSelectedItem={props.selectedItems.onRemove}
-              onValueChange={props.onValueChange}
-              onKeyDown={props.onKeyDown}
+            <ChatInputBarTokenizedComposer
+              ref={composerRef}
+              nodes={props.composer.nodes}
+              placeholder={props.composer.placeholder}
+              disabled={props.composer.disabled}
+              slashItems={props.slashMenu.items}
+              actions={props.toolbar.actions}
+              activeSlashIndex={activeSlashIndex}
+              onNodesChange={props.composer.onNodesChange}
+              onSlashQueryChange={(query) => {
+                setSlashQuery(query);
+                props.composer.onSlashQueryChange?.(query);
+              }}
+              onSlashOpenChange={(open) => {
+                if (!open) {
+                  setSlashQuery(null);
+                }
+              }}
+              onSlashActiveIndexChange={setActiveSlashIndex}
             />
-            <ChatSlashMenu {...props.slashMenu} />
+            <ChatSlashMenu
+              isOpen={isSlashPanelOpen}
+              isLoading={props.slashMenu.isLoading}
+              items={props.slashMenu.items}
+              activeIndex={activeSlashIndex}
+              activeItem={activeSlashItem}
+              texts={props.slashMenu.texts}
+              onSelectItem={(item) => {
+                composerRef.current?.insertSlashItem(item);
+              }}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setSlashQuery(null);
+                }
+              }}
+              onSetActiveIndex={setActiveSlashIndex}
+            />
           </div>
 
           <InputBarHint hint={props.hint} />
-          <ChatInputBarToolbar {...props.toolbar} />
+          <ChatInputBarToolbar {...toolbar} />
         </div>
       </div>
     </div>

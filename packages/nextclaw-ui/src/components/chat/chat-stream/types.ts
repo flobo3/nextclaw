@@ -1,3 +1,4 @@
+import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type {
   ChatRunView,
@@ -20,6 +21,7 @@ export type SendMessageParams = {
   stopSupported?: boolean;
   stopReason?: string;
   restoreDraftOnError?: boolean;
+  composerNodes?: ChatComposerNode[];
 };
 
 export type ActiveRunState = {
@@ -65,6 +67,7 @@ export type UseChatStreamControllerParams = {
   selectedSessionKeyRef: MutableRefObject<string | null>;
   setSelectedSessionKey: Dispatch<SetStateAction<string | null>>;
   setDraft: Dispatch<SetStateAction<string>>;
+  setComposerNodes: Dispatch<SetStateAction<ChatComposerNode[]>>;
   refetchSessions: () => Promise<unknown>;
   refetchHistory: () => Promise<unknown>;
 };

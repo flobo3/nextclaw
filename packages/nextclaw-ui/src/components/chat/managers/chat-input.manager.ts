@@ -1,3 +1,11 @@
+import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
+import {
+  createInitialChatComposerNodes,
+  createChatComposerNodesFromDraft,
+  deriveChatComposerDraft,
+  deriveSelectedSkillsFromComposer,
+  syncComposerSkills
+} from '@/components/chat/chat-composer-state';
 import { updateSession } from '@/api/config';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { buildNewSessionKey } from '@/components/chat/chat-session-route';
@@ -36,6 +44,17 @@ export class ChatInputManager {
     return next;
   };
 
+  private isSameStringArray = (left: string[], right: string[]): boolean =>
+    left.length === right.length && left.every((value, index) => value === right[index]);
+
+  private syncComposerSnapshot = (nodes: ChatComposerNode[]) => {
+    useChatInputStore.getState().setSnapshot({
+      composerNodes: nodes,
+      draft: deriveChatComposerDraft(nodes),
+      selectedSkills: deriveSelectedSkillsFromComposer(nodes)
+    });
+  };
+
   syncSnapshot = (patch: Partial<ChatInputSnapshot>) => {
     if (!this.hasSnapshotChanges(patch)) {
       return;
@@ -46,8 +65,8 @@ export class ChatInputManager {
       Object.prototype.hasOwnProperty.call(patch, 'selectedModel') ||
       Object.prototype.hasOwnProperty.call(patch, 'selectedThinkingLevel')
     ) {
-      const snapshot = useChatInputStore.getState().snapshot;
-      this.reconcileThinkingForModel(snapshot.selectedModel);
+      const { selectedModel } = useChatInputStore.getState().snapshot;
+      this.reconcileThinkingForModel(selectedModel);
     }
   };
 
@@ -57,7 +76,16 @@ export class ChatInputManager {
     if (value === prev) {
       return;
     }
-    useChatInputStore.getState().setSnapshot({ draft: value });
+    this.syncComposerSnapshot(createChatComposerNodesFromDraft(value));
+  };
+
+  setComposerNodes = (next: SetStateAction<ChatComposerNode[]>) => {
+    const prev = useChatInputStore.getState().snapshot.composerNodes;
+    const value = this.resolveUpdateValue(prev, next);
+    if (Object.is(value, prev)) {
+      return;
+    }
+    this.syncComposerSnapshot(value);
   };
 
   setPendingSessionType = (next: SetStateAction<string>) => {
@@ -76,14 +104,13 @@ export class ChatInputManager {
     if (!message) {
       return;
     }
-    const requestedSkills = inputSnapshot.selectedSkills;
+    const { selectedSkills: requestedSkills, composerNodes } = inputSnapshot;
     const hasSelectedSession = Boolean(sessionSnapshot.selectedSessionKey);
     const sessionKey = sessionSnapshot.selectedSessionKey ?? buildNewSessionKey(sessionSnapshot.selectedAgentId);
     if (!hasSelectedSession) {
       this.uiManager.goToSession(sessionKey, { replace: true });
     }
-    this.setDraft('');
-    this.setSelectedSkills([]);
+    this.setComposerNodes(createInitialChatComposerNodes());
     await this.streamActionsManager.sendMessage({
       message,
       sessionKey,
@@ -94,7 +121,8 @@ export class ChatInputManager {
       stopSupported: inputSnapshot.stopSupported,
       stopReason: inputSnapshot.stopReason,
       requestedSkills,
-      restoreDraftOnError: true
+      restoreDraftOnError: true,
+      composerNodes
     });
   };
 
@@ -132,12 +160,13 @@ export class ChatInputManager {
   };
 
   setSelectedSkills = (next: SetStateAction<string[]>) => {
-    const prev = useChatInputStore.getState().snapshot.selectedSkills;
+    const snapshot = useChatInputStore.getState().snapshot;
+    const { selectedSkills: prev } = snapshot;
     const value = this.resolveUpdateValue(prev, next);
-    if (Object.is(value, prev)) {
+    if (this.isSameStringArray(value, prev)) {
       return;
     }
-    useChatInputStore.getState().setSnapshot({ selectedSkills: value });
+    this.syncComposerSnapshot(syncComposerSkills(snapshot.composerNodes, value, snapshot.skillRecords));
   };
 
   selectModel = (value: string) => {
@@ -174,15 +203,16 @@ export class ChatInputManager {
   private reconcileThinkingForModel(model: string): void {
     const snapshot = useChatInputStore.getState().snapshot;
     const modelOption = snapshot.modelOptions.find((option) => option.value === model);
-    const nextThinking = this.resolveThinkingForModel(modelOption, snapshot.selectedThinkingLevel);
-    if (nextThinking !== snapshot.selectedThinkingLevel) {
+    const { selectedThinkingLevel } = snapshot;
+    const nextThinking = this.resolveThinkingForModel(modelOption, selectedThinkingLevel);
+    if (nextThinking !== selectedThinkingLevel) {
       useChatInputStore.getState().setSnapshot({ selectedThinkingLevel: nextThinking });
     }
   }
 
   private syncRemoteSessionType = async (normalizedType: string) => {
     const sessionSnapshot = useChatSessionListStore.getState().snapshot;
-    const selectedSessionKey = sessionSnapshot.selectedSessionKey;
+    const { selectedSessionKey } = sessionSnapshot;
     if (!selectedSessionKey) {
       return;
     }

@@ -6,11 +6,29 @@ export { useCopyFeedback } from './hooks/use-copy-feedback';
 export { useElementWidth } from './hooks/use-element-width';
 export { useStickyBottomScroll } from './hooks/use-sticky-bottom-scroll';
 export { copyText } from './utils/copy-text';
+export {
+  createChatComposerTextNode,
+  createChatComposerTokenNode,
+  createEmptyChatComposerNodes,
+  createChatComposerNodesFromText,
+  normalizeChatComposerNodes,
+  serializeChatComposerDocument,
+  serializeChatComposerPlainText,
+  extractChatComposerTokenKeys,
+  replaceChatComposerRange,
+  removeChatComposerTokenNodes,
+  resolveChatComposerSlashTrigger
+} from './ui/chat-input-bar/chat-composer.utils';
 
 export type {
   ChatTexts,
   ChatSlashItem,
   ChatSelectedItem,
+  ChatComposerTokenKind,
+  ChatComposerTextNode,
+  ChatComposerTokenNode,
+  ChatComposerNode,
+  ChatComposerSelection,
   ChatToolbarIcon,
   ChatToolbarAccessoryIcon,
   ChatToolbarSelectOption,

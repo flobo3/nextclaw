@@ -1,36 +1,29 @@
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ChatInputBar } from './chat-input-bar';
-import type { ChatInputBarProps } from '../../view-models/chat-ui.types';
+import type { ChatComposerNode, ChatInputBarProps } from '../../view-models/chat-ui.types';
+import { createChatComposerTextNode, createChatComposerTokenNode } from './chat-composer.utils';
 
 function createInputBarProps(overrides?: Partial<ChatInputBarProps>): ChatInputBarProps {
   return {
-    value: 'Hello',
-    placeholder: 'Type a message',
-    disabled: false,
-    onValueChange: vi.fn(),
-    onKeyDown: vi.fn(),
+    composer: {
+      nodes: [createChatComposerTextNode('Hello')],
+      placeholder: 'Type a message',
+      disabled: false,
+      onNodesChange: vi.fn()
+    },
     slashMenu: {
-      isOpen: false,
       isLoading: false,
       items: [],
-      activeIndex: 0,
-      activeItem: null,
       texts: {
         slashLoadingLabel: 'Loading',
         slashSectionLabel: 'Skills',
         slashEmptyLabel: 'No result',
-        slashHintLabel: 'Hint',
+        slashHintLabel: 'Type /',
         slashSkillHintLabel: 'Enter to add'
-      },
-      onSelectItem: vi.fn(),
-      onOpenChange: vi.fn(),
-      onSetActiveIndex: vi.fn()
+      }
     },
     hint: null,
-    selectedItems: {
-      items: [],
-      onRemove: vi.fn()
-    },
     toolbar: {
       selects: [],
       actions: {
@@ -50,56 +43,173 @@ function createInputBarProps(overrides?: Partial<ChatInputBarProps>): ChatInputB
 }
 
 describe('ChatInputBar', () => {
-  it('renders placeholder, selected chips, and calls chip removal', () => {
-    const onRemove = vi.fn();
+  it('keeps slash input single when the browser mutates the contenteditable DOM', () => {
+    function Harness() {
+      const [nodes, setNodes] = useState<ChatComposerNode[]>([createChatComposerTextNode('')]);
 
+      return (
+        <ChatInputBar
+          {...createInputBarProps({
+            composer: {
+              nodes,
+              placeholder: 'Type a message',
+              disabled: false,
+              onNodesChange: setNodes
+            },
+            slashMenu: {
+              isLoading: false,
+              items: [
+                {
+                  key: 'web-search',
+                  title: 'Web Search',
+                  subtitle: 'Skill',
+                  description: 'Search the web',
+                  detailLines: []
+                }
+              ],
+              texts: {
+                slashLoadingLabel: 'Loading',
+                slashSectionLabel: 'Skills',
+                slashEmptyLabel: 'No result',
+                slashHintLabel: 'Type /',
+                slashSkillHintLabel: 'Enter to add'
+              }
+            }
+          })}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    const textbox = screen.getByRole('textbox');
+    fireEvent.focus(textbox);
+    textbox.textContent = '/';
+    fireEvent.input(textbox);
+
+    expect(textbox.textContent).toBe('/');
+  });
+
+  it('renders inline skill tokens inside the composer surface', () => {
     render(
       <ChatInputBar
         {...createInputBarProps({
-          value: '',
-          selectedItems: {
-            items: [{ key: 'skill:web-search', label: 'Web Search' }],
-            onRemove
+          composer: {
+            nodes: [
+              createChatComposerTokenNode({ tokenKind: 'skill', tokenKey: 'web-search', label: 'Web Search' }),
+              createChatComposerTextNode('')
+            ],
+            placeholder: 'Type a message',
+            disabled: false,
+            onNodesChange: vi.fn()
           }
         })}
       />
     );
 
-    const textarea = screen.getByPlaceholderText('Type a message');
-    const chipButton = screen.getByRole('button', { name: /Web Search/i });
+    expect(screen.getByRole('textbox')).toBeTruthy();
+    expect(screen.getByText('Web Search')).toBeTruthy();
+  });
 
-    expect(textarea).toBeTruthy();
-    expect(chipButton).toBeTruthy();
-    expect(chipButton.parentElement?.contains(textarea)).toBe(true);
+  it('keeps an existing skill token when fallback input appends plain text', () => {
+    function Harness() {
+      const [nodes, setNodes] = useState<ChatComposerNode[]>([
+        createChatComposerTokenNode({ tokenKind: 'skill', tokenKey: 'web-search', label: 'Web Search' }),
+        createChatComposerTextNode('')
+      ]);
 
-    fireEvent.click(chipButton);
-    expect(onRemove).toHaveBeenCalledWith('skill:web-search');
+      return (
+        <ChatInputBar
+          {...createInputBarProps({
+            composer: {
+              nodes,
+              placeholder: 'Type a message',
+              disabled: false,
+              onNodesChange: setNodes
+            }
+          })}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    const textbox = screen.getByRole('textbox');
+    fireEvent.focus(textbox);
+    textbox.appendChild(document.createTextNode('a'));
+    fireEvent.input(textbox);
+
+    expect(screen.getByText('Web Search')).toBeTruthy();
+    expect(textbox.textContent).toContain('a');
+    expect(textbox.querySelector('[data-composer-token-key="web-search"]')).toBeTruthy();
+  });
+
+  it('does not commit intermediate IME composition text before composition ends', () => {
+    const onNodesChange = vi.fn();
+
+    render(
+      <ChatInputBar
+        {...createInputBarProps({
+          composer: {
+            nodes: [createChatComposerTextNode('')],
+            placeholder: 'Type a message',
+            disabled: false,
+            onNodesChange
+          }
+        })}
+      />
+    );
+
+    const textbox = screen.getByRole('textbox');
+    fireEvent.focus(textbox);
+    fireEvent.compositionStart(textbox);
+    textbox.textContent = 'n';
+    fireEvent.input(textbox, {
+      data: 'n',
+      inputType: 'insertCompositionText',
+      isComposing: true
+    });
+
+    expect(onNodesChange).not.toHaveBeenCalled();
+
+    textbox.textContent = '你';
+    fireEvent.compositionEnd(textbox, { data: '你' });
+
+    expect(onNodesChange).toHaveBeenCalled();
+    expect(onNodesChange.mock.calls.at(-1)?.[0]).toEqual([
+      expect.objectContaining({ type: 'text', text: '你' })
+    ]);
   });
 
   it('removes the last selected chip when backspace is pressed on an empty draft', () => {
-    const onRemove = vi.fn();
-    const onKeyDown = vi.fn();
+    const onNodesChange = vi.fn();
 
     render(
       <ChatInputBar
         {...createInputBarProps({
-          value: '',
-          onKeyDown,
-          selectedItems: {
-            items: [
-              { key: 'skill:web-search', label: 'Web Search' },
-              { key: 'skill:docs', label: 'Docs' }
+          composer: {
+            nodes: [
+              createChatComposerTokenNode({ tokenKind: 'skill', tokenKey: 'web-search', label: 'Web Search' }),
+              createChatComposerTokenNode({ tokenKind: 'skill', tokenKey: 'docs', label: 'Docs' }),
+              createChatComposerTextNode('')
             ],
-            onRemove
+            placeholder: 'Type a message',
+            disabled: false,
+            onNodesChange
           }
         })}
       />
     );
 
-    fireEvent.keyDown(screen.getByPlaceholderText('Type a message'), { key: 'Backspace' });
+    const textbox = screen.getByRole('textbox');
+    fireEvent.focus(textbox);
+    fireEvent.keyDown(textbox, { key: 'Backspace' });
 
-    expect(onRemove).toHaveBeenCalledWith('skill:docs');
-    expect(onKeyDown).not.toHaveBeenCalled();
+    expect(onNodesChange).toHaveBeenCalled();
+    const lastCall = onNodesChange.mock.calls.at(-1)?.[0];
+    expect(lastCall).toEqual([
+      expect.objectContaining({ type: 'token', tokenKey: 'web-search' })
+    ]);
   });
 
   it('switches between send and stop controls', () => {

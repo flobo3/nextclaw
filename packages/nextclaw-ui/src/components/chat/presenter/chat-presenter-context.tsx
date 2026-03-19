@@ -1,3 +1,4 @@
+import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
 import { createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
 import type { SetStateAction } from 'react';
@@ -11,6 +12,7 @@ import type { ThinkingLevel } from '@/api/types';
 export type ChatInputManagerLike = {
   syncSnapshot: (patch: Record<string, unknown>) => void;
   setDraft: (next: SetStateAction<string>) => void;
+  setComposerNodes: (next: SetStateAction<ChatComposerNode[]>) => void;
   setPendingSessionType: (next: SetStateAction<string>) => void;
   send: () => Promise<void>;
   stop: () => Promise<void>;

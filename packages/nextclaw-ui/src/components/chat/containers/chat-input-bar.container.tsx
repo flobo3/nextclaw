@@ -1,18 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ChatInputBar } from '@nextclaw/agent-chat-ui';
 import {
   buildChatSlashItems,
   buildModelStateHint,
   buildModelToolbarSelect,
-  buildSelectedSkillItems,
   buildSkillPickerModel,
   buildThinkingToolbarSelect,
-  resolveSlashQuery,
   type ChatModelRecord,
   type ChatSkillRecord,
   type ChatThinkingLevel
 } from '@/components/chat/adapters/chat-input-bar.adapter';
-import { useChatInputBarController } from '@/components/chat/chat-input/chat-input-bar.controller';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
@@ -72,6 +69,7 @@ export function ChatInputBarContainer() {
   const presenter = usePresenter();
   const { language } = useI18n();
   const snapshot = useChatInputStore((state) => state.snapshot);
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
 
   const officialSkillBadgeLabel = useMemo(() => {
     // Keep memo reactive to locale switches even though `t` is imported as a stable function.
@@ -110,30 +108,10 @@ export function ChatInputBarContainer() {
       ? t('chatInputPlaceholder')
       : t('chatModelNoOptions');
 
-  const slashQuery = resolveSlashQuery(snapshot.draft);
   const slashItems = useMemo(
     () => buildChatSlashItems(skillRecords, slashQuery ?? '', slashTexts),
     [slashQuery, skillRecords, slashTexts]
   );
-
-  const controller = useChatInputBarController({
-    isSlashMode: slashQuery !== null,
-    slashItems,
-    isSlashLoading: snapshot.isSkillsLoading,
-    onSelectSlashItem: (item) => {
-      if (!item.value) {
-        return;
-      }
-      if (!snapshot.selectedSkills.includes(item.value)) {
-        presenter.chatInputManager.selectSkills([...snapshot.selectedSkills, item.value]);
-      }
-      presenter.chatInputManager.setDraft('');
-    },
-    onSend: presenter.chatInputManager.send,
-    onStop: presenter.chatInputManager.stop,
-    isSending: snapshot.isSending,
-    canStopGeneration: snapshot.canStopGeneration
-  });
 
   const selectedModelOption = modelRecords.find((option) => option.value === snapshot.selectedModel);
   const selectedModelThinkingCapability = selectedModelOption?.thinkingCapability;
@@ -183,27 +161,23 @@ export function ChatInputBarContainer() {
 
   return (
     <ChatInputBar
-      value={snapshot.draft}
-      placeholder={textareaPlaceholder}
-      disabled={inputDisabled}
-      onValueChange={presenter.chatInputManager.setDraft}
-      onKeyDown={controller.onTextareaKeyDown}
+      composer={{
+        nodes: snapshot.composerNodes,
+        placeholder: textareaPlaceholder,
+        disabled: inputDisabled,
+        onNodesChange: presenter.chatInputManager.setComposerNodes,
+        onSlashQueryChange: setSlashQuery
+      }}
       slashMenu={{
-        isOpen: controller.isSlashPanelOpen,
         isLoading: snapshot.isSkillsLoading,
         items: slashItems,
-        activeIndex: controller.activeSlashIndex,
-        activeItem: controller.activeSlashItem,
         texts: {
           slashLoadingLabel: t('chatSlashLoading'),
           slashSectionLabel: t('chatSlashSectionSkills'),
           slashEmptyLabel: t('chatSlashNoResult'),
           slashHintLabel: t('chatSlashHint'),
           slashSkillHintLabel: t('chatSlashSkillHint')
-        },
-        onSelectItem: controller.onSelectSlashItem,
-        onOpenChange: controller.onSlashPanelOpenChange,
-        onSetActiveIndex: controller.onSetActiveSlashIndex
+        }
       }}
       hint={buildModelStateHint({
         isModelOptionsLoading,
@@ -214,10 +188,6 @@ export function ChatInputBarContainer() {
           configureProviderLabel: t('chatGoConfigureProvider')
         }
       })}
-      selectedItems={{
-        items: buildSelectedSkillItems(snapshot.selectedSkills, skillRecords),
-        onRemove: (key) => presenter.chatInputManager.selectSkills(snapshot.selectedSkills.filter((skill) => skill !== key))
-      }}
       toolbar={{
         selects: toolbarSelects,
         accessories: [

@@ -75,6 +75,7 @@ export function LegacyChatPage({ view }: ChatPageProps) {
       selectedSessionKeyRef,
       setSelectedSessionKey: presenter.chatSessionListManager.setSelectedSessionKey,
       setDraft: presenter.chatInputManager.setDraft,
+      setComposerNodes: presenter.chatInputManager.setComposerNodes,
       refetchSessions: sessionsQuery.refetch,
       refetchHistory: historyQuery.refetch
     },

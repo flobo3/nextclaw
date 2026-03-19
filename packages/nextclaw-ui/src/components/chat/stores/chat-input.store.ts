@@ -1,10 +1,13 @@
 import { create } from 'zustand';
+import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
 import type { MarketplaceInstalledRecord } from '@/api/types';
 import type { ThinkingLevel } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
+import { createInitialChatComposerNodes } from '@/components/chat/chat-composer-state';
 
 export type ChatInputSnapshot = {
   isProviderStateResolved: boolean;
+  composerNodes: ChatComposerNode[];
   draft: string;
   pendingSessionType: string;
   defaultSessionType: string;
@@ -33,6 +36,7 @@ type ChatInputStore = {
 
 const initialSnapshot: ChatInputSnapshot = {
   isProviderStateResolved: false,
+  composerNodes: createInitialChatComposerNodes(),
   draft: '',
   pendingSessionType: 'native',
   defaultSessionType: 'native',

@@ -212,9 +212,17 @@ export function NcpChatPage({ view }: ChatPageProps) {
           await sessionsQuery.refetch();
         } catch (error) {
           if (payload.restoreDraftOnError) {
-            presenter.chatInputManager.setDraft((currentDraft) =>
-              currentDraft.trim().length === 0 ? payload.message : currentDraft
-            );
+            if (payload.composerNodes && payload.composerNodes.length > 0) {
+              presenter.chatInputManager.setComposerNodes((currentNodes) =>
+                currentNodes.length === 1 && currentNodes[0]?.type === 'text' && currentNodes[0].text.length === 0
+                  ? payload.composerNodes ?? currentNodes
+                  : currentNodes
+              );
+            } else {
+              presenter.chatInputManager.setDraft((currentDraft) =>
+                currentDraft.trim().length === 0 ? payload.message : currentDraft
+              );
+            }
           }
           throw error;
         }

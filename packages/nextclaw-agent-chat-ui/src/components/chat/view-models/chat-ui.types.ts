@@ -1,5 +1,3 @@
-import type { KeyboardEventHandler } from 'react';
-
 export type ChatTexts = {
   slashLoadingLabel: string;
   slashSectionLabel: string;
@@ -22,6 +20,29 @@ export type ChatSlashItem = {
 export type ChatSelectedItem = {
   key: string;
   label: string;
+};
+
+export type ChatComposerTokenKind = 'skill' | 'file';
+
+export type ChatComposerTextNode = {
+  id: string;
+  type: 'text';
+  text: string;
+};
+
+export type ChatComposerTokenNode = {
+  id: string;
+  type: 'token';
+  tokenKind: ChatComposerTokenKind;
+  tokenKey: string;
+  label: string;
+};
+
+export type ChatComposerNode = ChatComposerTextNode | ChatComposerTokenNode;
+
+export type ChatComposerSelection = {
+  start: number;
+  end: number;
 };
 
 export type ChatToolbarIcon = 'sparkles' | 'brain';
@@ -120,17 +141,15 @@ export type ChatSlashMenuProps = {
 };
 
 export type ChatInputBarProps = {
-  value: string;
-  placeholder: string;
-  disabled: boolean;
-  onValueChange: (value: string) => void;
-  onKeyDown: KeyboardEventHandler<HTMLTextAreaElement>;
-  slashMenu: ChatSlashMenuProps;
-  hint?: ChatInlineHint | null;
-  selectedItems: {
-    items: ChatSelectedItem[];
-    onRemove: (key: string) => void;
+  composer: {
+    nodes: ChatComposerNode[];
+    placeholder: string;
+    disabled: boolean;
+    onNodesChange: (nodes: ChatComposerNode[]) => void;
+    onSlashQueryChange?: (query: string | null) => void;
   };
+  slashMenu: Pick<ChatSlashMenuProps, 'isLoading' | 'items' | 'texts'>;
+  hint?: ChatInlineHint | null;
   toolbar: ChatInputBarToolbarProps;
 };
 
