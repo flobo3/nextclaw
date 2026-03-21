@@ -1,10 +1,8 @@
 import {
   findProviderByModel,
   findProviderByName,
-  getApiBase,
   buildRequestedSkillsUserPrompt,
-  getProvider,
-  getProviderName,
+  resolveProviderRuntime,
   getWorkspacePath,
   SkillsLoader,
   type Config,
@@ -15,6 +13,10 @@ import {
   CodexSdkNcpAgentRuntime,
   type CodexSdkNcpAgentRuntimeConfig,
 } from "@nextclaw/nextclaw-ncp-runtime-codex-sdk";
+import {
+  buildUserFacingModelRoute,
+  resolveExternalModelProvider,
+} from "./codex-model-provider.js";
 
 const PLUGIN_ID = "nextclaw-ncp-runtime-plugin-codex-sdk";
 const CODEX_RUNTIME_KIND = "codex";
@@ -133,14 +135,18 @@ function resolveCodexExecutionOptions(params: {
 function resolveCodexCliConfig(
   params: {
     pluginConfig: Record<string, unknown>;
-    model?: string;
     providerName?: string | null;
+    providerDisplayName?: string | null;
     apiBase?: string;
   },
 ): CodexSdkNcpAgentRuntimeConfig["cliConfig"] | undefined {
   const explicitConfig = readRecord(params.pluginConfig.config);
-  const modelProvider =
-    readString(params.pluginConfig.modelProvider) ?? readString(params.providerName) ?? "openai";
+  const modelProvider = resolveExternalModelProvider({
+    explicitModelProvider: params.pluginConfig.modelProvider,
+    providerName: params.providerName,
+    providerDisplayName: params.providerDisplayName,
+    pluginId: PLUGIN_ID,
+  });
   const preferredAuthMethod =
     readString(params.pluginConfig.preferredAuthMethod) ?? "apikey";
   const apiBase = readString(params.pluginConfig.apiBase) ?? readString(params.apiBase);
@@ -163,19 +169,6 @@ function resolveCodexCliConfig(
     ...config,
     ...(explicitConfig ?? {}),
   } as CodexSdkNcpAgentRuntimeConfig["cliConfig"];
-}
-
-function stripProviderPrefix(model: string, providerName?: string | null): string {
-  const normalizedModel = model.trim();
-  const normalizedProvider = providerName?.trim().toLowerCase();
-  if (!normalizedModel || !normalizedProvider) {
-    return normalizedModel;
-  }
-  const prefix = `${normalizedProvider}/`;
-  if (!normalizedModel.toLowerCase().startsWith(prefix)) {
-    return normalizedModel;
-  }
-  return normalizedModel.slice(prefix.length);
 }
 
 function readRequestedSkills(metadata: Record<string, unknown>): string[] {
@@ -255,23 +248,40 @@ const plugin: PluginDefinition = {
           pluginConfig,
           sessionMetadata: runtimeParams.sessionMetadata,
         });
-        const provider = getProvider(nextConfig, model);
-        const providerName = getProviderName(nextConfig, model);
+        const resolvedProviderRuntime = resolveProviderRuntime(nextConfig, model);
+        const providerName = resolvedProviderRuntime.providerName;
         const capabilitySpec = resolveCodexCapabilitySpec({
           model,
           providerName,
         });
-        const apiBase = readString(pluginConfig.apiBase) ?? getApiBase(nextConfig, model) ?? undefined;
-        const apiKey = readString(pluginConfig.apiKey) ?? provider?.apiKey ?? undefined;
+        const externalModelProvider = resolveExternalModelProvider({
+          explicitModelProvider: pluginConfig.modelProvider,
+          providerName,
+          providerDisplayName: resolvedProviderRuntime.providerDisplayName,
+          pluginId: PLUGIN_ID,
+        });
+        const userFacingModelRoute = buildUserFacingModelRoute({
+          externalModelProvider,
+          providerLocalModel: resolvedProviderRuntime.providerLocalModel,
+          resolvedModel: resolvedProviderRuntime.resolvedModel,
+        });
+        const apiBase =
+          readString(pluginConfig.apiBase) ?? resolvedProviderRuntime.apiBase ?? undefined;
+        const apiKey =
+          readString(pluginConfig.apiKey) ?? resolvedProviderRuntime.apiKey ?? undefined;
         if (!apiKey) {
           throw new Error(
-            `[codex] missing apiKey. Set plugins.entries.${PLUGIN_ID}.config.apiKey or providers.*.apiKey for model "${model}".`,
+            `[codex] missing apiKey. Set plugins.entries.${PLUGIN_ID}.config.apiKey or providers.*.apiKey for model "${userFacingModelRoute}".`,
           );
         }
         if (capabilitySpec?.supportsResponsesApi === false) {
-          const capabilityProviderName = capabilitySpec.displayName ?? capabilitySpec.name ?? providerName ?? "provider";
+          const capabilityProviderName =
+            capabilitySpec.displayName ??
+            capabilitySpec.name ??
+            resolvedProviderRuntime.providerDisplayName ??
+            externalModelProvider;
           throw new Error(
-            `[codex] model "${model}" is routed through "${capabilityProviderName}", which does not support the Responses API. Codex SDK currently only supports models available through the Responses API.`,
+            `[codex] model "${userFacingModelRoute}" is routed through "${capabilityProviderName}", which does not support the Responses API. Codex SDK currently only supports models available through the Responses API.`,
           );
         }
 
@@ -288,14 +298,14 @@ const plugin: PluginDefinition = {
           sessionId: runtimeParams.sessionId,
           apiKey,
           apiBase,
-          model: stripProviderPrefix(model, providerName),
+          model: resolvedProviderRuntime.providerLocalModel,
           threadId: readString(runtimeParams.sessionMetadata.codex_thread_id) ?? null,
           codexPathOverride: readString(pluginConfig.codexPathOverride),
           env: readStringRecord(pluginConfig.env),
           cliConfig: resolveCodexCliConfig({
             pluginConfig,
-            model,
             providerName,
+            providerDisplayName: resolvedProviderRuntime.providerDisplayName,
             apiBase,
           }),
           stateManager: runtimeParams.stateManager,

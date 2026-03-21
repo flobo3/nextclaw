@@ -1,9 +1,8 @@
 import { createRequire } from "node:module";
 import type { Codex as CodexClient, CodexOptions, Thread, ThreadEvent, ThreadOptions } from "@openai/codex-sdk";
 import {
-  getApiBase,
   buildRequestedSkillsUserPrompt,
-  getProvider,
+  resolveProviderRuntime,
   SkillsLoader,
   type AgentEngine,
   type AgentEngineDirectRequest,
@@ -150,9 +149,9 @@ function readWebSearchMode(input: Record<string, unknown>, key: string): "disabl
 }
 
 function resolveEngineConfig(config: Config, model: string, engineConfig: Record<string, unknown>) {
-  const provider = getProvider(config, model);
-  const apiKey = readString(engineConfig, "apiKey") ?? provider?.apiKey ?? undefined;
-  const apiBase = readString(engineConfig, "apiBase") ?? getApiBase(config, model) ?? undefined;
+  const resolvedProviderRuntime = resolveProviderRuntime(config, model);
+  const apiKey = readString(engineConfig, "apiKey") ?? resolvedProviderRuntime.apiKey ?? undefined;
+  const apiBase = readString(engineConfig, "apiBase") ?? resolvedProviderRuntime.apiBase ?? undefined;
   return { apiKey, apiBase };
 }
 

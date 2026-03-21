@@ -17,6 +17,9 @@
       "model": {
         "type": "string"
       },
+      "modelProvider": {
+        "type": "string"
+      },
       "workingDirectory": {
         "type": "string"
       },
@@ -73,6 +76,11 @@
     },
     "model": {
       "label": "Default Model"
+    },
+    "modelProvider": {
+      "label": "External Model Provider",
+      "help": "Optional override for the provider id exposed to Codex SDK. Recommended for custom providers whose display name is not the actual upstream provider id.",
+      "advanced": true
     },
     "workingDirectory": {
       "label": "Working Directory",
