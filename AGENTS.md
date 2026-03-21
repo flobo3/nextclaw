@@ -35,7 +35,7 @@
   - `/config-meta`：调整或更新本文件（AGENTS.md）的机制/元信息（含 Rulebook/Project Rulebook）；执行时需先自行判断应“修正已有规则”还是“删减/新增规则条目”；必须先分析深层原因并优先处理更本质的问题，避免只做表层修补；若已开启深思模式，需主动推理用户潜在意图并对高概率期望动作直接执行，以减少沟通成本。迭代记录严格遵循“迭代制度（docs/logs）”中的“必须新增/严格禁止自动新增/例外触发”判定，不得自行放宽；默认在改动完成后再做是否建迭代的判定，除非用户明确要求提前留痕。
   - `/add-to-plan`：将想法或用户建议纳入规划体系；输入 `/add-to-plan <一句话事项>`，默认写入 `docs/TODO.md` 的 `Inbox`，给出 `Now/Next/Later/Roadmap Candidate` 分流建议并生成 Issue 草案；若属于中长期方向，同步更新 `docs/ROADMAP.md`
   - `/check-meta`：检查 AGENTS.md 机制问题（自相矛盾/未遵循规范等）
-  - `/new-rule`：创建新规则条目（按 Rulebook 模板）
+  - `/new-rule`：创建新规则条目（按 Rulebook 模板）。执行时必须先判断应写入 Rulebook 还是 Project Rulebook；若规则本质是在约束系统行为原则，应优先固化“行为明确、清晰、可预测，不依赖隐藏兜底或环境状态制造 surprise success / surprise failure”这类可复用高层约束，而不是只记录单次问题的表层补丁。
   - `/commit`：进行提交操作（提交信息需使用英文）
   - `/validate`：运行项目验证，按改动影响范围执行最小充分验证；仅当改动触达构建/类型/运行链路时，执行 `build`、`lint`、`tsc` 的相关项，必要时补冒烟测试
   - `/release-frontend`：前端一键发布（仅 UI 变更场景）
@@ -225,6 +225,12 @@
   - 示例：定位到重复消息问题根因是事件模型不一致后，统一事件源与状态流，而不是只在渲染层加去重开关。
   - 反例：发现问题后仅在单点加 if/兜底绕过，未解释根因、未评估复发路径、未处理架构性缺陷。
   - 执行方式：按“现象 → 根因 → 架构影响 → 最小长期修复”记录与实施；若暂时无法一次性重构，必须明确过渡方案、风险与后续移除计划。
+  - 维护责任人：当前助手。
+- **predictable-behavior-no-surprises**：
+  - 约束/适用范围：系统行为必须明确、清晰、可预测；禁止依赖隐藏兜底、环境状态、`cwd`、本地仓库残留或无边界兼容路径制造 “surprise success / surprise failure”。凡涉及 fallback、backward compatibility、graceful degradation、legacy 保留、自动探测环境救火时，默认先判断是否在掩盖真实缺陷。
+  - 示例：已发布 CLI 缺失前端资源时直接失败并提示“reinstall or rebuild”，而不是继续扫描当前仓库目录并悄悄借用本地 `dist`；dev-only fallback 必须通过显式开关或环境变量启用。
+  - 反例：全局安装的 CLI 因当前目录正好存在源码构建产物而表现正常，离开仓库目录后却失败；为“稳妥”长期保留新旧双路径、静默默认值或自动探测环境分支，导致行为随机器状态漂移。
+  - 执行方式：先识别 primary contract（发布包、桌面安装包、公开 API、配置契约等），再区分 shipped runtime 与 dev-only 行为；若 fallback 会掩盖打包/部署/配置/运行时缺陷，默认移除或改为显式 dev-only；若确需兼容，必须记录触发条件、适用范围、可观测信号、owner 与退出条件。
   - 维护责任人：当前助手。
 - **state-sink-minimal-ancestor**：
   - 约束/适用范围：前端状态应尽量下沉到最小公共组件层级；纯展示组件不得持有或混入业务状态，仅接收展示所需 props。
