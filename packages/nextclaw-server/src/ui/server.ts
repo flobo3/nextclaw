@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { compress } from "hono/compress";
-import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { WebSocketServer, WebSocket } from "ws";
 import { existsSync, readFileSync } from "node:fs";
@@ -22,12 +21,90 @@ const DEFAULT_CORS_ORIGINS = (origin: string | undefined | null) => {
   return undefined;
 };
 
+const DEFAULT_ALLOWED_CORS_HEADERS = "Content-Type, Authorization";
+const DEFAULT_ALLOWED_CORS_METHODS = "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS";
+type CorsPolicy = Exclude<UiServerOptions["corsOrigins"], undefined> | typeof DEFAULT_CORS_ORIGINS;
+
+function appendVaryHeader(headers: Headers, value: string): void {
+  const current = headers.get("Vary");
+  if (!current) {
+    headers.set("Vary", value);
+    return;
+  }
+  const values = current
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!values.includes(value)) {
+    values.push(value);
+  }
+  headers.set("Vary", values.join(", "));
+}
+
+function resolveAllowedCorsOrigin(
+  requestOrigin: string | null,
+  policy: CorsPolicy
+): string | null {
+  if (!requestOrigin) {
+    return null;
+  }
+  if (policy === "*") {
+    return requestOrigin;
+  }
+  if (Array.isArray(policy)) {
+    return policy.includes(requestOrigin) ? requestOrigin : null;
+  }
+  return policy(requestOrigin) ?? null;
+}
+
+function applyCorsHeaders(params: {
+  headers: Headers;
+  allowOrigin: string;
+  allowHeaders?: string | null;
+}): void {
+  params.headers.set("Access-Control-Allow-Origin", params.allowOrigin);
+  params.headers.set("Access-Control-Allow-Credentials", "true");
+  params.headers.set("Access-Control-Allow-Methods", DEFAULT_ALLOWED_CORS_METHODS);
+  params.headers.set(
+    "Access-Control-Allow-Headers",
+    params.allowHeaders?.trim() || DEFAULT_ALLOWED_CORS_HEADERS
+  );
+  appendVaryHeader(params.headers, "Origin");
+  appendVaryHeader(params.headers, "Access-Control-Request-Headers");
+}
+
 export function startUiServer(options: UiServerOptions): UiServerHandle {
   const app = new Hono();
   app.use("/*", compress());
-  const origin = options.corsOrigins ?? DEFAULT_CORS_ORIGINS;
+  const corsPolicy = options.corsOrigins ?? DEFAULT_CORS_ORIGINS;
   const authService = new UiAuthService(options.configPath);
-  app.use("/api/*", cors({ origin, credentials: true }));
+  app.use("/api/*", async (c, next) => {
+    const allowOrigin = resolveAllowedCorsOrigin(c.req.header("origin")?.trim() ?? null, corsPolicy);
+    const allowHeaders = c.req.header("access-control-request-headers");
+
+    if (c.req.method === "OPTIONS") {
+      if (allowOrigin) {
+        const headers = new Headers();
+        applyCorsHeaders({
+          headers,
+          allowOrigin,
+          allowHeaders
+        });
+        return new Response(null, { status: 204, headers });
+      }
+      return new Response(null, { status: 204 });
+    }
+
+    await next();
+
+    if (allowOrigin) {
+      applyCorsHeaders({
+        headers: c.res.headers,
+        allowOrigin,
+        allowHeaders
+      });
+    }
+  });
 
   const clients = new Set<WebSocket>();
 

@@ -1,0 +1,124 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createServer } from "node:net";
+import { afterEach, describe, expect, it } from "vitest";
+import { startUiServer } from "./server.js";
+
+async function reservePort(): Promise<number> {
+  return await new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close(() => reject(new Error("Failed to resolve test port.")));
+        return;
+      }
+      const { port } = address;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(port);
+      });
+    });
+  });
+}
+
+async function waitForServer(baseUrl: string): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      const response = await fetch(`${baseUrl}/api/health`);
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // Retry until the listener is ready.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for UI server: ${baseUrl}`);
+}
+
+describe("ui server api cors", () => {
+  const handles: Array<{ close: () => Promise<void> }> = [];
+
+  afterEach(async () => {
+    while (handles.length > 0) {
+      const handle = handles.pop();
+      if (handle) {
+        await handle.close();
+      }
+    }
+  });
+
+  it("returns explicit cors headers for allowed origins and preflight requests", async () => {
+    const port = await reservePort();
+    const configPath = join(mkdtempSync(join(tmpdir(), "nextclaw-server-cors-")), "config.json");
+    const handle = startUiServer({
+      host: "127.0.0.1",
+      port,
+      configPath,
+      corsOrigins: ["http://127.0.0.1:5174"]
+    });
+    handles.push(handle);
+
+    const baseUrl = `http://127.0.0.1:${port}`;
+    await waitForServer(baseUrl);
+
+    const preflight = await fetch(`${baseUrl}/api/health`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://127.0.0.1:5174",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "Content-Type"
+      }
+    });
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-origin")).toBe("http://127.0.0.1:5174");
+    expect(preflight.headers.get("access-control-allow-credentials")).toBe("true");
+    expect(preflight.headers.get("access-control-allow-methods")).toContain("GET");
+    expect(preflight.headers.get("access-control-allow-headers")).toBe("Content-Type");
+
+    const response = await fetch(`${baseUrl}/api/health`, {
+      headers: {
+        Origin: "http://127.0.0.1:5174"
+      }
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe("http://127.0.0.1:5174");
+    expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+  });
+
+  it("uses the built-in localhost policy and omits cors headers for disallowed origins", async () => {
+    const port = await reservePort();
+    const configPath = join(mkdtempSync(join(tmpdir(), "nextclaw-server-default-cors-")), "config.json");
+    const handle = startUiServer({
+      host: "127.0.0.1",
+      port,
+      configPath
+    });
+    handles.push(handle);
+
+    const baseUrl = `http://127.0.0.1:${port}`;
+    await waitForServer(baseUrl);
+
+    const localhostResponse = await fetch(`${baseUrl}/api/health`, {
+      headers: {
+        Origin: "http://localhost:5174"
+      }
+    });
+    expect(localhostResponse.headers.get("access-control-allow-origin")).toBe("http://localhost:5174");
+
+    const disallowedResponse = await fetch(`${baseUrl}/api/health`, {
+      headers: {
+        Origin: "https://example.com"
+      }
+    });
+    expect(disallowedResponse.status).toBe(200);
+    expect(disallowedResponse.headers.get("access-control-allow-origin")).toBeNull();
+    expect(disallowedResponse.headers.get("access-control-allow-credentials")).toBeNull();
+  });
+});
