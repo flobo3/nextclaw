@@ -4,7 +4,10 @@ Cloudflare Worker + Hono + D1。
 
 核心能力：
 - 用户登录后才能调用 `/v1/chat/completions`
-- `NextClaw Account` 邮箱验证码登录/注册一体化
+- `NextClaw Account` 正式账号模型：
+  - 登录：邮箱 + 密码
+  - 注册：邮箱验证码验证后设置密码
+  - 忘记密码：邮箱验证码验证后重置密码
 - 双额度模型：
   - 用户个人免费额度（`free_limit_usd`）
   - 全平台总免费额度池（`global_free_limit_usd`）
@@ -43,21 +46,26 @@ pnpm -C workers/nextclaw-provider-gateway-api dev
 
 生产环境要求：
 - 不要使用 `console` 邮件模式。
-- 若前端已切到验证码登录，则生产必须先配置 `PLATFORM_AUTH_EMAIL_PROVIDER=resend`、`PLATFORM_AUTH_EMAIL_FROM`、`RESEND_API_KEY`，否则用户无法完成登录。
+- 若前端已切到“注册/重置密码验证码”模型，则生产必须先配置 `PLATFORM_AUTH_EMAIL_PROVIDER=resend`、`PLATFORM_AUTH_EMAIL_FROM`、`RESEND_API_KEY`，否则用户无法完成注册和密码重置。
 - 当前线上还必须确保 `mail.nextclaw.io` 在 Resend 中变为 `verified`，否则验证码发送接口会返回 `EMAIL_DELIVERY_FAILED`。
 
 ## 4. 主要接口
 
 ### 用户认证
 - `POST /platform/auth/login`
-- `POST /platform/auth/email/send-code`
-- `POST /platform/auth/email/verify-code`
+- `POST /platform/auth/register/send-code`
+- `POST /platform/auth/register/complete`
+- `POST /platform/auth/password/reset/send-code`
+- `POST /platform/auth/password/reset/complete`
 - `GET /platform/auth/me`
 - `POST /platform/auth/browser/start`
 - `POST /platform/auth/browser/poll`
 - `GET /platform/auth/browser`
-- `POST /platform/auth/browser/send-code`
-- `POST /platform/auth/browser/verify-code`
+- `POST /platform/auth/browser/login`
+- `POST /platform/auth/browser/register/send-code`
+- `POST /platform/auth/browser/register/complete`
+- `POST /platform/auth/browser/reset-password/send-code`
+- `POST /platform/auth/browser/reset-password/complete`
 
 ### 用户账单
 - `GET /platform/billing/overview`
@@ -80,8 +88,8 @@ pnpm -C workers/nextclaw-provider-gateway-api dev
 - `POST /v1/chat/completions`
 
 > 注意：
-> - `platform/auth/browser/*` 为本地 NextClaw Remote Access 提供浏览器授权页，支持网页输入邮箱、收取验证码并把 token 回传给本地设备。
-> - `platform/auth/email/*` 采用“登录/注册一体化”模型：如果邮箱首次使用，会在验证码验证成功后自动创建账号。
+> - `platform/auth/browser/*` 为本地 NextClaw Remote Access 提供浏览器授权页，支持密码登录、验证码注册和验证码重置密码，并把结果回传给本地设备。
+> - 平台账号模型已收口为“密码登录 + 验证码注册/重置密码”，不再支持“验证码即登录/自动建号”。
 > - `/v1/*` 的 `Authorization: Bearer <token>` 必须是登录 token，不再支持匿名体验 key。
 > - 登录接口具备基础防暴力破解能力：IP 失败限流 + 账号失败锁定。
 

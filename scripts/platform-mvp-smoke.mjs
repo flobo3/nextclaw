@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 import { pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
+import { exerciseUserAuthFlows } from "./platform-mvp-auth-smoke-support.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workerDir = resolve(rootDir, "workers/nextclaw-provider-gateway-api");
@@ -144,6 +145,7 @@ async function main() {
   const userEmail = `user.${now}@example.com`;
   const lockUserEmail = `lock.${now}@example.com`;
   const password = "Passw0rd!";
+  const resetPassword = "ResetPassw0rd!";
 
   const upstreamServer = createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/compatible-mode/v1/chat/completions") {
@@ -265,7 +267,7 @@ async function main() {
 
     await waitForHealth(`${base}/health`);
 
-    console.log("[platform-smoke] login admin + email-verify user...");
+    console.log("[platform-smoke] login admin + register/login/reset user...");
     const adminLogin = await requestJson({
       method: "POST",
       url: `${base}/platform/auth/login`,
@@ -280,37 +282,13 @@ async function main() {
       throw new Error("Missing admin token after login.");
     }
 
-    const sendUserCode = await requestJson({
-      method: "POST",
-      url: `${base}/platform/auth/email/send-code`,
-      body: { email: userEmail },
-      expectedStatus: 202
+    const { userId, userToken } = await exerciseUserAuthFlows({
+      base,
+      email: userEmail,
+      password,
+      resetPassword,
+      requestJson
     });
-    const debugCode = sendUserCode.body?.data?.debugCode;
-    if (!debugCode) {
-      throw new Error(`Expected debug code in console email mode, got: ${JSON.stringify(sendUserCode.body)}`);
-    }
-    await requestJson({
-      method: "POST",
-      url: `${base}/platform/auth/email/send-code`,
-      body: { email: userEmail },
-      expectedStatus: 429
-    });
-
-    const userLogin = await requestJson({
-      method: "POST",
-      url: `${base}/platform/auth/email/verify-code`,
-      body: { email: userEmail, code: debugCode },
-      expectedStatus: 200
-    });
-    if (userLogin.body?.data?.user?.role !== "user") {
-      throw new Error(`Expected user role, got: ${JSON.stringify(userLogin.body)}`);
-    }
-    const userToken = userLogin.body?.data?.token;
-    const userId = userLogin.body?.data?.user?.id;
-    if (!userToken || !userId) {
-      throw new Error("Missing user token/id after login.");
-    }
 
     console.log("[platform-smoke] verify failed-login lockout...");
     for (let attempt = 1; attempt <= 4; attempt += 1) {

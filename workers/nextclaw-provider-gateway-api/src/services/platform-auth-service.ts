@@ -198,50 +198,45 @@ export async function registerPlatformUser(params: {
   return user;
 }
 
-export async function findOrCreatePlatformEmailUser(params: {
+export async function updatePlatformUserPassword(params: {
   env: Env;
   email: string;
+  password: string;
 }): Promise<UserRow> {
   const email = normalizeEmail(params.email);
+  const password = params.password;
   if (!email || !isValidEmail(email)) {
     throw new PlatformAuthServiceError(400, "INVALID_EMAIL", "A valid email is required.");
   }
-
-  const existing = await getUserByEmail(params.env.NEXTCLAW_PLATFORM_DB, email);
-  if (existing) {
-    return existing;
+  if (!isStrongPassword(password)) {
+    throw new PlatformAuthServiceError(400, "WEAK_PASSWORD", "Password must be at least 8 characters.");
   }
 
   const now = new Date().toISOString();
-  const generatedPassword = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
-  const digest = await hashPassword(generatedPassword);
-  const userId = crypto.randomUUID();
-  const inserted = await params.env.NEXTCLAW_PLATFORM_DB.prepare(
-    `INSERT INTO users (
-      id, email, password_hash, password_salt, role,
-      free_limit_usd, free_used_usd, paid_balance_usd,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, 'user', ?, 0, 0, ?, ?)`
-  )
-    .bind(
-      userId,
-      email,
-      digest.hash,
-      digest.salt,
-      getDefaultUserFreeLimit(params.env),
-      now,
-      now
-    )
-    .run();
-  if (!inserted.success || (inserted.meta.changes ?? 0) !== 1) {
-    throw new PlatformAuthServiceError(500, "REGISTER_FAILED", "Failed to create user.");
+  const existing = await getUserByEmail(params.env.NEXTCLAW_PLATFORM_DB, email);
+  if (!existing) {
+    throw new PlatformAuthServiceError(404, "EMAIL_NOT_FOUND", "This email is not registered.");
   }
 
-  const user = await getUserById(params.env.NEXTCLAW_PLATFORM_DB, userId);
-  if (!user) {
-    throw new PlatformAuthServiceError(500, "REGISTER_FAILED", "User created but cannot be loaded.");
+  const digest = await hashPassword(password);
+  const updated = await params.env.NEXTCLAW_PLATFORM_DB.prepare(
+    `UPDATE users
+        SET password_hash = ?,
+            password_salt = ?,
+            updated_at = ?
+      WHERE id = ?`
+  )
+    .bind(digest.hash, digest.salt, now, existing.id)
+    .run();
+  if (!updated.success || (updated.meta.changes ?? 0) !== 1) {
+    throw new PlatformAuthServiceError(500, "PASSWORD_UPDATE_FAILED", "Failed to update password.");
   }
-  await ensureUserSecurityRow(params.env.NEXTCLAW_PLATFORM_DB, user.id, now);
+
+  await resetUserLoginSecurity(params.env.NEXTCLAW_PLATFORM_DB, existing.id, now);
+  const user = await getUserById(params.env.NEXTCLAW_PLATFORM_DB, existing.id);
+  if (!user) {
+    throw new PlatformAuthServiceError(500, "PASSWORD_UPDATE_FAILED", "Password updated but user cannot be loaded.");
+  }
   return user;
 }
 

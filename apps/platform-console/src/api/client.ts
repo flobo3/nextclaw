@@ -72,18 +72,34 @@ export async function login(email: string, password: string): Promise<AuthResult
   return unwrap(data);
 }
 
-export async function sendEmailCode(email: string): Promise<EmailCodeSendResult> {
-  const data = await request<ApiEnvelope<EmailCodeSendResult>>('/platform/auth/email/send-code', {
+export async function sendRegisterCode(email: string): Promise<EmailCodeSendResult> {
+  const data = await request<ApiEnvelope<EmailCodeSendResult>>('/platform/auth/register/send-code', {
     method: 'POST',
     body: JSON.stringify({ email })
   });
   return unwrap(data);
 }
 
-export async function verifyEmailCode(email: string, code: string): Promise<AuthResult> {
-  const data = await request<ApiEnvelope<AuthResult>>('/platform/auth/email/verify-code', {
+export async function completeRegister(email: string, code: string, password: string): Promise<AuthResult> {
+  const data = await request<ApiEnvelope<AuthResult>>('/platform/auth/register/complete', {
     method: 'POST',
-    body: JSON.stringify({ email, code })
+    body: JSON.stringify({ email, code, password })
+  });
+  return unwrap(data);
+}
+
+export async function sendPasswordResetCode(email: string): Promise<EmailCodeSendResult> {
+  const data = await request<ApiEnvelope<EmailCodeSendResult>>('/platform/auth/password/reset/send-code', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+  return unwrap(data);
+}
+
+export async function completePasswordReset(email: string, code: string, password: string): Promise<AuthResult> {
+  const data = await request<ApiEnvelope<AuthResult>>('/platform/auth/password/reset/complete', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, password })
   });
   return unwrap(data);
 }

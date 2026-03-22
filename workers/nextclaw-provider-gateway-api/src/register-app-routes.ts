@@ -1,12 +1,20 @@
 import type { Hono } from "hono";
 import {
-  authorizeBrowserAuthHandler,
+  completeBrowserPasswordResetHandler,
+  completeBrowserRegisterHandler,
   browserAuthPageHandler,
+  loginBrowserAuthHandler,
   pollBrowserAuthHandler,
-  sendBrowserEmailCodeHandler,
+  sendBrowserPasswordResetCodeHandler,
+  sendBrowserRegisterCodeHandler,
   startBrowserAuthHandler,
-} from "./auth-browser-otp-route-handlers";
-import { sendEmailCodeHandler, verifyEmailCodeHandler } from "./auth-email-code-route-handlers";
+} from "./auth-browser-route-handlers";
+import {
+  completePasswordResetHandler,
+  completeRegisterHandler,
+  sendPasswordResetCodeHandler,
+  sendRegisterCodeHandler,
+} from "./auth-email-code-route-handlers";
 import {
   adminOverviewHandler,
   adminProfitOverviewHandler,
@@ -43,14 +51,19 @@ import type { Env } from "./types/platform";
 
 function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
   app.post("/platform/auth/login", loginHandler);
-  app.post("/platform/auth/email/send-code", sendEmailCodeHandler);
-  app.post("/platform/auth/email/verify-code", verifyEmailCodeHandler);
+  app.post("/platform/auth/register/send-code", sendRegisterCodeHandler);
+  app.post("/platform/auth/register/complete", completeRegisterHandler);
+  app.post("/platform/auth/password/reset/send-code", sendPasswordResetCodeHandler);
+  app.post("/platform/auth/password/reset/complete", completePasswordResetHandler);
   app.get("/platform/auth/me", meHandler);
   app.post("/platform/auth/browser/start", startBrowserAuthHandler);
   app.post("/platform/auth/browser/poll", pollBrowserAuthHandler);
   app.get("/platform/auth/browser", browserAuthPageHandler);
-  app.post("/platform/auth/browser/send-code", sendBrowserEmailCodeHandler);
-  app.post("/platform/auth/browser/verify-code", authorizeBrowserAuthHandler);
+  app.post("/platform/auth/browser/login", loginBrowserAuthHandler);
+  app.post("/platform/auth/browser/register/send-code", sendBrowserRegisterCodeHandler);
+  app.post("/platform/auth/browser/register/complete", completeBrowserRegisterHandler);
+  app.post("/platform/auth/browser/reset-password/send-code", sendBrowserPasswordResetCodeHandler);
+  app.post("/platform/auth/browser/reset-password/complete", completeBrowserPasswordResetHandler);
 }
 
 function registerRemoteAccessRoutes(app: Hono<{ Bindings: Env }>): void {

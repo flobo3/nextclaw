@@ -1,12 +1,9 @@
 import { getUserByEmail } from "./repositories/platform-repository";
-import {
-  PlatformAuthServiceError,
-  findOrCreatePlatformEmailUser,
-} from "./services/platform-auth-service";
-import type { Env, UserRow } from "./types/platform";
+import { PlatformAuthServiceError } from "./services/platform-auth-service";
+import type { Env } from "./types/platform";
 import { isValidEmail, normalizeEmail } from "./utils/platform-utils";
 
-type EmailCodePurpose = "sign_in" | "browser_auth";
+export type EmailCodePurpose = "register" | "password_reset";
 
 type SendPlatformEmailAuthCodeParams = {
   env: Env;
@@ -70,15 +67,11 @@ function ensureEmailInput(email: string): string {
 }
 
 function ensureBrowserAuthSessionId(params: {
-  purpose: EmailCodePurpose;
   browserAuthSessionId?: string;
 }): string | null {
   const sessionId = params.browserAuthSessionId?.trim() ?? "";
-  if (params.purpose !== "browser_auth") {
-    return null;
-  }
   if (!sessionId) {
-    throw new PlatformAuthServiceError(400, "INVALID_SESSION", "browserAuthSessionId is required.");
+    return null;
   }
   return sessionId;
 }
@@ -265,12 +258,12 @@ async function deliverResendEmail(params: {
     );
   }
   const expiresAt = new Date(params.expiresAt).toLocaleString("en-US");
-  const subject = params.purpose === "browser_auth"
-    ? "Authorize your NextClaw device"
-    : "Your NextClaw sign-in code";
-  const intro = params.purpose === "browser_auth"
-    ? "Use this code to authorize your NextClaw device."
-    : "Use this code to sign in to NextClaw Platform.";
+  const subject = params.purpose === "register"
+    ? "Verify your NextClaw email"
+    : "Reset your NextClaw password";
+  const intro = params.purpose === "register"
+    ? "Use this code to verify your email and finish creating your NextClaw Account."
+    : "Use this code to reset the password for your NextClaw Account.";
   const html = `
     <div style="font-family: SF Pro Text, Segoe UI, sans-serif; color: #111827; line-height: 1.6;">
       <p style="margin: 0 0 12px; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #2563eb;">NextClaw Account</p>
@@ -334,7 +327,14 @@ export async function sendPlatformEmailAuthCode(
   params: SendPlatformEmailAuthCodeParams,
 ): Promise<SendPlatformEmailAuthCodeResult> {
   const email = ensureEmailInput(params.email);
-  const browserAuthSessionId = ensureBrowserAuthSessionId(params);
+  const browserAuthSessionId = ensureBrowserAuthSessionId({ browserAuthSessionId: params.browserAuthSessionId });
+  const existingUser = await getUserByEmail(params.env.NEXTCLAW_PLATFORM_DB, email);
+  if (params.purpose === "register" && existingUser) {
+    throw new PlatformAuthServiceError(409, "EMAIL_EXISTS", "This email is already registered.");
+  }
+  if (params.purpose === "password_reset" && !existingUser) {
+    throw new PlatformAuthServiceError(404, "EMAIL_NOT_FOUND", "This email is not registered.");
+  }
   const db = params.env.NEXTCLAW_PLATFORM_DB;
   const now = new Date();
   const nowIso = now.toISOString();
@@ -399,10 +399,10 @@ export async function sendPlatformEmailAuthCode(
 
 export async function verifyPlatformEmailAuthCode(
   params: VerifyPlatformEmailAuthCodeParams,
-): Promise<UserRow> {
+): Promise<{ email: string }> {
   const email = ensureEmailInput(params.email);
   const code = params.code.trim();
-  const browserAuthSessionId = ensureBrowserAuthSessionId(params);
+  const browserAuthSessionId = ensureBrowserAuthSessionId({ browserAuthSessionId: params.browserAuthSessionId });
   if (!/^\d{6}$/.test(code)) {
     throw new PlatformAuthServiceError(400, "INVALID_CODE", "Verification code must be 6 digits.");
   }
@@ -425,12 +425,5 @@ export async function verifyPlatformEmailAuthCode(
     throw new PlatformAuthServiceError(401, "INVALID_CODE", "Verification code is invalid.");
   }
   await consumeEmailCode(params.env.NEXTCLAW_PLATFORM_DB, pending.id, new Date().toISOString());
-  const existingUser = await getUserByEmail(params.env.NEXTCLAW_PLATFORM_DB, email);
-  if (existingUser) {
-    return existingUser;
-  }
-  return await findOrCreatePlatformEmailUser({
-    env: params.env,
-    email,
-  });
+  return { email };
 }
