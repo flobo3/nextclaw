@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "private": false,
   "description": "NextClaw plugin that registers Codex SDK as an optional NCP runtime.",
   "type": "module",
@@ -14,7 +14,8 @@
     "build": "tsup --config tsup.config.ts",
     "prepack": "pnpm run build",
     "lint": "eslint .",
-    "tsc": "tsc -p tsconfig.json"
+    "tsc": "tsc -p tsconfig.json",
+    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
   },
   "files": [
     "dist",

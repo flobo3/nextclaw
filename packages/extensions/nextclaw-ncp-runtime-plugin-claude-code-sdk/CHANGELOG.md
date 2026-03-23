@@ -1,5 +1,16 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk
 
+## 0.1.14
+
+### Patch Changes
+
+- Republish all public workspace packages with pnpm publish guards so released manifests no longer retain workspace:\* dependencies and future npm publish misuse is blocked before release.
+- Updated dependencies
+  - @nextclaw/core@0.9.12
+  - @nextclaw/ncp@0.3.2
+  - @nextclaw/ncp-toolkit@0.4.2
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk@0.1.4
+
 ## 0.1.13
 
 ### Patch Changes

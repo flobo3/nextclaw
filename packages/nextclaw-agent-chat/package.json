@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/agent-chat",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Nextclaw agent chat core library.",
   "type": "module",
@@ -17,7 +17,8 @@
     "build": "tsup src/index.ts --format esm --dts --out-dir dist",
     "prepack": "pnpm run build",
     "lint": "eslint .",
-    "tsc": "tsc -p tsconfig.json"
+    "tsc": "tsc -p tsconfig.json",
+    "prepublishOnly": "node ../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "json-schema": "^0.4.0",

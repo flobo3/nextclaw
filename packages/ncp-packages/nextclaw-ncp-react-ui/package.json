@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/ncp-react-ui",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": false,
   "description": "Pure React presentation components for building NCP-based agent applications.",
   "type": "module",
@@ -22,7 +22,8 @@
     "build": "tsup src/index.ts --format esm --dts --out-dir dist && node scripts/copy-css.mjs",
     "prepack": "pnpm run build",
     "lint": "cd ../../.. && pnpm exec eslint packages/ncp-packages/nextclaw-ncp-react-ui --config packages/ncp-packages/nextclaw-ncp-react-ui/eslint.config.mjs",
-    "tsc": "tsc -p tsconfig.json"
+    "tsc": "tsc -p tsconfig.json",
+    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/ncp": "workspace:*"

@@ -1,5 +1,18 @@
 # nextclaw-server
 
+## 0.10.35
+
+### Patch Changes
+
+- Republish all public workspace packages with pnpm publish guards so released manifests no longer retain workspace:\* dependencies and future npm publish misuse is blocked before release.
+- Updated dependencies
+  - @nextclaw/core@0.9.12
+  - @nextclaw/mcp@0.1.31
+  - @nextclaw/ncp@0.3.2
+  - @nextclaw/ncp-http-agent-server@0.3.2
+  - @nextclaw/openclaw-compat@0.3.18
+  - @nextclaw/runtime@0.2.12
+
 ## 0.10.34
 
 ### Patch Changes

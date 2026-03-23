@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/channel-plugin-weixin",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": false,
   "description": "NextClaw Weixin channel plugin.",
   "type": "module",
@@ -24,7 +24,8 @@
     "build": "tsup --config tsup.config.ts",
     "prepack": "pnpm run build",
     "lint": "eslint .",
-    "tsc": "tsc -p tsconfig.json"
+    "tsc": "tsc -p tsconfig.json",
+    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/core": "workspace:*"

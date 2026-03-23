@@ -1,5 +1,13 @@
 # @nextclaw/channel-plugin-weixin
 
+## 0.1.6
+
+### Patch Changes
+
+- Republish all public workspace packages with pnpm publish guards so released manifests no longer retain workspace:\* dependencies and future npm publish misuse is blocked before release.
+- Updated dependencies
+  - @nextclaw/core@0.9.12
+
 ## 0.1.5
 
 ### Patch Changes

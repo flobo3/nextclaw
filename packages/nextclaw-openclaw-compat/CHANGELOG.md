@@ -1,5 +1,27 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.18
+
+### Patch Changes
+
+- Republish all public workspace packages with pnpm publish guards so released manifests no longer retain workspace:\* dependencies and future npm publish misuse is blocked before release.
+- Updated dependencies
+  - @nextclaw/channel-plugin-dingtalk@0.2.12
+  - @nextclaw/channel-plugin-discord@0.2.12
+  - @nextclaw/channel-plugin-email@0.2.12
+  - @nextclaw/channel-plugin-feishu@0.2.12
+  - @nextclaw/channel-plugin-mochat@0.2.12
+  - @nextclaw/channel-plugin-qq@0.2.12
+  - @nextclaw/channel-plugin-slack@0.2.12
+  - @nextclaw/channel-plugin-telegram@0.2.12
+  - @nextclaw/channel-plugin-wecom@0.2.12
+  - @nextclaw/channel-plugin-weixin@0.1.6
+  - @nextclaw/channel-plugin-whatsapp@0.2.12
+  - @nextclaw/channel-runtime@0.2.12
+  - @nextclaw/core@0.9.12
+  - @nextclaw/ncp@0.3.2
+  - @nextclaw/ncp-toolkit@0.4.2
+
 ## 0.3.17
 
 ### Patch Changes

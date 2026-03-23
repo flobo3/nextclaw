@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/ncp-react",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": false,
   "description": "React bindings for building NCP-based agent applications.",
   "type": "module",
@@ -18,7 +18,8 @@
     "build": "tsup src/index.ts --format esm --dts --out-dir dist",
     "prepack": "pnpm run build",
     "lint": "cd ../../.. && pnpm exec eslint packages/ncp-packages/nextclaw-ncp-react --config packages/ncp-packages/nextclaw-ncp-react/eslint.config.mjs",
-    "tsc": "tsc -p tsconfig.json"
+    "tsc": "tsc -p tsconfig.json",
+    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/ncp": "workspace:*",

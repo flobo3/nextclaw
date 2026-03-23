@@ -35,6 +35,9 @@ Notes:
 - `release:version` and `release:publish` automatically run README sync/check.
 - `release:publish` should run `release:check` (build + lint + typecheck) before publishing.
 - `release:publish` should create git tags automatically.
+- Never run `npm publish` directly inside `packages/*`, `packages/extensions/*`, or `packages/ncp-packages/*`.
+- In this pnpm workspace, direct `npm publish` keeps `workspace:*` in the published manifest and breaks downstream installs.
+- If you need to publish a single package manually, use `pnpm publish` from that package directory, or the repo-root `pnpm release:publish` flow.
 
 ## UI-only shortcut
 

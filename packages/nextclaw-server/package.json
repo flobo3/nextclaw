@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/server",
-  "version": "0.10.34",
+  "version": "0.10.35",
   "private": false,
   "description": "Nextclaw UI/API server.",
   "type": "module",
@@ -19,7 +19,8 @@
     "prepack": "pnpm run build",
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
-    "test": "vitest"
+    "test": "vitest",
+    "prepublishOnly": "node ../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.3",

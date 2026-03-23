@@ -1,5 +1,13 @@
 # @nextclaw/channel-plugin-wecom
 
+## 0.2.12
+
+### Patch Changes
+
+- Republish all public workspace packages with pnpm publish guards so released manifests no longer retain workspace:\* dependencies and future npm publish misuse is blocked before release.
+- Updated dependencies
+  - @nextclaw/channel-runtime@0.2.12
+
 ## 0.2.11
 
 ### Patch Changes

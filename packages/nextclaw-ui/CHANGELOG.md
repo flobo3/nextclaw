@@ -1,5 +1,17 @@
 # @nextclaw/ui
 
+## 0.9.17
+
+### Patch Changes
+
+- Republish all public workspace packages with pnpm publish guards so released manifests no longer retain workspace:\* dependencies and future npm publish misuse is blocked before release.
+- Updated dependencies
+  - @nextclaw/agent-chat@0.1.2
+  - @nextclaw/agent-chat-ui@0.2.2
+  - @nextclaw/ncp@0.3.2
+  - @nextclaw/ncp-http-agent-client@0.3.2
+  - @nextclaw/ncp-react@0.3.3
+
 ## 0.9.16
 
 ### Patch Changes

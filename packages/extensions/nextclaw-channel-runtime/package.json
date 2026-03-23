@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/channel-runtime",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "private": false,
   "description": "Runtime implementations for NextClaw builtin channel plugins.",
   "type": "module",
@@ -18,7 +18,8 @@
     "build": "tsup src/index.ts --format esm --dts --out-dir dist",
     "prepack": "pnpm run build",
     "lint": "eslint .",
-    "tsc": "tsc -p tsconfig.json"
+    "tsc": "tsc -p tsconfig.json",
+    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.58.0",

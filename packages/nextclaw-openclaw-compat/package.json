@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/openclaw-compat",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "private": false,
   "description": "OpenClaw plugin compatibility layer for NextClaw.",
   "type": "module",
@@ -19,7 +19,8 @@
     "prepack": "pnpm run build",
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
-    "test": "vitest"
+    "test": "vitest",
+    "prepublishOnly": "node ../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/channel-plugin-dingtalk": "workspace:*",

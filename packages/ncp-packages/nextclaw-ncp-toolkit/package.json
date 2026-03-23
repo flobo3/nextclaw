@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/ncp-toolkit",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": false,
   "description": "Toolkit implementations built on top of the NextClaw Communication Protocol.",
   "type": "module",
@@ -19,7 +19,8 @@
     "prepack": "pnpm run build",
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/ncp": "workspace:*"

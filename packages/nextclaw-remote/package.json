@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/remote",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "private": false,
   "description": "Remote access runtime for NextClaw device registration, relay bridging, and service-managed connectivity.",
   "type": "module",
@@ -31,7 +31,8 @@
     "build": "tsup src/index.ts --format esm --dts --out-dir dist",
     "prepack": "pnpm run build",
     "lint": "eslint .",
-    "tsc": "tsc -p tsconfig.json"
+    "tsc": "tsc -p tsconfig.json",
+    "prepublishOnly": "node ../../scripts/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/core": "workspace:*",

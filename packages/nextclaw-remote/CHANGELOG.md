@@ -1,5 +1,14 @@
 # @nextclaw/remote
 
+## 0.1.29
+
+### Patch Changes
+
+- Republish all public workspace packages with pnpm publish guards so released manifests no longer retain workspace:\* dependencies and future npm publish misuse is blocked before release.
+- Updated dependencies
+  - @nextclaw/core@0.9.12
+  - @nextclaw/server@0.10.35
+
 ## 0.1.28
 
 ### Patch Changes
@@ -35,6 +44,7 @@
 
 - Updated dependencies
   - @nextclaw/server@0.10.31
+
 ## 0.1.21
 
 ### Patch Changes
