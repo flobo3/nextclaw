@@ -1,6 +1,6 @@
 import type { StreamEvent } from './transport.types';
 
-type SseErrorPayload = { message?: string } | string | undefined;
+type FinalResultSink = (value: unknown) => void;
 
 function parseSseFrame(frame: string): StreamEvent | null {
   const lines = frame.split('\n');
@@ -36,16 +36,10 @@ function parseSseFrame(frame: string): StreamEvent | null {
   return { name, payload };
 }
 
-function readSseErrorMessage(payload: SseErrorPayload, fallback: string): string {
-  return typeof payload === 'string'
-    ? payload
-    : payload?.message ?? fallback;
-}
-
 function processSseFrame(
   rawFrame: string,
   onEvent: (event: StreamEvent) => void,
-  setFinalResult: (value: unknown) => void
+  setFinalResult: FinalResultSink
 ): void {
   const frame = parseSseFrame(rawFrame);
   if (!frame) {
@@ -53,10 +47,6 @@ function processSseFrame(
   }
   if (frame.name === 'final') {
     setFinalResult(frame.payload);
-    return;
-  }
-  if (frame.name === 'error') {
-    throw new Error(readSseErrorMessage(frame.payload as SseErrorPayload, 'chat stream failed'));
   }
   onEvent(frame);
 }
@@ -64,7 +54,7 @@ function processSseFrame(
 function flushBufferedFrames(
   bufferState: { value: string },
   onEvent: (event: StreamEvent) => void,
-  setFinalResult: (value: unknown) => void
+  setFinalResult: FinalResultSink
 ): void {
   let boundary = bufferState.value.indexOf('\n\n');
   while (boundary !== -1) {
@@ -86,7 +76,6 @@ export async function readSseStreamResult<TFinal>(
   const decoder = new TextDecoder();
   const bufferState = { value: '' };
   let finalResult: unknown = undefined;
-
   try {
     while (true) {
       const { value, done } = await reader.read();
@@ -107,8 +96,5 @@ export async function readSseStreamResult<TFinal>(
     reader.releaseLock();
   }
 
-  if (finalResult === undefined) {
-    throw new Error('stream ended without final event');
-  }
   return finalResult as TFinal;
 }

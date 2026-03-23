@@ -101,6 +101,7 @@ class LocalRealtimeGateway {
 
 export class LocalAppTransport implements AppTransport {
   private readonly realtimeGateway: LocalRealtimeGateway;
+  private readonly apiBase: string;
 
   constructor(
     private readonly options: {
@@ -108,8 +109,8 @@ export class LocalAppTransport implements AppTransport {
       wsPath?: string;
     } = {}
   ) {
-    const apiBase = options.apiBase ?? API_BASE;
-    this.realtimeGateway = new LocalRealtimeGateway(resolveTransportWebSocketUrl(apiBase, options.wsPath ?? '/ws'));
+    this.apiBase = options.apiBase ?? API_BASE;
+    this.realtimeGateway = new LocalRealtimeGateway(resolveTransportWebSocketUrl(this.apiBase, options.wsPath ?? '/ws'));
   }
 
   async request<T>(input: RequestInput): Promise<T> {
@@ -135,7 +136,7 @@ export class LocalAppTransport implements AppTransport {
     }
 
     const finished = (async () => {
-      const response = await fetch(`${API_BASE}${input.path}`, {
+      const response = await fetch(`${this.apiBase}${input.path}`, {
         method: input.method,
         credentials: 'include',
         headers: {

@@ -114,7 +114,7 @@ export class RemoteAppAdapter {
       if (!response) {
         return;
       }
-      const finalResult = await readRemoteAppStreamResult({
+      await readRemoteAppStreamResult({
         response,
         onEvent: (event) => {
           this.send({
@@ -129,8 +129,7 @@ export class RemoteAppAdapter {
       this.send({
         type: "client.stream.end",
         clientId: frame.clientId,
-        streamId: frame.streamId,
-        result: finalResult
+        streamId: frame.streamId
       });
     } catch (error) {
       if (controller.signal.aborted) {

@@ -351,8 +351,7 @@ export class NextclawRemoteRelayDurableObject {
     if (frame.type === "client.stream.end") {
       this.sendToClient(frame.clientId, {
         type: "stream.end",
-        streamId: frame.streamId,
-        result: frame.result
+        streamId: frame.streamId
       });
       return;
     }

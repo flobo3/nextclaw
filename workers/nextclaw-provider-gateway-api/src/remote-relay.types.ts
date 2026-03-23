@@ -62,7 +62,7 @@ export type ConnectorClientFrame =
   | { type: "client.request.error"; clientId: string; id: string; message: string; code?: string }
   | { type: "client.stream.open"; clientId: string; streamId: string; target: { method: string; path: string; body?: unknown } }
   | { type: "client.stream.event"; clientId: string; streamId: string; event: string; payload?: unknown }
-  | { type: "client.stream.end"; clientId: string; streamId: string; result?: unknown }
+  | { type: "client.stream.end"; clientId: string; streamId: string }
   | { type: "client.stream.error"; clientId: string; streamId: string; message: string; code?: string }
   | { type: "client.stream.cancel"; clientId: string; streamId: string }
   | { type: "client.event"; event: unknown };

@@ -366,6 +366,10 @@ async function main() {
       remoteSocket,
       (frame) => frame?.type === "stream.event" && frame.streamId === "stream-1" && frame.event === "delta"
     );
+    const finalStreamFrame = await waitForFrame(
+      remoteSocket,
+      (frame) => frame?.type === "stream.event" && frame.streamId === "stream-1" && frame.event === "final"
+    );
     const endStreamFrame = await waitForFrame(
       remoteSocket,
       (frame) => frame?.type === "stream.end" && frame.streamId === "stream-1"
@@ -377,7 +381,10 @@ async function main() {
     if (deltaStreamFrame.payload?.delta !== "hello ") {
       throw new Error(`Unexpected delta stream frame: ${JSON.stringify(deltaStreamFrame)}`);
     }
-    if (endStreamFrame.result?.reply !== "hello remote") {
+    if (finalStreamFrame.payload?.reply !== "hello remote") {
+      throw new Error(`Unexpected final stream frame: ${JSON.stringify(finalStreamFrame)}`);
+    }
+    if (Object.keys(endStreamFrame).length !== 2) {
       throw new Error(`Unexpected stream end frame: ${JSON.stringify(endStreamFrame)}`);
     }
 

@@ -34,6 +34,7 @@ export async function openSendTurnStream(params: {
   onSessionEvent: (event: StreamSessionEvent) => void;
 }) {
   let readySessionKey = '';
+  let finalResult: { sessionKey: string; reply: string } | null = null;
   const session = appClient.openStream<{ reply?: string; sessionKey?: string }>({
     method: 'POST',
     path: '/api/chat/turn/stream',
@@ -54,10 +55,29 @@ export async function openSendTurnStream(params: {
       }
       if (event.name === 'session_event') {
         params.onSessionEvent({ data: event.payload as StreamSessionEvent['data'] });
+        return;
+      }
+      if (event.name === 'final') {
+        const payload = (event.payload ?? {}) as { sessionKey?: string; reply?: string };
+        finalResult = {
+          sessionKey:
+            typeof payload.sessionKey === 'string' && payload.sessionKey.trim()
+              ? payload.sessionKey
+              : readySessionKey,
+          reply: typeof payload.reply === 'string' ? payload.reply : ''
+        };
+        return;
+      }
+      if (event.name === 'error') {
+        const payload = (event.payload ?? {}) as { message?: string };
+        throw new Error(payload.message?.trim() || 'chat stream failed');
       }
     }
   });
-  const result = await session.finished;
+  const result = await session.finished as { reply?: string; sessionKey?: string } | undefined;
+  if (finalResult !== null) {
+    return finalResult;
+  }
   return {
     sessionKey: typeof result?.sessionKey === 'string' && result.sessionKey.trim()
       ? result.sessionKey
@@ -75,6 +95,7 @@ export async function openResumeRunStream(params: {
   onSessionEvent: (event: StreamSessionEvent) => void;
 }) {
   let readySessionKey = '';
+  let finalResult: { sessionKey: string; reply: string } | null = null;
   const query = new URLSearchParams();
   if (typeof params.fromEventIndex === 'number') {
     query.set('fromEventIndex', String(Math.max(0, Math.trunc(params.fromEventIndex))));
@@ -101,10 +122,29 @@ export async function openResumeRunStream(params: {
       }
       if (event.name === 'session_event') {
         params.onSessionEvent({ data: event.payload as StreamSessionEvent['data'] });
+        return;
+      }
+      if (event.name === 'final') {
+        const payload = (event.payload ?? {}) as { sessionKey?: string; reply?: string };
+        finalResult = {
+          sessionKey:
+            typeof payload.sessionKey === 'string' && payload.sessionKey.trim()
+              ? payload.sessionKey
+              : readySessionKey,
+          reply: typeof payload.reply === 'string' ? payload.reply : ''
+        };
+        return;
+      }
+      if (event.name === 'error') {
+        const payload = (event.payload ?? {}) as { message?: string };
+        throw new Error(payload.message?.trim() || 'chat stream failed');
       }
     }
   });
-  const result = await session.finished;
+  const result = await session.finished as { reply?: string; sessionKey?: string } | undefined;
+  if (finalResult !== null) {
+    return finalResult;
+  }
   return {
     sessionKey: typeof result?.sessionKey === 'string' && result.sessionKey.trim()
       ? result.sessionKey

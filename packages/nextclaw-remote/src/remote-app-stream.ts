@@ -34,34 +34,13 @@ function parseRemoteSseFrame(frame: string): RemoteStreamEvent | null {
   }
 }
 
-function readRemoteStreamError(payload: unknown, fallback: string): string {
-  if (typeof payload === "object" && payload && "error" in payload) {
-    const typed = payload as { error?: { message?: string } };
-    if (typed.error?.message) {
-      return typed.error.message;
-    }
-  }
-  if (typeof payload === "string" && payload.trim()) {
-    return payload.trim();
-  }
-  return fallback;
-}
-
 function processRemoteStreamFrame(params: {
   rawFrame: string;
   onEvent: (frame: RemoteStreamEvent) => void;
-  setFinalResult: (value: unknown) => void;
 }): void {
   const frame = parseRemoteSseFrame(params.rawFrame);
   if (!frame) {
     return;
-  }
-  if (frame.event === "final") {
-    params.setFinalResult(frame.payload);
-    return;
-  }
-  if (frame.event === "error") {
-    throw new Error(readRemoteStreamError(frame.payload, "stream failed"));
   }
   params.onEvent(frame);
 }
@@ -69,14 +48,12 @@ function processRemoteStreamFrame(params: {
 function flushRemoteStreamFrames(params: {
   bufferState: { value: string };
   onEvent: (frame: RemoteStreamEvent) => void;
-  setFinalResult: (value: unknown) => void;
 }): void {
   let boundary = params.bufferState.value.indexOf("\n\n");
   while (boundary !== -1) {
     processRemoteStreamFrame({
       rawFrame: params.bufferState.value.slice(0, boundary),
-      onEvent: params.onEvent,
-      setFinalResult: params.setFinalResult
+      onEvent: params.onEvent
     });
     params.bufferState.value = params.bufferState.value.slice(boundary + 2);
     boundary = params.bufferState.value.indexOf("\n\n");
@@ -86,7 +63,7 @@ function flushRemoteStreamFrames(params: {
 export async function readRemoteAppStreamResult(params: {
   response: Response;
   onEvent: (frame: RemoteStreamEvent) => void;
-}): Promise<unknown> {
+}): Promise<void> {
   const reader = params.response.body?.getReader();
   if (!reader) {
     throw new Error("SSE response body unavailable.");
@@ -94,8 +71,6 @@ export async function readRemoteAppStreamResult(params: {
 
   const decoder = new TextDecoder();
   const bufferState = { value: "" };
-  let finalResult: unknown = undefined;
-
   try {
     while (true) {
       const { value, done } = await reader.read();
@@ -105,28 +80,17 @@ export async function readRemoteAppStreamResult(params: {
       bufferState.value += decoder.decode(value, { stream: true });
       flushRemoteStreamFrames({
         bufferState,
-        onEvent: params.onEvent,
-        setFinalResult: (nextValue) => {
-          finalResult = nextValue;
-        }
+        onEvent: params.onEvent
       });
     }
 
     if (bufferState.value.trim()) {
       processRemoteStreamFrame({
         rawFrame: bufferState.value,
-        onEvent: params.onEvent,
-        setFinalResult: (nextValue) => {
-          finalResult = nextValue;
-        }
+        onEvent: params.onEvent
       });
     }
   } finally {
     reader.releaseLock();
   }
-
-  if (finalResult === undefined) {
-    throw new Error("stream ended without final event");
-  }
-  return finalResult;
 }

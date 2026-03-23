@@ -14,7 +14,7 @@ type RemoteBrowserFrame =
   | { type: 'response'; id: string; status: number; body?: unknown }
   | { type: 'request.error'; id: string; message: string; code?: string }
   | { type: 'stream.event'; streamId: string; event: string; payload?: unknown }
-  | { type: 'stream.end'; streamId: string; result?: unknown }
+  | { type: 'stream.end'; streamId: string }
   | { type: 'stream.error'; streamId: string; message: string; code?: string }
   | { type: 'event'; event: AppEvent }
   | { type: 'connection.error'; message: string; code?: string };
@@ -31,6 +31,7 @@ type PendingRequest = {
 
 type PendingStream = {
   onEvent: StreamInput['onEvent'];
+  finalResult: unknown;
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
 };
@@ -131,6 +132,7 @@ export class RemoteSessionMultiplexTransport implements AppTransport {
 
     this.pendingStreams.set(streamId, {
       onEvent: input.onEvent,
+      finalResult: undefined,
       resolve: (value) => {
         if (settled) {
           return;
@@ -351,6 +353,9 @@ export class RemoteSessionMultiplexTransport implements AppTransport {
     }
     if (frame.type === 'stream.event') {
       try {
+        if (frame.event === 'final') {
+          pending.finalResult = frame.payload;
+        }
         pending.onEvent({ name: frame.event, payload: frame.payload });
       } catch (error) {
         this.pendingStreams.delete(frame.streamId);
@@ -360,7 +365,7 @@ export class RemoteSessionMultiplexTransport implements AppTransport {
     }
     this.pendingStreams.delete(frame.streamId);
     if (frame.type === 'stream.end') {
-      pending.resolve(frame.result);
+      pending.resolve(pending.finalResult);
       return;
     }
     pending.reject(new Error(frame.message));
