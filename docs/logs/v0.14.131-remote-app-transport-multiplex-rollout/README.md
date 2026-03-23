@@ -28,12 +28,12 @@
 - NPM versioning: `PATH=/opt/homebrew/bin:$PATH NPM_CONFIG_USERCONFIG=/Users/peiwang/Projects/nextbot/.npmrc pnpm release:version`
 - NPM publish: `PATH=/opt/homebrew/bin:$PATH NPM_CONFIG_USERCONFIG=/Users/peiwang/Projects/nextbot/.npmrc pnpm release:publish`
 - 本次实际发布版本：
-  - `@nextclaw/ui@0.9.10`
-  - `@nextclaw/remote@0.1.19`
-  - `@nextclaw/mcp@0.1.23`
-  - `@nextclaw/ncp-mcp@0.1.23`
-  - `@nextclaw/server@0.10.23`
-  - `nextclaw@0.13.27`
+  - `@nextclaw/ui@0.9.11`
+  - `@nextclaw/remote@0.1.20`
+  - `@nextclaw/mcp@0.1.24`
+  - `@nextclaw/ncp-mcp@0.1.24`
+  - `@nextclaw/server@0.10.24`
+  - `nextclaw@0.13.28`
 - Worker deploy: `PATH=/opt/homebrew/bin:$PATH pnpm -C workers/nextclaw-provider-gateway-api run deploy`
 - 线上 worker 版本：`d8fabcc7-d864-4c7c-a2dc-928c5f255b98`
 

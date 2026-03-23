@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.9.11
+
+### Patch Changes
+
+- Republish the finalized remote app transport multiplex implementation after maintainability refactors so the published packages match the verified runtime code.
+
 ## 0.9.10
 
 ### Patch Changes

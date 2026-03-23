@@ -1,5 +1,16 @@
 # nextclaw
 
+## 0.13.28
+
+### Patch Changes
+
+- Republish the finalized remote app transport multiplex implementation after maintainability refactors so the published packages match the verified runtime code.
+- Updated dependencies
+  - @nextclaw/remote@0.1.20
+  - @nextclaw/mcp@0.1.24
+  - @nextclaw/server@0.10.24
+  - @nextclaw/ncp-mcp@0.1.24
+
 ## 0.13.27
 
 ### Patch Changes
