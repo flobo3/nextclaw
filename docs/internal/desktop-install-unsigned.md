@@ -10,6 +10,7 @@
 ## 安装产物
 
 - macOS（Apple Silicon）：`NextClaw Desktop-<version>-arm64.dmg`
+- macOS（Intel）：`NextClaw Desktop-<version>-x64.dmg`
 - Windows：`NextClaw Desktop-win32-x64-unpacked.zip`（解压后运行 `NextClaw Desktop.exe`）
 
 ## macOS 验证步骤

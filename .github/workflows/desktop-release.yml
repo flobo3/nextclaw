@@ -69,15 +69,38 @@ jobs:
             cp "apps/desktop/release/latest-mac.yml" "apps/desktop/release/latest-mac-${{ matrix.arch }}.yml"
           fi
 
+      - name: Normalize macOS artifact filenames
+        if: matrix.platform == 'darwin'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ matrix.arch }}" = "x64" ]; then
+            DMG_PATH="$(find apps/desktop/release -maxdepth 1 -type f -name "*.dmg" ! -name "*-arm64.dmg" ! -name "*-x64.dmg" | head -n 1)"
+            if [ -n "${DMG_PATH}" ]; then
+              TARGET_DMG="${DMG_PATH%.dmg}-x64.dmg"
+              mv "${DMG_PATH}" "${TARGET_DMG}"
+              if [ -f "${DMG_PATH}.blockmap" ]; then
+                mv "${DMG_PATH}.blockmap" "${TARGET_DMG}.blockmap"
+              fi
+            fi
+
+            ZIP_PATH="$(find apps/desktop/release -maxdepth 1 -type f -name "*-mac.zip" ! -name "*-arm64-mac.zip" ! -name "*-x64-mac.zip" | head -n 1)"
+            if [ -n "${ZIP_PATH}" ]; then
+              TARGET_ZIP="${ZIP_PATH%-mac.zip}-x64-mac.zip"
+              mv "${ZIP_PATH}" "${TARGET_ZIP}"
+              if [ -f "${ZIP_PATH}.blockmap" ]; then
+                mv "${ZIP_PATH}.blockmap" "${TARGET_ZIP}.blockmap"
+              fi
+            fi
+          fi
+
       - name: Smoke Desktop Install (macOS DMG)
         if: matrix.platform == 'darwin'
         shell: bash
         run: |
           set -euo pipefail
           DMG_PATH="$(find apps/desktop/release -maxdepth 1 -type f -name "*-${{ matrix.arch }}.dmg" | head -n 1)"
-          if [ -z "${DMG_PATH}" ] && [ "${{ matrix.arch }}" = "x64" ]; then
-            DMG_PATH="$(find apps/desktop/release -maxdepth 1 -type f -name "*.dmg" ! -name "*-arm64.dmg" | head -n 1)"
-          fi
           if [ -z "${DMG_PATH}" ]; then
             echo "macOS dmg for arch ${{ matrix.arch }} not found in apps/desktop/release"
             exit 1

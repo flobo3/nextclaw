@@ -60,6 +60,8 @@ All artifacts are under `apps/desktop/release`:
 
 - `NextClaw Desktop-<version>-arm64.dmg`
 - `NextClaw Desktop-<version>-arm64-mac.zip`
+- `NextClaw Desktop-<version>-x64.dmg`
+- `NextClaw Desktop-<version>-x64-mac.zip`
 - `win-unpacked/NextClaw Desktop.exe`
 
 ### 4) Optional macOS signing credentials
