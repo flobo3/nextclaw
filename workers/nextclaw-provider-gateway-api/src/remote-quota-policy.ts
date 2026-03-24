@@ -3,14 +3,9 @@ export {
   DEFAULT_REMOTE_PLATFORM_DAILY_RESERVE_PERCENT,
   DEFAULT_REMOTE_PLATFORM_DAILY_WORKER_REQUEST_BUDGET,
   DEFAULT_REMOTE_QUOTA_INSTANCE_CONNECTIONS,
-  DEFAULT_REMOTE_QUOTA_SESSION_CONNECTIONS,
-  DEFAULT_REMOTE_QUOTA_SESSION_DAILY_DO_REQUEST_UNITS,
-  DEFAULT_REMOTE_QUOTA_SESSION_DAILY_WORKER_REQUEST_UNITS,
   DEFAULT_REMOTE_QUOTA_SESSION_REQUESTS_PER_MINUTE,
-  DEFAULT_REMOTE_QUOTA_USER_CONNECTIONS,
   DEFAULT_REMOTE_QUOTA_USER_DAILY_DO_REQUEST_UNITS,
   DEFAULT_REMOTE_QUOTA_USER_DAILY_WORKER_REQUEST_UNITS,
-  DEFAULT_REMOTE_QUOTA_USER_REQUESTS_PER_MINUTE,
   DEFAULT_REMOTE_QUOTA_WS_MESSAGE_LEASE_SIZE,
   REMOTE_BROWSER_CONNECT_COST,
   REMOTE_PROXY_REQUEST_COST,
@@ -56,7 +51,7 @@ import {
   addWindowCount,
   applyUserState,
   collectConnectionUsage,
-  getSessionState,
+  createWindow,
   getUserState,
   incrementWindow,
   normalizeRemoteQuotaState,
@@ -80,23 +75,8 @@ export function acquireRemoteBrowserConnection(
 ): RemoteQuotaDecision<{ ticket: string }> {
   const normalizedState = normalizeRemoteQuotaState(state, input.nowMs);
   const userState = getUserState(normalizedState, input.userId, input.nowMs);
-  const sessionState = getSessionState(userState, input.sessionId, input.nowMs);
-  const usage = collectConnectionUsage(userState, input.sessionId, input.instanceId);
+  const usage = collectConnectionUsage(normalizedState, input.instanceId);
 
-  if (usage.userCount >= config.userConnections) {
-    return reject(normalizedState, {
-      code: "REMOTE_USER_CONNECTION_LIMIT",
-      message: "Remote access is temporarily degraded because this user has too many active browser connections.",
-      retryAfterSeconds: REMOTE_QUOTA_CONNECTION_RETRY_AFTER_SECONDS
-    });
-  }
-  if (usage.sessionCount >= config.sessionConnections) {
-    return reject(normalizedState, {
-      code: "REMOTE_SESSION_CONNECTION_LIMIT",
-      message: "Remote access is temporarily degraded because this session has too many active browser connections.",
-      retryAfterSeconds: REMOTE_QUOTA_CONNECTION_RETRY_AFTER_SECONDS
-    });
-  }
   if (usage.instanceCount >= config.instanceConnections) {
     return reject(normalizedState, {
       code: "REMOTE_INSTANCE_CONNECTION_LIMIT",
@@ -109,7 +89,6 @@ export function acquireRemoteBrowserConnection(
     config,
     normalizedState.platformDailyUsage,
     userState.dailyUsage,
-    sessionState.dailyUsage,
     input.nowMs,
     REMOTE_BROWSER_CONNECT_COST
   );
@@ -132,13 +111,6 @@ export function acquireRemoteBrowserConnection(
             sessionId: input.sessionId,
             instanceId: input.instanceId,
             connectedAtMs: input.nowMs
-          }
-        },
-        sessions: {
-          ...userState.sessions,
-          [input.sessionId]: {
-            ...sessionState,
-            dailyUsage: addDailyUsage(sessionState.dailyUsage, REMOTE_BROWSER_CONNECT_COST)
           }
         }
       }),
@@ -183,11 +155,11 @@ export function consumeRemoteRequestQuota(
     sessionId: string;
     operationCost: RemoteQuotaOperationCost;
   }
-): RemoteQuotaDecision<{ remainingUserRequests: number; remainingSessionRequests: number }> {
+): RemoteQuotaDecision<{ remainingSessionRequests: number }> {
   const normalizedState = normalizeRemoteQuotaState(state, input.nowMs);
   const userState = getUserState(normalizedState, input.userId, input.nowMs);
-  const sessionState = getSessionState(userState, input.sessionId, input.nowMs);
-  const usage = readRequestWindowUsage(userState, sessionState, input.nowMs);
+  const sessionState = userState.sessions[input.sessionId] ?? { requestWindow: createWindow(input.nowMs) };
+  const usage = readRequestWindowUsage(sessionState, input.nowMs);
 
   if (usage.sessionWindow.count >= config.sessionRequestsPerMinute) {
     return reject(normalizedState, {
@@ -196,19 +168,11 @@ export function consumeRemoteRequestQuota(
       retryAfterSeconds: secondsUntilWindowReset(input.nowMs)
     });
   }
-  if (usage.userWindow.count >= config.userRequestsPerMinute) {
-    return reject(normalizedState, {
-      code: "REMOTE_USER_RATE_LIMITED",
-      message: "Remote access is temporarily degraded because this user is sending requests too quickly.",
-      retryAfterSeconds: secondsUntilWindowReset(input.nowMs)
-    });
-  }
 
   const dailyError = evaluateDailyBudget(
     config,
     normalizedState.platformDailyUsage,
     userState.dailyUsage,
-    sessionState.dailyUsage,
     input.nowMs,
     input.operationCost
   );
@@ -216,24 +180,20 @@ export function consumeRemoteRequestQuota(
     return reject(normalizedState, dailyError);
   }
 
-  const nextUserWindow = incrementWindow(usage.userWindow);
   const nextSessionWindow = incrementWindow(usage.sessionWindow);
   return {
     ok: true,
     data: {
-      remainingUserRequests: Math.max(0, config.userRequestsPerMinute - nextUserWindow.count),
       remainingSessionRequests: Math.max(0, config.sessionRequestsPerMinute - nextSessionWindow.count)
     },
     state: {
       ...applyUserState(normalizedState, input.userId, {
         ...userState,
-        requestWindow: nextUserWindow,
         dailyUsage: addDailyUsage(userState.dailyUsage, input.operationCost),
         sessions: {
           ...userState.sessions,
           [input.sessionId]: {
-            requestWindow: nextSessionWindow,
-            dailyUsage: addDailyUsage(sessionState.dailyUsage, input.operationCost)
+            requestWindow: nextSessionWindow
           }
         }
       }),
@@ -254,25 +214,23 @@ export function leaseRemoteBrowserMessages(
 ): RemoteQuotaDecision<{ grantedMessages: number }> {
   const normalizedState = normalizeRemoteQuotaState(state, input.nowMs);
   const userState = getUserState(normalizedState, input.userId, input.nowMs);
-  const sessionState = getSessionState(userState, input.sessionId, input.nowMs);
-  const usage = readRequestWindowUsage(userState, sessionState, input.nowMs);
-  const maxByMinute = Math.min(
-    Math.max(0, config.userRequestsPerMinute - usage.userWindow.count),
-    Math.max(0, config.sessionRequestsPerMinute - usage.sessionWindow.count)
-  );
+  const sessionState = userState.sessions[input.sessionId] ?? { requestWindow: createWindow(input.nowMs) };
+  const usage = readRequestWindowUsage(sessionState, input.nowMs);
+  const maxByMinute = Math.max(0, config.sessionRequestsPerMinute - usage.sessionWindow.count);
   const maxByDaily = computeMaxGrantableWsMessages(
     config,
     normalizedState.platformDailyUsage,
-    userState.dailyUsage,
-    sessionState.dailyUsage
+    userState.dailyUsage
   );
   const grantedMessages = Math.min(Math.max(1, input.requestedMessages), maxByMinute, maxByDaily);
   if (grantedMessages <= 0) {
-    return reject(normalizedState, resolveWsLeaseBlockingError(config, normalizedState.platformDailyUsage, userState, sessionState, input.nowMs));
+    return reject(
+      normalizedState,
+      resolveWsLeaseBlockingError(config, normalizedState.platformDailyUsage, userState.dailyUsage, sessionState, input.nowMs)
+    );
   }
 
   const leaseCost = createWsLeaseCost(grantedMessages);
-  const nextUserWindow = addWindowCount(usage.userWindow, grantedMessages);
   const nextSessionWindow = addWindowCount(usage.sessionWindow, grantedMessages);
   return {
     ok: true,
@@ -280,13 +238,11 @@ export function leaseRemoteBrowserMessages(
     state: {
       ...applyUserState(normalizedState, input.userId, {
         ...userState,
-        requestWindow: nextUserWindow,
         dailyUsage: addDailyUsage(userState.dailyUsage, leaseCost),
         sessions: {
           ...userState.sessions,
           [input.sessionId]: {
-            requestWindow: nextSessionWindow,
-            dailyUsage: addDailyUsage(sessionState.dailyUsage, leaseCost)
+            requestWindow: nextSessionWindow
           }
         }
       }),

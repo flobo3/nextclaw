@@ -64,9 +64,9 @@ export async function consumeRemoteQuotaRequest(
   payload: {
     userId: string;
     sessionId: string;
-    operationKind: "runtime_http" | "proxy_http" | "browser_connect";
+    operationKind: "runtime_http" | "proxy_http";
   }
-): Promise<RemoteQuotaStubResult<{ remainingUserRequests: number; remainingSessionRequests: number }>> {
+): Promise<RemoteQuotaStubResult<{ remainingSessionRequests: number }>> {
   return await callRemoteQuotaStub(env, "/request/consume", {
     userId: payload.userId,
     sessionId: payload.sessionId,

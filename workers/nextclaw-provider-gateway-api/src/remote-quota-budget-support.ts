@@ -5,7 +5,6 @@ import type {
   RemoteQuotaError,
   RemoteQuotaOperationCost,
   RemoteQuotaSessionState,
-  RemoteQuotaUserState,
 } from "./remote-quota-contract";
 import { REMOTE_QUOTA_RELAY_WS_MESSAGE_DO_MILLI_UNITS } from "./remote-quota-contract";
 import { readRequestWindowUsage, secondsUntilDayReset, secondsUntilWindowReset } from "./remote-quota-state-support";
@@ -21,7 +20,6 @@ export function evaluateDailyBudget(
   config: RemoteQuotaConfig,
   platformUsage: RemoteQuotaDailyUsage,
   userUsage: RemoteQuotaDailyUsage,
-  sessionUsage: RemoteQuotaDailyUsage,
   nowMs: number,
   cost: RemoteQuotaOperationCost
 ): RemoteQuotaError | null {
@@ -47,24 +45,10 @@ export function evaluateDailyBudget(
       nowMs
     );
   }
-  if (sessionUsage.workerRequestUnits + cost.workerRequestUnits > budgets.sessionWorkerBudget) {
-    return buildBudgetError(
-      "REMOTE_SESSION_DAILY_WORKER_BUDGET_EXCEEDED",
-      "Remote access is temporarily degraded because this session has exhausted today's worker request budget.",
-      nowMs
-    );
-  }
   if (userUsage.durableObjectMilliUnits + cost.durableObjectMilliUnits > budgets.userDoBudgetMilli) {
     return buildBudgetError(
       "REMOTE_USER_DAILY_DO_BUDGET_EXCEEDED",
       "Remote access is temporarily degraded because this user has exhausted today's durable object budget.",
-      nowMs
-    );
-  }
-  if (sessionUsage.durableObjectMilliUnits + cost.durableObjectMilliUnits > budgets.sessionDoBudgetMilli) {
-    return buildBudgetError(
-      "REMOTE_SESSION_DAILY_DO_BUDGET_EXCEEDED",
-      "Remote access is temporarily degraded because this session has exhausted today's durable object budget.",
       nowMs
     );
   }
@@ -74,25 +58,23 @@ export function evaluateDailyBudget(
 export function computeMaxGrantableWsMessages(
   config: RemoteQuotaConfig,
   platformUsage: RemoteQuotaDailyUsage,
-  userUsage: RemoteQuotaDailyUsage,
-  sessionUsage: RemoteQuotaDailyUsage
+  userUsage: RemoteQuotaDailyUsage
 ): number {
   const budgets = readDailyBudgets(config);
   return Math.min(
     Math.max(0, Math.floor((budgets.platformDoBudgetMilli - platformUsage.durableObjectMilliUnits) / REMOTE_QUOTA_RELAY_WS_MESSAGE_DO_MILLI_UNITS)),
-    Math.max(0, Math.floor((budgets.userDoBudgetMilli - userUsage.durableObjectMilliUnits) / REMOTE_QUOTA_RELAY_WS_MESSAGE_DO_MILLI_UNITS)),
-    Math.max(0, Math.floor((budgets.sessionDoBudgetMilli - sessionUsage.durableObjectMilliUnits) / REMOTE_QUOTA_RELAY_WS_MESSAGE_DO_MILLI_UNITS))
+    Math.max(0, Math.floor((budgets.userDoBudgetMilli - userUsage.durableObjectMilliUnits) / REMOTE_QUOTA_RELAY_WS_MESSAGE_DO_MILLI_UNITS))
   );
 }
 
 export function resolveWsLeaseBlockingError(
   config: RemoteQuotaConfig,
   platformUsage: RemoteQuotaDailyUsage,
-  userState: RemoteQuotaUserState,
-  sessionState: RemoteQuotaSessionState,
+  userUsage: RemoteQuotaDailyUsage,
+  sessionState: RemoteQuotaSessionState | undefined,
   nowMs: number
 ): RemoteQuotaError {
-  const usage = readRequestWindowUsage(userState, sessionState, nowMs);
+  const usage = readRequestWindowUsage(sessionState, nowMs);
   if (usage.sessionWindow.count >= config.sessionRequestsPerMinute) {
     return buildBudgetError(
       "REMOTE_SESSION_RATE_LIMITED",
@@ -101,19 +83,10 @@ export function resolveWsLeaseBlockingError(
       secondsUntilWindowReset(nowMs)
     );
   }
-  if (usage.userWindow.count >= config.userRequestsPerMinute) {
-    return buildBudgetError(
-      "REMOTE_USER_RATE_LIMITED",
-      "Remote access is temporarily degraded because this user is sending requests too quickly.",
-      nowMs,
-      secondsUntilWindowReset(nowMs)
-    );
-  }
   return evaluateDailyBudget(
     config,
     platformUsage,
-    userState.dailyUsage,
-    sessionState.dailyUsage,
+    userUsage,
     nowMs,
     createWsLeaseCost(1)
   ) ?? buildBudgetError(
@@ -129,9 +102,7 @@ function readDailyBudgets(config: RemoteQuotaConfig): RemoteQuotaBudgets {
     platformWorkerBudget: Math.floor(config.platformDailyWorkerRequestBudget * effectivePercent / 100),
     platformDoBudgetMilli: Math.floor(config.platformDailyDoRequestBudgetMilli * effectivePercent / 100),
     userWorkerBudget: config.userDailyWorkerRequestUnits,
-    sessionWorkerBudget: config.sessionDailyWorkerRequestUnits,
-    userDoBudgetMilli: config.userDailyDoRequestBudgetMilli,
-    sessionDoBudgetMilli: config.sessionDailyDoRequestBudgetMilli
+    userDoBudgetMilli: config.userDailyDoRequestBudgetMilli
   };
 }
 

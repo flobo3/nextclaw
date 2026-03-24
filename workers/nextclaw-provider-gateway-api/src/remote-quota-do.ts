@@ -6,18 +6,12 @@ import {
   DEFAULT_REMOTE_PLATFORM_DAILY_RESERVE_PERCENT,
   DEFAULT_REMOTE_PLATFORM_DAILY_WORKER_REQUEST_BUDGET,
   DEFAULT_REMOTE_QUOTA_INSTANCE_CONNECTIONS,
-  DEFAULT_REMOTE_QUOTA_SESSION_CONNECTIONS,
-  DEFAULT_REMOTE_QUOTA_SESSION_DAILY_DO_REQUEST_UNITS,
-  DEFAULT_REMOTE_QUOTA_SESSION_DAILY_WORKER_REQUEST_UNITS,
   DEFAULT_REMOTE_QUOTA_SESSION_REQUESTS_PER_MINUTE,
-  DEFAULT_REMOTE_QUOTA_USER_CONNECTIONS,
   DEFAULT_REMOTE_QUOTA_USER_DAILY_DO_REQUEST_UNITS,
   DEFAULT_REMOTE_QUOTA_USER_DAILY_WORKER_REQUEST_UNITS,
-  DEFAULT_REMOTE_QUOTA_USER_REQUESTS_PER_MINUTE,
   DEFAULT_REMOTE_QUOTA_WS_MESSAGE_LEASE_SIZE,
   leaseRemoteBrowserMessages,
   releaseRemoteBrowserConnection,
-  REMOTE_BROWSER_CONNECT_COST,
   REMOTE_QUOTA_DO_REQUEST_MILLI_UNITS,
   REMOTE_PROXY_REQUEST_COST,
   REMOTE_RUNTIME_REQUEST_COST,
@@ -157,35 +151,17 @@ export { NextclawRemoteQuotaDurableObject as NextclawQuotaDurableObject };
 
 function readRemoteQuotaConfig(env: Env): RemoteQuotaConfig {
   return {
-    userRequestsPerMinute: parseBoundedInt(
-      env.REMOTE_QUOTA_USER_REQUESTS_PER_MINUTE,
-      DEFAULT_REMOTE_QUOTA_USER_REQUESTS_PER_MINUTE,
-      10,
-      10_000
-    ),
     sessionRequestsPerMinute: parseBoundedInt(
       env.REMOTE_QUOTA_SESSION_REQUESTS_PER_MINUTE,
       DEFAULT_REMOTE_QUOTA_SESSION_REQUESTS_PER_MINUTE,
       5,
       10_000
     ),
-    userConnections: parseBoundedInt(
-      env.REMOTE_QUOTA_USER_CONNECTIONS,
-      DEFAULT_REMOTE_QUOTA_USER_CONNECTIONS,
-      1,
-      100
-    ),
-    sessionConnections: parseBoundedInt(
-      env.REMOTE_QUOTA_SESSION_CONNECTIONS,
-      DEFAULT_REMOTE_QUOTA_SESSION_CONNECTIONS,
-      1,
-      20
-    ),
     instanceConnections: parseBoundedInt(
       env.REMOTE_QUOTA_INSTANCE_CONNECTIONS,
       DEFAULT_REMOTE_QUOTA_INSTANCE_CONNECTIONS,
       1,
-      50
+      10_000
     ),
     platformDailyWorkerRequestBudget: parseBoundedInt(
       env.REMOTE_PLATFORM_DAILY_WORKER_REQUEST_BUDGET,
@@ -211,22 +187,10 @@ function readRemoteQuotaConfig(env: Env): RemoteQuotaConfig {
       10,
       100_000
     ),
-    sessionDailyWorkerRequestUnits: parseBoundedInt(
-      env.REMOTE_QUOTA_SESSION_DAILY_WORKER_REQUEST_UNITS,
-      DEFAULT_REMOTE_QUOTA_SESSION_DAILY_WORKER_REQUEST_UNITS,
-      5,
-      100_000
-    ),
     userDailyDoRequestBudgetMilli: parseBoundedInt(
       env.REMOTE_QUOTA_USER_DAILY_DO_REQUEST_UNITS,
       DEFAULT_REMOTE_QUOTA_USER_DAILY_DO_REQUEST_UNITS,
       10,
-      1_000_000
-    ) * REMOTE_QUOTA_DO_REQUEST_MILLI_UNITS,
-    sessionDailyDoRequestBudgetMilli: parseBoundedInt(
-      env.REMOTE_QUOTA_SESSION_DAILY_DO_REQUEST_UNITS,
-      DEFAULT_REMOTE_QUOTA_SESSION_DAILY_DO_REQUEST_UNITS,
-      5,
       1_000_000
     ) * REMOTE_QUOTA_DO_REQUEST_MILLI_UNITS,
     wsMessageLeaseSize: parseBoundedInt(
@@ -244,9 +208,6 @@ function resolveOperationCost(operationKind: string): RemoteQuotaOperationCost |
   }
   if (operationKind === "proxy_http") {
     return REMOTE_PROXY_REQUEST_COST;
-  }
-  if (operationKind === "browser_connect") {
-    return REMOTE_BROWSER_CONNECT_COST;
   }
   return null;
 }

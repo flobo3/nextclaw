@@ -33,33 +33,23 @@ export function normalizeRemoteQuotaState(state: RemoteQuotaState | null | undef
   };
 }
 
-export function collectConnectionUsage(userState: RemoteQuotaUserState, sessionId: string, instanceId: string): ConnectionUsage {
-  let sessionCount = 0;
+export function collectConnectionUsage(state: RemoteQuotaState, instanceId: string): ConnectionUsage {
   let instanceCount = 0;
-  const allConnections = Object.values(userState.browserConnections);
-  for (const connection of allConnections) {
-    if (connection.sessionId === sessionId) {
-      sessionCount += 1;
-    }
-    if (connection.instanceId === instanceId) {
-      instanceCount += 1;
+  for (const userState of Object.values(state.users)) {
+    for (const connection of Object.values(userState.browserConnections)) {
+      if (connection.instanceId === instanceId) {
+        instanceCount += 1;
+      }
     }
   }
   return {
-    userCount: allConnections.length,
-    sessionCount,
     instanceCount
   };
 }
 
-export function readRequestWindowUsage(
-  userState: RemoteQuotaUserState,
-  sessionState: RemoteQuotaSessionState,
-  nowMs: number
-): RequestWindowUsage {
+export function readRequestWindowUsage(sessionState: RemoteQuotaSessionState | undefined, nowMs: number): RequestWindowUsage {
   return {
-    userWindow: normalizeWindow(userState.requestWindow, nowMs),
-    sessionWindow: normalizeWindow(sessionState.requestWindow, nowMs)
+    sessionWindow: normalizeWindow(sessionState?.requestWindow, nowMs)
   };
 }
 
@@ -74,16 +64,8 @@ export function addDailyUsage(usage: RemoteQuotaDailyUsage, cost: RemoteQuotaOpe
 export function getUserState(state: RemoteQuotaState, userId: string, nowMs: number): RemoteQuotaUserState {
   return state.users[userId] ?? {
     browserConnections: {},
-    requestWindow: createWindow(nowMs),
     dailyUsage: createDailyUsage(nowMs),
     sessions: {}
-  };
-}
-
-export function getSessionState(userState: RemoteQuotaUserState, sessionId: string, nowMs: number): RemoteQuotaSessionState {
-  return userState.sessions[sessionId] ?? {
-    requestWindow: createWindow(nowMs),
-    dailyUsage: createDailyUsage(nowMs)
   };
 }
 
@@ -144,7 +126,6 @@ function normalizeUserState(userState: RemoteQuotaUserState, nowMs: number): Rem
   }
   return {
     browserConnections: { ...userState.browserConnections },
-    requestWindow: normalizeWindow(userState.requestWindow, nowMs),
     dailyUsage: normalizeDailyUsage(userState.dailyUsage, nowMs),
     sessions: normalizedSessions
   };
@@ -152,20 +133,18 @@ function normalizeUserState(userState: RemoteQuotaUserState, nowMs: number): Rem
 
 function normalizeSessionState(sessionState: RemoteQuotaSessionState, nowMs: number): RemoteQuotaSessionState {
   return {
-    requestWindow: normalizeWindow(sessionState.requestWindow, nowMs),
-    dailyUsage: normalizeDailyUsage(sessionState.dailyUsage, nowMs)
+    requestWindow: normalizeWindow(sessionState.requestWindow, nowMs)
   };
 }
 
 function shouldKeepUserState(userState: RemoteQuotaUserState): boolean {
   return Object.keys(userState.browserConnections).length > 0
-    || userState.requestWindow.count > 0
     || hasDailyUsage(userState.dailyUsage)
     || Object.keys(userState.sessions).length > 0;
 }
 
 function shouldKeepSessionState(sessionState: RemoteQuotaSessionState): boolean {
-  return sessionState.requestWindow.count > 0 || hasDailyUsage(sessionState.dailyUsage);
+  return sessionState.requestWindow.count > 0;
 }
 
 function hasDailyUsage(usage: RemoteQuotaDailyUsage): boolean {
