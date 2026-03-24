@@ -197,4 +197,52 @@ describe("RemoteConnector runtime policy", () => {
       lastError: "Unexpected server response: 403"
     });
   });
+
+  it("stops reconnecting when the platform replaces the connector with a newer session", async () => {
+    const statusWrites: Array<Omit<RemoteRuntimeState, "mode" | "updatedAt">> = [];
+    const logger = createLogger();
+    const delayFn = vi.fn(async () => undefined);
+    const platformClient = {
+      resolveRunContext: vi.fn().mockReturnValue(createRunContext()),
+      registerDevice: vi.fn<() => Promise<RegisteredRemoteDevice>>().mockResolvedValue(createDevice())
+    };
+    const connector = new RemoteConnector({
+      platformClient: platformClient as never,
+      relayBridgeFactory: () =>
+        ({
+          ensureLocalUiHealthy: vi.fn().mockResolvedValue(undefined)
+        }) as never,
+      logger,
+      delayFn,
+      createSocket: () => {
+        const socket = new FakeRemoteConnectorSocket();
+        queueMicrotask(() => {
+          socket.emit("open", {});
+          socket.emit("close", {
+            code: 1012,
+            reason: "Replaced by a newer connector session.",
+            wasClean: true
+          });
+        });
+        return socket as unknown as WebSocket;
+      }
+    });
+
+    await connector.run({
+      mode: "service",
+      autoReconnect: true,
+      statusStore: createStatusWriter(statusWrites)
+    });
+
+    expect(delayFn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      "Remote connector error: Remote connector websocket closed (code 1012, clean): Replaced by a newer connector session."
+    );
+    expect(statusWrites.at(-1)).toMatchObject({
+      enabled: true,
+      state: "error",
+      lastError: "Remote connector websocket closed (code 1012, clean): Replaced by a newer connector session."
+    });
+  });
 });

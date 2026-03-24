@@ -1,5 +1,8 @@
 import { RemoteAppAdapter } from "./remote-app.adapter.js";
-import { isTerminalRemoteConnectorError } from "./remote-connector-error.js";
+import {
+  describeUnexpectedRemoteConnectorClose,
+  isTerminalRemoteConnectorError
+} from "./remote-connector-error.js";
 import { RemoteRelayBridge, type RelayRequestFrame } from "./remote-relay-bridge.js";
 import {
   formatReconnectDelay,
@@ -123,8 +126,13 @@ export class RemoteConnector {
         });
       });
 
-      socket.addEventListener("close", () => {
+      socket.addEventListener("close", (event) => {
         appAdapter.stop();
+        const closeMessage = describeUnexpectedRemoteConnectorClose(event ?? {});
+        if (!aborted && closeMessage) {
+          finishReject(new Error(closeMessage));
+          return;
+        }
         finishResolve(aborted ? "aborted" : "closed");
       });
 

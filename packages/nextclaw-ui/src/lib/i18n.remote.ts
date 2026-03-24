@@ -96,7 +96,7 @@ export const REMOTE_LABELS: Record<string, { zh: string; en: string }> = {
   remoteAccountEntryTitle: { zh: 'NextClaw 账号', en: 'NextClaw Account' },
   remoteAccountEntryDisconnected: { zh: '未登录，点击连接', en: 'Not signed in. Click to connect.' },
   remoteAccountEntryConnected: { zh: '已连接到 NextClaw', en: 'Connected to NextClaw' },
-  remoteAccountEntryManage: { zh: '账号与设备入口', en: 'Account and Device Entry' },
+  remoteAccountEntryManage: { zh: '账号', en: 'Account' },
   accountPanelTitle: { zh: 'NextClaw 账号', en: 'NextClaw Account' },
   accountPanelDescription: {
     zh: '远程访问依赖这个账号登录。后续 token、授权和更多云端能力也会基于它展开。',

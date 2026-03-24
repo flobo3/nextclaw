@@ -1,10 +1,11 @@
 import type { Config } from "@nextclaw/core";
-import { RemoteConnector } from "./remote-connector.js";
+import type { RemoteConnector } from "./remote-connector.js";
 import type { RemoteLogger, RemoteStatusWriter } from "./types.js";
 
 export class RemoteServiceModule {
   private abortController: AbortController | null = null;
   private runTask: Promise<void> | null = null;
+  private releaseOwnership: (() => void) | null = null;
 
   constructor(
     private readonly deps: {
@@ -13,6 +14,7 @@ export class RemoteServiceModule {
       localOrigin: string;
       statusStore: RemoteStatusWriter;
       createConnector: (logger: RemoteLogger) => RemoteConnector;
+      claimOwnership?: () => { ok: true; release: () => void } | { ok: false; error: string };
       logger?: RemoteLogger;
     }
   ) {}
@@ -47,6 +49,23 @@ export class RemoteServiceModule {
       error: (message: string) => console.error(`[remote] ${message}`)
     };
 
+    const ownership = this.deps.claimOwnership?.();
+    if (ownership && !ownership.ok) {
+      this.deps.statusStore.write({
+        enabled: true,
+        state: "error",
+        deviceName: config.remote.deviceName || undefined,
+        deviceId: undefined,
+        platformBase: config.remote.platformApiBase || undefined,
+        localOrigin: this.deps.localOrigin,
+        lastError: ownership.error,
+        lastConnectedAt: null
+      });
+      logger.error(ownership.error);
+      return null;
+    }
+    this.releaseOwnership = ownership?.release ?? null;
+
     this.abortController = new AbortController();
     const connector = this.deps.createConnector(logger);
     this.runTask = connector.run({
@@ -70,6 +89,9 @@ export class RemoteServiceModule {
         lastError: message
       });
       logger.error(message);
+    }).finally(() => {
+      this.releaseOwnership?.();
+      this.releaseOwnership = null;
     });
 
     return this.runTask;
@@ -89,6 +111,8 @@ export class RemoteServiceModule {
     } finally {
       this.abortController = null;
       this.runTask = null;
+      this.releaseOwnership?.();
+      this.releaseOwnership = null;
     }
   }
 }
