@@ -10,6 +10,7 @@ const createJiti = createJitiImport as unknown as JitiFactory;
 export function createPluginJiti(aliases: Record<string, string>): ReturnType<JitiFactory> {
   return createJiti(import.meta.url, {
     interopDefault: true,
+    esmResolve: true,
     extensions: [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs", ".json"],
     alias: aliases,
     // Plugin install/upgrade is expected to hot-apply at runtime. Disable

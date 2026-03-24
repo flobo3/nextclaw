@@ -1,5 +1,13 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.20
+
+### Patch Changes
+
+- Align bundled Feishu support with the official OpenClaw plugin by vendoring the upstream Feishu plugin into NextClaw, teaching the compat loader to prefer plugin-local OpenClaw SDK resolution, and adding the minimal loader shims needed for the official Feishu tools to register inside NextClaw.
+- Updated dependencies
+  - @nextclaw/channel-plugin-feishu@0.2.14
+
 ## 0.3.19
 
 ### Patch Changes

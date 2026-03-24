@@ -7,6 +7,7 @@ import { filterPluginCandidatesByExcludedRoots } from "./candidate-filter.js";
 import { normalizePluginsConfig, resolveEnableState } from "./config-state.js";
 import { discoverOpenClawPlugins } from "./discovery.js";
 import { loadPluginManifestRegistry } from "./manifest-registry.js";
+import { loadBundledPluginModule, resolveBundledPluginEntry } from "./bundled-plugin-loader.js";
 import { buildPluginLoaderAliases } from "./plugin-loader-aliases.js";
 import { createPluginJiti } from "./plugin-loader-jiti.js";
 import { createPluginRecord, validatePluginConfig } from "./plugin-loader-utils.js";
@@ -80,30 +81,25 @@ function resolvePluginModuleExport(moduleExport: unknown): {
 function appendBundledChannelPlugins(params: {
   runtime: PluginRegisterRuntime;
   registry: PluginRegistry;
-  jiti: ReturnType<typeof createPluginJiti>;
   normalizedConfig: ReturnType<typeof normalizePluginsConfig>;
 }): void {
   const require = createRequire(import.meta.url);
 
   for (const packageName of BUNDLED_CHANNEL_PLUGIN_PACKAGES) {
-    let entryFile = "";
-    let rootDir = "";
-
-    try {
-      entryFile = require.resolve(packageName);
-      rootDir = resolvePackageRootFromEntry(entryFile);
-    } catch (err) {
-      params.registry.diagnostics.push({
-        level: "error",
-        source: packageName,
-        message: `bundled plugin package not resolvable: ${String(err)}`
-      });
+    const resolvedEntry = resolveBundledPluginEntry(
+      require,
+      packageName,
+      params.registry.diagnostics,
+      resolvePackageRootFromEntry
+    );
+    if (!resolvedEntry) {
       continue;
     }
+    const { entryFile, rootDir } = resolvedEntry;
 
     let moduleExport: OpenClawPluginModule | null = null;
     try {
-      moduleExport = params.jiti(entryFile) as OpenClawPluginModule;
+      moduleExport = loadBundledPluginModule(entryFile, rootDir);
     } catch (err) {
       params.registry.diagnostics.push({
         level: "error",
@@ -234,12 +230,9 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
     reservedNcpAgentRuntimeKinds
   });
 
-  const bundledPluginJiti = createPluginJiti(buildPluginLoaderAliases());
-
   appendBundledChannelPlugins({
     registry,
     runtime: registerRuntime,
-    jiti: bundledPluginJiti,
     normalizedConfig: normalized
   });
 

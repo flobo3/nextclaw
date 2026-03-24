@@ -1,5 +1,17 @@
 # nextclaw
 
+## 0.14.1
+
+### Patch Changes
+
+- Align bundled Feishu support with the official OpenClaw plugin by vendoring the upstream Feishu plugin into NextClaw, teaching the compat loader to prefer plugin-local OpenClaw SDK resolution, and adding the minimal loader shims needed for the official Feishu tools to register inside NextClaw.
+- Updated dependencies
+  - @nextclaw/openclaw-compat@0.3.20
+  - @nextclaw/mcp@0.1.34
+  - @nextclaw/server@0.10.38
+  - @nextclaw/ncp-mcp@0.1.33
+  - @nextclaw/remote@0.1.32
+
 ## 0.14.0
 
 ### Minor Changes
