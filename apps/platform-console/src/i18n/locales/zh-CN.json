@@ -108,6 +108,7 @@
     "createShare": "创建分享链接",
     "viewShare": "查看分享",
     "openInWeb": "在网页中打开",
+    "openWithFixedDomain": "用固定域名打开",
     "createAnotherShare": "再创建一个",
     "archive": "归档",
     "restore": "恢复",

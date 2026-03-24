@@ -108,6 +108,7 @@
     "createShare": "Create share link",
     "viewShare": "View shares",
     "openInWeb": "Open in browser",
+    "openWithFixedDomain": "Open via fixed domain",
     "createAnotherShare": "Create another",
     "archive": "Archive",
     "restore": "Restore",

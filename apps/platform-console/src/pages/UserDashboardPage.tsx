@@ -30,7 +30,7 @@ type RemoteInstancesTableProps = {
   onArchiveInstance: (instanceId: string) => void;
   onCreateShare: (instanceId: string) => void;
   onSelectInstance: (instanceId: string) => void;
-  onOpenInstance: (instanceId: string) => void;
+  onOpenInstance: (instanceId: string, entry: 'subdomain' | 'fixed_domain') => void;
 };
 
 type ArchivedInstancesPanelProps = {
@@ -115,10 +115,17 @@ function RemoteInstancesTable({
                     {t('remote.actions.viewShare')}
                   </Button>
                   <Button
-                    onClick={() => onOpenInstance(instance.id)}
+                    onClick={() => onOpenInstance(instance.id, 'subdomain')}
                     disabled={instance.status !== 'online' || isOpeningInstance}
                   >
                     {t('remote.actions.openInWeb')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => onOpenInstance(instance.id, 'fixed_domain')}
+                    disabled={instance.status !== 'online' || isOpeningInstance}
+                  >
+                    {t('remote.actions.openWithFixedDomain')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -506,7 +513,7 @@ function RemoteInstancesCard(props: {
           void createRemoteShareMutation.mutateAsync(instanceId);
         }}
         onSelectInstance={setSelectedInstanceId}
-        onOpenInstance={(instanceId) => openRemoteInstanceMutation.mutate(instanceId)}
+        onOpenInstance={(instanceId, entry) => openRemoteInstanceMutation.mutate({ instanceId, entry })}
       />
       {remoteInstancesQuery.error ? (
         <p className="text-sm text-rose-600">

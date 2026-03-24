@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import * as Lark from "@larksuiteoapi/node-sdk";
+import type * as Lark from "@larksuiteoapi/node-sdk";
 import type { ClawdbotConfig, RuntimeEnv, HistoryEntry } from "./nextclaw-sdk/feishu.js";
 import { resolveFeishuAccount } from "./accounts.js";
 import { raceWithTimeoutAndAbort } from "./async.js";
@@ -24,6 +24,7 @@ import { botNames, botOpenIds } from "./monitor.state.js";
 import { monitorWebhook, monitorWebSocket } from "./monitor.transport.js";
 import { getFeishuRuntime } from "./runtime.js";
 import { getMessageFeishu } from "./send.js";
+import { withTicket } from "./lark-ticket.js";
 import type { FeishuChatType, ResolvedFeishuAccount } from "./types.js";
 
 const FEISHU_REACTION_VERIFY_TIMEOUT_MS = 1_500;
@@ -256,16 +257,28 @@ function registerEventHandlers(
   const dispatchFeishuMessage = async (event: FeishuMessageEvent) => {
     const chatId = event.message.chat_id?.trim() || "unknown";
     const task = () =>
-      handleFeishuMessage({
-        cfg,
-        event,
-        botOpenId: botOpenIds.get(accountId),
-        botName: botNames.get(accountId),
-        runtime,
-        chatHistories,
-        accountId,
-        processingClaimHeld: true,
-      });
+      withTicket(
+        {
+          accountId,
+          messageId: event.message.message_id,
+          chatId: event.message.chat_id,
+          senderOpenId: event.sender.sender_id.open_id?.trim() || undefined,
+          chatType: event.message.chat_type,
+          threadId: event.message.thread_id?.trim() || event.message.root_id?.trim() || undefined,
+          startTime: Date.now(),
+        },
+        () =>
+          handleFeishuMessage({
+            cfg,
+            event,
+            botOpenId: botOpenIds.get(accountId),
+            botName: botNames.get(accountId),
+            runtime,
+            chatHistories,
+            accountId,
+            processingClaimHeld: true,
+          }),
+      );
     await enqueue(chatId, task);
   };
   const resolveSenderDebounceId = (event: FeishuMessageEvent): string | undefined => {
@@ -441,15 +454,30 @@ function registerEventHandlers(
         if (!syntheticEvent) {
           return;
         }
-        const promise = handleFeishuMessage({
-          cfg,
-          event: syntheticEvent,
-          botOpenId: myBotId,
-          botName: botNames.get(accountId),
-          runtime,
-          chatHistories,
-          accountId,
-        });
+        const promise = withTicket(
+          {
+            accountId,
+            messageId: syntheticEvent.message.message_id,
+            chatId: syntheticEvent.message.chat_id,
+            senderOpenId: syntheticEvent.sender.sender_id.open_id?.trim() || undefined,
+            chatType: syntheticEvent.message.chat_type,
+            threadId:
+              syntheticEvent.message.thread_id?.trim() ||
+              syntheticEvent.message.root_id?.trim() ||
+              undefined,
+            startTime: Date.now(),
+          },
+          () =>
+            handleFeishuMessage({
+              cfg,
+              event: syntheticEvent,
+              botOpenId: myBotId,
+              botName: botNames.get(accountId),
+              runtime,
+              chatHistories,
+              accountId,
+            }),
+        );
         if (fireAndForget) {
           promise.catch((err) => {
             error(`feishu[${accountId}]: error handling reaction: ${String(err)}`);

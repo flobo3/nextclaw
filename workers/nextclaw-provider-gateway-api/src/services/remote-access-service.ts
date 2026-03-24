@@ -22,6 +22,11 @@ export const REMOTE_SESSION_TOUCH_THROTTLE_MS = 60_000;
 export const DEFAULT_REMOTE_SHARE_GRANT_TTL_SECONDS = 60 * 60 * 24 * 7;
 const REMOTE_ACCESS_SUBDOMAIN_PREFIX = "r-";
 
+export type RemoteAccessUrlSet = {
+  openUrl: string;
+  fixedDomainOpenUrl: string | null;
+};
+
 function isLoopbackHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "::1" || hostname.startsWith("127.");
 }
@@ -51,6 +56,10 @@ function readRemoteAccessBaseDomain(c: Context<{ Bindings: Env }>): string | nul
   return optionalTrimmedString(c.env.REMOTE_ACCESS_BASE_DOMAIN ?? "");
 }
 
+function readRemoteAccessFixedDomain(c: Context<{ Bindings: Env }>): string | null {
+  return optionalTrimmedString(c.env.REMOTE_ACCESS_FIXED_DOMAIN ?? "");
+}
+
 function readWebBaseUrl(c: Context<{ Bindings: Env }>): string | null {
   const configured = optionalTrimmedString(c.env.NEXTCLAW_WEB_BASE_URL ?? "");
   if (configured) {
@@ -60,18 +69,39 @@ function readWebBaseUrl(c: Context<{ Bindings: Env }>): string | null {
   return isLoopbackHost(origin.hostname) ? `${origin.protocol}://${origin.host}` : null;
 }
 
-function buildLegacyRemoteOpenUrl(c: Context<{ Bindings: Env }>, token: string): string {
-  const origin = readRequestOrigin(c);
-  return `${origin.protocol}://${origin.host}/platform/remote/open?token=${encodeURIComponent(token)}`;
+function buildRemoteOpenPath(token: string): string {
+  return `/platform/remote/open?token=${encodeURIComponent(token)}`;
 }
 
-export function buildRemoteAccessUrl(c: Context<{ Bindings: Env }>, sessionId: string, token: string): string | null {
+function buildLegacyRemoteOpenUrl(c: Context<{ Bindings: Env }>, token: string): string {
+  const origin = readRequestOrigin(c);
+  return `${origin.protocol}://${origin.host}${buildRemoteOpenPath(token)}`;
+}
+
+export function buildRemoteAccessUrlSet(
+  c: Context<{ Bindings: Env }>,
+  sessionId: string,
+  token: string
+): RemoteAccessUrlSet | null {
   const origin = readRequestOrigin(c);
   const baseDomain = readRemoteAccessBaseDomain(c);
+  const fixedDomain = readRemoteAccessFixedDomain(c);
+  const openPath = buildRemoteOpenPath(token);
+  let openUrl: string | null = null;
+
   if (!baseDomain) {
-    return isLoopbackHost(origin.hostname) ? buildLegacyRemoteOpenUrl(c, token) : null;
+    openUrl = isLoopbackHost(origin.hostname) ? buildLegacyRemoteOpenUrl(c, token) : null;
+  } else {
+    openUrl = `${origin.protocol}://${REMOTE_ACCESS_SUBDOMAIN_PREFIX}${sessionId}.${baseDomain}${openPath}`;
   }
-  return `${origin.protocol}://${REMOTE_ACCESS_SUBDOMAIN_PREFIX}${sessionId}.${baseDomain}/platform/remote/open?token=${encodeURIComponent(token)}`;
+  if (!openUrl) {
+    return null;
+  }
+
+  return {
+    openUrl,
+    fixedDomainOpenUrl: fixedDomain ? `${origin.protocol}://${fixedDomain}${openPath}` : null
+  };
 }
 
 export function buildRemoteShareUrl(c: Context<{ Bindings: Env }>, grantToken: string): string | null {

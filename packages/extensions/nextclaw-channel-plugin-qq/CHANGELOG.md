@@ -1,5 +1,13 @@
 # @nextclaw/channel-plugin-qq
 
+## 0.2.14
+
+### Patch Changes
+
+- bb891c2: Add the Phase 1 Feishu platform foundation for NextClaw, including shared Feishu core primitives, richer message conversion, multi-account routing, and the aligned config UI/runtime release chain.
+- Updated dependencies [bb891c2]
+  - @nextclaw/channel-runtime@0.4.0
+
 ## 0.2.13
 
 ### Patch Changes

@@ -49,9 +49,14 @@ export function useRemoteInstancesCardState(props: {
   });
 
   const openRemoteInstanceMutation = useMutation({
-    mutationFn: async (instanceId: string) => await openRemoteInstance(props.token, instanceId),
-    onSuccess: (session) => {
-      window.open(session.openUrl, '_blank', 'noopener,noreferrer');
+    mutationFn: async (params: { instanceId: string; entry: 'subdomain' | 'fixed_domain' }) =>
+      await openRemoteInstance(props.token, params.instanceId),
+    onSuccess: (session, variables) => {
+      const targetUrl =
+        variables.entry === 'fixed_domain'
+          ? (session.fixedDomainOpenUrl ?? session.openUrl)
+          : session.openUrl;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   });
 

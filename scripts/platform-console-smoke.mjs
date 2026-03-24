@@ -116,9 +116,30 @@ async function assertDashboardFlow(browser) {
     });
   });
 
+  await page.route("**/platform/remote/instances/inst-1/open", async (route) => {
+    await fulfillJson(route, {
+      id: "session-1",
+      instanceId: "inst-1",
+      status: "active",
+      sourceType: "owner_open",
+      sourceGrantId: null,
+      expiresAt: "2026-03-23T10:00:00.000Z",
+      lastUsedAt: "2026-03-23T09:00:00.000Z",
+      revokedAt: null,
+      createdAt: "2026-03-23T09:00:00.000Z",
+      openUrl: "https://r-session-1.claw.cool/platform/remote/open?token=token-1",
+      fixedDomainOpenUrl: "https://remote.claw.cool/platform/remote/open?token=token-1"
+    });
+  });
+
   await page.addInitScript(() => {
     window.localStorage.clear();
     window.localStorage.setItem("nextclaw.platform.token", "demo-token");
+    window.__openedUrls = [];
+    window.open = (url) => {
+      window.__openedUrls.push(String(url));
+      return null;
+    };
   });
 
   await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
@@ -130,6 +151,9 @@ async function assertDashboardFlow(browser) {
   if (!bodyText.includes("Remote Quota & Usage")) {
     throw new Error("Dashboard did not render the remote quota section.");
   }
+  if (!bodyText.includes("Open via fixed domain")) {
+    throw new Error("Dashboard did not render the fixed-domain open action.");
+  }
   if (!bodyText.includes("Daily Worker requests")) {
     throw new Error("Dashboard did not render worker quota metrics.");
   }
@@ -138,6 +162,20 @@ async function assertDashboardFlow(browser) {
   }
   if (bodyText.includes("Recharge") || bodyText.includes("Ledger")) {
     throw new Error("Dashboard still exposes billing details that should stay hidden.");
+  }
+
+  await page.getByRole("button", { name: "Open in browser" }).click();
+  await page.waitForFunction(() => Array.isArray(window.__openedUrls) && window.__openedUrls.length >= 1);
+  const openedSubdomainUrl = await page.evaluate(() => window.__openedUrls[0]);
+  if (openedSubdomainUrl !== "https://r-session-1.claw.cool/platform/remote/open?token=token-1") {
+    throw new Error(`Subdomain open action used unexpected URL: ${openedSubdomainUrl}`);
+  }
+
+  await page.getByRole("button", { name: "Open via fixed domain" }).click();
+  await page.waitForFunction(() => Array.isArray(window.__openedUrls) && window.__openedUrls.length >= 2);
+  const openedFixedDomainUrl = await page.evaluate(() => window.__openedUrls[1]);
+  if (openedFixedDomainUrl !== "https://remote.claw.cool/platform/remote/open?token=token-1") {
+    throw new Error(`Fixed-domain open action used unexpected URL: ${openedFixedDomainUrl}`);
   }
 
   page.once("dialog", async (dialog) => {

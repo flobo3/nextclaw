@@ -6,6 +6,7 @@ import type {
   RemoteShareGrantRow,
   RemoteShareGrantView,
 } from "../types/platform";
+import type { RemoteAccessUrlSet } from "../services/remote-access-service";
 
 function normalizeRemoteAccessSessionStatus(row: RemoteAccessSessionRow): RemoteAccessSessionView["status"] {
   if (row.revoked_at) {
@@ -351,7 +352,7 @@ export function toRemoteInstanceView(row: RemoteInstanceRow): RemoteInstanceView
   };
 }
 
-export function toRemoteAccessSessionView(row: RemoteAccessSessionRow, openUrl: string): RemoteAccessSessionView {
+export function toRemoteAccessSessionView(row: RemoteAccessSessionRow, urls: RemoteAccessUrlSet): RemoteAccessSessionView {
   return {
     id: row.id,
     instanceId: row.instance_id,
@@ -362,7 +363,8 @@ export function toRemoteAccessSessionView(row: RemoteAccessSessionRow, openUrl: 
     lastUsedAt: row.last_used_at,
     revokedAt: row.revoked_at,
     createdAt: row.created_at,
-    openUrl,
+    openUrl: urls.openUrl,
+    fixedDomainOpenUrl: urls.fixedDomainOpenUrl,
   };
 }
 

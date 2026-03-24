@@ -94,6 +94,7 @@ export type RemoteAccessSession = {
   revokedAt: string | null;
   createdAt: string;
   openUrl: string;
+  fixedDomainOpenUrl: string | null;
 };
 
 export type RemoteShareGrant = {

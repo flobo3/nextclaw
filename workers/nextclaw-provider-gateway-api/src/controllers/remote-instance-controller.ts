@@ -16,7 +16,7 @@ import {
 } from "../repositories/remote-repository";
 import { ensurePlatformBootstrap, requireAuthUser } from "../services/platform-service";
 import {
-  buildRemoteAccessUrl,
+  buildRemoteAccessUrlSet,
 } from "../services/remote-access-service";
 import type { Env } from "../types/platform";
 import { DEFAULT_REMOTE_SESSION_TTL_SECONDS } from "../types/platform";
@@ -27,16 +27,16 @@ import {
   readString,
 } from "../utils/platform-utils";
 
-function requireRemoteAccessUrl(
+function requireRemoteAccessUrls(
   c: Context<{ Bindings: Env }>,
   sessionId: string,
   token: string
-): string | Response {
-  const openUrl = buildRemoteAccessUrl(c, sessionId, token);
-  if (!openUrl) {
+){
+  const urls = buildRemoteAccessUrlSet(c, sessionId, token);
+  if (!urls) {
     return apiError(c, 503, "REMOTE_ACCESS_DOMAIN_UNAVAILABLE", "Remote access public domain is not configured.");
   }
-  return openUrl;
+  return urls;
 }
 
 function shouldIncludeArchivedInstances(c: Context<{ Bindings: Env }>): boolean {
@@ -173,9 +173,9 @@ export async function openRemoteInstanceHandler(c: Context<{ Bindings: Env }>): 
     expiresAt
   });
 
-  const openUrl = requireRemoteAccessUrl(c, sessionId, token);
-  if (openUrl instanceof Response) {
-    return openUrl;
+  const urls = requireRemoteAccessUrls(c, sessionId, token);
+  if (urls instanceof Response) {
+    return urls;
   }
 
   await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
@@ -209,7 +209,7 @@ export async function openRemoteInstanceHandler(c: Context<{ Bindings: Env }>): 
       revoked_at: null,
       created_at: nowIso,
       updated_at: nowIso
-    }, openUrl)
+    }, urls)
   });
 }
 

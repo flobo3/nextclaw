@@ -25,6 +25,7 @@ const workerConfig = resolve(
   "wrangler.toml"
 );
 const REMOTE_ACCESS_HOST_PATTERN = /^r-[a-z0-9-]+\.claw\.cool$/i;
+const REMOTE_ACCESS_FIXED_HOST = "remote.claw.cool";
 
 function assertRemoteOpenUrlShape(url, label) {
   const parsed = new URL(url);
@@ -36,6 +37,20 @@ function assertRemoteOpenUrlShape(url, label) {
   }
   if (parsed.searchParams.get("token")?.trim() !== parsed.searchParams.get("token")) {
     throw new Error(`${label} token query is malformed, got ${url}`);
+  }
+  if (!parsed.searchParams.get("token")) {
+    throw new Error(`${label} must include token query, got ${url}`);
+  }
+  return parsed;
+}
+
+function assertFixedDomainOpenUrlShape(url, label) {
+  const parsed = new URL(url);
+  if (parsed.hostname !== REMOTE_ACCESS_FIXED_HOST) {
+    throw new Error(`${label} must use fixed remote host ${REMOTE_ACCESS_FIXED_HOST}, got ${url}`);
+  }
+  if (parsed.pathname !== "/platform/remote/open") {
+    throw new Error(`${label} must target /platform/remote/open, got ${url}`);
   }
   if (!parsed.searchParams.get("token")) {
     throw new Error(`${label} must include token query, got ${url}`);
@@ -298,11 +313,16 @@ async function main() {
       expectedStatus: 200
     });
     const openUrl = openSession.body?.data?.openUrl;
+    const fixedDomainOpenUrl = openSession.body?.data?.fixedDomainOpenUrl;
     const sessionCreatedAt = openSession.body?.data?.lastUsedAt;
     if (!openUrl) {
       throw new Error(`Missing openUrl in session response: ${JSON.stringify(openSession.body)}`);
     }
     const remoteOpenUrl = assertRemoteOpenUrlShape(openUrl, "owner openUrl");
+    if (!fixedDomainOpenUrl) {
+      throw new Error(`Missing fixedDomainOpenUrl in session response: ${JSON.stringify(openSession.body)}`);
+    }
+    assertFixedDomainOpenUrlShape(fixedDomainOpenUrl, "owner fixedDomainOpenUrl");
     if (!sessionCreatedAt) {
       throw new Error(`Missing lastUsedAt in session response: ${JSON.stringify(openSession.body)}`);
     }
@@ -386,10 +406,15 @@ async function main() {
       expectedStatus: 200
     });
     const sharedOpenUrl = shareOpenApiResponse.body?.data?.openUrl;
+    const sharedFixedDomainOpenUrl = shareOpenApiResponse.body?.data?.fixedDomainOpenUrl;
     if (!sharedOpenUrl) {
       throw new Error(`Missing openUrl in share open response: ${JSON.stringify(shareOpenApiResponse.body)}`);
     }
     const parsedSharedOpenUrl = assertRemoteOpenUrlShape(sharedOpenUrl, "share openUrl");
+    if (!sharedFixedDomainOpenUrl) {
+      throw new Error(`Missing fixedDomainOpenUrl in share open response: ${JSON.stringify(shareOpenApiResponse.body)}`);
+    }
+    assertFixedDomainOpenUrlShape(sharedFixedDomainOpenUrl, "share fixedDomainOpenUrl");
     if (parsedSharedOpenUrl.hostname === remoteOpenUrl.hostname) {
       throw new Error(
         `Share openUrl must allocate a distinct access-session host, owner=${openUrl}, share=${sharedOpenUrl}`

@@ -7,6 +7,7 @@ import {
   buildRequestedSkillsSystemSection
 } from "./skill-context.js";
 import { SkillsLoader } from "./skills.js";
+import { DEFAULT_TOOL_CATALOG, normalizeToolCatalogEntries, type ToolCatalogEntry } from "./tool-catalog.utils.js";
 import { APP_NAME } from "../config/brand.js";
 import type { Config } from "../config/schema.js";
 import type { InboundAttachment } from "../bus/events.js";
@@ -59,9 +60,9 @@ export class ContextBuilder {
     this.contextConfig = mergeContextConfig(contextConfig);
   }
 
-  buildSystemPrompt(skillNames?: string[], sessionKey?: string, messageToolHints?: string[]): string {
+  buildSystemPrompt(skillNames?: string[], sessionKey?: string, messageToolHints?: string[], availableTools?: ToolCatalogEntry[]): string {
     const parts: string[] = [];
-    parts.push(this.getIdentity(messageToolHints));
+    parts.push(this.getIdentity(messageToolHints, availableTools));
 
     if (skillNames && skillNames.length) {
       const requestedSection = buildRequestedSkillsSystemSection(this.skills, skillNames);
@@ -118,9 +119,10 @@ export class ContextBuilder {
     sessionKey?: string;
     thinkingLevel?: ThinkingLevel | null;
     messageToolHints?: string[];
+    availableTools?: ToolCatalogEntry[];
   }): Message[] {
     const messages: Message[] = [];
-    let systemPrompt = this.buildSystemPrompt(params.skillNames, params.sessionKey, params.messageToolHints);
+    let systemPrompt = this.buildSystemPrompt(params.skillNames, params.sessionKey, params.messageToolHints, params.availableTools);
     if (params.channel && params.chatId) {
       systemPrompt += `\n\n## Current Session\nChannel: ${params.channel}\nChat ID: ${params.chatId}`;
     }
@@ -166,10 +168,11 @@ export class ContextBuilder {
     return messages;
   }
 
-  private getIdentity(messageToolHints?: string[]): string {
+  private getIdentity(messageToolHints?: string[], availableTools?: ToolCatalogEntry[]): string {
     const sanitizedMessageToolHints = (messageToolHints ?? [])
       .map((hint) => hint.trim())
       .filter(Boolean);
+    const toolCatalog = availableTools ? normalizeToolCatalogEntries(availableTools) : [...DEFAULT_TOOL_CATALOG];
     const appLower = APP_NAME.toLowerCase();
     const lines = [
       `You are a personal assistant running inside ${APP_NAME}.`,
@@ -177,23 +180,6 @@ export class ContextBuilder {
       "## Tooling",
       "Tool availability (filtered by policy):",
       "Tool names are case-sensitive. Call tools exactly as listed.",
-      "- read_file: Read file contents",
-      "- write_file: Create or overwrite files",
-      "- edit_file: Make precise edits to files",
-      "- list_dir: List directory contents",
-      "- exec: Run shell commands",
-      "- web_search: Search the web",
-      "- web_fetch: Fetch and extract readable content from a URL",
-      "- message: Send messages and channel actions",
-      "- sessions_list: List other sessions",
-      "- sessions_history: Fetch history for another session/sub-agent",
-      "- sessions_send: Send a message to another session/sub-agent",
-      "- spawn: Create a sub-agent",
-      "- subagents: List, steer, or kill sub-agent runs",
-      "- memory_search: Search memory files",
-      "- memory_get: Read memory file snippets",
-      "- cron: Manage cron jobs and wake events",
-      "- gateway: Restart/apply config/update running process",
       "TOOLS.md does not control tool availability; it is user guidance for how to use external tools.",
       "For long waits, avoid rapid poll loops: use exec with enough yieldMs.",
       "If a task is more complex or takes longer, spawn a sub-agent. Completion is push-based: it will auto-announce when done.",
@@ -294,6 +280,11 @@ export class ContextBuilder {
       `- After mutating operations, validate with \`${appLower} status --json\` (and \`${appLower} doctor --json\` when needed).`,
       ""
     ];
+    const toolLines =
+      toolCatalog.length > 0
+        ? toolCatalog.map((tool) => `- ${tool.name}: ${tool.description ?? "No description available"}`)
+        : ["- No tools available for this turn."];
+    lines.splice(5, 0, ...toolLines);
     return lines.join("\n");
   }
 

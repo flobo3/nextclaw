@@ -2,6 +2,7 @@ import type * as Lark from "@larksuiteoapi/node-sdk";
 import type { OpenClawPluginApi } from "./nextclaw-sdk/feishu.js";
 import { resolveFeishuAccount } from "./accounts.js";
 import { createFeishuClient } from "./client.js";
+import { getTicket } from "./lark-ticket.js";
 import { resolveToolsConfig } from "./tools-config.js";
 import type { FeishuToolsConfig, ResolvedFeishuAccount } from "./types.js";
 
@@ -21,6 +22,10 @@ function readConfiguredDefaultAccountId(config: OpenClawPluginApi["config"]): st
   return normalizeOptionalAccountId(value);
 }
 
+function readTicketAccountId(): string | undefined {
+  return normalizeOptionalAccountId(getTicket()?.accountId);
+}
+
 export function resolveFeishuToolAccount(params: {
   api: Pick<OpenClawPluginApi, "config">;
   executeParams?: AccountAwareParams;
@@ -33,6 +38,7 @@ export function resolveFeishuToolAccount(params: {
     cfg: params.api.config,
     accountId:
       normalizeOptionalAccountId(params.executeParams?.accountId) ??
+      readTicketAccountId() ??
       readConfiguredDefaultAccountId(params.api.config) ??
       normalizeOptionalAccountId(params.defaultAccountId),
   });
@@ -56,6 +62,11 @@ export function resolveAnyEnabledFeishuToolsConfig(
     drive: false,
     perm: false,
     scopes: false,
+    calendar: false,
+    task: false,
+    sheets: false,
+    oauth: false,
+    identity: false,
   };
   for (const account of accounts) {
     const cfg = resolveToolsConfig(account.config.tools);
@@ -65,6 +76,11 @@ export function resolveAnyEnabledFeishuToolsConfig(
     merged.drive = merged.drive || cfg.drive;
     merged.perm = merged.perm || cfg.perm;
     merged.scopes = merged.scopes || cfg.scopes;
+    merged.calendar = merged.calendar || cfg.calendar;
+    merged.task = merged.task || cfg.task;
+    merged.sheets = merged.sheets || cfg.sheets;
+    merged.oauth = merged.oauth || cfg.oauth;
+    merged.identity = merged.identity || cfg.identity;
   }
   return merged;
 }

@@ -93,6 +93,11 @@ export type FeishuToolsConfig = {
   drive?: boolean;
   perm?: boolean;
   scopes?: boolean;
+  calendar?: boolean;
+  task?: boolean;
+  sheets?: boolean;
+  oauth?: boolean;
+  identity?: boolean;
 };
 
 export type DynamicAgentCreationConfig = {

@@ -1,12 +1,17 @@
 import type { OpenClawPluginApi } from "./src/nextclaw-sdk/feishu.js";
+import { registerFeishuCalendarTools } from "./src/calendar.js";
 import { emptyPluginConfigSchema } from "./src/nextclaw-sdk/feishu.js";
 import { registerFeishuBitableTools } from "./src/bitable.js";
 import { feishuPlugin } from "./src/channel.js";
 import { registerFeishuChatTools } from "./src/chat.js";
 import { registerFeishuDocTools } from "./src/docx.js";
 import { registerFeishuDriveTools } from "./src/drive.js";
+import { registerFeishuIdentityTools } from "./src/identity.js";
+import { registerFeishuOAuthTool } from "./src/oauth.js";
 import { registerFeishuPermTools } from "./src/perm.js";
 import { setFeishuRuntime } from "./src/runtime.js";
+import { registerFeishuSheetsTools } from "./src/sheets.js";
+import { registerFeishuTaskTools } from "./src/task.js";
 import { registerFeishuWikiTools } from "./src/wiki.js";
 
 export { monitorFeishuProvider } from "./src/monitor.js";
@@ -59,6 +64,11 @@ const plugin = {
     registerFeishuDriveTools(api);
     registerFeishuPermTools(api);
     registerFeishuBitableTools(api);
+    registerFeishuCalendarTools(api);
+    registerFeishuTaskTools(api);
+    registerFeishuSheetsTools(api);
+    registerFeishuIdentityTools(api);
+    registerFeishuOAuthTool(api);
   },
 };
 

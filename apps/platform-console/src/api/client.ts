@@ -160,7 +160,10 @@ export async function openRemoteInstance(token: string, instanceId: string): Pro
   const session = unwrap(data);
   return {
     ...session,
-    openUrl: normalizeDevelopmentHostedUrl(session.openUrl)
+    openUrl: normalizeDevelopmentHostedUrl(session.openUrl),
+    fixedDomainOpenUrl: session.fixedDomainOpenUrl
+      ? normalizeDevelopmentHostedUrl(session.fixedDomainOpenUrl)
+      : null
   };
 }
 
@@ -246,7 +249,10 @@ export async function openRemoteShare(grantToken: string): Promise<RemoteAccessS
   const session = unwrap(data);
   return {
     ...session,
-    openUrl: normalizeDevelopmentHostedUrl(session.openUrl)
+    openUrl: normalizeDevelopmentHostedUrl(session.openUrl),
+    fixedDomainOpenUrl: session.fixedDomainOpenUrl
+      ? normalizeDevelopmentHostedUrl(session.fixedDomainOpenUrl)
+      : null
   };
 }
 

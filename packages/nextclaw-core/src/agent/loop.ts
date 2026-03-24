@@ -3,6 +3,7 @@ import type { MessageBus } from "../bus/queue.js";
 import type { ProviderManager } from "../providers/provider_manager.js";
 import type { LLMResponse } from "../providers/base.js";
 import { ContextBuilder } from "./context.js";
+import { buildToolCatalogEntriesFromToolDefinitions } from "./tool-catalog.utils.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { ReadFileTool, WriteFileTool, EditFileTool, ListDirTool } from "./tools/filesystem.js";
 import { ExecTool } from "./tools/shell.js";
@@ -135,7 +136,6 @@ export class AgentLoop {
       this.tools.register(cronTool);
     }
   }
-
 
   private registerExtensionTools(): void {
     const registry = this.options.extensionRegistry;
@@ -674,10 +674,7 @@ export class AgentLoop {
 
     const pendingSystemEvents = this.drainPendingSystemEvents(session);
     const requestedSkillNames = this.resolveRequestedSkillNames(msg.metadata);
-    let currentMessage = this.prependRequestedSkills(
-      this.prependSystemEvents(msg.content, pendingSystemEvents),
-      requestedSkillNames
-    );
+    let currentMessage = this.prependRequestedSkills(this.prependSystemEvents(msg.content, pendingSystemEvents), requestedSkillNames);
     currentMessage = this.appendTimeHintForPrompt(currentMessage, msg.timestamp);
 
     const messageTool = this.tools.get("message");
@@ -717,7 +714,8 @@ export class AgentLoop {
       sessionKey,
       thinkingLevel: runtimeThinking,
       skillNames: requestedSkillNames,
-      messageToolHints
+      messageToolHints,
+      availableTools: buildToolCatalogEntriesFromToolDefinitions(this.tools.getDefinitions())
     });
     this.recordSessionMessage({
       session,

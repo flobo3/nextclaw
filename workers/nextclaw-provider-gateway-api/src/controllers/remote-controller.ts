@@ -19,7 +19,7 @@ import {
 } from "../repositories/remote-repository";
 import { ensurePlatformBootstrap, requireAuthUser } from "../services/platform-service";
 import {
-  buildRemoteAccessUrl,
+  buildRemoteAccessUrlSet,
   buildRemoteShareUrl,
   createShareOpenSession,
   DEFAULT_REMOTE_SHARE_GRANT_TTL_SECONDS,
@@ -45,16 +45,16 @@ import {
   sanitizeResponseHeaders,
 } from "../utils/platform-utils";
 
-function requireRemoteAccessUrl(
+function requireRemoteAccessUrls(
   c: Context<{ Bindings: Env }>,
   sessionId: string,
   token: string
-): string | Response {
-  const openUrl = buildRemoteAccessUrl(c, sessionId, token);
-  if (!openUrl) {
+){
+  const urls = buildRemoteAccessUrlSet(c, sessionId, token);
+  if (!urls) {
     return apiError(c, 503, "REMOTE_ACCESS_DOMAIN_UNAVAILABLE", "Remote access public domain is not configured.");
   }
-  return openUrl;
+  return urls;
 }
 
 function requireRemoteShareUrl(c: Context<{ Bindings: Env }>, grantToken: string): string | Response {
@@ -236,9 +236,9 @@ export async function openRemoteShareSessionHandler(c: Context<{ Bindings: Env }
   }
 
   const session = await createShareOpenSession({ c, grant });
-  const openUrl = requireRemoteAccessUrl(c, session.id, session.token);
-  if (openUrl instanceof Response) {
-    return openUrl;
+  const urls = requireRemoteAccessUrls(c, session.id, session.token);
+  if (urls instanceof Response) {
+    return urls;
   }
 
   await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
@@ -259,7 +259,7 @@ export async function openRemoteShareSessionHandler(c: Context<{ Bindings: Env }
 
   return c.json({
     ok: true,
-    data: toRemoteAccessSessionView(session, openUrl)
+    data: toRemoteAccessSessionView(session, urls)
   });
 }
 

@@ -2,6 +2,7 @@ import type { OpenClawPluginApi } from "./nextclaw-sdk/feishu.js";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { registerFeishuBitableTools } from "./bitable.js";
 import { registerFeishuDriveTools } from "./drive.js";
+import { withTicket } from "./lark-ticket.js";
 import { registerFeishuPermTools } from "./perm.js";
 import { createToolFactoryHarness } from "./tool-factory-test-harness.js";
 import { registerFeishuWikiTools } from "./wiki.js";
@@ -125,5 +126,23 @@ describe("feishu tool account routing", () => {
 
     expect(createFeishuClientMock.mock.calls[0]?.[0]?.appId).toBe("app-b");
     expect(createFeishuClientMock.mock.calls[1]?.[0]?.appId).toBe("app-a");
+  });
+
+  test("ticket account id overrides inherited tool account selection", async () => {
+    const { api, resolveTool } = createToolFactoryHarness(createConfig({}));
+    registerFeishuBitableTools(api);
+
+    const tool = resolveTool("feishu_bitable_get_meta");
+    await withTicket(
+      {
+        accountId: "b",
+        chatId: "oc_test",
+        messageId: "om_test",
+        startTime: Date.now(),
+      },
+      () => tool.execute("call-ticket", { url: "invalid-url" }),
+    );
+
+    expect(createFeishuClientMock.mock.calls.at(-1)?.[0]?.appId).toBe("app-b");
   });
 });

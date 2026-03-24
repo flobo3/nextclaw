@@ -4,6 +4,7 @@ export type Env = {
   AUTH_TOKEN_SECRET?: string;
   NEXTCLAW_WEB_BASE_URL?: string;
   REMOTE_ACCESS_BASE_DOMAIN?: string;
+  REMOTE_ACCESS_FIXED_DOMAIN?: string;
   PLATFORM_AUTH_EMAIL_PROVIDER?: string;
   PLATFORM_AUTH_EMAIL_FROM?: string;
   PLATFORM_AUTH_DEV_EXPOSE_CODE?: string;
@@ -192,6 +193,7 @@ export type RemoteAccessSessionView = {
   revokedAt: string | null;
   createdAt: string;
   openUrl: string;
+  fixedDomainOpenUrl: string | null;
 };
 
 export type RemoteShareGrantView = {

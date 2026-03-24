@@ -1,6 +1,7 @@
 import type { ClawdbotConfig, RuntimeEnv } from "./nextclaw-sdk/feishu.js";
 import { resolveFeishuAccount } from "./accounts.js";
 import { handleFeishuMessage, type FeishuMessageEvent } from "./bot.js";
+import { withTicket } from "./lark-ticket.js";
 
 export type FeishuCardActionEvent = {
   operator: {
@@ -69,11 +70,22 @@ export async function handleFeishuCardAction(params: {
   );
 
   // Dispatch as normal message
-  await handleFeishuMessage({
-    cfg,
-    event: messageEvent,
-    botOpenId: params.botOpenId,
-    runtime,
-    accountId,
-  });
+  await withTicket(
+    {
+      accountId: account.accountId,
+      messageId: messageEvent.message.message_id,
+      chatId: messageEvent.message.chat_id,
+      senderOpenId: event.operator.open_id,
+      chatType: messageEvent.message.chat_type,
+      startTime: Date.now(),
+    },
+    () =>
+      handleFeishuMessage({
+        cfg,
+        event: messageEvent,
+        botOpenId: params.botOpenId,
+        runtime,
+        accountId,
+      }),
+  );
 }

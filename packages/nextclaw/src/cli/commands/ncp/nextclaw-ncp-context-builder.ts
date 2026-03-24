@@ -1,4 +1,5 @@
 import {
+  buildToolCatalogEntries,
   ContextBuilder,
   InputBudgetPruner,
   getWorkspacePath,
@@ -278,9 +279,11 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
 
     const requestedSkillNames = resolveRequestedSkillNames(requestMetadata);
     const requestedToolNames = resolveRequestedToolNames(requestMetadata);
-    const currentUserText = extractTextFromNcpMessage(input.messages[input.messages.length - 1]);
     const currentMessage = appendTimeHintForPrompt(
-      prependRequestedSkills(currentUserText, requestedSkillNames),
+      prependRequestedSkills(
+        extractTextFromNcpMessage(input.messages[input.messages.length - 1]),
+        requestedSkillNames,
+      ),
       new Date(
         ensureIsoTimestamp(
           input.messages[input.messages.length - 1]?.timestamp,
@@ -313,6 +316,7 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
       chatId,
       accountId: accountId ?? null,
     });
+    const toolDefinitions = this.options.toolRegistry.getToolDefinitions();
 
     const contextBuilder = new ContextBuilder(profile.workspace, config.agents.context);
     const sessionMessages = _options?.sessionMessages ?? [];
@@ -325,13 +329,14 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
       thinkingLevel: runtimeThinking,
       skillNames: requestedSkillNames,
       messageToolHints,
+      availableTools: buildToolCatalogEntries(toolDefinitions),
     });
     const pruned = this.inputBudgetPruner.prune({
       messages,
       contextTokens: profile.contextTokens,
     });
 
-    const toolDefinitions = this.options.toolRegistry.getToolDefinitions().map((tool) => ({
+    const openAiToolDefinitions = toolDefinitions.map((tool) => ({
       type: "function" as const,
       function: {
         name: tool.name,
@@ -342,7 +347,7 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
 
     return {
       messages: pruned.messages as OpenAIChatMessage[],
-      tools: filterTools(toolDefinitions, requestedToolNames),
+      tools: filterTools(openAiToolDefinitions, requestedToolNames),
       model: effectiveModel,
       thinkingLevel: runtimeThinking,
     };

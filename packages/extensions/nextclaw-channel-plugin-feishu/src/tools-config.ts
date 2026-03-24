@@ -12,6 +12,11 @@ export const DEFAULT_TOOLS_CONFIG: Required<FeishuToolsConfig> = {
   drive: true,
   perm: false,
   scopes: true,
+  calendar: true,
+  task: true,
+  sheets: true,
+  oauth: true,
+  identity: true,
 };
 
 /**
