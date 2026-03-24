@@ -3,12 +3,32 @@ import type { OpenClawPluginApi } from "./nextclaw-sdk/feishu.js";
 import { assertLarkOk, createToolContext, handleInvokeError, json, registerTool, StringEnum } from "./user-tool-helpers.js";
 
 const TasklistSchema = Type.Union([
-  Type.Object({ action: Type.Literal("create"), name: Type.String(), members: Type.Optional(Type.Array(Type.Object({ id: Type.String(), role: Type.Optional(StringEnum(["editor", "viewer"])) }))) }),
+  Type.Object({
+    action: Type.Literal("create"),
+    name: Type.String(),
+    members: Type.Optional(
+      Type.Array(
+        Type.Object({
+          id: Type.String(),
+          role: Type.Optional(StringEnum(["editor", "viewer"])),
+        }),
+      ),
+    ),
+  }),
   Type.Object({ action: Type.Literal("get"), tasklist_guid: Type.String() }),
   Type.Object({ action: Type.Literal("list"), page_size: Type.Optional(Type.Number()), page_token: Type.Optional(Type.String()) }),
   Type.Object({ action: Type.Literal("tasks"), tasklist_guid: Type.String(), page_size: Type.Optional(Type.Number()), page_token: Type.Optional(Type.String()), completed: Type.Optional(Type.Boolean()) }),
   Type.Object({ action: Type.Literal("patch"), tasklist_guid: Type.String(), name: Type.Optional(Type.String()) }),
-  Type.Object({ action: Type.Literal("add_members"), tasklist_guid: Type.String(), members: Type.Array(Type.Object({ id: Type.String(), role: Type.Optional(StringEnum(["editor", "viewer"])) }))) }),
+  Type.Object({
+    action: Type.Literal("add_members"),
+    tasklist_guid: Type.String(),
+    members: Type.Array(
+      Type.Object({
+        id: Type.String(),
+        role: Type.Optional(StringEnum(["editor", "viewer"])),
+      }),
+    ),
+  }),
 ]);
 
 export function registerFeishuTaskTasklistTool(api: OpenClawPluginApi) {

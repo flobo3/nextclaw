@@ -1,4 +1,5 @@
-import { createToolContext, assertLarkOk, unixTimestampToISO8601 } from "./user-tool-helpers.js";
+import type { createToolContext } from "./user-tool-helpers.js";
+import { assertLarkOk, unixTimestampToISO8601 } from "./user-tool-helpers.js";
 
 export function normalizeEventTimes<T extends Record<string, unknown> | undefined>(event: T): T {
   if (!event) return event;

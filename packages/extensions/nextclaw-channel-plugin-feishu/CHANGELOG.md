@@ -1,5 +1,17 @@
 # @nextclaw/channel-plugin-feishu
 
+## 0.2.19
+
+### Patch Changes
+
+- Finalize the Feishu upstream capability sync by splitting the sheets implementation into a shared helper module, keeping the new OAuth, calendar, task, sheets, and identity surface maintainable while preserving the released behavior and release-group alignment.
+
+## 0.2.18
+
+### Patch Changes
+
+- Ship the next Feishu upstream capability sync round by adding user-identity execution for OAuth, calendar, task, and sheets operations, plus the supporting ticket and scope plumbing needed to mirror the high-value upstream tool surface inside NextClaw. Republish the NextClaw release group so the bundled CLI/runtime chain stays version-aligned.
+
 ## 0.2.17
 
 ### Patch Changes
@@ -168,6 +180,7 @@
 ### Patch Changes
 
 - Release runtime/session fixes and frontend configuration improvements together.
+
   - fix session persistence across non-streaming/runtime paths
   - stabilize Feishu conversation routing
   - include frontend max-token optimization and related config UX updates
@@ -205,6 +218,7 @@
 ### Patch Changes
 
 - release: add WeCom channel support and harden dev runner port fallback.
+
   - add built-in WeCom channel runtime, plugin package, schema, UI fields and docs
   - add robust dev-runner port fallback to avoid API misrouting under port conflicts
   - publish linked package updates for runtime/plugin compatibility alignment

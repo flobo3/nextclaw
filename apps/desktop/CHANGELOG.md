@@ -1,5 +1,25 @@
 # @nextclaw/desktop
 
+## 0.0.82
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/channel-plugin-feishu@0.2.19
+  - @nextclaw/openclaw-compat@0.3.26
+  - @nextclaw/server@0.10.44
+  - nextclaw@0.15.2
+
+## 0.0.81
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/channel-plugin-feishu@0.2.18
+  - @nextclaw/openclaw-compat@0.3.25
+  - @nextclaw/server@0.10.43
+  - nextclaw@0.15.1
+
 ## 0.0.80
 
 ### Patch Changes
