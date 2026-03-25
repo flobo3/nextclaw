@@ -8,6 +8,13 @@ describe("buildReloadPlan", () => {
     expect(plan.restartChannels).toBe(false);
   });
 
+  it("reloads agent runtime for channel config changes", () => {
+    const plan = buildReloadPlan(["channels.feishu.enabled"]);
+    expect(plan.restartChannels).toBe(true);
+    expect(plan.reloadAgent).toBe(true);
+    expect(plan.restartRequired).toEqual([]);
+  });
+
   it("reloads MCP changes without marking restart required", () => {
     const plan = buildReloadPlan(["mcp.servers.chrome-devtools.enabled"]);
     expect(plan.reloadMcp).toBe(true);

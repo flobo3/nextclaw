@@ -85,11 +85,17 @@ export class ExtensionToolAdapter extends Tool {
   }
 
   get description(): string {
-    return this.fallbackDescription;
+    const preview = this.resolveToolPreview();
+    return preview?.description?.trim() || this.fallbackDescription;
   }
 
   get parameters(): Record<string, unknown> {
-    return this.fallbackParameters;
+    const preview = this.resolveToolPreview();
+    return normalizeSchema(preview?.parameters ?? this.fallbackParameters);
+  }
+
+  override isAvailable(): boolean {
+    return this.resolveToolPreview() !== null;
   }
 
   async execute(params: Record<string, unknown>, toolCallId?: string): Promise<string> {

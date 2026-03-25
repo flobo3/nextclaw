@@ -27,6 +27,10 @@ export abstract class Tool {
 
   abstract execute(params: Record<string, unknown>, toolCallId?: string): Promise<string>;
 
+  isAvailable(): boolean {
+    return true;
+  }
+
   validateParams(params: Record<string, unknown>): string[] {
     const schema = this.parameters as ToolSchema;
     if (schema?.type !== "object") {

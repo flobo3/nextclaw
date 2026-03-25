@@ -20,13 +20,18 @@ export class ToolRegistry {
   }
 
   getDefinitions(): Array<Record<string, unknown>> {
-    return Array.from(this.tools.values()).map((tool) => tool.toSchema());
+    return Array.from(this.tools.values())
+      .filter((tool) => tool.isAvailable())
+      .map((tool) => tool.toSchema());
   }
 
   async execute(name: string, params: Record<string, unknown>, toolCallId?: string): Promise<string> {
     const tool = this.tools.get(name);
     if (!tool) {
       return `Error: Tool '${name}' not found`;
+    }
+    if (!tool.isAvailable()) {
+      return `Error: Tool '${name}' not available`;
     }
     try {
       const errors = tool.validateParams(params);

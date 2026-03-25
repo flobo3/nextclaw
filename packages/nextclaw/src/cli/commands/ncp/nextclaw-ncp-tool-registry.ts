@@ -173,10 +173,13 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
   }
 
   listTools(): ReadonlyArray<NcpTool> {
-    return [...this.tools.values()];
+    return [...this.tools.values()].filter((tool) => this.isToolAvailable(tool.name));
   }
 
   getTool(name: string): NcpTool | undefined {
+    if (!this.isToolAvailable(name)) {
+      return undefined;
+    }
     return this.tools.get(name);
   }
 
@@ -305,6 +308,11 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
       }
       this.tools.set(tool.name, tool);
     }
+  }
+
+  private isToolAvailable(name: string): boolean {
+    const coreTool = this.registry.get(name);
+    return coreTool ? coreTool.isAvailable() : true;
   }
 }
 

@@ -107,6 +107,9 @@ export function buildReloadPlan(changedPaths: string[]): ReloadPlan {
     }
     if (rule.kind === "restart-channels") {
       plan.restartChannels = true;
+      // Channel config also affects agent-visible tool/message behavior, so the
+      // agent runtime must refresh in the same hot-reload pass.
+      plan.reloadAgent = true;
       continue;
     }
     if (rule.kind === "reload-providers") {

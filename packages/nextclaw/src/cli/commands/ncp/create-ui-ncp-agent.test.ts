@@ -252,6 +252,117 @@ describe("createUiNcpAgent session types refresh", () => {
   });
 });
 
+describe("createUiNcpAgent tool catalog hot reload", () => {
+  it("hides dynamically unavailable extension tools on the next run without restarting the agent", async () => {
+    const workspace = createTempWorkspace();
+    const enabledConfig = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "default-model",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+    });
+    const disabledConfig = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "default-model",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+    });
+    (
+      enabledConfig as {
+        channels: Record<string, unknown>;
+      }
+    ).channels = {
+      ...(enabledConfig.channels as Record<string, unknown>),
+      feishu: { enabled: true },
+    };
+    (
+      disabledConfig as {
+        channels: Record<string, unknown>;
+      }
+    ).channels = {
+      ...(disabledConfig.channels as Record<string, unknown>),
+      feishu: { enabled: false },
+    };
+
+    let currentConfig: Config = enabledConfig;
+    const extensionRegistry: NextclawExtensionRegistry = {
+      tools: [
+        {
+          extensionId: "feishu",
+          names: ["feishu_doc"],
+          optional: false,
+          source: "test:feishu",
+          factory: (ctx) => {
+            if (
+              (
+                (
+                  (ctx.config?.channels as Record<string, unknown> | undefined)?.feishu as
+                    | { enabled?: boolean }
+                    | undefined
+                )?.enabled
+              ) === false
+            ) {
+              return [];
+            }
+            return {
+              name: "feishu_doc",
+              description: "Feishu document operations",
+              parameters: { type: "object", properties: {}, additionalProperties: false },
+              async execute() {
+                return { ok: true };
+              },
+            };
+          },
+        },
+      ],
+      channels: [],
+      engines: [],
+      diagnostics: [],
+      ncpAgentRuntimes: [],
+    };
+
+    const providerManager = new RecordingProviderManager();
+    const ncpAgent = await createUiNcpAgent({
+      bus: new MessageBus(),
+      providerManager: providerManager as unknown as ProviderManager,
+      sessionManager: new SessionManager(workspace),
+      getConfig: () => currentConfig,
+      getExtensionRegistry: () => extensionRegistry,
+    });
+
+    await sendAndCollectEvents(
+      ncpAgent.agentClientEndpoint,
+      createEnvelope({
+        sessionId: "session-feishu-hot-disable",
+        text: "现在有哪些工具？",
+      }),
+    );
+    expect(String(providerManager.calls[0]?.messages[0]?.content)).toContain(
+      "- feishu_doc: Feishu document operations",
+    );
+
+    providerManager.calls.length = 0;
+    currentConfig = disabledConfig;
+
+    await sendAndCollectEvents(
+      ncpAgent.agentClientEndpoint,
+      createEnvelope({
+        sessionId: "session-feishu-hot-disable",
+        text: "现在有哪些工具？",
+      }),
+    );
+    expect(String(providerManager.calls[0]?.messages[0]?.content)).not.toContain("feishu_doc");
+  });
+});
+
 describe("createUiNcpAgent codex native routing", () => {
   it("keeps codex sessions on the codex runtime for non-GPT OpenAI-compatible models", async () => {
     const workspace = createTempWorkspace();
