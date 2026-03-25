@@ -333,8 +333,12 @@ async function runFeishuVerifyAction(params: {
   config: Config;
   action: ConfigActionManifest;
 }): Promise<ConfigActionExecuteResult> {
-  const appId = String(params.config.channels.feishu.appId ?? "").trim();
-  const appSecret = String(params.config.channels.feishu.appSecret ?? "").trim();
+  const feishuConfig =
+    ((params.config.channels as Record<string, unknown>).feishu as
+      | { appId?: unknown; appSecret?: unknown }
+      | undefined) ?? {};
+  const appId = String(feishuConfig.appId ?? "").trim();
+  const appSecret = String(feishuConfig.appSecret ?? "").trim();
   if (!appId || !appSecret) {
     return {
       ok: false,
