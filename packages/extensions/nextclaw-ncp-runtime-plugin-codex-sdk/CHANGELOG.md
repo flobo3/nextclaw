@@ -1,5 +1,11 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
 
+## 0.1.19
+
+### Patch Changes
+
+- Route Feishu image attachments through existing NCP sessions and materialize NCP file parts for Codex and Claude runtime prompts.
+
 ## 0.1.18
 
 ### Patch Changes

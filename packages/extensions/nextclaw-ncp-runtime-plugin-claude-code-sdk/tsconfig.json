@@ -11,5 +11,6 @@
       "@nextclaw/nextclaw-ncp-runtime-claude-code-sdk": ["../nextclaw-ncp-runtime-claude-code-sdk/src/index.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

@@ -11,5 +11,6 @@
       "@nextclaw/nextclaw-ncp-runtime-codex-sdk": ["../nextclaw-ncp-runtime-codex-sdk/src/index.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

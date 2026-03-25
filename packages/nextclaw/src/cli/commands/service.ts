@@ -240,11 +240,7 @@ export class ServiceCommands {
     reloader.setReloadMcp(async ({ config: nextConfig }) => { await this.liveUiNcpAgent?.applyMcpConfig?.(nextConfig); });
 
     let pluginChannelBindings = getPluginChannelBindings(pluginRegistry);
-    installPluginRuntimeBridge({
-      runtimePool,
-      runtimeConfigPath,
-      pluginChannelBindings
-    });
+    installPluginRuntimeBridge({ runtimePool, sessionManager, runtimeConfigPath, pluginChannelBindings, getUiNcpAgent: () => this.liveUiNcpAgent });
 
     cron.onJob = createCronJobHandler({ runtimePool, bus });
 

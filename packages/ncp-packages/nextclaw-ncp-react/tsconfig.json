@@ -3,7 +3,11 @@
   "compilerOptions": {
     "noEmit": true,
     "types": ["node", "react"],
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "@nextclaw/ncp": ["../nextclaw-ncp/src/index.ts"],
+      "@nextclaw/ncp-toolkit": ["../nextclaw-ncp-toolkit/src/index.ts"]
+    }
   },
   "include": ["src"]
 }

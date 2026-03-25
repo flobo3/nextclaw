@@ -1,5 +1,11 @@
 # @nextclaw/mcp
 
+## 0.1.42
+
+### Patch Changes
+
+- Route Feishu image attachments through existing NCP sessions and materialize NCP file parts for Codex and Claude runtime prompts.
+
 ## 0.1.41
 
 ### Patch Changes
@@ -268,7 +274,6 @@
 ### Patch Changes
 
 - Fix Codex chat startup and plugin resolution when running NextClaw from source in dev mode.
-
   - prefer repo-local first-party plugins from `packages/extensions` when `NEXTCLAW_DEV_FIRST_PARTY_PLUGIN_DIR` is unset
   - avoid loading stale installed Codex runtime plugins from `~/.nextclaw/extensions` during source-mode smoke tests
   - keep the release group for `@nextclaw/mcp`, `@nextclaw/server`, and `nextclaw` in sync while shipping the Codex chat fix
