@@ -1,5 +1,6 @@
 import { CHANNEL_LABELS } from './i18n.channels';
 import { CHANNEL_AUTH_LABELS } from './i18n.channel-auth';
+import { CHAT_LABELS } from './i18n.chat';
 import { MARKETPLACE_LABELS } from './i18n.marketplace';
 import { REMOTE_LABELS } from './i18n.remote';
 export type I18nLanguage = 'zh' | 'en';
@@ -557,118 +558,7 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   },
 
   // Chat
-  chatPageTitle: { zh: 'Agent 对话', en: 'Agent Chat' },
-  chatPageDescription: {
-    zh: '在 UI 内直接与 Agent 交互，支持多会话与多 Agent 切换。',
-    en: 'Chat with your agent directly in UI with multi-session and multi-agent switching.'
-  },
-  chatRefresh: { zh: '刷新', en: 'Refresh' },
-  chatNewSession: { zh: '新会话', en: 'New Session' },
-  chatSearchSessionPlaceholder: { zh: '搜索会话 key / 标签', en: 'Search session key / label' },
-  chatAgentLabel: { zh: '目标 Agent', en: 'Target Agent' },
-  chatSelectAgent: { zh: '选择 Agent', en: 'Select Agent' },
-  chatModelLabel: { zh: '对话模型', en: 'Chat Model' },
-  chatSelectModel: { zh: '选择模型', en: 'Select model' },
-  chatThinkingLevelOff: { zh: '思考关闭', en: 'Thinking Off' },
-  chatThinkingLevelMinimal: { zh: '思考 Minimal', en: 'Thinking Minimal' },
-  chatThinkingLevelLow: { zh: '思考 Low', en: 'Thinking Low' },
-  chatThinkingLevelMedium: { zh: '思考 Medium', en: 'Thinking Medium' },
-  chatThinkingLevelHigh: { zh: '思考 High', en: 'Thinking High' },
-  chatThinkingLevelAdaptive: { zh: '思考 Adaptive', en: 'Thinking Adaptive' },
-  chatThinkingLevelXhigh: { zh: '思考 XHigh', en: 'Thinking XHigh' },
-  chatSessionTypeLabel: { zh: '会话类型', en: 'Session Type' },
-  chatSessionTypeNative: { zh: '原生', en: 'Native' },
-  chatSessionTypeCodex: { zh: 'Codex', en: 'Codex' },
-  chatSessionTypeClaude: { zh: 'Claude Code', en: 'Claude Code' },
-  chatSessionTypeUnavailableSuffix: {
-    zh: '当前不可用，请启用对应插件或新建 Native 会话。',
-    en: 'is unavailable now. Re-enable the plugin or create a native session.'
-  },
-  chatModelNoOptions: { zh: '暂无可用模型，请先配置提供商。', en: 'No available models. Configure a provider first.' },
-  chatGoConfigureProvider: { zh: '去配置提供商', en: 'Go to Providers' },
-  chatProviderSetupTitle: { zh: '开始前先配置提供商', en: 'Configure a Provider First' },
-  chatProviderSetupDescription: {
-    zh: '你还没有可用模型。先在提供商页面配置并保存至少一个 Provider 后，再回来开始对话。',
-    en: 'No models are available yet. Configure and save at least one provider, then return to start chatting.'
-  },
-  chatSessionLabel: { zh: '当前会话', en: 'Current Session' },
-  chatNoSession: { zh: '未选择会话', en: 'No session selected' },
-  chatNoSessionHint: { zh: '创建一个会话并发送第一条消息。', en: 'Create a session and send your first message.' },
-  chatHistoryLoading: { zh: '加载会话历史中...', en: 'Loading session history...' },
-  chatNoMessages: { zh: '暂无消息，发送一条开始对话。', en: 'No messages yet. Send one to start.' },
-  chatTyping: { zh: 'Agent 正在思考...', en: 'Agent is thinking...' },
-  chatInputPlaceholder: { zh: '输入消息，输入 / 选择技能，Enter 发送，Shift + Enter 换行', en: 'Type a message, type / to select skills, Enter to send, Shift + Enter for newline' },
-  chatInputHint: { zh: '支持多轮上下文，默认走当前会话。', en: 'Multi-turn context is preserved in the current session.' },
-  chatSlashSectionCommands: { zh: '命令', en: 'Commands' },
-  chatSlashSectionSkills: { zh: '技能', en: 'Skills' },
-  chatSlashTypeCommand: { zh: '命令', en: 'Command' },
-  chatSlashTypeSkill: { zh: '技能', en: 'Skill' },
-  chatSlashSkillSpec: { zh: '标识', en: 'Spec' },
-  chatSlashLoading: { zh: '加载命令与技能中…', en: 'Loading commands and skills…' },
-  chatSlashNoResult: { zh: '无匹配项', en: 'No matches' },
-  chatSlashHint: { zh: '输入 / 触发命令或技能选择', en: 'Type / to access commands and skills' },
-  chatSlashCommandHint: { zh: '回车插入命令，继续输入参数后发送。', en: 'Press Enter to insert command, then add args and send.' },
-  chatSlashSkillHint: { zh: '回车把该技能加入本轮请求。', en: 'Press Enter to add this skill for the next turn.' },
-  chatSend: { zh: '发送', en: 'Send' },
-  chatStop: { zh: '停止', en: 'Stop' },
-  chatStopPreparing: { zh: '正在建立可停止会话，请稍候…', en: 'Preparing stoppable run…' },
-  chatStopUnavailable: { zh: '当前后端引擎不支持手动停止。', en: 'Manual stop is not supported by the current backend engine.' },
-  chatSending: { zh: '发送中...', en: 'Sending...' },
-  chatQueueSend: { zh: '排队发送', en: 'Queue' },
-  chatQueuedHintPrefix: { zh: '当前有', en: 'Queued' },
-  chatQueuedHintSuffix: { zh: '条消息待发送。', en: 'pending messages.' },
-  chatQueueMoveFirst: { zh: '置顶到下一条', en: 'Move to Next' },
-  chatDeleteSession: { zh: '删除会话', en: 'Delete Session' },
-  chatDeleteSessionConfirm: { zh: '确认删除当前会话？', en: 'Delete the current session?' },
-  chatSendFailed: { zh: '发送消息失败', en: 'Failed to send message' },
-  chatRoleUser: { zh: '你', en: 'You' },
-  chatRoleAssistant: { zh: '助手', en: 'Assistant' },
-  chatRoleTool: { zh: '工具', en: 'Tool' },
-  chatRoleSystem: { zh: '系统', en: 'System' },
-  chatRoleMessage: { zh: '消息', en: 'Message' },
-  chatToolCall: { zh: '工具调用', en: 'Tool Call' },
-  chatToolResult: { zh: '工具结果', en: 'Tool Result' },
-  chatToolWorkflow: { zh: '工具工作流', en: 'Tool Workflow' },
-  chatToolWorkflowDetails: { zh: '展开查看参数和结果', en: 'Expand to view params and results' },
-  chatToolOutput: { zh: '查看输出', en: 'View Output' },
-  chatToolNoOutput: { zh: '无输出（执行完成）', en: 'No output (completed)' },
-  chatReasoning: { zh: '推理过程', en: 'Reasoning' },
-  chatUnknownPart: { zh: '未知消息片段', en: 'Unknown message part' },
-  chatCodeCopy: { zh: '复制代码', en: 'Copy' },
-  chatCodeCopied: { zh: '已复制', en: 'Copied' },
-
-  // Chat Sidebar (unified)
-  chatSidebarNewTask: { zh: '新任务', en: 'New Task' },
-  chatSidebarSearchPlaceholder: { zh: '搜索对话...', en: 'Search conversations...' },
-  chatSidebarScheduledTasks: { zh: '定时任务', en: 'Scheduled Tasks' },
-  chatSidebarSkills: { zh: '技能', en: 'Skills' },
-  chatSidebarTaskRecords: { zh: '会话记录', en: 'Sessions' },
-  chatSidebarToday: { zh: '今天', en: 'Today' },
-  chatSidebarYesterday: { zh: '昨天', en: 'Yesterday' },
-  chatSidebarPrevious7Days: { zh: '近 7 天', en: 'Previous 7 Days' },
-  chatSidebarOlder: { zh: '更早', en: 'Older' },
-
-  // Welcome page
-  chatWelcomeTitle: { zh: '你好，有什么可以帮你的吗？', en: 'Hello, how can I help you?' },
-  chatWelcomeSubtitle: { zh: '开始一个新任务或选择已有对话', en: 'Start a new task or select an existing conversation' },
-  chatWelcomeCapability1Title: { zh: '智能对话', en: 'Smart Conversations' },
-  chatWelcomeCapability1Desc: { zh: '多轮上下文对话，支持多种 AI 模型', en: 'Multi-turn context conversations with multiple AI models' },
-  chatWelcomeCapability2Title: { zh: '技能扩展', en: 'Skill Extensions' },
-  chatWelcomeCapability2Desc: { zh: '通过安装技能扩展 Agent 能力', en: 'Extend Agent capabilities by installing skills' },
-  chatWelcomeCapability3Title: { zh: '定时任务', en: 'Scheduled Tasks' },
-  chatWelcomeCapability3Desc: { zh: '设置定时执行的自动化任务', en: 'Set up scheduled automated tasks' },
-
-  // Skills picker
-  chatSkillsPickerTitle: { zh: '技能', en: 'Skills' },
-  chatSkillsPickerEmpty: { zh: '暂无已安装技能', en: 'No skills installed' },
-  chatSkillsPickerSearchPlaceholder: { zh: '搜索技能', en: 'Search skills' },
-  chatSkillsPickerNoDescription: { zh: '暂无描述', en: 'No description' },
-  chatSkillsPickerOfficial: { zh: '官方', en: 'Official' },
-  chatSkillsPickerManage: { zh: '管理技能', en: 'Manage Skills' },
-
-  // Input bar
-  chatInputAttach: { zh: '添加附件', en: 'Attach file' },
-  chatInputAttachComingSoon: { zh: '即将支持', en: 'Coming soon' },
+  ...CHAT_LABELS,
 
   // Cron
   cronPageTitle: { zh: '定时任务', en: 'Cron Jobs' },

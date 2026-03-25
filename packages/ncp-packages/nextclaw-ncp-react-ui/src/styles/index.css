@@ -137,8 +137,37 @@
   border-top: 1px solid var(--ncp-ui-line);
   padding: 12px 16px 16px;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 10px;
+}
+
+.composer-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.composer-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  border: 1px solid var(--ncp-ui-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ncp-ui-text);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.composer-attachment-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-attachment-chip-remove {
+  color: var(--ncp-ui-muted);
 }
 
 .composer textarea {
@@ -151,6 +180,39 @@
   color: var(--ncp-ui-text);
   padding: 10px;
   font: inherit;
+}
+
+.composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.composer-file-input {
+  display: none;
+}
+
+.part-file {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--ncp-ui-line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px;
+}
+
+.part-file-image {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.part-file-meta {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
 }
 
 .session-actions {

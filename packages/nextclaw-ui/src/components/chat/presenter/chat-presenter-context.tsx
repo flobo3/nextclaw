@@ -1,4 +1,5 @@
 import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
+import type { NcpDraftAttachment } from '@nextclaw/ncp-react';
 import { createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
 import type { SetStateAction } from 'react';
@@ -13,6 +14,11 @@ export type ChatInputManagerLike = {
   syncSnapshot: (patch: Record<string, unknown>) => void;
   setDraft: (next: SetStateAction<string>) => void;
   setComposerNodes: (next: SetStateAction<ChatComposerNode[]>) => void;
+  addAttachments?: (attachments: NcpDraftAttachment[]) => void;
+  restoreComposerState?: (
+    nodes: ChatComposerNode[],
+    attachments: NcpDraftAttachment[]
+  ) => void;
   setPendingSessionType: (next: SetStateAction<string>) => void;
   send: () => Promise<void>;
   stop: () => Promise<void>;

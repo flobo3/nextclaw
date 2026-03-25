@@ -206,9 +206,16 @@ export class ChatComposerViewController {
 
   handlePaste = (params: {
     event: ClipboardEvent<HTMLDivElement>;
+    onFilesAdd?: (files: File[]) => Promise<void> | void;
     commitSnapshot: (snapshot: ChatComposerControllerSnapshot) => void;
   }): void => {
-    const { event, commitSnapshot } = params;
+    const { event, onFilesAdd, commitSnapshot } = params;
+    const files = Array.from(event.clipboardData.files ?? []);
+    if (files.length > 0 && onFilesAdd) {
+      event.preventDefault();
+      void onFilesAdd(files);
+      return;
+    }
     const text = event.clipboardData.getData('text/plain');
     if (!text) {
       return;

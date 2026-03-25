@@ -1,5 +1,12 @@
 # @nextclaw/ncp-react
 
+## 0.3.4
+
+### Patch Changes
+
+- Add NCP image attachment support across the shared chat composer, NCP runtime, React bindings, and bundled NextClaw UI so pasted or uploaded images are sent as NCP file parts and rendered inline. Also keep the required CLI/server/mcp release group in sync for the bundled NextClaw distribution.
+  - @nextclaw/ncp-toolkit@0.4.2
+
 ## 0.3.3
 
 ### Patch Changes
@@ -24,6 +31,7 @@
 ### Patch Changes
 
 - Unify the latest NCP native chat chain improvements into a single release batch:
+
   - fix NCP streaming/state-manager promotion so tool-first assistant streams do not lose parts
   - align session type handling to stay generic outside the built-in native type
   - remove runtime-specific default-model branching and use a generic session-scoped fallback strategy

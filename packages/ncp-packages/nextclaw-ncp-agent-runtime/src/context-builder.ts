@@ -1,8 +1,9 @@
-import type { NcpMessage } from "@nextclaw/ncp";
+import type { NcpMessage, OpenAIContentPart } from "@nextclaw/ncp";
 import type {
   NcpContextBuilder,
   NcpContextPrepareOptions,
   NcpLLMApiInput,
+  NcpMessagePart,
   OpenAIChatMessage,
   OpenAITool,
 } from "@nextclaw/ncp";
@@ -19,6 +20,60 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isRenderableImagePart(part: NcpMessage["parts"][number]): part is Extract<NcpMessage["parts"][number], { type: "file" }> {
+  return (
+    part.type === "file" &&
+    typeof part.mimeType === "string" &&
+    part.mimeType.startsWith("image/") &&
+    ((typeof part.url === "string" && part.url.trim().length > 0) ||
+      (typeof part.contentBase64 === "string" && part.contentBase64.trim().length > 0))
+  );
+}
+
+function toOpenAIUserContent(parts: NcpMessage["parts"]): string | OpenAIContentPart[] {
+  const content: OpenAIContentPart[] = [];
+
+  for (const part of parts) {
+    if (part.type === "text" && part.text.trim().length > 0) {
+      content.push({ type: "text", text: part.text });
+      continue;
+    }
+    if (part.type === "rich-text" && part.text.trim().length > 0) {
+      content.push({ type: "text", text: part.text });
+      continue;
+    }
+    if (!isRenderableImagePart(part)) {
+      continue;
+    }
+
+    const url =
+      typeof part.url === "string" && part.url.trim().length > 0
+        ? part.url.trim()
+        : `data:${part.mimeType};base64,${part.contentBase64?.trim() ?? ""}`;
+
+    content.push({
+      type: "image_url",
+      image_url: {
+        url,
+      },
+    });
+  }
+
+  if (content.length === 0) {
+    return "";
+  }
+
+  if (content.length === 1 && content[0]?.type === "text") {
+    return content[0].text;
+  }
+
+  return content;
+}
+
+function isTextLikePart(part: NcpMessagePart): part is Extract<NcpMessagePart, { type: "text" | "rich-text" }> {
+  return part.type === "text" || part.type === "rich-text";
 }
 
 function mergeMessageAndRequestMetadata(input: NcpAgentRunInput): Record<string, unknown> {
@@ -56,10 +111,10 @@ function messageToOpenAI(msg: NcpMessage): OpenAIChatMessage[] {
   const parts = msg.parts ?? [];
 
   if (role === "user" || role === "system") {
-    const text = parts
-      .filter((p): p is { type: "text"; text: string } => p.type === "text")
-      .map((p) => p.text)
-      .join("");
+    if (role === "user") {
+      return [{ role, content: toOpenAIUserContent(parts) }];
+    }
+    const text = parts.filter(isTextLikePart).map((part) => part.text).join("");
     return [{ role, content: text }];
   }
 

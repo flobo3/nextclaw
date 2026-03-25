@@ -48,6 +48,8 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
           toolResultLabel: t("chatToolResult"),
           toolNoOutputLabel: t("chatToolNoOutput"),
           toolOutputLabel: t("chatToolOutput"),
+          imageAttachmentLabel: t("chatImageAttachment"),
+          fileAttachmentLabel: t("chatFileAttachment"),
           unknownPartLabel: t("chatUnknownPart"),
         },
       }),

@@ -50,23 +50,15 @@ export class ChatComposerController {
     return this.getSnapshot();
   };
 
+  insertFileToken = (tokenKey: string, label: string): ChatComposerControllerSnapshot => {
+    return this.insertToken("file", tokenKey, label);
+  };
+
   insertSkillToken = (tokenKey: string, label: string): ChatComposerControllerSnapshot => {
     if (this.getSelectedSkillKeys().includes(tokenKey)) {
       return this.getSnapshot();
     }
-
-    const trigger = this.getSlashTrigger();
-    const documentLength = this.getDocumentLength();
-    const replaceStart = trigger?.start ?? this.selection?.start ?? documentLength;
-    const replaceEnd = trigger?.end ?? this.selection?.end ?? replaceStart;
-    this.nodes = replaceChatComposerRange(
-      this.nodes,
-      replaceStart,
-      replaceEnd,
-      [createChatComposerTokenNode({ tokenKind: 'skill', tokenKey, label })]
-    );
-    this.selection = { start: replaceStart + 1, end: replaceStart + 1 };
-    return this.getSnapshot();
+    return this.insertToken("skill", tokenKey, label, this.getSlashTrigger());
   };
 
   syncSelectedSkills = (nextKeys: string[], options: ChatSkillPickerOption[]): ChatComposerControllerSnapshot => {
@@ -126,6 +118,25 @@ export class ChatComposerController {
 
   private readonly getSelectedSkillKeys = (): string[] => {
     return extractChatComposerTokenKeys(this.nodes, 'skill');
+  };
+
+  private readonly insertToken = (
+    tokenKind: "skill" | "file",
+    tokenKey: string,
+    label: string,
+    trigger = null as { query: string; start: number; end: number } | null,
+  ): ChatComposerControllerSnapshot => {
+    const documentLength = this.getDocumentLength();
+    const replaceStart = trigger?.start ?? this.selection?.start ?? documentLength;
+    const replaceEnd = trigger?.end ?? this.selection?.end ?? replaceStart;
+    this.nodes = replaceChatComposerRange(
+      this.nodes,
+      replaceStart,
+      replaceEnd,
+      [createChatComposerTokenNode({ tokenKind, tokenKey, label })],
+    );
+    this.selection = { start: replaceStart + 1, end: replaceStart + 1 };
+    return this.getSnapshot();
   };
 
   private readonly getSlashTrigger = (): { query: string; start: number; end: number } | null => {

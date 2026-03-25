@@ -102,6 +102,7 @@ export function ChatInputBar(props: ChatInputBarProps) {
               actions={props.toolbar.actions}
               activeSlashIndex={activeSlashIndex}
               onNodesChange={props.composer.onNodesChange}
+              onFilesAdd={props.composer.onFilesAdd}
               onSlashQueryChange={(query) => {
                 setSlashQuery(query);
                 props.composer.onSlashQueryChange?.(query);

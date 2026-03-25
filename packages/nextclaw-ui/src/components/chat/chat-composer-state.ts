@@ -1,4 +1,5 @@
 import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
+import type { NcpDraftAttachment } from '@nextclaw/ncp-react';
 import {
   createChatComposerTokenNode,
   createChatComposerNodesFromText,
@@ -23,6 +24,10 @@ export function deriveChatComposerDraft(nodes: ChatComposerNode[]): string {
 
 export function deriveSelectedSkillsFromComposer(nodes: ChatComposerNode[]): string[] {
   return extractChatComposerTokenKeys(nodes, 'skill');
+}
+
+export function deriveSelectedAttachmentIdsFromComposer(nodes: ChatComposerNode[]): string[] {
+  return extractChatComposerTokenKeys(nodes, 'file');
 }
 
 export function syncComposerSkills(
@@ -50,4 +55,37 @@ export function syncComposerSkills(
   return appendedNodes.length === 0
     ? prunedNodes
     : normalizeChatComposerNodes([...prunedNodes, ...appendedNodes]);
+}
+
+export function syncComposerAttachments(
+  nodes: ChatComposerNode[],
+  attachments: readonly NcpDraftAttachment[]
+): ChatComposerNode[] {
+  const nextAttachmentIds = new Set(attachments.map((attachment) => attachment.id));
+  const prunedNodes = removeChatComposerTokenNodes(
+    nodes,
+    (node) => node.tokenKind === 'file' && !nextAttachmentIds.has(node.tokenKey)
+  );
+  const existingAttachmentIds = extractChatComposerTokenKeys(prunedNodes, 'file');
+  const appendedNodes = attachments
+    .filter((attachment) => !existingAttachmentIds.includes(attachment.id))
+    .map((attachment) =>
+      createChatComposerTokenNode({
+        tokenKind: 'file',
+        tokenKey: attachment.id,
+        label: attachment.name
+      })
+    );
+
+  return appendedNodes.length === 0
+    ? prunedNodes
+    : normalizeChatComposerNodes([...prunedNodes, ...appendedNodes]);
+}
+
+export function pruneComposerAttachments(
+  nodes: ChatComposerNode[],
+  attachments: readonly NcpDraftAttachment[]
+): NcpDraftAttachment[] {
+  const selectedIds = new Set(deriveSelectedAttachmentIdsFromComposer(nodes));
+  return attachments.filter((attachment) => selectedIds.has(attachment.id));
 }

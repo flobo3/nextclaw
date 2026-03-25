@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createNetServer, Socket } from "node:net";
 import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { loadNcpDemoEnv } from "./env.mjs";
@@ -15,10 +17,20 @@ const backendPort = await resolveFreePort(DEFAULT_BACKEND_PORT, "127.0.0.1");
 const frontendPort = await resolveFreePort(DEFAULT_FRONTEND_PORT, "127.0.0.1");
 const backendBaseUrl = `http://127.0.0.1:${backendPort}`;
 const frontendBaseUrl = `http://127.0.0.1:${frontendPort}`;
+const smokeAssetDir = mkdtempSync(`${tmpdir()}/nextclaw-ncp-smoke-`);
+const smokeImagePath = resolve(smokeAssetDir, "smoke.png");
 const loadedEnv = loadNcpDemoEnv(rootDir);
 const baseEnv = { ...loadedEnv, ...process.env };
 assertRequiredLlmEnv(baseEnv);
 const browser = await chromium.launch({ headless: true });
+
+writeFileSync(
+  smokeImagePath,
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+);
 
 function shouldUseShell(command) {
   return process.platform === "win32" && command.toLowerCase().endsWith(".cmd");
@@ -109,6 +121,79 @@ async function waitForSessionStatus(sessionId, expectedStatus) {
   throw new Error(`Session ${sessionId} did not reach status ${expectedStatus} in time.`);
 }
 
+async function fetchSessionSeed(sessionId) {
+  const response = await fetch(`${backendBaseUrl}/demo/sessions/${sessionId}/seed`);
+  if (!response.ok) {
+    throw new Error(`Failed to load session seed for ${sessionId}`);
+  }
+  return response.json();
+}
+
+function attachPageDiagnostics(page) {
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      console.error(`[browser:console] ${message.text()}`);
+    }
+  });
+  page.on("pageerror", (error) => {
+    console.error(`[browser:pageerror] ${error.message}`);
+  });
+}
+
+async function createSession(page, placeholder, firstPrompt) {
+  await page.goto(frontendBaseUrl, { waitUntil: "domcontentloaded" });
+  await page.getByPlaceholder(placeholder).waitFor();
+  await page.getByPlaceholder(placeholder).fill(firstPrompt);
+  await page.getByRole("button", { name: "send" }).click();
+  await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
+  await page.locator(".session-card.active .session-card-id").waitFor();
+
+  const sessionId = (await page.locator(".session-card.active .session-card-id").textContent())?.trim();
+  if (!sessionId) {
+    throw new Error("UI smoke failed to capture the created session id.");
+  }
+  return sessionId;
+}
+
+async function assertImageAttachmentFlow(page, placeholder, imagePrompt, sessionId) {
+  await page.setInputFiles('input[type="file"]', smokeImagePath);
+  await page.getByPlaceholder(placeholder).fill(imagePrompt);
+  await page.getByRole("button", { name: "send" }).click();
+  await page.getByRole("img", { name: "smoke.png" }).waitFor();
+
+  const seedAfterAttachment = await fetchSessionSeed(sessionId);
+  const attachmentMessage = seedAfterAttachment?.messages?.findLast?.((message) =>
+    message?.role === "user" &&
+    Array.isArray(message.parts) &&
+    message.parts.some((part) => part?.type === "file")
+  );
+  if (!attachmentMessage) {
+    throw new Error("UI smoke did not persist the uploaded image as an NCP file part.");
+  }
+}
+
+async function assertSessionHydrationAfterReload(page, placeholder, sessionId, firstPrompt, longRunningPrompt) {
+  await page.getByRole("button", { name: "new" }).click();
+  await page.getByText("Send a message to start.").waitFor();
+  await page.waitForFunction((text) => !document.body.innerText.includes(text), firstPrompt);
+
+  await page.locator(".session-card", { hasText: sessionId }).click();
+  await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
+
+  await page.getByPlaceholder(placeholder).fill(longRunningPrompt);
+  await page.getByRole("button", { name: "send" }).click();
+  await page.locator(".message.user", { hasText: longRunningPrompt }).waitFor();
+  await page.getByRole("button", { name: "stop" }).waitFor();
+  await waitForSessionStatus(sessionId, "running");
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByPlaceholder(placeholder).waitFor();
+  await page.getByRole("button", { name: "stop" }).waitFor();
+
+  await page.getByRole("button", { name: "stop" }).click();
+  await waitForSessionStatus(sessionId, "idle");
+}
+
 const nodeOptions = [baseEnv.NODE_OPTIONS, "--conditions=development"]
   .filter((value) => typeof value === "string" && value.trim().length > 0)
   .join(" ");
@@ -159,54 +244,17 @@ async function main() {
   const context = await browser.newContext();
   const page = await context.newPage();
   const firstPrompt = "remember-alpha";
+  const imagePrompt = "reply only with image-received";
   const longRunningPrompt = "Call the sleep tool with durationMs 10000 right now, then reply only with done.";
   const placeholder = "Ask for the time, or ask the agent to sleep for 2 seconds.";
 
   try {
-    page.on("console", (message) => {
-      if (message.type() === "error") {
-        console.error(`[browser:console] ${message.text()}`);
-      }
-    });
-    page.on("pageerror", (error) => {
-      console.error(`[browser:pageerror] ${error.message}`);
-    });
-
+    attachPageDiagnostics(page);
     await waitForUrl(`${backendBaseUrl}/health`);
     await waitForUrl(frontendBaseUrl);
-
-    await page.goto(frontendBaseUrl, { waitUntil: "domcontentloaded" });
-    await page.getByPlaceholder(placeholder).waitFor();
-
-    await page.getByPlaceholder(placeholder).fill(firstPrompt);
-    await page.getByRole("button", { name: "send" }).click();
-
-    await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
-    await page.locator(".session-card.active .session-card-id").waitFor();
-    const sessionId = (await page.locator(".session-card.active .session-card-id").textContent())?.trim();
-    if (!sessionId) {
-      throw new Error("UI smoke failed to capture the created session id.");
-    }
-
-    await page.getByRole("button", { name: "new" }).click();
-    await page.getByText("Send a message to start.").waitFor();
-    await page.waitForFunction((text) => !document.body.innerText.includes(text), firstPrompt);
-
-    await page.locator(".session-card", { hasText: sessionId }).click();
-    await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
-
-    await page.getByPlaceholder(placeholder).fill(longRunningPrompt);
-    await page.getByRole("button", { name: "send" }).click();
-    await page.locator(".message.user", { hasText: longRunningPrompt }).waitFor();
-    await page.getByRole("button", { name: "stop" }).waitFor();
-    await waitForSessionStatus(sessionId, "running");
-
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByPlaceholder(placeholder).waitFor();
-    await page.getByRole("button", { name: "stop" }).waitFor();
-
-    await page.getByRole("button", { name: "stop" }).click();
-    await waitForSessionStatus(sessionId, "idle");
+    const sessionId = await createSession(page, placeholder, firstPrompt);
+    await assertImageAttachmentFlow(page, placeholder, imagePrompt, sessionId);
+    await assertSessionHydrationAfterReload(page, placeholder, sessionId, firstPrompt, longRunningPrompt);
 
     console.log("[smoke-ui] ncp demo session hydration passed");
   } finally {
@@ -239,4 +287,5 @@ main()
     backend.kill("SIGTERM");
     frontend.kill("SIGTERM");
     await browser.close();
+    rmSync(smokeAssetDir, { recursive: true, force: true });
   });

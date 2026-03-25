@@ -1,5 +1,11 @@
 # @nextclaw/ncp-react-ui
 
+## 0.2.3
+
+### Patch Changes
+
+- Add NCP image attachment support across the shared chat composer, NCP runtime, React bindings, and bundled NextClaw UI so pasted or uploaded images are sent as NCP file parts and rendered inline. Also keep the required CLI/server/mcp release group in sync for the bundled NextClaw distribution.
+
 ## 0.2.2
 
 ### Patch Changes

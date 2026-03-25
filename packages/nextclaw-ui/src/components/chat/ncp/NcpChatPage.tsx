@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NcpHttpAgentClientEndpoint } from '@nextclaw/ncp-http-agent-client';
-import { useHydratedNcpAgent, type NcpConversationSeed } from '@nextclaw/ncp-react';
+import {
+  buildNcpRequestEnvelope,
+  useHydratedNcpAgent,
+  type NcpConversationSeed
+} from '@nextclaw/ncp-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API_BASE } from '@/api/api-base';
 import { fetchNcpSessionMessages } from '@/api/ncp-session';
@@ -186,29 +190,25 @@ export function NcpChatPage({ view }: ChatPageProps) {
           sessionType: payload.sessionType,
           requestedSkills: payload.requestedSkills
         });
+        const envelope = buildNcpRequestEnvelope({
+          sessionId: payload.sessionKey,
+          text: payload.message,
+          attachments: payload.attachments,
+          metadata
+        });
+        if (!envelope) {
+          return;
+        }
         try {
           void sessionsQuery.refetch();
-          await agent.send({
-            sessionId: payload.sessionKey,
-            message: {
-              id: `user-${Date.now().toString(36)}`,
-              sessionId: payload.sessionKey,
-              role: 'user',
-              status: 'final',
-              parts: [{ type: 'text', text: payload.message }],
-              timestamp: new Date().toISOString(),
-              ...(Object.keys(metadata).length > 0 ? { metadata } : {})
-            },
-            ...(Object.keys(metadata).length > 0 ? { metadata } : {})
-          });
+          await agent.send(envelope);
           await sessionsQuery.refetch();
         } catch (error) {
           if (payload.restoreDraftOnError) {
             if (payload.composerNodes && payload.composerNodes.length > 0) {
-              presenter.chatInputManager.setComposerNodes((currentNodes) =>
-                currentNodes.length === 1 && currentNodes[0]?.type === 'text' && currentNodes[0].text.length === 0
-                  ? payload.composerNodes ?? currentNodes
-                  : currentNodes
+              presenter.chatInputManager.restoreComposerState?.(
+                payload.composerNodes,
+                payload.attachments ?? []
               );
             } else {
               presenter.chatInputManager.setDraft((currentDraft) =>

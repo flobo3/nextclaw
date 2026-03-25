@@ -197,6 +197,41 @@ describe("ChatMessageList", () => {
     expect(screen.getByText("Typing...")).toBeTruthy();
   });
 
+  it("renders image attachments inline", () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "assistant-image",
+            role: "assistant",
+            roleLabel: "Assistant",
+            timestampLabel: "10:06",
+            parts: [
+              {
+                type: "file",
+                file: {
+                  label: "Image attachment",
+                  mimeType: "image/png",
+                  dataUrl: "data:image/png;base64,ZmFrZS1pbWFnZQ==",
+                  isImage: true,
+                },
+              },
+            ],
+          },
+        ]}
+        isSending={false}
+        hasAssistantDraft={false}
+        texts={{
+          copyCodeLabel: "Copy",
+          copiedCodeLabel: "Copied",
+          typingLabel: "Typing...",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Image attachment" })).toBeTruthy();
+  });
+
   it("treats whitespace-only and zero-width markdown drafts as loading instead of visible bubbles", () => {
     render(
       <ChatMessageList

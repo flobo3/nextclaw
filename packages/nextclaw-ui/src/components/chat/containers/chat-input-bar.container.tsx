@@ -1,5 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChatInputBar } from '@nextclaw/agent-chat-ui';
+import {
+  DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT,
+  DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES,
+  readFilesAsNcpDraftAttachments
+} from '@nextclaw/ncp-react';
 import {
   buildChatSlashItems,
   buildModelStateHint,
@@ -14,6 +19,7 @@ import { usePresenter } from '@/components/chat/presenter/chat-presenter-context
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { t } from '@/lib/i18n';
+import { toast } from 'sonner';
 
 function buildThinkingLabels(): Record<ChatThinkingLevel, string> {
   return {
@@ -70,6 +76,7 @@ export function ChatInputBarContainer() {
   const { language } = useI18n();
   const snapshot = useChatInputStore((state) => state.snapshot);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const officialSkillBadgeLabel = useMemo(() => {
     // Keep memo reactive to locale switches even though `t` is imported as a stable function.
@@ -102,6 +109,7 @@ export function ChatInputBarContainer() {
   const isModelOptionsEmpty = snapshot.isProviderStateResolved && !hasModelOptions;
   const inputDisabled =
     ((isModelOptionsLoading || isModelOptionsEmpty) && !snapshot.isSending) || snapshot.sessionTypeUnavailable;
+  const attachmentSupported = typeof presenter.chatInputManager.addAttachments === 'function';
   const textareaPlaceholder = isModelOptionsLoading
     ? ''
     : hasModelOptions
@@ -121,6 +129,33 @@ export function ChatInputBarContainer() {
     snapshot.stopDisabledReason === '__preparing__'
       ? t('chatStopPreparing')
       : snapshot.stopDisabledReason?.trim() || t('chatStopUnavailable');
+
+  const showAttachmentError = useCallback((reason: 'unsupported-type' | 'too-large' | 'read-failed') => {
+    if (reason === 'unsupported-type') {
+      toast.error(t('chatInputImageUnsupported'));
+      return;
+    }
+    if (reason === 'too-large') {
+      toast.error(
+        t('chatInputImageTooLarge').replace('{maxMb}', String(DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES / (1024 * 1024)))
+      );
+      return;
+    }
+    toast.error(t('chatInputImageReadFailed'));
+  }, []);
+
+  const handleFilesAdd = useCallback(async (files: File[]) => {
+    if (!attachmentSupported || files.length === 0) {
+      return;
+    }
+    const result = await readFilesAsNcpDraftAttachments(files);
+    if (result.attachments.length > 0) {
+      presenter.chatInputManager.addAttachments?.(result.attachments);
+    }
+    if (result.rejected.length > 0) {
+      showAttachmentError(result.rejected[0].reason);
+    }
+  }, [attachmentSupported, presenter.chatInputManager, showAttachmentError]);
 
   const toolbarSelects = [
     buildModelToolbarSelect({
@@ -160,60 +195,86 @@ export function ChatInputBarContainer() {
   });
 
   return (
-    <ChatInputBar
-      composer={{
-        nodes: snapshot.composerNodes,
-        placeholder: textareaPlaceholder,
-        disabled: inputDisabled,
-        onNodesChange: presenter.chatInputManager.setComposerNodes,
-        onSlashQueryChange: setSlashQuery
-      }}
-      slashMenu={{
-        isLoading: snapshot.isSkillsLoading,
-        items: slashItems,
-        texts: {
-          slashLoadingLabel: t('chatSlashLoading'),
-          slashSectionLabel: t('chatSlashSectionSkills'),
-          slashEmptyLabel: t('chatSlashNoResult'),
-          slashHintLabel: t('chatSlashHint'),
-          slashSkillHintLabel: t('chatSlashSkillHint')
-        }
-      }}
-      hint={buildModelStateHint({
-        isModelOptionsLoading,
-        isModelOptionsEmpty,
-        onGoToProviders: presenter.chatInputManager.goToProviders,
-        texts: {
-          noModelOptionsLabel: t('chatModelNoOptions'),
-          configureProviderLabel: t('chatGoConfigureProvider')
-        }
-      })}
-      toolbar={{
-        selects: toolbarSelects,
-        accessories: [
-          {
-            key: 'attach',
-            label: t('chatInputAttach'),
-            icon: 'paperclip',
-            iconOnly: true,
-            disabled: true,
-            tooltip: t('chatInputAttachComingSoon')
+    <>
+      <ChatInputBar
+        composer={{
+          nodes: snapshot.composerNodes,
+          placeholder: textareaPlaceholder,
+          disabled: inputDisabled,
+          onNodesChange: presenter.chatInputManager.setComposerNodes,
+          ...(attachmentSupported ? { onFilesAdd: handleFilesAdd } : {}),
+          onSlashQueryChange: setSlashQuery
+        }}
+        slashMenu={{
+          isLoading: snapshot.isSkillsLoading,
+          items: slashItems,
+          texts: {
+            slashLoadingLabel: t('chatSlashLoading'),
+            slashSectionLabel: t('chatSlashSectionSkills'),
+            slashEmptyLabel: t('chatSlashNoResult'),
+            slashHintLabel: t('chatSlashHint'),
+            slashSkillHintLabel: t('chatSlashSkillHint')
           }
-        ],
-        skillPicker,
-        actions: {
-          sendError: snapshot.sendError,
-          isSending: snapshot.isSending,
-          canStopGeneration: snapshot.canStopGeneration,
-          sendDisabled: snapshot.draft.trim().length === 0 || !hasModelOptions || snapshot.sessionTypeUnavailable,
-          stopDisabled: !snapshot.canStopGeneration,
-          stopHint: resolvedStopHint,
-          sendButtonLabel: t('chatSend'),
-          stopButtonLabel: t('chatStop'),
-          onSend: presenter.chatInputManager.send,
-          onStop: presenter.chatInputManager.stop
-        }
-      }}
-    />
+        }}
+        hint={buildModelStateHint({
+          isModelOptionsLoading,
+          isModelOptionsEmpty,
+          onGoToProviders: presenter.chatInputManager.goToProviders,
+          texts: {
+            noModelOptionsLabel: t('chatModelNoOptions'),
+            configureProviderLabel: t('chatGoConfigureProvider')
+          }
+        })}
+        toolbar={{
+          selects: toolbarSelects,
+          accessories: [
+            {
+              key: 'attach',
+              label: t('chatInputAttach'),
+              icon: 'paperclip',
+              iconOnly: true,
+              disabled: !attachmentSupported || inputDisabled || snapshot.isSending,
+              ...(attachmentSupported
+                ? {
+                    onClick: () => fileInputRef.current?.click()
+                  }
+                : {
+                    tooltip: t('chatInputAttachComingSoon')
+                  })
+            }
+          ],
+          skillPicker,
+          actions: {
+            sendError: snapshot.sendError,
+            isSending: snapshot.isSending,
+            canStopGeneration: snapshot.canStopGeneration,
+            sendDisabled:
+              (snapshot.draft.trim().length === 0 && snapshot.attachments.length === 0) ||
+              !hasModelOptions ||
+              snapshot.sessionTypeUnavailable,
+            stopDisabled: !snapshot.canStopGeneration,
+            stopHint: resolvedStopHint,
+            sendButtonLabel: t('chatSend'),
+            stopButtonLabel: t('chatStop'),
+            onSend: presenter.chatInputManager.send,
+            onStop: presenter.chatInputManager.stop
+          }
+        }}
+      />
+      {attachmentSupported ? (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT}
+          multiple
+          className="hidden"
+          onChange={async (event) => {
+            const files = Array.from(event.target.files ?? []);
+            event.currentTarget.value = '';
+            await handleFilesAdd(files);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

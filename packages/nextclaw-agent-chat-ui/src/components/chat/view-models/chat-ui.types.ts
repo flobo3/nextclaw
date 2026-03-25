@@ -147,6 +147,7 @@ export type ChatInputBarProps = {
     placeholder: string;
     disabled: boolean;
     onNodesChange: (nodes: ChatComposerNode[]) => void;
+    onFilesAdd?: (files: File[]) => Promise<void> | void;
     onSlashQueryChange?: (query: string | null) => void;
   };
   slashMenu: Pick<ChatSlashMenuProps, 'isLoading' | 'items' | 'texts'>;
@@ -180,6 +181,15 @@ export type ChatMessagePartViewModel =
   | {
       type: 'tool-card';
       card: ChatToolPartViewModel;
+    }
+  | {
+      type: 'file';
+      file: {
+        label: string;
+        mimeType: string;
+        dataUrl?: string;
+        isImage: boolean;
+      };
     }
   | {
       type: 'unknown';

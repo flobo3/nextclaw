@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { NcpHttpAgentClientEndpoint } from "@nextclaw/ncp-http-agent-client";
-import { useHydratedNcpAgent } from "@nextclaw/ncp-react";
+import {
+  buildNcpRequestEnvelope,
+  DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT,
+  DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES,
+  readFilesAsNcpDraftAttachments,
+  useHydratedNcpAgent,
+  type NcpDraftAttachment,
+} from "@nextclaw/ncp-react";
 import { ChatHeader, ChatInput, ErrorBox, MessageList } from "@nextclaw/ncp-react-ui";
 import { loadConversationSeed } from "../lib/session";
 
@@ -11,6 +18,8 @@ type ChatPanelProps = {
 
 export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
+  const [attachments, setAttachments] = useState<NcpDraftAttachment[]>([]);
+  const [composerError, setComposerError] = useState<string | null>(null);
   const ncpClientRef = useRef<NcpHttpAgentClientEndpoint>();
   if (!ncpClientRef.current) {
     ncpClientRef.current = new NcpHttpAgentClientEndpoint({
@@ -25,19 +34,71 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
 
   useEffect(() => {
     setDraft("");
+    setAttachments([]);
+    setComposerError(null);
   }, [sessionId]);
 
   const handleSend = async () => {
-    const content = draft.trim();
-    if (!content || agent.isSending || agent.isRunning) return;
+    const envelope = buildNcpRequestEnvelope({
+      sessionId,
+      text: draft,
+      attachments,
+    });
+    if (!envelope || agent.isSending || agent.isRunning) return;
+    const prevDraft = draft;
+    const prevAttachments = attachments;
     setDraft("");
-    await agent.send(content);
+    setAttachments([]);
+    setComposerError(null);
+    try {
+      await agent.send(envelope);
+    } catch (error) {
+      setDraft(prevDraft);
+      setAttachments(prevAttachments);
+      throw error;
+    }
     onRefresh();
   };
 
   const handleAbort = async () => {
     await agent.abort();
     onRefresh();
+  };
+
+  const handleFilesAdd = async (files: File[]) => {
+    const result = await readFilesAsNcpDraftAttachments(files);
+    if (result.attachments.length > 0) {
+      setAttachments((current) => {
+        const seen = new Set<string>();
+        const next = [...current, ...result.attachments].filter((attachment) => {
+          const signature = [
+            attachment.name,
+            attachment.mimeType,
+            String(attachment.sizeBytes),
+            attachment.contentBase64,
+          ].join(":");
+          if (seen.has(signature)) {
+            return false;
+          }
+          seen.add(signature);
+          return true;
+        });
+        return next;
+      });
+      setComposerError(null);
+    }
+    if (result.rejected.length > 0) {
+      const first = result.rejected[0];
+      if (first.reason === "unsupported-type") {
+        setComposerError("Only PNG, JPEG, WEBP, and GIF images are supported.");
+      } else if (first.reason === "too-large") {
+        setComposerError(
+          `Images must be ${DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES / (1024 * 1024)} MB or smaller.`,
+        );
+      } else {
+        setComposerError("Failed to read the image. Please try again.");
+      }
+    }
   };
 
   return (
@@ -55,21 +116,32 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
       />
       <ErrorBox
         error={
-          agent.hydrateError
+          composerError
             ? {
                 code: "runtime-error",
-                message: agent.hydrateError.message,
+                message: composerError,
               }
-            : (agent.snapshot.error ?? null)
+            : agent.hydrateError
+              ? {
+                  code: "runtime-error",
+                  message: agent.hydrateError.message,
+                }
+              : (agent.snapshot.error ?? null)
         }
       />
       <ChatInput
         value={draft}
+        attachments={attachments}
+        attachmentAccept={DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT}
         placeholder="Ask for the time, or ask the agent to sleep for 2 seconds."
         isSending={agent.isSending}
         sendDisabled={agent.isSending || agent.isRunning || agent.isHydrating}
         isRunning={agent.isRunning}
         onChange={setDraft}
+        onFilesAdd={handleFilesAdd}
+        onAttachmentRemove={(attachmentId) => {
+          setAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId));
+        }}
         onSend={handleSend}
         onAbort={handleAbort}
       />

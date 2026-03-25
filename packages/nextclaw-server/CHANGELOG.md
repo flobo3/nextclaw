@@ -1,5 +1,21 @@
 # nextclaw-server
 
+## 0.10.47
+
+### Patch Changes
+
+- Republish the NextClaw CLI release group so the bundled UI includes NCP image attachment support in the shipped ui-dist.
+- Updated dependencies
+  - @nextclaw/mcp@0.1.43
+
+## 0.10.46
+
+### Patch Changes
+
+- Add NCP image attachment support across the shared chat composer, NCP runtime, React bindings, and bundled NextClaw UI so pasted or uploaded images are sent as NCP file parts and rendered inline. Also keep the required CLI/server/mcp release group in sync for the bundled NextClaw distribution.
+- Updated dependencies
+  - @nextclaw/mcp@0.1.42
+
 ## 0.10.45
 
 ### Patch Changes

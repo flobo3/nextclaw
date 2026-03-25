@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
+import type { NcpDraftAttachment } from '@nextclaw/ncp-react';
 import type { MarketplaceInstalledRecord } from '@/api/types';
 import type { ThinkingLevel } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
@@ -8,6 +9,7 @@ import { createInitialChatComposerNodes } from '@/components/chat/chat-composer-
 export type ChatInputSnapshot = {
   isProviderStateResolved: boolean;
   composerNodes: ChatComposerNode[];
+  attachments: NcpDraftAttachment[];
   draft: string;
   pendingSessionType: string;
   defaultSessionType: string;
@@ -50,6 +52,7 @@ type ChatInputStore = {
 const initialSnapshot: ChatInputSnapshot = {
   isProviderStateResolved: false,
   composerNodes: createInitialChatComposerNodes(),
+  attachments: [],
   draft: '',
   pendingSessionType: 'native',
   defaultSessionType: 'native',

@@ -9,6 +9,7 @@ import { ChatComposerRuntime } from './chat-composer-runtime';
 
 export type ChatInputBarTokenizedComposerHandle = {
   insertSlashItem: (item: ChatSlashItem) => void;
+  insertFileToken: (tokenKey: string, label: string) => void;
   syncSelectedSkills: (nextKeys: string[], options: ChatSkillPickerOption[]) => void;
 };
 
@@ -19,6 +20,7 @@ type ChatInputBarTokenizedComposerProps = {
   slashItems: ChatSlashItem[];
   actions: Pick<ChatInputBarActionsProps, 'onSend' | 'onStop' | 'isSending' | 'canStopGeneration'>;
   onNodesChange: (nodes: ChatComposerNode[]) => void;
+  onFilesAdd?: (files: File[]) => Promise<void> | void;
   onSlashQueryChange?: (query: string | null) => void;
   onSlashTriggerChange?: (trigger: { query: string; start: number; end: number } | null) => void;
   onSlashOpenChange: (open: boolean) => void;
@@ -37,6 +39,7 @@ export const ChatInputBarTokenizedComposer = forwardRef<
     slashItems,
     actions,
     onNodesChange,
+    onFilesAdd,
     onSlashQueryChange,
     onSlashTriggerChange,
     onSlashOpenChange,
@@ -63,6 +66,7 @@ export const ChatInputBarTokenizedComposer = forwardRef<
     slashItems,
     actions,
     onNodesChange,
+    onFilesAdd,
     onSlashQueryChange,
     onSlashTriggerChange,
     onSlashOpenChange,

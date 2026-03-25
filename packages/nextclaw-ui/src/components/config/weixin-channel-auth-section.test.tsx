@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type * as ReactQueryModule from '@tanstack/react-query';
 import { WeixinChannelAuthSection } from './weixin-channel-auth-section';
 
 const mocks = vi.hoisted(() => ({
@@ -9,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
+  const actual = await vi.importActual<typeof ReactQueryModule>('@tanstack/react-query');
   return {
     ...actual,
     useQueryClient: () => ({

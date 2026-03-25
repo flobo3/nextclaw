@@ -22,6 +22,7 @@ type ChatComposerRuntimeConfig = {
   slashItems: ChatSlashItem[];
   actions: ComposerActions;
   onNodesChange: (nodes: ChatComposerNode[]) => void;
+  onFilesAdd?: (files: File[]) => Promise<void> | void;
   onSlashQueryChange?: (query: string | null) => void;
   onSlashTriggerChange?: (trigger: { query: string; start: number; end: number } | null) => void;
   onSlashOpenChange: (open: boolean) => void;
@@ -82,6 +83,9 @@ export class ChatComposerRuntime {
     return {
       insertSlashItem: (item) => {
         this.viewController.insertSlashItem(item, this.commitSnapshot);
+      },
+      insertFileToken: (tokenKey, label) => {
+        this.commitSnapshot(this.controller.insertFileToken(tokenKey, label));
       },
       syncSelectedSkills: (nextKeys, options) => {
         this.viewController.syncSelectedSkills(nextKeys, options, this.commitSnapshot);
@@ -177,6 +181,7 @@ export class ChatComposerRuntime {
   readonly handlePaste = (event: ClipboardEvent<HTMLDivElement>): void => {
     this.viewController.handlePaste({
       event,
+      onFilesAdd: this.requireConfig().onFilesAdd,
       commitSnapshot: this.commitSnapshot
     });
   };

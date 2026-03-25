@@ -15,6 +15,12 @@ export type ChatMessagePartSource =
       text: string;
     }
   | {
+      type: 'file';
+      mimeType: string;
+      data: string;
+      name?: string;
+    }
+  | {
       type: 'reasoning';
       reasoning: string;
     }
@@ -58,6 +64,8 @@ export type ChatMessageAdapterTexts = {
   toolResultLabel: string;
   toolNoOutputLabel: string;
   toolOutputLabel: string;
+  imageAttachmentLabel: string;
+  fileAttachmentLabel: string;
   unknownPartLabel: string;
 };
 
@@ -75,6 +83,16 @@ function isReasoningPart(
   part: ChatMessagePartSource
 ): part is Extract<ChatMessagePartSource, { type: 'reasoning' }> {
   return part.type === 'reasoning' && typeof part.reasoning === 'string';
+}
+
+function isFilePart(
+  part: ChatMessagePartSource
+): part is Extract<ChatMessagePartSource, { type: 'file' }> {
+  return (
+    part.type === 'file' &&
+    typeof part.mimeType === 'string' &&
+    typeof part.data === 'string'
+  );
 }
 
 function isToolInvocationPart(
@@ -180,6 +198,23 @@ export function adaptChatMessages(params: {
             type: 'reasoning' as const,
             text,
             label: params.texts.reasoningLabel
+          };
+        }
+        if (isFilePart(part)) {
+          const isImage = part.mimeType.startsWith('image/');
+          return {
+            type: 'file' as const,
+            file: {
+              label:
+                typeof part.name === 'string' && part.name.trim()
+                  ? part.name.trim()
+                  : isImage
+                    ? params.texts.imageAttachmentLabel
+                    : params.texts.fileAttachmentLabel,
+              mimeType: part.mimeType,
+              dataUrl: `data:${part.mimeType};base64,${part.data}`,
+              isImage
+            }
           };
         }
         if (isToolInvocationPart(part)) {
