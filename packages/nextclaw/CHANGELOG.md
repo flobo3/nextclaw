@@ -1,5 +1,16 @@
 # nextclaw
 
+## 0.15.7
+
+### Patch Changes
+
+- ee69ef6: Keep pasted and uploaded NCP images in composer order end to end: preserve caret placement, retain image visibility across follow-up turns without hidden model switching, and serialize mixed text/image message parts in the same order users authored them.
+- Updated dependencies [ee69ef6]
+  - @nextclaw/mcp@0.1.45
+  - @nextclaw/server@0.10.49
+  - @nextclaw/ncp-mcp@0.1.44
+  - @nextclaw/remote@0.1.43
+
 ## 0.15.6
 
 ### Patch Changes

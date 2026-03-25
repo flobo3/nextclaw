@@ -1,5 +1,14 @@
 # @nextclaw/ui
 
+## 0.10.3
+
+### Patch Changes
+
+- ee69ef6: Keep pasted and uploaded NCP images in composer order end to end: preserve caret placement, retain image visibility across follow-up turns without hidden model switching, and serialize mixed text/image message parts in the same order users authored them.
+- Updated dependencies [ee69ef6]
+  - @nextclaw/agent-chat-ui@0.2.4
+  - @nextclaw/ncp-react@0.3.5
+
 ## 0.10.2
 
 ### Patch Changes
