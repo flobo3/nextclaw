@@ -4,6 +4,13 @@ import type { RuntimeFactoryParams } from "@nextclaw/ncp-toolkit";
 import type { NcpAgentRuntime } from "@nextclaw/ncp";
 import codexRuntimePlugin from "../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/index.js";
 
+vi.mock(
+  "../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/codex-responses-capability.js",
+  () => ({
+    resolveCodexResponsesApiSupport: vi.fn(async () => true),
+  }),
+);
+
 function createConfig(input: Record<string, unknown> = {}): Config {
   return ConfigSchema.parse({
     agents: {
@@ -24,11 +31,11 @@ function createConfig(input: Record<string, unknown> = {}): Config {
   });
 }
 
-function createRuntimeConfig(params?: {
+async function createRuntimeConfig(params?: {
   config?: Config;
   pluginConfig?: Record<string, unknown>;
   sessionMetadata?: Record<string, unknown>;
-}): Record<string, unknown> {
+}): Promise<Record<string, unknown>> {
   let createRuntime: ((runtimeParams: RuntimeFactoryParams) => NcpAgentRuntime) | null = null;
 
   codexRuntimePlugin.register({
@@ -53,7 +60,13 @@ function createRuntimeConfig(params?: {
     setSessionMetadata: vi.fn(),
   });
 
-  const runtimeConfig = Reflect.get(runtime as object, "config");
+  const resolveRuntime = Reflect.get(runtime as object, "createRuntime");
+  if (typeof resolveRuntime !== "function") {
+    throw new Error("runtime resolver is missing");
+  }
+
+  const resolvedRuntime = await Reflect.apply(resolveRuntime, runtime, []);
+  const runtimeConfig = Reflect.get(resolvedRuntime as object, "config");
   if (!runtimeConfig || typeof runtimeConfig !== "object") {
     throw new Error("runtime config is missing");
   }
@@ -61,13 +74,20 @@ function createRuntimeConfig(params?: {
 }
 
 describe("codex runtime plugin provider routing", () => {
-  it("maps custom provider displayName to Codex model_provider", () => {
-    const runtimeConfig = createRuntimeConfig();
+  it("maps custom provider displayName to Codex model_provider", async () => {
+    const runtimeConfig = await createRuntimeConfig();
     const cliConfig = runtimeConfig.cliConfig as Record<string, unknown>;
     const modelProviders = cliConfig.model_providers as Record<string, Record<string, unknown>>;
+    const threadOptions = runtimeConfig.threadOptions as Record<string, unknown>;
 
     expect(runtimeConfig.model).toBe("gpt-5.4");
     expect(cliConfig.model_provider).toBe("yunyi");
+    expect(threadOptions).toEqual(
+      expect.objectContaining({
+        sandboxMode: "danger-full-access",
+        approvalPolicy: "never",
+      }),
+    );
     expect(modelProviders.yunyi).toEqual(
       expect.objectContaining({
         name: "yunyi",
@@ -76,8 +96,8 @@ describe("codex runtime plugin provider routing", () => {
     );
   });
 
-  it("prefers explicit modelProvider override for custom providers", () => {
-    const runtimeConfig = createRuntimeConfig({
+  it("prefers explicit modelProvider override for custom providers", async () => {
+    const runtimeConfig = await createRuntimeConfig({
       config: createConfig({
         providers: {
           "custom-1": {
@@ -97,8 +117,40 @@ describe("codex runtime plugin provider routing", () => {
     expect(cliConfig.model_provider).toBe("yunyi");
   });
 
-  it("fails fast when a custom provider has no valid external provider id", () => {
-    expect(() =>
+  it("maps explicit accessMode to the runtime permission profile", async () => {
+    const runtimeConfig = await createRuntimeConfig({
+      pluginConfig: {
+        accessMode: "workspace-write",
+      },
+    });
+    const threadOptions = runtimeConfig.threadOptions as Record<string, unknown>;
+
+    expect(threadOptions).toEqual(
+      expect.objectContaining({
+        sandboxMode: "workspace-write",
+        approvalPolicy: "never",
+      }),
+    );
+  });
+
+  it("keeps reading legacy sandboxMode during the migration", async () => {
+    const runtimeConfig = await createRuntimeConfig({
+      pluginConfig: {
+        sandboxMode: "read-only",
+      },
+    });
+    const threadOptions = runtimeConfig.threadOptions as Record<string, unknown>;
+
+    expect(threadOptions).toEqual(
+      expect.objectContaining({
+        sandboxMode: "read-only",
+        approvalPolicy: "never",
+      }),
+    );
+  });
+
+  it("fails fast when a custom provider has no valid external provider id", async () => {
+    await expect(
       createRuntimeConfig({
         config: createConfig({
           providers: {
@@ -111,6 +163,6 @@ describe("codex runtime plugin provider routing", () => {
           },
         }),
       }),
-    ).toThrowError(/config\.modelProvider/);
+    ).rejects.toThrowError(/config\.modelProvider/);
   });
 });

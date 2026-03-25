@@ -23,9 +23,10 @@
       "workingDirectory": {
         "type": "string"
       },
-      "sandboxMode": {
+      "accessMode": {
         "type": "string",
-        "enum": ["read-only", "workspace-write", "danger-full-access"]
+        "enum": ["read-only", "workspace-write", "full-access"],
+        "default": "full-access"
       },
       "skipGitRepoCheck": {
         "type": "boolean"
@@ -39,10 +40,6 @@
       },
       "webSearchEnabled": {
         "type": "boolean"
-      },
-      "approvalPolicy": {
-        "type": "string",
-        "enum": ["never", "on-request", "on-failure", "untrusted"]
       },
       "codexPathOverride": {
         "type": "string"
@@ -86,12 +83,9 @@
       "label": "Working Directory",
       "advanced": true
     },
-    "sandboxMode": {
-      "label": "Sandbox Mode",
-      "advanced": true
-    },
-    "approvalPolicy": {
-      "label": "Approval Policy",
+    "accessMode": {
+      "label": "Access Mode",
+      "help": "Product-facing permission model. Defaults to full-access; internally this is mapped to the Codex SDK sandbox/approval settings.",
       "advanced": true
     },
     "networkAccessEnabled": {

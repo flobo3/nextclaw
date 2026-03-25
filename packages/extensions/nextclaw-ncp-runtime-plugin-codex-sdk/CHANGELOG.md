@@ -1,5 +1,17 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
 
+## 0.1.20
+
+### Patch Changes
+
+- Bundle the published Codex runtime plugin entry so internal helper modules are always shipped with the installable package.
+
+## 0.1.19
+
+### Patch Changes
+
+- Collapse the Codex runtime permission model into a single `accessMode` field, default it to `full-access`, and keep legacy `sandboxMode` only as a migration fallback.
+
 ## 0.1.18
 
 ### Patch Changes
@@ -134,6 +146,7 @@
 ### Patch Changes
 
 - Unify the latest NCP native chat chain improvements into a single release batch:
+
   - fix NCP streaming/state-manager promotion so tool-first assistant streams do not lose parts
   - align session type handling to stay generic outside the built-in native type
   - remove runtime-specific default-model branching and use a generic session-scoped fallback strategy

@@ -21,6 +21,11 @@ import {
   buildCodexBridgeModelProviderId,
   resolveExternalModelProvider,
 } from "./codex-model-provider.js";
+import {
+  CODEX_APPROVAL_POLICY,
+  mapAccessModeToSandboxMode,
+  resolveCodexAccessMode,
+} from "./codex-access-mode.js";
 import { buildCodexInputBuilder } from "./codex-input-builder.js";
 import { ensureCodexOpenAiResponsesBridge } from "./codex-openai-responses-bridge.js";
 import { resolveCodexResponsesApiSupport } from "./codex-responses-capability.js";
@@ -320,6 +325,7 @@ const plugin: PluginDefinition = {
             config: nextConfig,
             pluginConfig,
           });
+          const accessMode = resolveCodexAccessMode(pluginConfig);
           const thinkingLevel =
             readThinkingLevel(runtimeParams.sessionMetadata.preferred_thinking) ??
             readThinkingLevel(runtimeParams.sessionMetadata.thinking) ??
@@ -346,12 +352,7 @@ const plugin: PluginDefinition = {
             inputBuilder: buildCodexInputBuilder(executionOptions.workingDirectory),
             threadOptions: {
               model,
-              sandboxMode:
-                readString(pluginConfig.sandboxMode) as
-                  | "read-only"
-                  | "workspace-write"
-                  | "danger-full-access"
-                  | undefined,
+              sandboxMode: mapAccessModeToSandboxMode(accessMode),
               workingDirectory: executionOptions.workingDirectory,
               skipGitRepoCheck: executionOptions.skipGitRepoCheck,
               modelReasoningEffort: thinkingLevel,
@@ -363,13 +364,7 @@ const plugin: PluginDefinition = {
                   | "live"
                   | undefined,
               webSearchEnabled: readBoolean(pluginConfig.webSearchEnabled),
-              approvalPolicy:
-                readString(pluginConfig.approvalPolicy) as
-                  | "never"
-                  | "on-request"
-                  | "on-failure"
-                  | "untrusted"
-                  | undefined,
+              approvalPolicy: CODEX_APPROVAL_POLICY,
               additionalDirectories: readStringArray(pluginConfig.additionalDirectories),
             },
           });
