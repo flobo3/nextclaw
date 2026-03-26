@@ -3,7 +3,6 @@ import { mountNcpHttpAgentRoutes } from "@nextclaw/ncp-http-agent-server";
 import { UiAuthService } from "./auth.service.js";
 import { AppRoutesController } from "./router/app.controller.js";
 import { AuthRoutesController } from "./router/auth.controller.js";
-import { ChatRoutesController } from "./router/chat.controller.js";
 import { ConfigRoutesController } from "./router/config.controller.js";
 import { CronRoutesController } from "./router/cron.controller.js";
 import { NcpAssetRoutesController } from "./router/ncp-attachment.controller.js";
@@ -17,7 +16,6 @@ import {
 } from "./router/marketplace/index.js";
 import { RemoteRoutesController } from "./router/remote.controller.js";
 import { err } from "./router/response.js";
-import { SessionRoutesController } from "./router/session.controller.js";
 import type { UiRouterOptions } from "./router/types.js";
 
 function registerAuthRoutes(app: Hono, authController: AuthRoutesController): void {
@@ -49,25 +47,6 @@ function registerConfigRoutes(app: Hono, configController: ConfigRoutesControlle
   app.put("/api/config/secrets", configController.updateSecrets);
   app.put("/api/config/runtime", configController.updateRuntime);
   app.post("/api/config/actions/:actionId/execute", configController.executeAction);
-}
-
-function registerChatRoutes(app: Hono, chatController: ChatRoutesController): void {
-  app.get("/api/chat/capabilities", chatController.getCapabilities);
-  app.get("/api/chat/session-types", chatController.getSessionTypes);
-  app.get("/api/chat/commands", chatController.getCommands);
-  app.post("/api/chat/turn", chatController.processTurn);
-  app.post("/api/chat/turn/stop", chatController.stopTurn);
-  app.post("/api/chat/turn/stream", chatController.streamTurn);
-  app.get("/api/chat/runs", chatController.listRuns);
-  app.get("/api/chat/runs/:runId", chatController.getRun);
-  app.get("/api/chat/runs/:runId/stream", chatController.streamRun);
-}
-
-function registerSessionRoutes(app: Hono, sessionController: SessionRoutesController): void {
-  app.get("/api/sessions", sessionController.listSessions);
-  app.get("/api/sessions/:key/history", sessionController.getSessionHistory);
-  app.put("/api/sessions/:key", sessionController.patchSession);
-  app.delete("/api/sessions/:key", sessionController.deleteSession);
 }
 
 function registerNcpRoutes(
@@ -125,8 +104,6 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   const appController = new AppRoutesController(options);
   const authController = new AuthRoutesController(authService);
   const configController = new ConfigRoutesController(options);
-  const chatController = new ChatRoutesController(options);
-  const sessionController = new SessionRoutesController(options);
   const cronController = new CronRoutesController(options);
   const ncpSessionController = new NcpSessionRoutesController(options);
   const ncpAssetController = new NcpAssetRoutesController(options);
@@ -155,8 +132,6 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   app.get("/api/app/meta", appController.appMeta);
   registerAuthRoutes(app, authController);
   registerConfigRoutes(app, configController);
-  registerChatRoutes(app, chatController);
-  registerSessionRoutes(app, sessionController);
   registerNcpRoutes(app, options, ncpSessionController, ncpAssetController);
   registerCronRoutes(app, cronController);
   registerRemoteRoutes(app, remoteController);

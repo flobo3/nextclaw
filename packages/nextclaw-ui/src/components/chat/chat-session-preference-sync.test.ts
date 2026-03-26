@@ -1,19 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { updateSession } from '@/api/config';
+import { updateNcpSession } from '@/api/ncp-session';
 import { ChatSessionPreferenceSync } from '@/components/chat/chat-session-preference-sync';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 
-vi.mock('@/api/config', () => ({
-  updateSession: vi.fn(async () => ({
-    key: 'session-1',
-    totalMessages: 0,
-    totalEvents: 0,
-    sessionType: 'native',
-    sessionTypeMutable: false,
-    metadata: {},
-    messages: [],
-    events: []
+vi.mock('@/api/ncp-session', () => ({
+  updateNcpSession: vi.fn(async () => ({
+    sessionId: 'session-1',
+    messageCount: 0,
+    updatedAt: new Date().toISOString(),
+    status: 'idle',
+    metadata: {}
   }))
 }));
 
@@ -50,10 +47,10 @@ describe('ChatSessionPreferenceSync', () => {
       }
     }));
 
-    const sync = new ChatSessionPreferenceSync(updateSession);
+    const sync = new ChatSessionPreferenceSync(updateNcpSession);
     sync.syncSelectedSessionPreferences();
     await vi.waitFor(() => {
-      expect(updateSession).toHaveBeenCalledWith('session-1', {
+      expect(updateNcpSession).toHaveBeenCalledWith('session-1', {
         preferredModel: 'openai/gpt-5',
         preferredThinking: 'high'
       });

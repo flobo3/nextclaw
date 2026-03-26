@@ -8,15 +8,15 @@ import {
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API_BASE } from '@/api/api-base';
 import { fetchNcpSessionMessages } from '@/api/ncp-session';
-import type { ChatRunView } from '@/api/types';
-import { sessionDisplayName } from '@/components/chat/chat-page-data';
 import { ChatPageLayout, type ChatPageProps, useChatSessionSync } from '@/components/chat/chat-page-shell';
+import { sessionDisplayName } from '@/components/chat/chat-session-display';
 import { createNcpAppClientFetch } from '@/components/chat/ncp/ncp-app-client-fetch';
 import { parseSessionKeyFromRoute, resolveAgentIdFromSessionKey } from '@/components/chat/chat-session-route';
 import { useNcpChatPageData } from '@/components/chat/ncp/ncp-chat-page-data';
 import { NcpChatPresenter } from '@/components/chat/ncp/ncp-chat.presenter';
 import { adaptNcpMessagesToUiMessages, buildNcpSessionRunStatusByKey, createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
 import { ChatPresenterProvider } from '@/components/chat/presenter/chat-presenter-context';
+import type { ResumeRunParams } from '@/components/chat/chat-stream/types';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 import { resolveSessionTypeLabel } from '@/components/chat/useChatSessionTypeState';
@@ -224,7 +224,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
         await agent.abort();
         await sessionsQuery.refetch();
       },
-      resumeRun: async (run: ChatRunView) => {
+      resumeRun: async (run: ResumeRunParams) => {
         if (run.sessionKey !== activeSessionId) {
           return;
         }

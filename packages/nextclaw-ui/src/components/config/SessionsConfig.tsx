@@ -1,19 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { SessionEntryView, SessionMessageView } from '@/api/types';
+import type { NcpMessageView, NcpSessionSummaryView, SessionEntryView } from '@/api/types';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
-import { useChatRuns, useDeleteSession, useSessionHistory, useSessions, useUpdateSession } from '@/hooks/useConfig';
+import { useDeleteNcpSession, useNcpSessionMessages, useNcpSessions, useUpdateNcpSession } from '@/hooks/useConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SessionRunBadge } from '@/components/common/SessionRunBadge';
+import { adaptNcpSessionSummaries } from '@/components/chat/ncp/ncp-session-adapter';
+import { sessionDisplayName } from '@/components/chat/chat-session-display';
 import { cn } from '@/lib/utils';
 import { formatDateShort, formatDateTime, t } from '@/lib/i18n';
-import { extractMessageText } from '@/lib/chat-message';
-import {
-  buildActiveRunBySessionKey,
-  buildSessionRunStatusByKey,
-  type SessionRunStatus
-} from '@/lib/session-run-status';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { RefreshCw, Search, Clock, Inbox, Hash, Bot, User, MessageCircle, Settings as SettingsIcon } from 'lucide-react';
 
@@ -39,83 +35,107 @@ function displayChannelName(channel: string): string {
   return channel;
 }
 
-// ============================================================================
-// COMPONENT: Left Sidebar Session Item
-// ============================================================================
+function normalizeNcpRole(role: NcpMessageView['role']): 'user' | 'assistant' | 'system' | 'tool' {
+  if (role === 'service') {
+    return 'system';
+  }
+  if (role === 'tool') {
+    return 'tool';
+  }
+  return role;
+}
+
+function extractNcpMessageText(message: NcpMessageView): string {
+  const parts: string[] = [];
+  for (const part of message.parts) {
+    if (part.type === 'text' || part.type === 'rich-text' || part.type === 'reasoning') {
+      parts.push(part.text);
+      continue;
+    }
+    if (part.type === 'tool-invocation') {
+      const prefix = part.toolName?.trim() ? `[${part.toolName.trim()}]` : '[tool]';
+      if (part.state === 'result' && typeof part.result === 'string' && part.result.trim()) {
+        parts.push(`${prefix} ${part.result.trim()}`);
+        continue;
+      }
+      parts.push(prefix);
+    }
+  }
+  return parts.join('\n').trim();
+}
 
 type SessionListItemProps = {
   session: SessionEntryView;
+  summary: NcpSessionSummaryView;
   channel: string;
-  runStatus?: SessionRunStatus;
   isSelected: boolean;
   onSelect: () => void;
 };
 
-function SessionListItem({ session, channel, runStatus, isSelected, onSelect }: SessionListItemProps) {
+function SessionListItem({ session, summary, channel, isSelected, onSelect }: SessionListItemProps) {
   const channelDisplay = displayChannelName(channel);
-  const displayName = session.label || session.key.split(':').pop() || session.key;
+  const displayName = sessionDisplayName(session);
 
   return (
     <button
       onClick={onSelect}
       className={cn(
-        "w-full text-left p-3.5 rounded-xl transition-all duration-200 outline-none focus:outline-none focus:ring-0 group",
+        'w-full text-left p-3.5 rounded-xl transition-all duration-200 outline-none focus:outline-none focus:ring-0 group',
         isSelected
-          ? "bg-brand-50 border border-brand-100/50"
-          : "bg-transparent border border-transparent hover:bg-gray-50/80"
+          ? 'bg-brand-50 border border-brand-100/50'
+          : 'bg-transparent border border-transparent hover:bg-gray-50/80'
       )}
     >
       <div className="flex items-start justify-between mb-1.5">
-        <div className={cn("font-semibold truncate pr-2 flex-1 text-sm", isSelected ? "text-brand-800" : "text-gray-900")}>
+        <div className={cn('font-semibold truncate pr-2 flex-1 text-sm', isSelected ? 'text-brand-800' : 'text-gray-900')}>
           {displayName}
         </div>
-        <div className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 capitalize", isSelected ? "bg-white text-brand-600 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" : "bg-gray-100 text-gray-500")}>
+        <div className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 capitalize', isSelected ? 'bg-white text-brand-600 shadow-[0_1px_2px_rgba(0,0,0,0.02)]' : 'bg-gray-100 text-gray-500')}>
           {channelDisplay}
         </div>
       </div>
 
-      <div className={cn("flex items-center text-xs justify-between mt-2 font-medium", isSelected ? "text-brand-600/80" : "text-gray-400")}>
+      <div className={cn('flex items-center text-xs justify-between mt-2 font-medium', isSelected ? 'text-brand-600/80' : 'text-gray-400')}>
         <div className="flex items-center gap-1.5">
           <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-            {runStatus ? <SessionRunBadge status={runStatus} /> : null}
+            {summary.status === 'running' ? <SessionRunBadge status="running" /> : null}
           </span>
           <Clock className="w-3.5 h-3.5 opacity-70" />
-          <span className="truncate max-w-[100px]">{formatDateShort(session.updatedAt)}</span>
+          <span className="truncate max-w-[100px]">{formatDateShort(summary.updatedAt)}</span>
         </div>
         <div className="flex items-center gap-1">
           <MessageCircle className="w-3.5 h-3.5 opacity-70" />
-          <span>{session.messageCount}</span>
+          <span>{summary.messageCount}</span>
         </div>
       </div>
     </button>
   );
 }
 
-// ============================================================================
-// COMPONENT: Right Side Chat Bubble Message Item
-// ============================================================================
-
-function SessionMessageBubble({ message }: { message: SessionMessageView }) {
-  const isUser = message.role.toLowerCase() === 'user';
-  const content = extractMessageText(message.content).trim();
+function SessionMessageBubble({ message }: { message: NcpMessageView }) {
+  const role = normalizeNcpRole(message.role);
+  const isUser = role === 'user';
+  const content = extractNcpMessageText(message);
 
   return (
-    <div className={cn("flex w-full mb-6", isUser ? "justify-end" : "justify-start")}>
-      <div className={cn(
-        "max-w-[85%] rounded-[1.25rem] p-5 flex gap-3 text-sm",
-        isUser
-          ? "bg-primary text-white rounded-tr-sm"
-          : "bg-gray-50 text-gray-800 rounded-tl-sm border border-gray-100/50"
-      )}>
+    <div className={cn('flex w-full mb-6', isUser ? 'justify-end' : 'justify-start')}>
+      <div
+        className={cn(
+          'max-w-[85%] rounded-[1.25rem] p-5 flex gap-3 text-sm',
+          isUser
+            ? 'bg-primary text-white rounded-tr-sm'
+            : 'bg-gray-50 text-gray-800 rounded-tl-sm border border-gray-100/50'
+        )}
+      >
         <div className="shrink-0 pt-0.5">
           {isUser ? <User className="w-4 h-4 text-primary-100" /> : <Bot className="w-4 h-4 text-gray-400" />}
         </div>
         <div className="flex-1 space-y-1 overflow-x-hidden">
           <div className="flex items-baseline justify-between gap-4 mb-2">
-            <span className={cn("font-semibold text-xs", isUser ? "text-primary-50" : "text-gray-900 capitalize")}>
-              {message.role}
+            <span className={cn('font-semibold text-xs capitalize', isUser ? 'text-primary-50' : 'text-gray-900')}>
+              {role}
             </span>
-            <span className={cn("text-[10px]", isUser ? "text-primary-200" : "text-gray-400")}>
+            <span className={cn('text-[10px]', isUser ? 'text-primary-200' : 'text-gray-400')}>
               {formatDate(message.timestamp)}
             </span>
           </div>
@@ -128,60 +148,63 @@ function SessionMessageBubble({ message }: { message: SessionMessageView }) {
   );
 }
 
-// ============================================================================
-// MAIN PAGE COMPONENT
-// ============================================================================
-
 export function SessionsConfig() {
   const [query, setQuery] = useState('');
   const [limit] = useState(100);
-  const [activeMinutes] = useState(0);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
-
-  // Local state drafts for editing the currently selected session
   const [draftLabel, setDraftLabel] = useState('');
   const [draftModel, setDraftModel] = useState('');
   const [isEditingMeta, setIsEditingMeta] = useState(false);
 
-  const sessionsParams = useMemo(() => ({ q: query.trim() || undefined, limit, activeMinutes }), [query, limit, activeMinutes]);
-  const sessionsQuery = useSessions(sessionsParams);
-  const activeRunsQuery = useChatRuns({ states: ['queued', 'running'], limit: 200 });
-  const historyQuery = useSessionHistory(selectedKey, 200);
-
-  const updateSession = useUpdateSession();
-  const deleteSession = useDeleteSession();
+  const sessionsQuery = useNcpSessions({ limit });
+  const historyQuery = useNcpSessionMessages(selectedSessionId, 300);
+  const updateSession = useUpdateNcpSession();
+  const deleteSession = useDeleteNcpSession();
   const { confirm, ConfirmDialog } = useConfirmDialog();
 
-  const sessions = useMemo(() => sessionsQuery.data?.sessions ?? [], [sessionsQuery.data?.sessions]);
-  const activeRunBySessionKey = useMemo(
-    () => buildActiveRunBySessionKey(activeRunsQuery.data?.runs ?? []),
-    [activeRunsQuery.data?.runs]
+  const sessionSummaries = useMemo(() => sessionsQuery.data?.sessions ?? [], [sessionsQuery.data?.sessions]);
+  const sessionEntries = useMemo(() => adaptNcpSessionSummaries(sessionSummaries), [sessionSummaries]);
+  const sessionSummaryById = useMemo(() => new Map(sessionSummaries.map((session) => [session.sessionId, session])), [sessionSummaries]);
+  const filteredSessions = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return sessionEntries.filter((session) => {
+      if (selectedChannel !== 'all' && resolveChannelFromSessionKey(session.key) !== selectedChannel) {
+        return false;
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+      return session.key.toLowerCase().includes(normalizedQuery) || sessionDisplayName(session).toLowerCase().includes(normalizedQuery);
+    });
+  }, [query, selectedChannel, sessionEntries]);
+  const selectedSession = useMemo(
+    () => sessionEntries.find((session) => session.key === selectedSessionId) ?? null,
+    [selectedSessionId, sessionEntries]
   );
-  const sessionRunStatusByKey = useMemo(
-    () => buildSessionRunStatusByKey(activeRunBySessionKey),
-    [activeRunBySessionKey]
+  const selectedSummary = useMemo(
+    () => (selectedSessionId ? sessionSummaryById.get(selectedSessionId) ?? null : null),
+    [selectedSessionId, sessionSummaryById]
   );
-  const selectedSession = useMemo(() => sessions.find(s => s.key === selectedKey), [sessions, selectedKey]);
 
   const channels = useMemo(() => {
     const set = new Set<string>();
-    for (const s of sessions) {
-      set.add(resolveChannelFromSessionKey(s.key));
+    for (const session of sessionEntries) {
+      set.add(resolveChannelFromSessionKey(session.key));
     }
     return Array.from(set).sort((a, b) => {
       if (a === UNKNOWN_CHANNEL_KEY) return 1;
       if (b === UNKNOWN_CHANNEL_KEY) return -1;
       return a.localeCompare(b);
     });
-  }, [sessions]);
+  }, [sessionEntries]);
 
-  const filteredSessions = useMemo(() => {
-    if (selectedChannel === 'all') return sessions;
-    return sessions.filter(s => resolveChannelFromSessionKey(s.key) === selectedChannel);
-  }, [sessions, selectedChannel]);
+  useEffect(() => {
+    if (selectedSessionId && !sessionSummaryById.has(selectedSessionId)) {
+      setSelectedSessionId(null);
+    }
+  }, [selectedSessionId, sessionSummaryById]);
 
-  // Sync draft states when selecting a new session
   useEffect(() => {
     if (selectedSession) {
       setDraftLabel(selectedSession.label || '');
@@ -190,35 +213,23 @@ export function SessionsConfig() {
       setDraftLabel('');
       setDraftModel('');
     }
-    setIsEditingMeta(false); // Reset editing state when switching sessions
+    setIsEditingMeta(false);
   }, [selectedSession]);
 
   const handleSaveMeta = () => {
-    if (!selectedKey) return;
+    if (!selectedSessionId) return;
     updateSession.mutate({
-      key: selectedKey,
+      sessionId: selectedSessionId,
       data: {
         label: draftLabel.trim() || null,
         preferredModel: draftModel.trim() || null
       }
     });
-    setIsEditingMeta(false); // Close editor on save
-  };
-
-  const handleClearHistory = async () => {
-    if (!selectedKey) return;
-    const confirmed = await confirm({
-      title: t('sessionsClearHistory') + '?',
-      variant: 'destructive',
-      confirmLabel: t('sessionsClearHistory')
-    });
-    if (confirmed) {
-      updateSession.mutate({ key: selectedKey, data: { clearHistory: true } });
-    }
+    setIsEditingMeta(false);
   };
 
   const handleDeleteSession = async () => {
-    if (!selectedKey) return;
+    if (!selectedSessionId) return;
     const confirmed = await confirm({
       title: t('sessionsDeleteConfirm') + '?',
       variant: 'destructive',
@@ -226,9 +237,9 @@ export function SessionsConfig() {
     });
     if (confirmed) {
       deleteSession.mutate(
-        { key: selectedKey },
+        { sessionId: selectedSessionId },
         {
-          onSuccess: () => setSelectedKey(null)
+          onSuccess: () => setSelectedSessionId(null)
         }
       );
     }
@@ -238,20 +249,20 @@ export function SessionsConfig() {
     <PageLayout fullHeight>
       <PageHeader title={t('sessionsPageTitle')} description={t('sessionsPageDescription')} />
 
-      {/* Main Mailbox Layout */}
       <div className="flex-1 flex gap-6 min-h-0 relative">
-
-        {/* LEFT COLUMN: List Card */}
         <div className="w-[320px] flex flex-col shrink-0 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-
-          {/* List Card Header & Toolbar */}
           <div className="px-4 py-4 border-b border-gray-100 bg-white z-10 shrink-0 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                {sessions.length} {t('sessionsListTitle')}
+                {sessionEntries.length} {t('sessionsListTitle')}
               </span>
-              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100" onClick={() => sessionsQuery.refetch()}>
-                <RefreshCw className={cn("h-3.5 w-3.5", sessionsQuery.isFetching && "animate-spin")} />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                onClick={() => sessionsQuery.refetch()}
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', sessionsQuery.isFetching && 'animate-spin')} />
               </Button>
             </div>
 
@@ -261,8 +272,10 @@ export function SessionsConfig() {
               </SelectTrigger>
               <SelectContent className="rounded-xl shadow-lg border-gray-100 max-w-[280px]">
                 <SelectItem value="all" className="rounded-lg text-xs">{t('sessionsAllChannels')}</SelectItem>
-                {channels.map(c => (
-                  <SelectItem key={c} value={c} className="rounded-lg text-xs truncate pr-6">{displayChannelName(c)}</SelectItem>
+                {channels.map((channel) => (
+                  <SelectItem key={channel} value={channel} className="rounded-lg text-xs truncate pr-6">
+                    {displayChannelName(channel)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -271,7 +284,7 @@ export function SessionsConfig() {
               <Search className="h-3.5 w-3.5 absolute left-3 top-2.5 text-gray-400" />
               <Input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder={t('sessionsSearchPlaceholder')}
                 className="pl-8 h-8.5 rounded-lg bg-gray-50/50 border-gray-200 focus-visible:bg-white text-xs"
               />
@@ -287,32 +300,35 @@ export function SessionsConfig() {
                 {t('sessionsEmpty')}
               </div>
             ) : (
-              filteredSessions.map(session => (
-                <SessionListItem
-                  key={session.key}
-                  session={session}
-                  channel={resolveChannelFromSessionKey(session.key)}
-                  runStatus={sessionRunStatusByKey.get(session.key)}
-                  isSelected={selectedKey === session.key}
-                  onSelect={() => setSelectedKey(session.key)}
-                />
-              ))
+              filteredSessions.map((session) => {
+                const summary = sessionSummaryById.get(session.key);
+                if (!summary) {
+                  return null;
+                }
+                return (
+                  <SessionListItem
+                    key={session.key}
+                    session={session}
+                    summary={summary}
+                    channel={resolveChannelFromSessionKey(session.key)}
+                    isSelected={selectedSessionId === session.key}
+                    onSelect={() => setSelectedSessionId(session.key)}
+                  />
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Detail View Card */}
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden relative bg-white rounded-2xl shadow-sm border border-gray-200">
-
           {(updateSession.isPending || deleteSession.isPending) && (
             <div className="absolute top-0 left-0 w-full h-1 bg-primary/20 overflow-hidden z-20">
               <div className="h-full bg-primary animate-pulse w-1/3 rounded-r-full" />
             </div>
           )}
 
-          {selectedKey && selectedSession ? (
+          {selectedSessionId && selectedSession && selectedSummary ? (
             <>
-              {/* Detail Header / Metdata Editor */}
               <div className="shrink-0 border-b border-gray-100 bg-white px-8 py-5 z-10 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -322,26 +338,34 @@ export function SessionsConfig() {
                     <div>
                       <div className="flex items-center gap-2.5 mb-1.5">
                         <h3 className="text-lg font-bold text-gray-900 tracking-tight">
-                          {selectedSession.label || selectedSession.key.split(':').pop() || selectedSession.key}
+                          {sessionDisplayName(selectedSession)}
                         </h3>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase tracking-widest">
                           {displayChannelName(resolveChannelFromSessionKey(selectedSession.key))}
                         </span>
+                        {selectedSummary.status === 'running' ? <SessionRunBadge status="running" className="h-4 w-4" /> : null}
                       </div>
-                      <div className="text-xs text-gray-500 font-mono break-all line-clamp-1 opacity-70" title={selectedKey}>
-                        {selectedKey}
+                      <div className="text-xs text-gray-500 font-mono break-all line-clamp-1 opacity-70" title={selectedSessionId}>
+                        {selectedSessionId}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="outline" size="sm" onClick={() => setIsEditingMeta(!isEditingMeta)} className={cn("h-8.5 rounded-lg shadow-none border-gray-200 transition-all text-xs font-semibold", isEditingMeta ? "bg-gray-100 text-gray-900" : "hover:bg-gray-50 hover:text-gray-900")}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingMeta(!isEditingMeta)}
+                      className={cn('h-8.5 rounded-lg shadow-none border-gray-200 transition-all text-xs font-semibold', isEditingMeta ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 hover:text-gray-900')}
+                    >
                       <SettingsIcon className="w-3.5 h-3.5 mr-1.5" />
                       {t('sessionsMetadata')}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleClearHistory} className="h-8.5 rounded-lg shadow-none hover:bg-gray-50 hover:text-gray-900 border-gray-200 text-xs font-semibold text-gray-500">
-                      {t('sessionsClearHistory')}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleDeleteSession} className="h-8.5 rounded-lg shadow-none hover:bg-red-50 hover:text-red-600 hover:border-red-200 border-gray-200 text-xs font-semibold text-red-500">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeleteSession}
+                      className="h-8.5 rounded-lg shadow-none hover:bg-red-50 hover:text-red-600 hover:border-red-200 border-gray-200 text-xs font-semibold text-red-500"
+                    >
                       {t('delete')}
                     </Button>
                   </div>
@@ -352,13 +376,13 @@ export function SessionsConfig() {
                     <Input
                       placeholder={t('sessionsLabelPlaceholder')}
                       value={draftLabel}
-                      onChange={e => setDraftLabel(e.target.value)}
+                      onChange={(event) => setDraftLabel(event.target.value)}
                       className="h-8 text-sm bg-white"
                     />
                     <Input
                       placeholder={t('sessionsModelPlaceholder')}
                       value={draftModel}
-                      onChange={e => setDraftModel(e.target.value)}
+                      onChange={(event) => setDraftModel(event.target.value)}
                       className="h-8 text-sm bg-white"
                     />
                     <Button size="sm" onClick={handleSaveMeta} className="h-8 px-4 shrink-0 shadow-none" disabled={updateSession.isPending}>
@@ -368,10 +392,7 @@ export function SessionsConfig() {
                 )}
               </div>
 
-              {/* Chat History Area */}
-              <div className="flex-1 overflow-y-auto p-6 relative
-                [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300/80 [&::-webkit-scrollbar-thumb]:rounded-full">
-
+              <div className="flex-1 overflow-y-auto p-6 relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300/80 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {historyQuery.isLoading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-50/50 backdrop-blur-sm z-10">
                     <div className="flex flex-col items-center gap-3 animate-pulse">
@@ -395,14 +416,13 @@ export function SessionsConfig() {
                 )}
 
                 <div className="max-w-3xl mx-auto">
-                  {(historyQuery.data?.messages ?? []).map((message, idx) => (
-                    <SessionMessageBubble key={`${message.timestamp}-${idx}`} message={message} />
+                  {(historyQuery.data?.messages ?? []).map((message) => (
+                    <SessionMessageBubble key={message.id} message={message} />
                   ))}
                 </div>
               </div>
             </>
           ) : (
-            /* Empty State */
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 h-full bg-white">
               <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mb-6 border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)] rotate-3">
                 <Inbox className="h-8 w-8 text-gray-300 -rotate-3" />

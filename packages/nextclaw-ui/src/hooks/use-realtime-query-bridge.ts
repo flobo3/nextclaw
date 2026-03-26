@@ -34,14 +34,11 @@ function invalidateSessionQueries(queryClient: QueryClient | undefined, sessionK
   if (!queryClient) {
     return;
   }
-  queryClient.invalidateQueries({ queryKey: ['sessions'] });
   queryClient.invalidateQueries({ queryKey: ['ncp-sessions'] });
   if (sessionKey && sessionKey.trim().length > 0) {
-    queryClient.invalidateQueries({ queryKey: ['session-history', sessionKey.trim()] });
     queryClient.invalidateQueries({ queryKey: ['ncp-session-messages', sessionKey.trim()] });
     return;
   }
-  queryClient.invalidateQueries({ queryKey: ['session-history'] });
   queryClient.invalidateQueries({ queryKey: ['ncp-session-messages'] });
 }
 
@@ -53,23 +50,6 @@ function handleConfigUpdatedEvent(queryClient: QueryClient | undefined, path: st
     invalidateSessionQueries(queryClient);
   }
   invalidateMarketplaceQueries(queryClient, path);
-}
-
-function handleRunUpdatedEvent(queryClient: QueryClient | undefined, payload: { run: { sessionKey?: string; runId?: string } }): void {
-  if (!queryClient) {
-    return;
-  }
-  const { sessionKey, runId } = payload.run;
-  queryClient.invalidateQueries({ queryKey: ['chat-runs'] });
-  if (sessionKey) {
-    queryClient.invalidateQueries({ queryKey: ['sessions'] });
-    queryClient.invalidateQueries({ queryKey: ['session-history', sessionKey] });
-  } else {
-    queryClient.invalidateQueries({ queryKey: ['session-history'] });
-  }
-  if (runId) {
-    queryClient.invalidateQueries({ queryKey: ['chat-run', runId] });
-  }
 }
 
 function handleRealtimeEvent(
@@ -88,10 +68,6 @@ function handleRealtimeEvent(
   if (event.type === 'config.updated') {
     const configPath = typeof event.payload?.path === 'string' ? event.payload.path : '';
     handleConfigUpdatedEvent(queryClient, configPath);
-    return;
-  }
-  if (event.type === 'run.updated') {
-    handleRunUpdatedEvent(queryClient, event.payload);
     return;
   }
   if (event.type === 'session.updated') {

@@ -13,7 +13,6 @@ import type {
   RemoteServiceAction,
   RemoteServiceActionResult,
   RemoteSettingsUpdateRequest,
-  UiChatRuntime,
   UiNcpAgent,
   UiServerEvent
 } from "../types.js";
@@ -25,7 +24,6 @@ export type UiRouterOptions = {
   applyLiveConfigReload?: () => Promise<void>;
   marketplace?: MarketplaceApiConfig;
   cronService?: InstanceType<typeof NextclawCore.CronService>;
-  chatRuntime?: UiChatRuntime;
   ncpAgent?: UiNcpAgent;
   authService?: UiAuthService;
   remoteAccess?: UiRemoteAccessHost;

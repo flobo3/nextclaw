@@ -211,11 +211,6 @@ export type SessionEntryView = {
   lastTimestamp?: string;
 };
 
-export type SessionsListView = {
-  sessions: SessionEntryView[];
-  total: number;
-};
-
 export type SessionMessageView = {
   role: string;
   content: unknown;
@@ -231,17 +226,6 @@ export type SessionEventView = {
   type: string;
   timestamp: string;
   message?: SessionMessageView;
-};
-
-export type SessionHistoryView = {
-  key: string;
-  totalMessages: number;
-  totalEvents: number;
-  sessionType: string;
-  sessionTypeMutable: boolean;
-  metadata: Record<string, unknown>;
-  messages: SessionMessageView[];
-  events: SessionEventView[];
 };
 
 export type NcpSessionSummaryView = NcpSessionSummary;
@@ -282,111 +266,11 @@ export type SessionPatchUpdate = {
   clearHistory?: boolean;
 };
 
-export type ChatTurnRequest = {
-  message: string;
-  sessionKey?: string;
-  agentId?: string;
-  channel?: string;
-  chatId?: string;
-  model?: string;
-  metadata?: Record<string, unknown>;
-};
-
-export type ChatTurnView = {
-  reply: string;
-  sessionKey: string;
-  agentId?: string;
-  model?: string;
-  requestedAt: string;
-  completedAt: string;
-  durationMs: number;
-};
-
-export type ChatTurnStreamReadyEvent = {
-  sessionKey: string;
-  requestedAt?: string;
-  runId?: string;
-  stopSupported?: boolean;
-  stopReason?: string;
-};
-
 export type {
   ChatSessionTypeCtaView,
   ChatSessionTypeOptionView,
   ChatSessionTypesView,
 } from './chat-session-type.types';
-
-export type ChatTurnStreamDeltaEvent = {
-  delta: string;
-};
-
-export type ChatTurnStreamSessionEvent = {
-  data: SessionEventView;
-};
-
-export type ChatTurnStreamErrorEvent = {
-  code?: string;
-  message?: string;
-};
-
-export type ChatCapabilitiesView = {
-  stopSupported: boolean;
-  stopReason?: string;
-};
-
-export type ChatCommandOptionView = {
-  name: string;
-  description: string;
-  type: 'string' | 'boolean' | 'number';
-  required?: boolean;
-};
-
-export type ChatCommandView = {
-  name: string;
-  description: string;
-  options?: ChatCommandOptionView[];
-};
-
-export type ChatCommandsView = {
-  commands: ChatCommandView[];
-  total: number;
-};
-
-export type ChatTurnStopRequest = {
-  runId: string;
-  sessionKey?: string;
-  agentId?: string;
-};
-
-export type ChatTurnStopResult = {
-  stopped: boolean;
-  runId: string;
-  sessionKey?: string;
-  reason?: string;
-};
-
-export type ChatRunState = 'queued' | 'running' | 'completed' | 'failed' | 'aborted';
-
-export type ChatRunView = {
-  runId: string;
-  sessionKey: string;
-  agentId?: string;
-  model?: string;
-  state: ChatRunState;
-  requestedAt: string;
-  startedAt?: string;
-  completedAt?: string;
-  stopSupported: boolean;
-  stopReason?: string;
-  error?: string;
-  reply?: string;
-  eventCount: number;
-};
-
-export type ChatRunListView = {
-  runs: ChatRunView[];
-  total: number;
-};
 
 export type CronScheduleView =
   | { kind: "at"; atMs?: number | null }
@@ -684,7 +568,6 @@ export type ConfigActionExecuteResult = {
 // WebSocket events
 export type WsEvent =
   | { type: 'config.updated'; payload: { path: string } }
-  | { type: 'run.updated'; payload: { run: ChatRunView } }
   | { type: 'session.updated'; payload: { sessionKey: string } }
   | { type: 'config.reload.started'; payload?: Record<string, unknown> }
   | { type: 'config.reload.finished'; payload?: Record<string, unknown> }

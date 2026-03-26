@@ -134,7 +134,6 @@ export function startUiServer(options: UiServerStartOptions): UiServerHandle {
       applyLiveConfigReload: options.applyLiveConfigReload,
       marketplace: options.marketplace,
       cronService: options.cronService,
-      chatRuntime: options.chatRuntime,
       ncpAgent: options.ncpAgent,
       authService,
       remoteAccess: options.remoteAccess,

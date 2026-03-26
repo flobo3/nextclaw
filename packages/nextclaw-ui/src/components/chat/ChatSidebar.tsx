@@ -12,7 +12,6 @@ import { usePresenter } from '@/components/chat/presenter/chat-presenter-context
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatRunStatusStore } from '@/components/chat/stores/chat-run-status.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
-import { resolveChatChain } from '@/components/chat/chat-chain';
 import { cn } from '@/lib/utils';
 import { LANGUAGE_OPTIONS, t, type I18nLanguage } from '@/lib/i18n';
 import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
@@ -21,7 +20,6 @@ import { useTheme } from '@/components/providers/ThemeProvider';
 import { useDocBrowser } from '@/components/doc-browser';
 import { SidebarActionItem, SidebarNavLinkItem, SidebarSelectItem } from '@/components/layout/sidebar-items';
 import { useUiStore } from '@/stores/ui.store';
-import { useLocation } from 'react-router-dom';
 import {
   AlarmClock,
   BookOpen,
@@ -117,7 +115,6 @@ const navItems = [
 export function ChatSidebar() {
   const presenter = usePresenter();
   const docBrowser = useDocBrowser();
-  const location = useLocation();
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [editingSessionKey, setEditingSessionKey] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState('');
@@ -129,7 +126,6 @@ export function ChatSidebar() {
   const { language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
   const updateSessionLabel = useChatSessionLabelService();
-  const chatChain = resolveChatChain(location.search);
   const currentThemeLabel = t(THEME_OPTIONS.find((o) => o.value === theme)?.labelKey ?? 'themeWarm');
   const currentLanguageLabel = LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? language;
 
@@ -182,7 +178,6 @@ export function ChatSidebar() {
     setSavingSessionKey(session.key);
     try {
       await updateSessionLabel({
-        chatChain,
         sessionKey: session.key,
         label: normalizedLabel || null
       });

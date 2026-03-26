@@ -516,128 +516,6 @@ export type SecretsConfigUpdate = {
   refs?: Record<string, SecretRefView> | null;
 };
 
-export type ChatTurnRequest = {
-  message: string;
-  sessionKey?: string;
-  agentId?: string;
-  channel?: string;
-  chatId?: string;
-  model?: string;
-  metadata?: Record<string, unknown>;
-  runId?: string;
-};
-
-export type ChatTurnResult = {
-  reply: string;
-  sessionKey: string;
-  agentId?: string;
-  model?: string;
-  metadata?: Record<string, unknown>;
-};
-
-export type ChatTurnStreamEvent =
-  | {
-      type: "delta";
-      delta: string;
-    }
-  | {
-      type: "session_event";
-      event: SessionEventView;
-    }
-  | {
-      type: "final";
-      result: ChatTurnResult;
-    }
-  | {
-      type: "error";
-      error: string;
-    };
-
-export type ChatTurnView = {
-  reply: string;
-  sessionKey: string;
-  agentId?: string;
-  model?: string;
-  requestedAt: string;
-  completedAt: string;
-  durationMs: number;
-};
-
-export type ChatCapabilitiesView = {
-  stopSupported: boolean;
-  stopReason?: string;
-};
-
-export type ChatCommandOptionView = {
-  name: string;
-  description: string;
-  type: "string" | "boolean" | "number";
-  required?: boolean;
-};
-
-export type ChatCommandView = {
-  name: string;
-  description: string;
-  options?: ChatCommandOptionView[];
-};
-
-export type ChatCommandsView = {
-  commands: ChatCommandView[];
-  total: number;
-};
-
-export type ChatTurnStopRequest = {
-  runId: string;
-  sessionKey?: string;
-  agentId?: string;
-};
-
-export type ChatTurnStopResult = {
-  stopped: boolean;
-  runId: string;
-  sessionKey?: string;
-  reason?: string;
-};
-
-export type ChatRunState = "queued" | "running" | "completed" | "failed" | "aborted";
-
-export type ChatRunView = {
-  runId: string;
-  sessionKey: string;
-  agentId?: string;
-  model?: string;
-  state: ChatRunState;
-  requestedAt: string;
-  startedAt?: string;
-  completedAt?: string;
-  stopSupported: boolean;
-  stopReason?: string;
-  error?: string;
-  reply?: string;
-  eventCount: number;
-};
-
-export type ChatRunListView = {
-  runs: ChatRunView[];
-  total: number;
-};
-
-export type UiChatRuntime = {
-  processTurn: (params: ChatTurnRequest) => Promise<ChatTurnResult>;
-  processTurnStream?: (params: ChatTurnRequest) => AsyncGenerator<ChatTurnStreamEvent>;
-  startTurnRun?: (params: ChatTurnRequest) => Promise<ChatRunView> | ChatRunView;
-  streamRun?: (params: { runId: string; fromEventIndex?: number }) => AsyncGenerator<ChatTurnStreamEvent>;
-  getRun?: (params: { runId: string }) => Promise<ChatRunView | null> | ChatRunView | null;
-  listRuns?: (params: {
-    sessionKey?: string;
-    states?: ChatRunState[];
-    limit?: number;
-  }) => Promise<ChatRunListView> | ChatRunListView;
-  getCapabilities?: (params: Pick<ChatTurnRequest, "sessionKey" | "agentId">) => Promise<ChatCapabilitiesView> | ChatCapabilitiesView;
-  listSessionTypes?: () => Promise<ChatSessionTypesView> | ChatSessionTypesView;
-  stopTurn?: (params: ChatTurnStopRequest) => Promise<ChatTurnStopResult> | ChatTurnStopResult;
-};
-
 export type UiNcpSessionListView = {
   sessions: NcpSessionSummary[];
   total: number;
@@ -850,7 +728,6 @@ export type ConfigActionExecuteResult = {
 
 export type UiServerEvent =
   | { type: "config.updated"; payload: { path: string } }
-  | { type: "run.updated"; payload: { run: ChatRunView } }
   | { type: "session.updated"; payload: { sessionKey: string } }
   | { type: "config.reload.started"; payload?: Record<string, unknown> }
   | { type: "config.reload.finished"; payload?: Record<string, unknown> }
@@ -865,7 +742,6 @@ export type UiServerOptions = {
   staticDir?: string;
   marketplace?: MarketplaceApiConfig;
   cronService?: CronService;
-  chatRuntime?: UiChatRuntime;
   ncpAgent?: UiNcpAgent;
   remoteAccess?: UiRemoteAccessHost;
   getPluginChannelBindings?: () => PluginChannelBinding[];

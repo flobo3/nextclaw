@@ -19,7 +19,7 @@ export class AppRoutesController {
       ok({
         status: "ok",
         services: {
-          chatRuntime: this.options.chatRuntime ? "ready" : "unavailable",
+          ncpAgent: this.options.ncpAgent ? "ready" : "unavailable",
           cronService: this.options.cronService ? "ready" : "unavailable"
         }
       })
