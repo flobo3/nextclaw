@@ -53,7 +53,9 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
 
     const midSnapshot = manager.getSnapshot();
     expect(midSnapshot.streamingMessage?.status).toBe("pending");
-    expect(midSnapshot.streamingMessage?.parts).toEqual([{ type: "text", text: "hello world" }]);
+    expect(midSnapshot.streamingMessage?.parts).toEqual([
+      { type: "text", text: "hello world" },
+    ]);
 
     manager.dispatch({
       type: NcpEventType.RunFinished,
@@ -91,6 +93,32 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     });
 
     expect(manager.getSnapshot().activeRun).toBeNull();
+  });
+
+  it("preserves unchanged message references across unrelated snapshot updates", async () => {
+    const manager = new DefaultNcpAgentConversationStateManager();
+
+    await manager.dispatch({
+      type: NcpEventType.MessageSent,
+      payload: {
+        sessionId: "session-1",
+        message: createMessage({ id: "assistant-stable" }),
+      },
+    });
+
+    const firstSnapshot = manager.getSnapshot();
+
+    await manager.dispatch({
+      type: NcpEventType.RunStarted,
+      payload: {
+        sessionId: "session-1",
+        runId: "run-1",
+      },
+    });
+
+    const secondSnapshot = manager.getSnapshot();
+    expect(secondSnapshot.messages).toBe(firstSnapshot.messages);
+    expect(secondSnapshot.messages[0]).toBe(firstSnapshot.messages[0]);
   });
 
   it("strips reply tags from assistant text when the run is finalized", () => {
@@ -173,7 +201,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
         sessionId: "session-1",
         messageId: "assistant-2",
         toolCallId: "tool-1",
-        delta: "{\"q\":\"hel",
+        delta: '{"q":"hel',
       },
     });
     manager.dispatch({
@@ -182,7 +210,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
         sessionId: "session-1",
         messageId: "assistant-2",
         toolCallId: "tool-1",
-        delta: "lo\"}",
+        delta: 'lo"}',
       },
     });
     manager.dispatch({
@@ -204,13 +232,16 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     const snapshot = manager.getSnapshot();
     const streaming = snapshot.streamingMessage;
     expect(streaming?.id).toBe("assistant-2");
-    expect(streaming?.parts[0]).toEqual({ type: "reasoning", text: "thinking hard" });
+    expect(streaming?.parts[0]).toEqual({
+      type: "reasoning",
+      text: "thinking hard",
+    });
     expect(streaming?.parts[1]).toEqual({
       type: "tool-invocation",
       toolCallId: "tool-1",
       toolName: "search",
       state: "result",
-      args: "{\"q\":\"hello\"}",
+      args: '{"q":"hello"}',
       result: { ok: true },
     });
   });
@@ -242,7 +273,7 @@ describe("DefaultNcpAgentConversationStateManager reasoning boundaries", () => {
       payload: {
         sessionId: "session-1",
         toolCallId: "tool-2",
-        args: "{\"q\":\"weather\"}",
+        args: '{"q":"weather"}',
       },
     });
     manager.dispatch({
@@ -277,7 +308,7 @@ describe("DefaultNcpAgentConversationStateManager reasoning boundaries", () => {
         toolCallId: "tool-2",
         toolName: "search",
         state: "result",
-        args: "{\"q\":\"weather\"}",
+        args: '{"q":"weather"}',
         result: { ok: true },
       },
       { type: "reasoning", text: "second thinking" },
@@ -300,7 +331,7 @@ describe("DefaultNcpAgentConversationStateManager reasoning boundaries", () => {
       payload: {
         sessionId: "session-1",
         toolCallId: "tool-9",
-        args: "{\"command\":\"pwd\"}",
+        args: '{"command":"pwd"}',
       },
     });
     manager.dispatch({
@@ -350,7 +381,7 @@ describe("DefaultNcpAgentConversationStateManager reasoning boundaries", () => {
           toolCallId: "tool-9",
           toolName: "command_execution",
           state: "result",
-          args: "{\"command\":\"pwd\"}",
+          args: '{"command":"pwd"}',
           result: {
             status: "completed",
           },
@@ -591,7 +622,7 @@ describe("DefaultNcpAgentConversationStateManager hydration", () => {
         sessionId: "session-1",
         messageId: "assistant-6",
         toolCallId: "tool-6",
-        delta: "{\"q\":\"demo\"}",
+        delta: '{"q":"demo"}',
       },
     });
     manager.dispatch({

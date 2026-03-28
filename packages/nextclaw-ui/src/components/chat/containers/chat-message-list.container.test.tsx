@@ -1,0 +1,56 @@
+import { render } from "@testing-library/react";
+import type { UiMessage } from "@nextclaw/agent-chat";
+import { beforeEach, expect, it, vi } from "vitest";
+import { ChatMessageListContainer } from "./chat-message-list.container";
+
+const captures = vi.hoisted(() => ({
+  renders: [] as Array<{ messages: unknown[] }>,
+}));
+
+vi.mock("@nextclaw/agent-chat-ui", () => ({
+  ChatMessageList: (props: { messages: unknown[] }) => {
+    captures.renders.push(props);
+    return <div data-testid="chat-message-list" />;
+  },
+}));
+
+vi.mock("@/components/providers/I18nProvider", () => ({
+  useI18n: () => ({ language: "en" }),
+}));
+
+vi.mock("@/lib/i18n", () => ({
+  formatDateTime: (value: string) => `formatted:${value}`,
+  t: (key: string) => key,
+}));
+
+beforeEach(() => {
+  captures.renders = [];
+});
+
+it("reuses adapted message references when the source message object is unchanged", () => {
+  const message = {
+    id: "assistant-1",
+    role: "assistant",
+    meta: {
+      timestamp: "2026-03-17T10:00:00.000Z",
+      status: "streaming",
+    },
+    parts: [{ type: "text", text: "hello" }],
+  } satisfies UiMessage;
+
+  const { rerender } = render(
+    <ChatMessageListContainer uiMessages={[message]} isSending={false} />,
+  );
+
+  const firstMessages =
+    captures.renders[captures.renders.length - 1]?.messages ?? [];
+
+  rerender(
+    <ChatMessageListContainer uiMessages={[message]} isSending={false} />,
+  );
+
+  const secondMessages =
+    captures.renders[captures.renders.length - 1]?.messages ?? [];
+
+  expect(secondMessages[0]).toBe(firstMessages[0]);
+});

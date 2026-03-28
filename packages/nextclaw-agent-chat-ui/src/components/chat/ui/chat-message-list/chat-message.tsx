@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type {
   ChatMessageTexts,
   ChatMessageViewModel,
@@ -14,7 +15,7 @@ type ChatMessageProps = {
   texts: Pick<ChatMessageTexts, "copyCodeLabel" | "copiedCodeLabel">;
 };
 
-export function ChatMessage(props: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage(props: ChatMessageProps) {
   const { message, texts } = props;
   const { role } = message;
   const isUser = role === "user";
@@ -83,4 +84,4 @@ export function ChatMessage(props: ChatMessageProps) {
       </div>
     </div>
   );
-}
+});

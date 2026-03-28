@@ -317,12 +317,16 @@ function toRenderableText(value: string): string | null {
   return visible ? trimmed : null;
 }
 
-export function adaptChatMessages(params: {
-  uiMessages: ChatMessageSource[];
+type ChatMessageAdapterParams = {
   texts: ChatMessageAdapterTexts;
   formatTimestamp: (value: string) => string;
-}): ChatMessageViewModel[] {
-  return params.uiMessages.map((message) => ({
+};
+
+export function adaptChatMessage(
+  message: ChatMessageSource,
+  params: ChatMessageAdapterParams,
+): ChatMessageViewModel {
+  return {
     id: message.id,
     role: resolveUiRole(message.role),
     roleLabel: resolveRoleLabel(message.role, params.texts.roleLabels),
@@ -421,5 +425,13 @@ export function adaptChatMessages(params: {
         };
       })
       .filter((part) => part !== null),
-  }));
+  };
+}
+
+export function adaptChatMessages(params: {
+  uiMessages: ChatMessageSource[];
+  texts: ChatMessageAdapterTexts;
+  formatTimestamp: (value: string) => string;
+}): ChatMessageViewModel[] {
+  return params.uiMessages.map((message) => adaptChatMessage(message, params));
 }

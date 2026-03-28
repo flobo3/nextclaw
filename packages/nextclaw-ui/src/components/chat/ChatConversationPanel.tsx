@@ -1,13 +1,16 @@
-import { useRef } from 'react';
-import { useStickyBottomScroll } from '@nextclaw/agent-chat-ui';
-import { Button } from '@/components/ui/button';
-import { ChatInputBarContainer, ChatMessageListContainer } from '@/components/chat/nextclaw';
-import { ChatWelcome } from '@/components/chat/ChatWelcome';
-import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
-import { useChatThreadStore } from '@/components/chat/stores/chat-thread.store';
-import { t } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
-import { Trash2 } from 'lucide-react';
+import { useRef } from "react";
+import { useStickyBottomScroll } from "@nextclaw/agent-chat-ui";
+import { Button } from "@/components/ui/button";
+import {
+  ChatInputBarContainer,
+  ChatMessageListContainer,
+} from "@/components/chat/nextclaw";
+import { ChatWelcome } from "@/components/chat/ChatWelcome";
+import { usePresenter } from "@/components/chat/presenter/chat-presenter-context";
+import { useChatThreadStore } from "@/components/chat/stores/chat-thread.store";
+import { t } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+import { Trash2 } from "lucide-react";
 
 function ChatConversationSkeleton() {
   return (
@@ -42,12 +45,21 @@ export function ChatConversationPanel() {
   const snapshot = useChatThreadStore((state) => state.snapshot);
   const fallbackThreadRef = useRef<HTMLDivElement | null>(null);
   const threadRef = snapshot.threadRef ?? fallbackThreadRef;
-  const shouldShowSessionHeader = Boolean(snapshot.selectedSessionKey || snapshot.sessionTypeLabel);
-  const sessionHeaderTitle = snapshot.sessionDisplayName || snapshot.selectedSessionKey || t('chatSidebarNewTask');
+  const shouldShowSessionHeader = Boolean(
+    snapshot.selectedSessionKey || snapshot.sessionTypeLabel,
+  );
+  const sessionHeaderTitle =
+    snapshot.sessionDisplayName ||
+    snapshot.selectedSessionKey ||
+    t("chatSidebarNewTask");
 
-  const showWelcome = !snapshot.selectedSessionKey && snapshot.uiMessages.length === 0 && !snapshot.isSending;
+  const showWelcome =
+    !snapshot.selectedSessionKey &&
+    snapshot.uiMessages.length === 0 &&
+    !snapshot.isSending;
   const hasConfiguredModel = snapshot.modelOptions.length > 0;
-  const shouldShowProviderHint = snapshot.isProviderStateResolved && !hasConfiguredModel;
+  const shouldShowProviderHint =
+    snapshot.isProviderStateResolved && !hasConfiguredModel;
   const hideEmptyHint =
     snapshot.isHistoryLoading &&
     snapshot.uiMessages.length === 0 &&
@@ -59,7 +71,7 @@ export function ChatConversationPanel() {
     resetKey: snapshot.selectedSessionKey,
     isLoading: snapshot.isHistoryLoading,
     hasContent: snapshot.uiMessages.length > 0,
-    contentVersion: snapshot.uiMessages
+    contentVersion: snapshot.uiMessages[snapshot.uiMessages.length - 1] ?? null,
   });
 
   if (!snapshot.isProviderStateResolved) {
@@ -68,10 +80,14 @@ export function ChatConversationPanel() {
 
   return (
     <section className="flex-1 min-h-0 flex flex-col overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
-      <div className={cn(
-        "px-5 border-b border-gray-200/60 bg-white/80 backdrop-blur-sm flex items-center justify-between shrink-0 overflow-hidden transition-all duration-200",
-        shouldShowSessionHeader ? "py-3 opacity-100" : "h-0 py-0 opacity-0 border-b-0"
-      )}>
+      <div
+        className={cn(
+          "px-5 border-b border-gray-200/60 bg-white/80 backdrop-blur-sm flex items-center justify-between shrink-0 overflow-hidden transition-all duration-200",
+          shouldShowSessionHeader
+            ? "py-3 opacity-100"
+            : "h-0 py-0 opacity-0 border-b-0",
+        )}
+      >
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700 truncate">
             {sessionHeaderTitle}
@@ -97,22 +113,27 @@ export function ChatConversationPanel() {
 
       {shouldShowProviderHint && (
         <div className="px-5 py-2.5 border-b border-amber-200/70 bg-amber-50/70 flex items-center justify-between gap-3 shrink-0">
-          <span className="text-xs text-amber-800">{t('chatModelNoOptions')}</span>
+          <span className="text-xs text-amber-800">
+            {t("chatModelNoOptions")}
+          </span>
           <button
             type="button"
             onClick={presenter.chatThreadManager.goToProviders}
             className="text-xs font-semibold text-amber-900 underline-offset-2 hover:underline"
           >
-            {t('chatGoConfigureProvider')}
+            {t("chatGoConfigureProvider")}
           </button>
         </div>
       )}
 
-      {snapshot.sessionTypeUnavailable && snapshot.sessionTypeUnavailableMessage?.trim() && (
-        <div className="px-5 py-2.5 border-b border-amber-200/70 bg-amber-50/70 shrink-0">
-          <span className="text-xs text-amber-800">{snapshot.sessionTypeUnavailableMessage}</span>
-        </div>
-      )}
+      {snapshot.sessionTypeUnavailable &&
+        snapshot.sessionTypeUnavailableMessage?.trim() && (
+          <div className="px-5 py-2.5 border-b border-amber-200/70 bg-amber-50/70 shrink-0">
+            <span className="text-xs text-amber-800">
+              {snapshot.sessionTypeUnavailableMessage}
+            </span>
+          </div>
+        )}
 
       <div
         ref={threadRef}
@@ -120,14 +141,23 @@ export function ChatConversationPanel() {
         className="flex-1 min-h-0 overflow-y-auto custom-scrollbar"
       >
         {showWelcome ? (
-          <ChatWelcome onCreateSession={presenter.chatThreadManager.createSession} />
+          <ChatWelcome
+            onCreateSession={presenter.chatThreadManager.createSession}
+          />
         ) : hideEmptyHint ? (
           <div className="h-full" />
         ) : snapshot.uiMessages.length === 0 ? (
-          <div className="px-5 py-5 text-sm text-gray-500">{t('chatNoMessages')}</div>
+          <div className="px-5 py-5 text-sm text-gray-500">
+            {t("chatNoMessages")}
+          </div>
         ) : (
           <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
-            <ChatMessageListContainer uiMessages={snapshot.uiMessages} isSending={snapshot.isSending && snapshot.isAwaitingAssistantOutput} />
+            <ChatMessageListContainer
+              uiMessages={snapshot.uiMessages}
+              isSending={
+                snapshot.isSending && snapshot.isAwaitingAssistantOutput
+              }
+            />
           </div>
         )}
       </div>

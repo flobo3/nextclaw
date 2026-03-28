@@ -1,8 +1,12 @@
 import { useMemo } from "react";
 import { type UiMessage } from "@nextclaw/agent-chat";
-import { ChatMessageList } from "@nextclaw/agent-chat-ui";
 import {
-  adaptChatMessages,
+  type ChatMessageViewModel,
+  ChatMessageList,
+} from "@nextclaw/agent-chat-ui";
+import {
+  adaptChatMessage,
+  type ChatMessageAdapterTexts,
   type ChatMessageSource,
 } from "@/components/chat/adapters/chat-message.adapter";
 import { useI18n } from "@/components/providers/I18nProvider";
@@ -14,11 +18,63 @@ type ChatMessageListContainerProps = {
   className?: string;
 };
 
+const messageViewModelCache = new WeakMap<
+  UiMessage,
+  { language: string; viewModel: ChatMessageViewModel }
+>();
+
+function buildChatMessageAdapterTexts(
+  language: string,
+): ChatMessageAdapterTexts {
+  void language;
+  return {
+    roleLabels: {
+      user: t("chatRoleUser"),
+      assistant: t("chatRoleAssistant"),
+      tool: t("chatRoleTool"),
+      system: t("chatRoleSystem"),
+      fallback: t("chatRoleMessage"),
+    },
+    reasoningLabel: t("chatReasoning"),
+    toolCallLabel: t("chatToolCall"),
+    toolResultLabel: t("chatToolResult"),
+    toolNoOutputLabel: t("chatToolNoOutput"),
+    toolOutputLabel: t("chatToolOutput"),
+    toolStatusPreparingLabel: t("chatToolStatusPreparing"),
+    toolStatusRunningLabel: t("chatToolStatusRunning"),
+    toolStatusCompletedLabel: t("chatToolStatusCompleted"),
+    toolStatusFailedLabel: t("chatToolStatusFailed"),
+    toolStatusCancelledLabel: t("chatToolStatusCancelled"),
+    imageAttachmentLabel: t("chatImageAttachment"),
+    fileAttachmentLabel: t("chatFileAttachment"),
+    unknownPartLabel: t("chatUnknownPart"),
+  };
+}
+
+function buildChatMessageTexts(language: string) {
+  void language;
+  return {
+    copyCodeLabel: t("chatCodeCopy"),
+    copiedCodeLabel: t("chatCodeCopied"),
+    typingLabel: t("chatTyping"),
+  };
+}
+
 export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
   const { language } = useI18n();
-  const sourceMessages = useMemo<ChatMessageSource[]>(
-    () =>
-      props.uiMessages.map((message) => ({
+  const texts = useMemo<ChatMessageAdapterTexts>(
+    () => buildChatMessageAdapterTexts(language),
+    [language],
+  );
+
+  const messages = useMemo(() => {
+    return props.uiMessages.map((message) => {
+      const cached = messageViewModelCache.get(message);
+      if (cached && cached.language === language) {
+        return cached.viewModel;
+      }
+
+      const sourceMessage: ChatMessageSource = {
         id: message.id,
         role: message.role,
         meta: {
@@ -26,57 +82,39 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
           status: message.meta?.status,
         },
         parts: message.parts as unknown as ChatMessageSource["parts"],
-      })),
+      };
+      const viewModel = adaptChatMessage(sourceMessage, {
+        formatTimestamp: (value) => formatDateTime(value, language),
+        texts,
+      });
+
+      messageViewModelCache.set(message, { language, viewModel });
+      return viewModel;
+    });
+  }, [language, props.uiMessages, texts]);
+
+  const hasAssistantDraft = useMemo(
+    () =>
+      props.uiMessages.some(
+        (message) =>
+          message.role === "assistant" &&
+          (message.meta?.status === "streaming" ||
+            message.meta?.status === "pending"),
+      ),
     [props.uiMessages],
   );
-
-  const messages = useMemo(
-    () =>
-      adaptChatMessages({
-        uiMessages: sourceMessages,
-        formatTimestamp: (value) => formatDateTime(value, language),
-        texts: {
-          roleLabels: {
-            user: t("chatRoleUser"),
-            assistant: t("chatRoleAssistant"),
-            tool: t("chatRoleTool"),
-            system: t("chatRoleSystem"),
-            fallback: t("chatRoleMessage"),
-          },
-          reasoningLabel: t("chatReasoning"),
-          toolCallLabel: t("chatToolCall"),
-          toolResultLabel: t("chatToolResult"),
-          toolNoOutputLabel: t("chatToolNoOutput"),
-          toolOutputLabel: t("chatToolOutput"),
-          toolStatusPreparingLabel: t("chatToolStatusPreparing"),
-          toolStatusRunningLabel: t("chatToolStatusRunning"),
-          toolStatusCompletedLabel: t("chatToolStatusCompleted"),
-          toolStatusFailedLabel: t("chatToolStatusFailed"),
-          toolStatusCancelledLabel: t("chatToolStatusCancelled"),
-          imageAttachmentLabel: t("chatImageAttachment"),
-          fileAttachmentLabel: t("chatFileAttachment"),
-          unknownPartLabel: t("chatUnknownPart"),
-        },
-      }),
-    [language, sourceMessages],
+  const messageTexts = useMemo(
+    () => buildChatMessageTexts(language),
+    [language],
   );
 
   return (
     <ChatMessageList
       messages={messages}
       isSending={props.isSending}
-      hasAssistantDraft={props.uiMessages.some(
-        (message) =>
-          message.role === "assistant" &&
-          (message.meta?.status === "streaming" ||
-            message.meta?.status === "pending"),
-      )}
+      hasAssistantDraft={hasAssistantDraft}
       className={props.className}
-      texts={{
-        copyCodeLabel: t("chatCodeCopy"),
-        copiedCodeLabel: t("chatCodeCopied"),
-        typingLabel: t("chatTyping"),
-      }}
+      texts={messageTexts}
     />
   );
 }
