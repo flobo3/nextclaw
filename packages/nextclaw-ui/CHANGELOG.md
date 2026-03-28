@@ -1,5 +1,12 @@
 # @nextclaw/ui
 
+## 0.11.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/agent-chat-ui@0.2.10
+
 ## 0.11.5
 
 ### Patch Changes

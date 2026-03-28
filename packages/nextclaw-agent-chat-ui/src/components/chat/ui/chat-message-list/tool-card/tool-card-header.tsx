@@ -1,5 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import React from 'react';
+import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react';
 import { cn } from '../../../internal/cn';
 import { ToolStatusLabel } from './tool-card-status';
 import type { ChatToolPartViewModel } from '../../../view-models/chat-ui.types';
@@ -12,7 +11,7 @@ export function ToolCardHeader({
   onToggle 
 }: { 
   card: ChatToolPartViewModel; 
-  icon: React.ComponentType<any>; 
+  icon: LucideIcon; 
   expanded: boolean; 
   canExpand: boolean;
   onToggle: () => void; 

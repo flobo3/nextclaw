@@ -1,5 +1,13 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
 
+## 0.1.29
+
+### Patch Changes
+
+- Fix Codex CLI environment inheritance so the runtime keeps the host `PATH` and other base process variables when spawning command execution, and publish the plugin/runtime pair together for version alignment.
+- Updated dependencies
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk@0.1.6
+
 ## 0.1.28
 
 ### Patch Changes

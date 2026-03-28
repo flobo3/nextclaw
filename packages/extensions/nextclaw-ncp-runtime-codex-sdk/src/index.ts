@@ -13,6 +13,7 @@ import {
   mapCodexItemEvent,
   type ToolSnapshot,
 } from "./codex-sdk-ncp-event-mapper.js";
+import { buildCodexCliEnv } from "./codex-cli-env.js";
 
 type CodexCtor = new (options: CodexOptions) => CodexClient;
 
@@ -69,21 +70,6 @@ function toAbortError(reason: unknown): Error {
   const error = new Error(message);
   error.name = "AbortError";
   return error;
-}
-
-function buildCliEnv(config: CodexSdkNcpAgentRuntimeConfig): Record<string, string> | undefined {
-  const env: Record<string, string> = {
-    ...(config.env ?? {}),
-  };
-
-  if (config.apiKey.trim()) {
-    env.OPENAI_API_KEY = config.apiKey;
-  }
-  if (config.apiBase?.trim()) {
-    env.OPENAI_BASE_URL = config.apiBase.trim();
-  }
-
-  return Object.keys(env).length > 0 ? env : undefined;
 }
 
 function normalizeThreadOptions(
@@ -259,7 +245,7 @@ export class CodexSdkNcpAgentRuntime implements NcpAgentRuntime {
 
   private async getCodex(): Promise<CodexClient> {
     if (!this.codexPromise) {
-      const env = buildCliEnv(this.config);
+      const env = buildCodexCliEnv(this.config);
       this.codexPromise = codexLoader.loadCodexConstructor().then((Ctor) =>
         new Ctor({
           apiKey: this.config.apiKey,

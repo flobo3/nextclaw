@@ -37,11 +37,12 @@ export function buildCodexInputBuilder(
       input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
         ? (input.metadata as Record<string, unknown>)
         : {};
-    return runtimeAgent.buildRuntimeUserPrompt({
+    const prompt = runtimeAgent.buildRuntimeUserPrompt({
       workspace,
       sessionKey: input.sessionId,
       metadata,
       userMessage: userText,
     });
+    return prompt;
   };
 }

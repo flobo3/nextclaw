@@ -1,5 +1,11 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.40
+
+### Patch Changes
+
+- Fix Codex CLI environment inheritance so the runtime keeps the host `PATH` and other base process variables when spawning command execution, and publish the plugin/runtime pair together for version alignment.
+
 ## 0.3.39
 
 ### Patch Changes

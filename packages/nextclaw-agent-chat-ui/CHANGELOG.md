@@ -1,5 +1,11 @@
 # @nextclaw/agent-chat-ui
 
+## 0.2.10
+
+### Patch Changes
+
+- Fix Codex CLI environment inheritance so the runtime keeps the host `PATH` and other base process variables when spawning command execution, and publish the plugin/runtime pair together for version alignment.
+
 ## 0.2.9
 
 ### Patch Changes
