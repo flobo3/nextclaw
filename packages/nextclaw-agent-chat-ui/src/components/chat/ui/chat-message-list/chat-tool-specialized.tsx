@@ -1,7 +1,7 @@
 import { Check, ChevronDown, ChevronRight, Code2, Globe, Loader2, Search, Terminal, FileText, AlertTriangle, Minus } from 'lucide-react';
 import type { ChatToolPartViewModel } from '../../view-models/chat-ui.types';
 import { cn } from '../../internal/cn';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const TOOL_OUTPUT_PREVIEW_MAX = 400;
 
@@ -30,7 +30,18 @@ function renderStatusMeta(card: ChatToolPartViewModel) {
 export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel }) {
   const output = card.output?.trim() ?? '';
   const isRunning = card.statusTone === 'running';
-  const [expanded, setExpanded] = useState(isRunning || card.statusTone === 'error' || output.length < 500);
+  
+  const hasContent = !!(card.summary?.trim() || output.length > 0);
+  const wasEmptyRef = useRef(!hasContent);
+  const [expanded, setExpanded] = useState(hasContent && (isRunning || card.statusTone === 'error' || output.length < 500));
+
+  // Auto-reveal: When content arrives during execution, automatically expand once.
+  useEffect(() => {
+    if (wasEmptyRef.current && hasContent && isRunning) {
+      setExpanded(true);
+      wasEmptyRef.current = false;
+    }
+  }, [hasContent, isRunning]);
 
   return (
     <div className="my-2 rounded-xl border border-zinc-200/80 border-l-2 border-l-amber-400/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all flex flex-col">
@@ -78,10 +89,16 @@ export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel })
             </div>
           </div>
 
-          {/* Semantic Area 2: Command Input (with layout safety) */}
+          {/* Semantic Area 2: Command Input (with layout safety & skeleton) */}
           <div className="flex items-start gap-2 px-3 py-2.5 font-mono bg-white w-full border-b border-zinc-100/30 max-h-64 overflow-y-auto custom-scrollbar min-h-0">
             <span className="select-none text-zinc-400 font-bold shrink-0 mt-[1px]">$</span>
-            <span className="font-medium text-zinc-800 break-words whitespace-pre-wrap min-w-0 tracking-tight leading-relaxed">{card.summary || '...'}</span>
+            <div className="flex-1 min-w-0">
+              {card.summary?.trim() ? (
+                <span className="font-medium text-zinc-800 break-words whitespace-pre-wrap tracking-tight leading-relaxed">{card.summary}</span>
+              ) : (
+                <div className="h-4 w-32 bg-amber-100/40 rounded animate-pulse mt-0.5" />
+              )}
+            </div>
           </div>
           
           {/* Semantic Area 3: Execution Output */}
