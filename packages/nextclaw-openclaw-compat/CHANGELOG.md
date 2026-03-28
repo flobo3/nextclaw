@@ -1,5 +1,11 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.39
+
+### Patch Changes
+
+- Release pending workspace drift from earlier package updates.
+
 ## 0.3.38
 
 ### Patch Changes

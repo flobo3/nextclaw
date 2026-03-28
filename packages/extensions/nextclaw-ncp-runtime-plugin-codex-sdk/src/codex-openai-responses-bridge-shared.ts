@@ -18,6 +18,7 @@ export type OpenResponsesItemRecord = Record<string, unknown>;
 
 export type OpenAiChatCompletionChoiceMessage = {
   content?: unknown;
+  reasoning_content?: unknown;
   tool_calls?: unknown;
 };
 

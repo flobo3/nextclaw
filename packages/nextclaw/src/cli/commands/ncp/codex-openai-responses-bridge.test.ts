@@ -190,6 +190,37 @@ function expectAssistantEvents(events: Array<Record<string, unknown>>): void {
   });
 }
 
+function expectReasoningEvents(events: Array<Record<string, unknown>>): void {
+  expect(events.map((event) => event.type)).toEqual([
+    "response.created",
+    "response.output_item.added",
+    "response.reasoning_text.delta",
+    "response.reasoning_text.done",
+    "response.output_item.done",
+    "response.output_item.added",
+    "response.content_part.added",
+    "response.output_text.delta",
+    "response.output_text.done",
+    "response.content_part.done",
+    "response.output_item.done",
+    "response.completed",
+  ]);
+  expect(events[4]?.item).toEqual({
+    type: "reasoning",
+    id: expect.any(String),
+    status: "completed",
+    summary: [],
+    content: [{ type: "reasoning_text", text: "internal reasoning" }],
+  });
+  expect(events[10]?.item).toEqual({
+    type: "message",
+    id: expect.any(String),
+    role: "assistant",
+    status: "completed",
+    content: [{ type: "output_text", text: "visible answer", annotations: [] }],
+  });
+}
+
 function expectToolCallUpstreamRequest(request: RecordedRequest | undefined): void {
   expect(request?.body).toEqual({
     model: "qwen3-coder-next",
@@ -316,6 +347,48 @@ describe("ensureCodexOpenAiResponsesBridge", () => {
     expect(upstream.requests).toHaveLength(1);
     expectAssistantUpstreamRequest(upstream.requests[0]);
     expectAssistantEvents(result.events);
+  });
+
+  it("normalizes think-tag assistant text into reasoning output items", async () => {
+    const upstream = await startUpstreamServer({
+      responder: () => ({
+        id: "chatcmpl-think-1",
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "<think>internal reasoning</think><final>visible answer",
+            },
+          },
+        ],
+        usage: {
+          prompt_tokens: 9,
+          completion_tokens: 5,
+          total_tokens: 14,
+        },
+      }),
+    });
+    const bridge = await createBridge({
+      baseUrl: upstream.baseUrl,
+    });
+    const result = await postBridgeRequest({
+      bridgeBaseUrl: bridge.baseUrl,
+      body: {
+        model: "dashscope/qwen3-coder-next",
+        input: [
+          {
+            type: "message",
+            role: "user",
+            content: [{ type: "input_text", text: "current question" }],
+          },
+        ],
+        stream: true,
+      },
+    });
+
+    expect(result.status).toBe(200);
+    expect(upstream.requests).toHaveLength(1);
+    expectReasoningEvents(result.events);
   });
 
   it("maps tool calls and tool outputs between responses and chat/completions", async () => {

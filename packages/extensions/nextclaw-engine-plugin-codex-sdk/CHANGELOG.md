@@ -1,5 +1,11 @@
 # @nextclaw/nextclaw-engine-codex-sdk
 
+## 0.3.7
+
+### Patch Changes
+
+- Release pending workspace drift from earlier package updates.
+
 ## 0.3.6
 
 ### Patch Changes

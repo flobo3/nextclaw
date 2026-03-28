@@ -1,5 +1,11 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
 
+## 0.1.28
+
+### Patch Changes
+
+- Normalize Codex reasoning output so thought content is emitted as structured reasoning instead of leaking into assistant text.
+
 ## 0.1.27
 
 ### Patch Changes

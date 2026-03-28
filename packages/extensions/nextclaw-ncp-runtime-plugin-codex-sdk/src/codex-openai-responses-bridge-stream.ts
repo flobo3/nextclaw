@@ -1,5 +1,9 @@
 import type { ServerResponse } from "node:http";
 import {
+  buildAssistantOutputItems,
+  writeReasoningOutputItemEvents,
+} from "./codex-openai-responses-bridge-assistant-output.js";
+import {
   nextSequenceNumber,
   readArray,
   readNumber,
@@ -11,29 +15,6 @@ import {
   type StreamSequenceState,
 } from "./codex-openai-responses-bridge-shared.js";
 
-function extractAssistantText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!Array.isArray(content)) {
-    return "";
-  }
-  return content
-    .map((entry) => {
-      const record = readRecord(entry);
-      if (!record) {
-        return "";
-      }
-      const type = readString(record.type);
-      if (type === "text" || type === "output_text") {
-        return readString(record.text) ?? "";
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("");
-}
-
 function buildOpenResponsesOutputItems(
   response: OpenAiChatCompletionResponse,
   responseId: string,
@@ -43,23 +24,10 @@ function buildOpenResponsesOutputItems(
     return [];
   }
 
-  const outputItems: OpenResponsesOutputItem[] = [];
-  const text = extractAssistantText(message.content).trim();
-  if (text) {
-    outputItems.push({
-      type: "message",
-      id: `${responseId}:message:0`,
-      role: "assistant",
-      status: "completed",
-      content: [
-        {
-          type: "output_text",
-          text,
-          annotations: [],
-        },
-      ],
-    });
-  }
+  const outputItems = buildAssistantOutputItems({
+    message,
+    responseId,
+  });
 
   const toolCalls = readArray(message.tool_calls);
   toolCalls.forEach((entry, index) => {
@@ -264,6 +232,15 @@ function writeResponseOutputItemEvents(params: {
 }): void {
   params.outputItems.forEach((item, outputIndex) => {
     const type = readString(item.type);
+    if (type === "reasoning") {
+      writeReasoningOutputItemEvents({
+        response: params.response,
+        item,
+        outputIndex,
+        sequenceState: params.sequenceState,
+      });
+      return;
+    }
     if (type === "message") {
       writeMessageOutputItemEvents({
         response: params.response,

@@ -1,5 +1,13 @@
 # nextclaw-server
 
+## 0.11.4
+
+### Patch Changes
+
+- Release pending workspace drift from earlier package updates.
+- Updated dependencies
+  - @nextclaw/openclaw-compat@0.3.39
+
 ## 0.11.3
 
 ### Patch Changes
