@@ -1,5 +1,14 @@
 # nextclaw
 
+## 0.16.13
+
+### Patch Changes
+
+- Publish the marketplace fetch retry fixes for both the UI server proxy and the CLI skill install flow, and keep the public dependency chain aligned.
+- Updated dependencies
+  - @nextclaw/server@0.11.8
+  - @nextclaw/remote@0.1.60
+
 ## 0.16.12
 
 ### Patch Changes

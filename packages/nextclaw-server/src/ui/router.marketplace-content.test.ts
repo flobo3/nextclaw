@@ -311,6 +311,104 @@ describe("marketplace content routes", () => {
     expect(payload.error.message).toContain("git");
   });
 
+  it("retries transient marketplace fetch failures before returning skill catalog data", async () => {
+    const workspaceDir = createTempDir("nextclaw-ui-skill-list-retry-");
+    const configPath = join(workspaceDir, "config.json");
+
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace: workspaceDir
+          }
+        }
+      }),
+      configPath
+    );
+
+    let calls = 0;
+    const fetchMock = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) {
+        const error = new TypeError("fetch failed");
+        (error as Error & { cause?: unknown }).cause = Object.assign(new Error("read ECONNRESET"), {
+          code: "ECONNRESET",
+          errno: -54,
+          syscall: "read"
+        });
+        throw error;
+      }
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            total: 1,
+            page: 1,
+            pageSize: 50,
+            totalPages: 1,
+            sort: "relevance",
+            items: [
+              {
+                id: "skill-lark-cli",
+                slug: "lark-cli",
+                type: "skill",
+                name: "Lark CLI",
+                summary: "Operate larksuite/cli from NextClaw.",
+                summaryI18n: {
+                  en: "Operate larksuite/cli from NextClaw.",
+                  zh: "在 NextClaw 中使用 larksuite/cli。"
+                },
+                tags: ["skill", "lark-cli"],
+                author: "NextClaw",
+                install: {
+                  kind: "marketplace",
+                  spec: "lark-cli",
+                  command: "nextclaw skills install lark-cli"
+                },
+                updatedAt: "2026-03-29T09:58:18.017Z",
+                publishedAt: "2026-03-29T09:58:18.017Z"
+              }
+            ]
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const app = createUiRouter({
+      configPath,
+      publish: () => {},
+      marketplace: {
+        apiBaseUrl: "http://marketplace.example"
+      }
+    });
+
+    const response = await app.request("http://localhost/api/marketplace/skills/items?page=1&pageSize=10");
+    expect(response.status).toBe(200);
+
+    const payload = await response.json() as {
+      ok: boolean;
+      data: {
+        total: number;
+        items: Array<{
+          slug: string;
+        }>;
+      };
+    };
+
+    expect(payload.ok).toBe(true);
+    expect(payload.data.total).toBe(1);
+    expect(payload.data.items[0]?.slug).toBe("lark-cli");
+    expect(calls).toBe(2);
+  });
+
   it("normalizes locale-family summary fields for marketplace list responses", async () => {
     const workspaceDir = createTempDir("nextclaw-ui-plugin-list-i18n-");
     const configPath = join(workspaceDir, "config.json");

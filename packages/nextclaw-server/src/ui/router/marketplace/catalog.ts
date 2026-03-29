@@ -7,6 +7,7 @@ import {
   MARKETPLACE_REMOTE_PAGE_SIZE,
   MARKETPLACE_ZH_COPY_BY_SLUG
 } from "./constants.js";
+import { runWithMarketplaceNetworkRetry } from "./marketplace-network-retry.js";
 
 export function normalizeMarketplaceBaseUrl(options: UiRouterOptions): string {
   const configured = options.marketplace?.apiBaseUrl?.trim();
@@ -34,12 +35,14 @@ export async function fetchMarketplaceData<T>(params: {
   const endpoint = toMarketplaceUrl(params.baseUrl, params.path, params.query);
   let response: Response;
   try {
-    response = await fetch(endpoint, {
-      method: "GET",
-      headers: {
-        Accept: "application/json"
-      }
-    });
+    response = await runWithMarketplaceNetworkRetry(() =>
+      fetch(endpoint, {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        }
+      })
+    );
   } catch (error) {
     return {
       ok: false,

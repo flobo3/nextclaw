@@ -7,6 +7,7 @@ import {
   readMarketplaceMetadataFile,
   type LocalizedTextMap
 } from "./marketplace.metadata.js";
+import { runWithMarketplaceNetworkRetry } from "./marketplace-network-retry.js";
 
 const DEFAULT_MARKETPLACE_API_BASE = "https://marketplace-api.nextclaw.io";
 
@@ -244,28 +245,30 @@ export async function publishMarketplaceSkill(options: MarketplaceSkillPublishOp
     await fetchMarketplaceSkillItem(apiBase, slug);
   }
 
-  const response = await fetch(`${apiBase}/api/v1/admin/skills/upsert`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
-    body: JSON.stringify({
-      slug,
-      name,
-      summary,
-      summaryI18n,
-      description,
-      descriptionI18n,
-      author,
-      tags,
-      sourceRepo: options.sourceRepo?.trim() || metadata.sourceRepo,
-      homepage: options.homepage?.trim() || metadata.homepage,
-      publishedAt: options.publishedAt?.trim() || metadata.publishedAt,
-      updatedAt: options.updatedAt?.trim() || metadata.updatedAt,
-      files
+  const response = await runWithMarketplaceNetworkRetry(() =>
+    fetch(`${apiBase}/api/v1/admin/skills/upsert`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        slug,
+        name,
+        summary,
+        summaryI18n,
+        description,
+        descriptionI18n,
+        author,
+        tags,
+        sourceRepo: options.sourceRepo?.trim() || metadata.sourceRepo,
+        homepage: options.homepage?.trim() || metadata.homepage,
+        publishedAt: options.publishedAt?.trim() || metadata.publishedAt,
+        updatedAt: options.updatedAt?.trim() || metadata.updatedAt,
+        files
+      })
     })
-  });
+  );
 
   const payload = await readMarketplaceEnvelope<{ created: boolean; fileCount: number }>(response);
 
@@ -322,67 +325,71 @@ async function fetchMarketplaceSkillItem(
   apiBase: string,
   slug: string
 ): Promise<{ install: { kind: MarketplaceSkillInstallKind } }> {
-  const response = await fetch(`${apiBase}/api/v1/skills/items/${encodeURIComponent(slug)}`, {
-    headers: {
-      Accept: "application/json"
+  return runWithMarketplaceNetworkRetry(async () => {
+    const response = await fetch(`${apiBase}/api/v1/skills/items/${encodeURIComponent(slug)}`, {
+      headers: {
+        Accept: "application/json"
+      }
+    });
+    const payload = await readMarketplaceEnvelope<{ install: { kind: MarketplaceSkillInstallKind | string } }>(response);
+
+    if (!payload.ok || !payload.data) {
+      const message = payload.error?.message || `marketplace skill fetch failed: ${response.status}`;
+      throw new Error(message);
     }
+
+    const kind = payload.data.install?.kind;
+    if (kind !== "builtin" && kind !== "marketplace") {
+      throw new Error(`Unsupported skill install kind from marketplace: ${String(kind)}`);
+    }
+
+    return {
+      install: {
+        kind
+      }
+    };
   });
-  const payload = await readMarketplaceEnvelope<{ install: { kind: MarketplaceSkillInstallKind | string } }>(response);
-
-  if (!payload.ok || !payload.data) {
-    const message = payload.error?.message || `marketplace skill fetch failed: ${response.status}`;
-    throw new Error(message);
-  }
-
-  const kind = payload.data.install?.kind;
-  if (kind !== "builtin" && kind !== "marketplace") {
-    throw new Error(`Unsupported skill install kind from marketplace: ${String(kind)}`);
-  }
-
-  return {
-    install: {
-      kind
-    }
-  };
 }
 
 async function fetchMarketplaceSkillFiles(
   apiBase: string,
   slug: string
 ): Promise<{ files: MarketplaceSkillFileManifestEntry[] }> {
-  const response = await fetch(`${apiBase}/api/v1/skills/items/${encodeURIComponent(slug)}/files`, {
-    headers: {
-      Accept: "application/json"
+  return runWithMarketplaceNetworkRetry(async () => {
+    const response = await fetch(`${apiBase}/api/v1/skills/items/${encodeURIComponent(slug)}/files`, {
+      headers: {
+        Accept: "application/json"
+      }
+    });
+
+    const payload = await readMarketplaceEnvelope<{ files: unknown }>(response);
+    if (!payload.ok || !payload.data) {
+      const message = payload.error?.message || `marketplace skill file fetch failed: ${response.status}`;
+      throw new Error(message);
     }
+
+    if (!isRecord(payload.data) || !Array.isArray(payload.data.files)) {
+      throw new Error("Invalid marketplace skill file manifest response");
+    }
+
+    const files = payload.data.files.map((entry, index) => {
+      if (!isRecord(entry) || typeof entry.path !== "string" || entry.path.trim().length === 0) {
+        throw new Error(`Invalid marketplace skill file manifest at index ${index}`);
+      }
+      const normalized: MarketplaceSkillFileManifestEntry = {
+        path: entry.path.trim()
+      };
+      if (typeof entry.downloadPath === "string" && entry.downloadPath.trim().length > 0) {
+        normalized.downloadPath = entry.downloadPath.trim();
+      }
+      if (typeof entry.contentBase64 === "string" && entry.contentBase64.trim().length > 0) {
+        normalized.contentBase64 = entry.contentBase64.trim();
+      }
+      return normalized;
+    });
+
+    return { files };
   });
-
-  const payload = await readMarketplaceEnvelope<{ files: unknown }>(response);
-  if (!payload.ok || !payload.data) {
-    const message = payload.error?.message || `marketplace skill file fetch failed: ${response.status}`;
-    throw new Error(message);
-  }
-
-  if (!isRecord(payload.data) || !Array.isArray(payload.data.files)) {
-    throw new Error("Invalid marketplace skill file manifest response");
-  }
-
-  const files = payload.data.files.map((entry, index) => {
-    if (!isRecord(entry) || typeof entry.path !== "string" || entry.path.trim().length === 0) {
-      throw new Error(`Invalid marketplace skill file manifest at index ${index}`);
-    }
-    const normalized: MarketplaceSkillFileManifestEntry = {
-      path: entry.path.trim()
-    };
-    if (typeof entry.downloadPath === "string" && entry.downloadPath.trim().length > 0) {
-      normalized.downloadPath = entry.downloadPath.trim();
-    }
-    if (typeof entry.contentBase64 === "string" && entry.contentBase64.trim().length > 0) {
-      normalized.contentBase64 = entry.contentBase64.trim();
-    }
-    return normalized;
-  });
-
-  return { files };
 }
 
 async function fetchMarketplaceSkillFileBlob(
@@ -391,18 +398,20 @@ async function fetchMarketplaceSkillFileBlob(
   file: MarketplaceSkillFileManifestEntry
 ): Promise<Buffer> {
   const downloadUrl = resolveSkillFileDownloadUrl(apiBase, slug, file);
-  const response = await fetch(downloadUrl, {
-    headers: {
-      Accept: "application/octet-stream"
+  return runWithMarketplaceNetworkRetry(async () => {
+    const response = await fetch(downloadUrl, {
+      headers: {
+        Accept: "application/octet-stream"
+      }
+    });
+    if (!response.ok) {
+      const message = await tryReadMarketplaceError(response);
+      throw new Error(message || `marketplace skill file download failed: ${response.status}`);
     }
-  });
-  if (!response.ok) {
-    const message = await tryReadMarketplaceError(response);
-    throw new Error(message || `marketplace skill file download failed: ${response.status}`);
-  }
 
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  });
 }
 
 function decodeMarketplaceFileContent(path: string, contentBase64: string): Buffer {
