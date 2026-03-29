@@ -53,7 +53,7 @@ find skills/<slug> -maxdepth 2 -type f | sort
 2. 先做本地元数据校验：
 
 ```bash
-python3 .codex/skills/marketplace-skill-publisher/scripts/validate_marketplace_skill.py --skill-dir skills/<slug>
+python3 .agents/skills/marketplace-skill-publisher/scripts/validate_marketplace_skill.py --skill-dir skills/<slug>
 ```
 
 3. 若 marketplace 中还没有该 skill，执行发布：

@@ -478,7 +478,7 @@ Run:
 pnpm -C packages/extensions/nextclaw-channel-plugin-weixin build
 pnpm -C packages/extensions/nextclaw-channel-plugin-weixin lint
 pnpm -C packages/extensions/nextclaw-channel-plugin-weixin tsc
-node .codex/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs --paths packages/extensions/nextclaw-channel-plugin-weixin
+node .agents/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs --paths packages/extensions/nextclaw-channel-plugin-weixin
 ```
 
 Expected:

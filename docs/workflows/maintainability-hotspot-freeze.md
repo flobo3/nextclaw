@@ -7,7 +7,7 @@
 本文件对应仓库治理方案中的 `Phase 2: Hotspot Freeze`，与以下文件配套：
 
 - 红区数据源：[`scripts/maintainability-hotspots.mjs`](../../scripts/maintainability-hotspots.mjs)
-- 默认守卫：[`post-edit-maintainability-guard`](../../.codex/skills/post-edit-maintainability-guard/SKILL.md)
+- 默认守卫：[`post-edit-maintainability-guard`](../../.agents/skills/post-edit-maintainability-guard/SKILL.md)
 - 上层方案：[`2026-03-19-repo-maintainability-governance-plan.md`](../plans/2026-03-19-repo-maintainability-governance-plan.md)
 
 ## 默认规则
@@ -50,7 +50,7 @@
 
 - 查看当前红区清单：`node scripts/maintainability-hotspots.mjs`
 - 只看指定红区：`node scripts/maintainability-hotspots.mjs --paths packages/nextclaw/src/cli/commands/diagnostics.ts`
-- 代码任务收尾：`node .codex/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs`
+- 代码任务收尾：`node .agents/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs`
 
 ## 何时更新红区清单
 

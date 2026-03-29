@@ -7,7 +7,7 @@
 **Related Plans And Workflows:**
 
 - 上层维护性治理方案：[2026-03-19-repo-maintainability-governance-plan.md](./2026-03-19-repo-maintainability-governance-plan.md)
-- 文件/函数级守卫：[post-edit-maintainability-guard](../../.codex/skills/post-edit-maintainability-guard/SKILL.md)
+- 文件/函数级守卫：[post-edit-maintainability-guard](../../.agents/skills/post-edit-maintainability-guard/SKILL.md)
 - 红区冻结机制：[maintainability-hotspot-freeze.md](../workflows/maintainability-hotspot-freeze.md)
 - 文件命名规范：[file-naming-convention.md](../workflows/file-naming-convention.md)
 
