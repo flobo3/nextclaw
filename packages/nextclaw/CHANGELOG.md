@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.16.14
+
+### Patch Changes
+
+- Fix shell-first capability hydration so deferred channel rebuilds sync the latest plugin/channel state back into the gateway before restarting channels. This restores Weixin and other plugin-backed channels in the managed service after startup.
+
 ## 0.16.13
 
 ### Patch Changes

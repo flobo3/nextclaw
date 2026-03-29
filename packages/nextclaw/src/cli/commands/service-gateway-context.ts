@@ -57,6 +57,20 @@ export type GatewayShellContext = Pick<
   "runtimeConfigPath" | "config" | "workspace" | "sessionManager" | "cron" | "uiConfig" | "uiStaticDir" | "remoteModule"
 >;
 
+export type GatewayCapabilityState = Pick<
+  GatewayStartupContext,
+  "pluginRegistry" | "pluginChannelBindings" | "extensionRegistry"
+>;
+
+export function applyGatewayCapabilityState(
+  gateway: GatewayCapabilityState,
+  next: GatewayCapabilityState
+): void {
+  gateway.pluginRegistry = next.pluginRegistry;
+  gateway.pluginChannelBindings = next.pluginChannelBindings;
+  gateway.extensionRegistry = next.extensionRegistry;
+}
+
 export function createGatewayShellContext(params: {
   uiOverrides?: Partial<Config["ui"]>;
   uiStaticDir?: string | null;

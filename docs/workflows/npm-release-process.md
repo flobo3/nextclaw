@@ -34,6 +34,8 @@ pnpm release:publish
 Notes:
 - `release:version` and `release:publish` automatically run README sync/check.
 - `release:check:groups` now only gates the explicit release batch from pending changesets or freshly versioned packages.
+- `release:check` now validates only the explicit release batch (packages from pending changesets, or freshly versioned public packages after `release:version`) instead of the whole workspace.
+- If you need the historical full-workspace gate, run `pnpm release:check:all` explicitly.
 - `pnpm release:report:health` prints leftover unpublished drift for repository hygiene, but it does not block the current batch release.
 - `release:publish` should run `release:check` (build + lint + typecheck) before publishing.
 - `release:publish` should create git tags automatically.

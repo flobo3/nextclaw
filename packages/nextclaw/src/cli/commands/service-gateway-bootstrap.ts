@@ -7,7 +7,11 @@ import {
   type PluginUiMetadata,
 } from "@nextclaw/openclaw-compat";
 import type { UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
-import type { GatewayStartupContext } from "./service-gateway-context.js";
+import {
+  applyGatewayCapabilityState,
+  type GatewayCapabilityState,
+  type GatewayStartupContext
+} from "./service-gateway-context.js";
 import type { UiStartupHandle } from "./service-gateway-startup.js";
 import { ServiceBootstrapStatusStore } from "./service-bootstrap-status.js";
 import { hydrateServiceCapabilities } from "./service-capability-hydration.js";
@@ -46,6 +50,17 @@ export function createGatewayRuntimeState(gateway: GatewayStartupContext): Gatew
   };
 }
 
+function applyGatewayRuntimeCapabilityState(params: {
+  gateway: GatewayStartupContext;
+  state: GatewayRuntimeState;
+  next: GatewayCapabilityState;
+}): void {
+  applyGatewayCapabilityState(params.gateway, params.next);
+  params.state.pluginRegistry = params.next.pluginRegistry;
+  params.state.extensionRegistry = params.next.extensionRegistry;
+  params.state.pluginChannelBindings = params.next.pluginChannelBindings;
+}
+
 export function configureGatewayPluginRuntime(params: {
   gateway: GatewayStartupContext;
   state: GatewayRuntimeState;
@@ -61,11 +76,17 @@ export function configureGatewayPluginRuntime(params: {
       pluginChannelBindings: params.state.pluginChannelBindings,
       pluginGatewayHandles: params.state.pluginGatewayHandles,
       pluginGatewayLogger,
-      logPluginGatewayDiagnostics,
+      logPluginGatewayDiagnostics
     });
-    params.state.pluginRegistry = result.pluginRegistry;
-    params.state.extensionRegistry = result.extensionRegistry;
-    params.state.pluginChannelBindings = result.pluginChannelBindings;
+    applyGatewayRuntimeCapabilityState({
+      gateway: params.gateway,
+      state: params.state,
+      next: {
+        pluginRegistry: result.pluginRegistry,
+        extensionRegistry: result.extensionRegistry,
+        pluginChannelBindings: result.pluginChannelBindings
+      }
+    });
     params.state.pluginUiMetadata = getPluginUiMetadataFromRegistry(result.pluginRegistry);
     params.state.pluginGatewayHandles = result.pluginGatewayHandles;
     params.gateway.runtimePool.applyExtensionRegistry(result.extensionRegistry);

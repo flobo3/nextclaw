@@ -7,7 +7,7 @@ import {
   type PluginUiMetadata,
 } from "@nextclaw/openclaw-compat";
 import type { UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
-import { type GatewayStartupContext } from "./service-gateway-context.js";
+import { applyGatewayCapabilityState, type GatewayStartupContext } from "./service-gateway-context.js";
 import { shouldRestartChannelsForPluginReload } from "./plugin-reload.js";
 import {
   logPluginDiagnostics,
@@ -71,6 +71,11 @@ export async function hydrateServiceCapabilities(params: {
       nextExtensionChannels: nextExtensionRegistry.channels,
     });
 
+    applyGatewayCapabilityState(params.gateway, {
+      pluginRegistry: nextPluginRegistry,
+      extensionRegistry: nextExtensionRegistry,
+      pluginChannelBindings: nextPluginChannelBindings,
+    });
     params.state.pluginRegistry = nextPluginRegistry;
     params.state.extensionRegistry = nextExtensionRegistry;
     params.state.pluginChannelBindings = nextPluginChannelBindings;
