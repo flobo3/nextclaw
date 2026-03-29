@@ -4,6 +4,10 @@ import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ESLint } from "eslint";
 import { collectDirectoryBudgetHotspots } from "./maintainability-directory-budget.mjs";
+import {
+  findDeferredMaintainabilityWorkspace,
+  MAINTAINABILITY_REPORT_DEFERRED_WORKSPACES
+} from "./maintainability-report-scope.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const trackedRuleIds = new Set([
@@ -127,24 +131,35 @@ const workspacePackages = listWorkspacePackageDirs().map((packageDir) => ({
   hasCodeFiles: hasCodeFiles(packageDir),
   hasEslintLintScript: hasEslintLintScript(packageDir)
 }));
+const activeWorkspacePackages = workspacePackages.filter((entry) => !findDeferredMaintainabilityWorkspace(entry.workspace));
 
 const nonCodeWorkspaces = workspacePackages
   .filter((entry) => !entry.hasCodeFiles)
   .map((entry) => entry.workspace);
-const uncoveredCodeWorkspaces = workspacePackages
+const uncoveredCodeWorkspaces = activeWorkspacePackages
   .filter((entry) => entry.hasCodeFiles && !entry.hasEslintLintScript)
   .map((entry) => entry.workspace);
 
-const detectedPackageDirs = workspacePackages
+const detectedPackageDirs = activeWorkspacePackages
   .filter((entry) => entry.hasCodeFiles && entry.hasEslintLintScript)
   .map((entry) => entry.packageDir);
 const targetPackageDirs = collapseNestedTargets(detectedPackageDirs);
 const directoryBudgetTargetDirs = collapseNestedTargets([
-  ...workspacePackages.filter((entry) => entry.hasCodeFiles).map((entry) => entry.packageDir),
+  ...activeWorkspacePackages
+    .filter((entry) => entry.hasCodeFiles)
+    .map((entry) => entry.packageDir),
   ...repoLevelMaintainabilityRoots
     .map((relativeDir) => resolve(rootDir, relativeDir))
     .filter((absoluteDir) => existsSync(absoluteDir) && statSync(absoluteDir).isDirectory() && hasCodeFiles(absoluteDir))
 ]);
+const deferredWorkspaces = MAINTAINABILITY_REPORT_DEFERRED_WORKSPACES
+  .map((entry) => ({
+    workspace: entry.workspace,
+    reason: entry.reason,
+    hasCodeFiles: workspacePackages.some((workspaceEntry) => workspaceEntry.workspace === entry.workspace && workspaceEntry.hasCodeFiles),
+    hasEslintLintScript: workspacePackages.some((workspaceEntry) => workspaceEntry.workspace === entry.workspace && workspaceEntry.hasEslintLintScript)
+  }))
+  .filter((entry) => entry.hasCodeFiles);
 
 const detectWorkspace = (absoluteFilePath) => {
   const matchedDir = targetPackageDirs
@@ -268,9 +283,12 @@ const violationsByWorkspace = Array.from(
 
 const report = {
   scannedWorkspaces: targetPackageDirs.map((packageDir) => toPosixPath(relative(rootDir, packageDir))),
+  deferredWorkspaces,
   coverage: {
     totalWorkspaces: workspacePackages.length,
     codeWorkspaces: workspacePackages.filter((entry) => entry.hasCodeFiles).map((entry) => entry.workspace),
+    activeCodeWorkspaces: activeWorkspacePackages.filter((entry) => entry.hasCodeFiles).map((entry) => entry.workspace),
+    deferredCodeWorkspaces: deferredWorkspaces.map((entry) => entry.workspace),
     nonCodeWorkspaces,
     uncoveredCodeWorkspaces
   },
@@ -287,7 +305,8 @@ if (options.json) {
 } else {
   console.log("Workspace maintainability report");
   console.log(`Scanned workspaces: ${report.scannedWorkspaces.length}`);
-  console.log(`Code workspaces: ${report.coverage.codeWorkspaces.length}`);
+  console.log(`Deferred workspaces: ${report.deferredWorkspaces.length}`);
+  console.log(`Code workspaces: ${report.coverage.activeCodeWorkspaces.length} active / ${report.coverage.codeWorkspaces.length} total`);
   console.log(`Non-code workspaces: ${report.coverage.nonCodeWorkspaces.length}`);
   console.log(`Coverage gaps: ${report.coverage.uncoveredCodeWorkspaces.length}`);
   console.log(`Affected files: ${report.affectedFiles}`);
@@ -297,6 +316,14 @@ if (options.json) {
   );
   for (const [ruleId, count] of Object.entries(report.violationsByRule)) {
     console.log(`- ${ruleId}: ${count}`);
+  }
+
+  if (report.deferredWorkspaces.length > 0) {
+    console.log("");
+    console.log("Deferred maintainability workspaces:");
+    for (const entry of report.deferredWorkspaces) {
+      console.log(`- ${entry.workspace}: ${entry.reason}`);
+    }
   }
 
   if (report.coverage.uncoveredCodeWorkspaces.length > 0) {
