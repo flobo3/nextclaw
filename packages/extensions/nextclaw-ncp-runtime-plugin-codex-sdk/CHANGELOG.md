@@ -1,5 +1,17 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
 
+## 0.1.32
+
+### Patch Changes
+
+- f15df6a: Publish the pending NCP realtime sync batch together with the new built-in cross-channel messaging skill and Weixin self-notify route hints.
+
+  This release keeps the product lightweight: the AI reuses the existing reply, `sessions_send`, and `message` primitives, and a fresh UI or NCP session can proactively notify the saved Weixin route without adding a separate notification abstraction.
+
+- Updated dependencies [f15df6a]
+  - @nextclaw/ncp-toolkit@0.4.6
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk@0.1.8
+
 ## 0.1.31
 
 ### Patch Changes

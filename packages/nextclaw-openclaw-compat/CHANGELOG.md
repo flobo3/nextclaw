@@ -1,5 +1,28 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.43
+
+### Patch Changes
+
+- f15df6a: Publish the pending NCP realtime sync batch together with the new built-in cross-channel messaging skill and Weixin self-notify route hints.
+
+  This release keeps the product lightweight: the AI reuses the existing reply, `sessions_send`, and `message` primitives, and a fresh UI or NCP session can proactively notify the saved Weixin route without adding a separate notification abstraction.
+
+- Updated dependencies [f15df6a]
+  - @nextclaw/channel-plugin-dingtalk@0.2.19
+  - @nextclaw/channel-plugin-discord@0.2.19
+  - @nextclaw/channel-plugin-email@0.2.19
+  - @nextclaw/channel-plugin-mochat@0.2.19
+  - @nextclaw/channel-plugin-qq@0.2.19
+  - @nextclaw/channel-plugin-slack@0.2.19
+  - @nextclaw/channel-plugin-telegram@0.2.19
+  - @nextclaw/channel-plugin-wecom@0.2.19
+  - @nextclaw/channel-plugin-weixin@0.1.12
+  - @nextclaw/channel-plugin-whatsapp@0.2.19
+  - @nextclaw/channel-runtime@0.4.5
+  - @nextclaw/core@0.11.6
+  - @nextclaw/ncp-toolkit@0.4.6
+
 ## 0.3.42
 
 ### Patch Changes
