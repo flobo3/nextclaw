@@ -10,6 +10,7 @@ description: 介于 changelog 与博客之间的短更新。
 
 ## 最新更新
 
+- [2026-03-31 · 定时任务更清楚了，也终于更像“定时”了](./2026-03-31-cron-clarity-and-one-shot-upgrade)
 - [2026-03-11 · 集成博查搜索 + 运行时对齐](./2026-03-11-search-provider-controls-and-runtime-alignment)
 
 ## 定位说明

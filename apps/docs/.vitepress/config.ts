@@ -145,6 +145,7 @@ const enNotesSidebar = [
     text: 'Product Notes',
     items: [
       { text: 'Overview', link: '/en/notes/' },
+      { text: '2026-03-31: Cron Is Clearer Now, and One-Shot Jobs Finally Feel One-Shot', link: '/en/notes/2026-03-31-cron-clarity-and-one-shot-upgrade' },
       { text: '2026-03-11: Bocha Search Integration + Runtime Alignment', link: '/en/notes/2026-03-11-search-provider-controls-and-runtime-alignment' }
     ]
   }
@@ -217,6 +218,7 @@ const zhNotesSidebar = [
     text: '产品更新笔记',
     items: [
       { text: '总览', link: '/zh/notes/' },
+      { text: '2026-03-31：定时任务更清楚了，也终于更像“定时”了', link: '/zh/notes/2026-03-31-cron-clarity-and-one-shot-upgrade' },
       { text: '2026-03-11：集成博查搜索 + 运行时对齐', link: '/zh/notes/2026-03-11-search-provider-controls-and-runtime-alignment' }
     ]
   }
