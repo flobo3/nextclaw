@@ -1,0 +1,67 @@
+name: windows-update-smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - "packages/nextclaw/**"
+      - ".github/workflows/windows-update-smoke.yml"
+  pull_request:
+    paths:
+      - "packages/nextclaw/**"
+      - ".github/workflows/windows-update-smoke.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-update-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-update-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Build nextclaw package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          pnpm -C packages/nextclaw lint
+          pnpm -C packages/nextclaw tsc
+          pnpm -C packages/nextclaw build
+
+      - name: Run nextclaw update on Windows
+        shell: pwsh
+        env:
+          NEXTCLAW_UPDATE_COMMAND: 'node -e "process.exit(0)"'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $output = node packages/nextclaw/dist/cli.js update --timeout 120000
+          $output | Out-Host
+          if ($LASTEXITCODE -ne 0) {
+            throw "nextclaw update failed with exit code $LASTEXITCODE"
+          }
+          if ($output -notmatch "Update complete") {
+            throw "nextclaw update output missing success marker"
+          }
