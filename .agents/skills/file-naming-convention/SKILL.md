@@ -32,6 +32,10 @@ Trigger this skill when requests include any of these intents:
 
 - Always use lowercase kebab-case for domain/subdomain segments.
 - Keep one file, one primary role.
+- Use whitelist-only suffixes for this repository:
+  - `.service.ts`, `.utils.ts`, `.types.ts`, `.test.ts`
+  - `.manager.ts`, `.store.ts`, `.repository.ts`, `.config.ts`
+  - `.controller.ts`, `.provider.ts`
 - Do not use vague names like `controller.ts`, `common.ts`, `helpers.ts` at broad scope.
 - Do not mix multi-role suffixes in one file name (for example `chat.service.manager.ts`).
 - `index.ts` is only for export aggregation; no business logic.

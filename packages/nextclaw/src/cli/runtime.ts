@@ -772,25 +772,25 @@ export class CliRuntime {
   async channelsLogin(opts: ChannelsLoginOptions): Promise<void> { await this.channelCommands.channelsLogin(opts); }
   async channelsAdd(opts: ChannelsAddOptions): Promise<void> { await this.channelCommands.channelsAdd(opts); }
 
-  cronList(opts: { all?: boolean }): void {
-    this.cronCommands.cronList(opts);
-  }
+  readonly cronList = async (opts: { all?: boolean }): Promise<void> => {
+    await this.cronCommands.cronList(opts);
+  };
 
-  cronAdd(opts: CronAddOptions): void {
-    this.cronCommands.cronAdd(opts);
-  }
+  readonly cronAdd = async (opts: CronAddOptions): Promise<void> => {
+    await this.cronCommands.cronAdd(opts);
+  };
 
-  cronRemove(jobId: string): void {
-    this.cronCommands.cronRemove(jobId);
-  }
+  readonly cronRemove = async (jobId: string): Promise<void> => {
+    await this.cronCommands.cronRemove(jobId);
+  };
 
-  cronEnable(jobId: string, opts: { disable?: boolean }): void {
-    this.cronCommands.cronEnable(jobId, opts);
-  }
+  readonly cronEnable = async (jobId: string, opts: { disable?: boolean }): Promise<void> => {
+    await this.cronCommands.cronEnable(jobId, opts);
+  };
 
-  async cronRun(jobId: string, opts: { force?: boolean }): Promise<void> {
+  readonly cronRun = async (jobId: string, opts: { force?: boolean }): Promise<void> => {
     await this.cronCommands.cronRun(jobId, opts);
-  }
+  };
 
   async status(opts: StatusCommandOptions = {}): Promise<void> {
     await this.diagnosticsCommands.status(opts);

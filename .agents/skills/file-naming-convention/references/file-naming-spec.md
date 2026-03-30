@@ -26,25 +26,18 @@ Examples:
 - `provider-auth.service.ts`
 - `marketplace-plugin.controller.ts`
 
-## 3. Role Suffix Catalog
+## 3. Allowed Role Suffixes (Whitelist)
 
-- `.controller.ts`: route/request entry layer, protocol adaptation, input validation.
+- `.service.ts`: reusable domain business capability.
+- `.utils.ts`: stateless utility helpers.
+- `.types.ts`: type-only declarations.
+- `.test.ts`: test files.
 - `.manager.ts`: business orchestration and state-flow coordination.
 - `.store.ts`: state container.
-- `.service.ts`: reusable domain business capability.
 - `.repository.ts`: persistence/data access layer.
-- `.adapter.ts`: third-party system adaptation.
-- `.gateway.ts`: process/network gateway.
-- `.middleware.ts`: middleware.
-- `.guard.ts`: permission/precondition guard.
-- `.interceptor.ts`: interception logic.
-- `.factory.ts`: factory builder.
-- `.schema.ts`: schema/validation definition.
-- `.types.ts`: type-only declarations.
-- `.constants.ts`: constants.
-- `.utils.ts`: stateless utility helpers.
-- `.mapper.ts`: data structure mapping/transformation.
 - `.config.ts`: configuration assembly.
+- `.controller.ts`: route/request entry layer, protocol adaptation, input validation.
+- `.provider.ts`: provider-facing integration capability.
 
 ## 4. Test File Naming
 

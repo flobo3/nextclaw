@@ -1,81 +1,122 @@
-import { CronService, getDataDir } from "@nextclaw/core";
-import { join } from "node:path";
 import type { CronAddOptions } from "../types.js";
+import { CronLocalService } from "./cron/cron-local.service.js";
+import { printCronJobs, type CronJobView } from "./cron/cron-job.utils.js";
+import { UiBridgeApiClient, resolveManagedApiBase } from "./shared/ui-bridge-api.service.js";
+
+type CronListApiData = {
+  jobs: CronJobView[];
+};
+
+type CronActionApiData = {
+  deleted?: boolean;
+  job?: CronJobView | null;
+  executed?: boolean;
+};
 
 export class CronCommands {
-  cronList(opts: { all?: boolean }): void {
-    const storePath = join(getDataDir(), "cron", "jobs.json");
-    const service = new CronService(storePath);
-    const jobs = service.listJobs(Boolean(opts.all));
-    if (!jobs.length) {
-      console.log("No scheduled jobs.");
-      return;
+  constructor(
+    private readonly local = new CronLocalService()
+  ) {}
+
+  private readonly createApiClient = (): UiBridgeApiClient | null => {
+    const apiBase = resolveManagedApiBase();
+    if (!apiBase) {
+      return null;
     }
-    for (const job of jobs) {
-      let schedule = "";
-      if (job.schedule.kind === "every") {
-        schedule = `every ${Math.round((job.schedule.everyMs ?? 0) / 1000)}s`;
-      } else if (job.schedule.kind === "cron") {
-        schedule = job.schedule.expr ?? "";
-      } else {
-        schedule = job.schedule.atMs ? new Date(job.schedule.atMs).toISOString() : "";
+    return new UiBridgeApiClient(apiBase);
+  };
+
+  readonly cronList = async (opts: { all?: boolean }): Promise<void> => {
+    const apiClient = this.createApiClient();
+    if (apiClient) {
+      try {
+        const query = opts.all ? "?all=1" : "";
+        const data = await apiClient.request<CronListApiData>({
+          path: `/api/cron${query}`
+        });
+        printCronJobs(data.jobs);
+        return;
+      } catch {
+        void 0;
       }
-      console.log(`${job.id} ${job.name} ${schedule}`);
     }
-  }
+    printCronJobs(this.local.list(Boolean(opts.all)));
+  };
 
-  cronAdd(opts: CronAddOptions): void {
-    const storePath = join(getDataDir(), "cron", "jobs.json");
-    const service = new CronService(storePath);
-    let schedule: { kind: "every" | "cron" | "at"; everyMs?: number; expr?: string; atMs?: number } | null = null;
-    if (opts.every) {
-      schedule = { kind: "every", everyMs: Number(opts.every) * 1000 };
-    } else if (opts.cron) {
-      schedule = { kind: "cron", expr: String(opts.cron) };
-    } else if (opts.at) {
-      schedule = { kind: "at", atMs: Date.parse(String(opts.at)) };
-    }
-    if (!schedule) {
-      console.error("Error: Must specify --every, --cron, or --at");
+  readonly cronAdd = async (opts: CronAddOptions): Promise<void> => {
+    const result = this.local.add(opts);
+    if (!result.job) {
+      console.error(result.error ?? "Error: Failed to add job");
       return;
     }
-    const job = service.addJob({
-      name: opts.name,
-      schedule,
-      message: opts.message,
-      deliver: Boolean(opts.deliver),
-      channel: opts.channel,
-      to: opts.to,
-      accountId: opts.account
-    });
-    console.log(`✓ Added job '${job.name}' (${job.id})`);
-  }
+    console.log(`✓ Added job '${result.job.name}' (${result.job.id})`);
+  };
 
-  cronRemove(jobId: string): void {
-    const storePath = join(getDataDir(), "cron", "jobs.json");
-    const service = new CronService(storePath);
-    if (service.removeJob(jobId)) {
+  readonly cronRemove = async (jobId: string): Promise<void> => {
+    const apiClient = this.createApiClient();
+    if (apiClient) {
+      try {
+        const data = await apiClient.request<CronActionApiData>({
+          path: `/api/cron/${encodeURIComponent(jobId)}`,
+          method: "DELETE"
+        });
+        if (data.deleted) {
+          console.log(`✓ Removed job ${jobId}`);
+          return;
+        }
+      } catch {
+        void 0;
+      }
+    }
+    if (this.local.remove(jobId)) {
       console.log(`✓ Removed job ${jobId}`);
     } else {
       console.log(`Job ${jobId} not found`);
     }
-  }
+  };
 
-  cronEnable(jobId: string, opts: { disable?: boolean }): void {
-    const storePath = join(getDataDir(), "cron", "jobs.json");
-    const service = new CronService(storePath);
-    const job = service.enableJob(jobId, !opts.disable);
+  readonly cronEnable = async (jobId: string, opts: { disable?: boolean }): Promise<void> => {
+    const apiClient = this.createApiClient();
+    const enabled = !opts.disable;
+    if (apiClient) {
+      try {
+        const data = await apiClient.request<CronActionApiData>({
+          path: `/api/cron/${encodeURIComponent(jobId)}/enable`,
+          method: "PUT",
+          body: { enabled }
+        });
+        if (data.job) {
+          console.log(`✓ Job '${data.job.name}' ${opts.disable ? "disabled" : "enabled"}`);
+          return;
+        }
+      } catch {
+        void 0;
+      }
+    }
+    const job = this.local.enable(jobId, enabled);
     if (job) {
       console.log(`✓ Job '${job.name}' ${opts.disable ? "disabled" : "enabled"}`);
     } else {
       console.log(`Job ${jobId} not found`);
     }
-  }
+  };
 
-  async cronRun(jobId: string, opts: { force?: boolean }): Promise<void> {
-    const storePath = join(getDataDir(), "cron", "jobs.json");
-    const service = new CronService(storePath);
-    const ok = await service.runJob(jobId, Boolean(opts.force));
+  readonly cronRun = async (jobId: string, opts: { force?: boolean }): Promise<void> => {
+    const apiClient = this.createApiClient();
+    if (apiClient) {
+      try {
+        const data = await apiClient.request<CronActionApiData>({
+          path: `/api/cron/${encodeURIComponent(jobId)}/run`,
+          method: "POST",
+          body: { force: Boolean(opts.force) }
+        });
+        console.log(data.executed ? "✓ Job executed" : `Failed to run job ${jobId}`);
+        return;
+      } catch {
+        void 0;
+      }
+    }
+    const ok = await this.local.run(jobId, Boolean(opts.force));
     console.log(ok ? "✓ Job executed" : `Failed to run job ${jobId}`);
-  }
+  };
 }

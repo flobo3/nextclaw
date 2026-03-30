@@ -338,7 +338,7 @@ const cron = program.command("cron").description("Manage scheduled tasks");
 cron
   .command("list")
   .option("-a, --all", "Include disabled jobs")
-  .action((opts) => runtime.cronList(opts));
+  .action(async (opts) => runtime.cronList(opts));
 
 cron
   .command("add")
@@ -351,16 +351,16 @@ cron
   .option("--to <recipient>", "Recipient for delivery")
   .option("--channel <channel>", "Channel for delivery")
   .option("--account <id>", "Account id for channel delivery")
-  .action((opts) => runtime.cronAdd(opts));
+  .action(async (opts) => runtime.cronAdd(opts));
 
 cron
   .command("remove <jobId>")
-  .action((jobId) => runtime.cronRemove(jobId));
+  .action(async (jobId) => runtime.cronRemove(jobId));
 
 cron
   .command("enable <jobId>")
   .option("--disable", "Disable instead of enable")
-  .action((jobId, opts) => runtime.cronEnable(jobId, opts));
+  .action(async (jobId, opts) => runtime.cronEnable(jobId, opts));
 
 cron
   .command("run <jobId>")

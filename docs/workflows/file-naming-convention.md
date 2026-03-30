@@ -27,26 +27,18 @@
 - `provider-auth.service.ts`
 - `marketplace-plugin.controller.ts`
 
-## 3. 角色后缀约定
+## 3. 角色后缀约定（全仓库默认收口）
 
-- `.controller.ts`: 路由/请求入口层，负责协议适配与参数校验，不承载核心业务编排。
-- `.manager.ts`: 业务流程编排层（状态流转、跨服务协同）。
-- `.store.ts`: 状态存储层（如 Zustand/store 容器）。
-- `.service.ts`: 领域服务层，承载可复用业务能力。
-- `.repository.ts`: 数据访问层（DB/文件/远端持久化）。
-- `.adapter.ts`: 外部系统适配层（第三方 SDK、协议桥接）。
-- `.gateway.ts`: 进程/网络入口网关层（长连接、消息网关等）。
-- `.middleware.ts`: 中间件。
-- `.guard.ts`: 权限/前置校验。
-- `.interceptor.ts`: 拦截器。
-- `.factory.ts`: 工厂构建。
-- `.schema.ts`: schema/验证定义。
-- `.types.ts`: 类型声明聚合（仅类型）。
-- `.constants.ts`: 常量定义。
-- `.utils.ts`: 纯工具函数（无状态、无副作用优先）。
-- `.mapper.ts`: 结构映射/转换。
-- `.cache.ts` / `*-cache.ts`: 缓存键、缓存读写、失效、query client 协调或 optimistic cache 更新；若文件只做纯映射、去重、拼装或 view updater，不应命名为 `cache`。
-- `.config.ts`: 配置加载与组装。
+允许后缀（同级，无优先级）：
+
+- `.service.ts`: 服务/编排能力（有状态或跨模块协调逻辑）。
+- `.utils.ts`: 纯工具函数（无状态、可复用、输入输出稳定）。
+- `.types.ts`: 类型定义聚合（仅类型，不放运行时逻辑）。
+- `.test.ts`: 测试文件。
+
+- `.manager.ts`、`.store.ts`、`.repository.ts`、`.config.ts`
+- `.controller.ts`、`.provider.ts`
+
 
 ## 4. 测试文件命名
 
@@ -56,8 +48,8 @@
 
 示例：
 
-- `chat.controller.test.ts`
-- `chat-stream.manager.int.test.ts`
+- `cron.service.test.ts`
+- `provider-auth.service.test.ts`
 
 ## 5. 目录与导出约定
 
@@ -72,6 +64,8 @@
 - `chat_controller.ts`（snake_case）
 - `controller.ts`（无业务域前缀，语义过弱）
 - `chat.service.manager.ts`（多角色混合）
+- `ui-bridge-api.client.ts`（若文件实际职责是服务编排而不是客户端职责，则命名与职责不匹配）
+- `cron-job.view.ts`（若文件实际职责是纯工具而非视图职责，则命名与职责不匹配）
 - `marketplace-installed-cache.ts`（如果实现只有纯映射 / view updater，而没有缓存协调）
 
 ## 7. 渐进迁移策略
