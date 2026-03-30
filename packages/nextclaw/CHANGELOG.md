@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.16.18
+
+### Patch Changes
+
+- Improve cron command consistency by preferring managed API operations with a local fallback and align naming-governance tooling for new code checks.
+
 ## 0.16.17
 
 ### Patch Changes
