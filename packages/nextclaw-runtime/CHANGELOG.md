@@ -1,5 +1,20 @@
 # @nextclaw/runtime
 
+## 0.2.21
+
+### Patch Changes
+
+- Release the current cross-channel routing fixes as one aligned patch batch.
+
+  - expose built-in skill descriptions so the agent can discover `cross-channel-messaging` at the right time
+  - let `sessions_list` filter by resolved route fields such as `channel`, `to`, `accountId`, and `sessionKey`
+  - fail fast when `message` tries to send to another channel without an explicit target, preventing false-success Feishu sends
+  - clarify Feishu and Weixin route lookup guidance so proactive sends reuse saved session routes instead of guessing identifiers
+  - include the already-unpublished `@nextclaw/runtime` provider catalog drift in the same release closure so release health returns to clean
+
+- Updated dependencies
+  - @nextclaw/core@0.11.7
+
 ## 0.2.20
 
 ### Patch Changes
@@ -208,6 +223,7 @@
 ### Patch Changes
 
 - Refactor provider and channel architecture with core registry mechanism and runtime assembly.
+
   - Move builtin provider catalog and builtin channel IDs out of core into `@nextclaw/runtime`.
   - Keep provider registry mechanisms in `@nextclaw/core` with injectable catalog support.
   - Update server/CLI to consume runtime-provided builtin provider/channel metadata.

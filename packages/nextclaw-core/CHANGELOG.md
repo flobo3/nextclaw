@@ -1,5 +1,17 @@
 # nextclaw-core
 
+## 0.11.7
+
+### Patch Changes
+
+- Release the current cross-channel routing fixes as one aligned patch batch.
+
+  - expose built-in skill descriptions so the agent can discover `cross-channel-messaging` at the right time
+  - let `sessions_list` filter by resolved route fields such as `channel`, `to`, `accountId`, and `sessionKey`
+  - fail fast when `message` tries to send to another channel without an explicit target, preventing false-success Feishu sends
+  - clarify Feishu and Weixin route lookup guidance so proactive sends reuse saved session routes instead of guessing identifiers
+  - include the already-unpublished `@nextclaw/runtime` provider catalog drift in the same release closure so release health returns to clean
+
 ## 0.11.6
 
 ### Patch Changes
@@ -192,6 +204,7 @@
 - Switch skill distribution to marketplace-first flow and remove GitHub-based skill install paths.
 
   This release includes:
+
   - skill/plugin model clean split (skill: `builtin` + `marketplace` only)
   - marketplace API migration from bundled JSON to D1-backed source
   - CLI support for marketplace skill upload/update/install
@@ -214,6 +227,7 @@
 - Unified minor release for accumulated architecture, engine, and chat UX updates.
 
   Includes:
+
   - New pluggable engine runtime support (Codex SDK / Claude Agent SDK)
   - Skill-context propagation and chat interaction stability improvements
   - Main workspace routing and conversation UX refinements
@@ -612,10 +626,12 @@
 - Add live apply support for `agents.defaults.maxTokens`, `agents.defaults.temperature`, and `tools.*` without gateway restart.
 
   Improve runtime restart boundaries:
+
   - `config set/unset` now triggers restart only for `restart-required` paths.
   - Keep `plugins.*` as restart-required for maintainability.
 
   Refine CLI/UI startup behavior and docs:
+
   - Default UI host behavior is public (`0.0.0.0`) on start/restart/serve/ui/gateway UI mode.
   - Remove redundant `--public`/`--ui-host` options from relevant commands and update usage docs.
 

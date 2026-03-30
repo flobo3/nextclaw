@@ -3,6 +3,13 @@ import { Tool } from "./base.js";
 import type { SessionManager } from "../../session/manager.js";
 import type { MessageBus } from "../../bus/queue.js";
 import type { InboundMessage, OutboundMessage } from "../../bus/events.js";
+import {
+  normalizeOptionalRouteString,
+  parseAgentScopedSessionKey,
+  parseAgentSessionDeliveryRoute,
+  parseSimpleSessionKey,
+  resolveSessionDeliveryRoute,
+} from "../route-resolver.js";
 
 const DEFAULT_LIMIT = 20;
 const DEFAULT_MESSAGE_LIMIT = 0;
@@ -15,95 +22,13 @@ const toInt = (value: unknown, fallback: number): number => {
   return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : fallback;
 };
 
-const parseSessionKey = (key: string): { channel: string; chatId: string } | null => {
-  const trimmed = key.trim();
-  const separator = trimmed.indexOf(":");
-  if (separator <= 0 || separator >= trimmed.length - 1) {
-    return null;
+const stringsEqual = (left: unknown, right: unknown): boolean => {
+  const normalizedLeft = normalizeOptionalRouteString(left);
+  const normalizedRight = normalizeOptionalRouteString(right);
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
   }
-  const channel = trimmed.slice(0, separator);
-  const chatId = trimmed.slice(separator + 1);
-  if (!channel || !chatId) {
-    return null;
-  }
-  return { channel, chatId };
-};
-
-const parseAgentIdFromSessionKey = (key: string): string | null => {
-  const normalized = key.trim().toLowerCase();
-  if (!normalized.startsWith("agent:")) {
-    return null;
-  }
-  const parts = normalized.split(":");
-  const agentId = parts[1]?.trim();
-  return agentId || null;
-};
-
-const parseAgentSessionRoute = (key: string): { channel: string; chatId: string; accountId?: string } | null => {
-  const normalized = key.trim().toLowerCase();
-  if (!normalized.startsWith("agent:")) {
-    return null;
-  }
-  const parts = normalized.split(":");
-  if (parts.length >= 6 && ["direct", "group", "channel"].includes(parts[4])) {
-    const chatId = parts.slice(5).join(":");
-    if (!chatId) {
-      return null;
-    }
-    return {
-      channel: parts[2],
-      accountId: parts[3],
-      chatId
-    };
-  }
-  if (parts.length >= 5 && ["direct", "group", "channel"].includes(parts[3])) {
-    const chatId = parts.slice(4).join(":");
-    if (!chatId) {
-      return null;
-    }
-    return {
-      channel: parts[2],
-      chatId
-    };
-  }
-  return null;
-};
-
-const normalizeOptionalString = (value: unknown): string | undefined => {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed || undefined;
-};
-
-const resolveDeliveryRouteFromSession = (session: { metadata: Record<string, unknown> } | null | undefined) => {
-  if (!session) {
-    return null;
-  }
-  const metadata = session.metadata ?? {};
-  const deliveryContext =
-    metadata.last_delivery_context && typeof metadata.last_delivery_context === "object"
-      ? (metadata.last_delivery_context as Record<string, unknown>)
-      : undefined;
-  const contextChannel = normalizeOptionalString(deliveryContext?.channel);
-  const contextChatId = normalizeOptionalString(deliveryContext?.chatId);
-  const fallbackChannel = normalizeOptionalString(metadata.last_channel);
-  const fallbackChatId = normalizeOptionalString(metadata.last_to);
-  const accountId =
-    normalizeOptionalString(deliveryContext?.accountId) ??
-    normalizeOptionalString(metadata.last_account_id) ??
-    normalizeOptionalString(metadata.last_accountId);
-  const channel = contextChannel ?? fallbackChannel;
-  const chatId = contextChatId ?? fallbackChatId;
-  if (!channel || !chatId) {
-    return null;
-  }
-  return {
-    channel,
-    chatId,
-    accountId
-  };
+  return normalizedLeft === normalizedRight;
 };
 
 type SessionsSendContext = {
@@ -201,7 +126,7 @@ export class SessionsListTool extends Tool {
   }
 
   get description(): string {
-    return "List available sessions with timestamps";
+    return "List available sessions with timestamps and optional route filters";
   }
 
   get parameters(): Record<string, unknown> {
@@ -212,6 +137,22 @@ export class SessionsListTool extends Tool {
           type: "array",
           items: { type: "string" },
           description: "Filter by session kinds (main/group/cron/hook/other)"
+        },
+        sessionKey: {
+          type: "string",
+          description: "Only include the exact session key"
+        },
+        channel: {
+          type: "string",
+          description: "Only include sessions whose resolved delivery channel matches"
+        },
+        to: {
+          type: "string",
+          description: "Only include sessions whose resolved delivery target/chatId matches"
+        },
+        accountId: {
+          type: "string",
+          description: "Only include sessions whose resolved delivery accountId matches"
         },
         limit: { type: "integer", minimum: 1, description: "Maximum number of sessions to return" },
         activeMinutes: { type: "integer", minimum: 1, description: "Only include active sessions" },
@@ -224,6 +165,10 @@ export class SessionsListTool extends Tool {
     const limit = toInt(params.limit, DEFAULT_LIMIT);
     const rawKinds = Array.isArray(params.kinds) ? params.kinds.map((k) => String(k).toLowerCase()) : [];
     const kinds = rawKinds.length ? new Set(rawKinds) : null;
+    const sessionKeyFilter = normalizeOptionalRouteString(params.sessionKey);
+    const channelFilter = normalizeOptionalRouteString(params.channel)?.toLowerCase();
+    const toFilter = normalizeOptionalRouteString(params.to);
+    const accountIdFilter = normalizeOptionalRouteString(params.accountId);
     const activeMinutes = toInt(params.activeMinutes, 0);
     const messageLimit = Math.min(toInt(params.messageLimit, DEFAULT_MESSAGE_LIMIT), MAX_MESSAGE_LIMIT);
     const now = Date.now();
@@ -231,6 +176,25 @@ export class SessionsListTool extends Tool {
       .listSessions()
       .sort((a, b) => (toTimestamp(b.updated_at) ?? 0) - (toTimestamp(a.updated_at) ?? 0))
       .filter((entry) => {
+        const key = typeof entry.key === "string" ? entry.key : "";
+        const session = this.sessions.getIfExists(key);
+        const parsed = parseSimpleSessionKey(key);
+        const resolvedRoute =
+          resolveSessionDeliveryRoute(session) ??
+          parseAgentSessionDeliveryRoute(key) ??
+          (parsed && parsed.channel !== "agent" ? { channel: parsed.channel, chatId: parsed.chatId } : null);
+        if (sessionKeyFilter && key !== sessionKeyFilter) {
+          return false;
+        }
+        if (channelFilter && resolvedRoute?.channel?.toLowerCase() !== channelFilter) {
+          return false;
+        }
+        if (toFilter && !stringsEqual(resolvedRoute?.chatId, toFilter)) {
+          return false;
+        }
+        if (accountIdFilter && !stringsEqual(resolvedRoute?.accountId, accountIdFilter)) {
+          return false;
+        }
         if (activeMinutes > 0 && entry.updated_at) {
           const updated = Date.parse(String(entry.updated_at));
           if (Number.isFinite(updated) && now - updated > activeMinutes * 60 * 1000) {
@@ -249,7 +213,12 @@ export class SessionsListTool extends Tool {
       .map((entry) => {
         const key = String(entry.key ?? "");
         const kind = classifySessionKind(key);
-        const parsed = parseSessionKey(key);
+        const parsed = parseSimpleSessionKey(key);
+        const session = this.sessions.getIfExists(key);
+        const resolvedRoute =
+          resolveSessionDeliveryRoute(session) ??
+          parseAgentSessionDeliveryRoute(key) ??
+          (parsed && parsed.channel !== "agent" ? { channel: parsed.channel, chatId: parsed.chatId } : null);
         const metadata = (entry.metadata as Record<string, unknown> | undefined) ?? {};
         const label =
           typeof metadata.label === "string"
@@ -272,7 +241,7 @@ export class SessionsListTool extends Tool {
         const base: Record<string, unknown> = {
           key,
           kind,
-          channel: parsed?.channel,
+          channel: resolvedRoute?.channel ?? parsed?.channel,
           label,
           displayName,
           deliveryContext,
@@ -282,14 +251,18 @@ export class SessionsListTool extends Tool {
           lastChannel:
             typeof metadata.last_channel === "string"
               ? metadata.last_channel
-              : parsed?.channel ?? undefined,
+              : resolvedRoute?.channel ?? parsed?.channel ?? undefined,
           lastTo:
-            typeof metadata.last_to === "string" ? metadata.last_to : parsed?.chatId ?? undefined,
-          lastAccountId: typeof metadata.last_account_id === "string" ? metadata.last_account_id : undefined,
+            typeof metadata.last_to === "string"
+              ? metadata.last_to
+              : resolvedRoute?.chatId ?? parsed?.chatId ?? undefined,
+          lastAccountId:
+            typeof metadata.last_account_id === "string"
+              ? metadata.last_account_id
+              : resolvedRoute?.accountId ?? undefined,
           transcriptPath: entry.path
         };
         if (messageLimit > 0) {
-          const session = this.sessions.getIfExists(key);
           if (session) {
             const filtered = session.messages.filter((msg) => msg.role !== "tool");
             const recent = filtered.slice(-messageLimit).map((msg) => ({
@@ -459,9 +432,9 @@ export class SessionsSendTool extends Tool {
     }
 
     const session = this.sessions.getIfExists(sessionKey);
-    const parsed = parseSessionKey(sessionKey);
-    const routeFromSession = resolveDeliveryRouteFromSession(session);
-    const routeFromAgentSession = parseAgentSessionRoute(sessionKey);
+    const parsed = parseSimpleSessionKey(sessionKey);
+    const routeFromSession = resolveSessionDeliveryRoute(session);
+    const routeFromAgentSession = parseAgentSessionDeliveryRoute(sessionKey);
     const route: { channel: string; chatId: string; accountId?: string } | null =
       routeFromSession ??
       routeFromAgentSession ??
@@ -479,7 +452,7 @@ export class SessionsSendTool extends Tool {
     }
 
     const callerAgentId = this.context.currentAgentId;
-    const targetAgentId = targetAgentParam || parseAgentIdFromSessionKey(sessionKey) || callerAgentId;
+    const targetAgentId = targetAgentParam || parseAgentScopedSessionKey(sessionKey)?.agentId || callerAgentId;
     const isCrossAgent = Boolean(callerAgentId && targetAgentId && callerAgentId !== targetAgentId);
     const currentHandoffDepth = toInt(this.context.currentHandoffDepth, 0);
     const maxPingPongTurns = toInt(this.context.maxPingPongTurns, 0);

@@ -109,7 +109,8 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
   },
   agentPrompt: {
     messageToolHints: () => [
-      "- Feishu targeting: omit `target` to reply to the current conversation (auto-inferred). Explicit targets: `user:open_id` or `chat:chat_id`.",
+      "- Feishu targeting: omit `target` only when replying in the current Feishu conversation. For proactive sends from UI/CLI/another channel, pass an explicit target such as `user:open_id` or `chat:chat_id`.",
+      "- If the current session is not Feishu, never rely on `channel=feishu` alone; resolve the route first (for example from an existing Feishu session) and then send to that explicit target.",
       "- Feishu supports interactive cards for rich messages.",
     ],
   },

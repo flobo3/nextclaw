@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -37,5 +37,27 @@ describe("ContextBuilder tool catalog", () => {
     expect(prompt).toContain("- feishu_doc: Feishu document operations");
     expect(prompt).toContain("- feishu_wiki: Feishu knowledge base operations");
     expect(prompt).not.toContain("- gateway: Restart/apply config/update running process");
+  });
+
+  it("includes skill descriptions in the available skills list", () => {
+    const workspace = createWorkspace();
+    mkdirSync(join(workspace, "skills", "demo-skill"), { recursive: true });
+    writeFileSync(
+      join(workspace, "skills", "demo-skill", "SKILL.md"),
+      [
+        "---",
+        "name: demo-skill",
+        "description: Demo skill for routing tests",
+        "---",
+        "",
+        "Use the demo skill instructions.",
+      ].join("\n"),
+    );
+    const builder = new ContextBuilder(workspace);
+
+    const prompt = builder.buildSystemPrompt();
+
+    expect(prompt).toContain("<name>demo-skill</name>");
+    expect(prompt).toContain("<description>Demo skill for routing tests</description>");
   });
 });

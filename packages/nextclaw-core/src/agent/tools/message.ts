@@ -51,8 +51,16 @@ export class MessageTool extends Tool {
     if (!content) {
       return "Error: content/message is required";
     }
-    const channel = String(params.channel ?? this.channel);
-    const chatId = String(params.chatId ?? params.to ?? this.chatId);
+    const explicitChannel = typeof params.channel === "string" ? params.channel.trim() : "";
+    const explicitChatId = typeof params.chatId === "string" ? params.chatId.trim() : "";
+    const explicitTo = typeof params.to === "string" ? params.to.trim() : "";
+    const channel = explicitChannel || this.channel;
+
+    if (explicitChannel && explicitChannel.toLowerCase() !== this.channel.toLowerCase() && !explicitChatId && !explicitTo) {
+      return `Error: to/chatId is required when sending to another channel (current session: ${this.channel}:${this.chatId})`;
+    }
+
+    const chatId = explicitChatId || explicitTo || this.chatId;
     const accountId =
       typeof params.accountId === "string" && params.accountId.trim().length > 0 ? params.accountId : this.accountId;
     const replyTo = params.replyTo ? String(params.replyTo) : undefined;

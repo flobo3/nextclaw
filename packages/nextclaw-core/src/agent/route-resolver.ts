@@ -26,6 +26,17 @@ export type ResolvedAgentRoute = {
   matchedBy: "binding" | "forced" | "default";
 };
 
+export type ParsedSimpleSessionKey = {
+  channel: string;
+  chatId: string;
+};
+
+export type ResolvedSessionDeliveryRoute = {
+  channel: string;
+  chatId: string;
+  accountId?: string;
+};
+
 const PEER_KINDS: RoutePeerKind[] = ["direct", "group", "channel"];
 
 function isPeerKind(value: string): value is RoutePeerKind {
@@ -42,6 +53,14 @@ function normalizeToken(value: unknown, fallback: string): string {
   }
   const text = value.trim().toLowerCase();
   return text || fallback;
+}
+
+export function normalizeOptionalRouteString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
 }
 
 function normalizeAccountId(value: unknown): string {
@@ -216,6 +235,63 @@ export function parseAgentScopedSessionKey(sessionKey?: string | null): ParsedAg
   }
 
   return { agentId };
+}
+
+export function parseSimpleSessionKey(sessionKey?: string | null): ParsedSimpleSessionKey | null {
+  const trimmed = (sessionKey ?? "").trim();
+  const separator = trimmed.indexOf(":");
+  if (separator <= 0 || separator >= trimmed.length - 1) {
+    return null;
+  }
+  const channel = trimmed.slice(0, separator);
+  const chatId = trimmed.slice(separator + 1);
+  if (!channel || !chatId) {
+    return null;
+  }
+  return { channel, chatId };
+}
+
+export function parseAgentSessionDeliveryRoute(sessionKey?: string | null): ResolvedSessionDeliveryRoute | null {
+  const parsed = parseAgentScopedSessionKey(sessionKey);
+  if (!parsed?.channel || !parsed.peer?.id) {
+    return null;
+  }
+  return {
+    channel: parsed.channel,
+    chatId: parsed.peer.id,
+    accountId: parsed.accountId,
+  };
+}
+
+export function resolveSessionDeliveryRoute(
+  session: { metadata: Record<string, unknown> } | null | undefined,
+): ResolvedSessionDeliveryRoute | null {
+  if (!session) {
+    return null;
+  }
+  const metadata = session.metadata ?? {};
+  const deliveryContext =
+    metadata.last_delivery_context && typeof metadata.last_delivery_context === "object"
+      ? (metadata.last_delivery_context as Record<string, unknown>)
+      : undefined;
+  const contextChannel = normalizeOptionalRouteString(deliveryContext?.channel);
+  const contextChatId = normalizeOptionalRouteString(deliveryContext?.chatId);
+  const fallbackChannel = normalizeOptionalRouteString(metadata.last_channel);
+  const fallbackChatId = normalizeOptionalRouteString(metadata.last_to);
+  const accountId =
+    normalizeOptionalRouteString(deliveryContext?.accountId) ??
+    normalizeOptionalRouteString(metadata.last_account_id) ??
+    normalizeOptionalRouteString(metadata.last_accountId);
+  const channel = contextChannel ?? fallbackChannel;
+  const chatId = contextChatId ?? fallbackChatId;
+  if (!channel || !chatId) {
+    return null;
+  }
+  return {
+    channel,
+    chatId,
+    accountId,
+  };
 }
 
 export class AgentRouteResolver {

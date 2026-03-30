@@ -16,6 +16,16 @@ Use this skill when the user wants any of these:
 - proactively send a message after a task finishes,
 - forward or relay content across sessions or channels.
 
+Strong triggers include user wording such as:
+
+- "notify me when done",
+- "send this to my Weixin",
+- "message me on Telegram",
+- "forward the result to another chat",
+- "after you finish, send me a note elsewhere".
+
+Do not wait for the user to name this skill. If the task is about delivery, routing, relaying, notifying, or proactive messaging, load this skill.
+
 ## Core Rule
 
 Do not invent a separate notification system.
@@ -49,6 +59,15 @@ Use `sessions_send` when:
 
 Prefer `sessions_send` over `message` when an existing session already captures the route.
 
+When you need to find a likely target session first, use `sessions_list` narrowly instead of listing a broad page and manually scanning it.
+
+- If the channel is known, pass `channel`.
+- If the exact target/chat id is known, pass `to`.
+- If the account is known, pass `accountId`.
+- If the exact session is known, pass `sessionKey`.
+
+Prefer the smallest precise filter set that can prove whether a routable session already exists.
+
 ### `message`
 
 Use `message` when:
@@ -64,6 +83,9 @@ For `action=send`, provide:
 - `to` or `chatId`,
 - `channel` when the destination channel is not the current one,
 - `accountId` when the channel is multi-account and the account is known.
+
+If you explicitly set `channel` to a different channel than the current session, `to/chatId` is mandatory.
+Do not rely on current-session fallback for cross-channel delivery.
 
 If `message` is used to deliver the user-visible result for the turn, do not also send a normal assistant reply.
 
@@ -83,6 +105,9 @@ Resolve the target in this order:
 
 Never guess `channel`, `chatId`, `sessionKey`, or `accountId`.
 
+Current-session fallback only applies when the current session is already the intended delivery conversation.
+It does not authorize cross-channel sends such as `channel=feishu` from a UI/CLI/Weixin session without an explicit Feishu target.
+
 ## Config And Local Files
 
 Local config can be a useful source of truth, but only when it is already available to the AI in an explicit and auditable way.
@@ -100,6 +125,17 @@ Do not assume:
 - or that a saved account in config automatically proves the destination is reachable right now.
 
 Treat config as route data, not as delivery proof.
+
+## Authoritative Route Sources
+
+When this skill is active, prefer route sources in this order:
+
+1. A route the user explicitly typed.
+2. A route already exposed in system prompt/tool hints.
+3. A saved session route that the environment already surfaced.
+4. A local config file only when its path/content is already available in the current environment.
+
+Do not ignore tool hints and then ask the user again for the same route data.
 
 ## Multi-Account Channels
 
@@ -122,7 +158,58 @@ When the user asks for Weixin delivery:
 - include `accountId` when multiple Weixin accounts may exist,
 - do not claim that proactive delivery is guaranteed visible unless the environment already proves that.
 
+### Weixin Route Lookup Checklist
+
+Before asking the user for a Weixin `user_id`, check whether the environment already exposed any of these hints:
+
+- `Known Weixin self-notify route: channel='weixin', accountId='...', to='...@im.wechat'`
+- `Known Weixin proactive routes: ...`
+- `Default Weixin accountId is '...'`
+- any current session or existing session metadata that already contains a Weixin route
+
+Rules:
+
+- If `Known Weixin self-notify route` is present and there is no conflicting target, use it directly.
+- If exactly one Weixin route is already exposed, do not ask again for `user_id`.
+- If only `accountId` is known but `to/user_id` is still unknown, ask only for the missing Weixin `user_id`.
+- If multiple Weixin routes are exposed, ask the user which one to use instead of guessing.
+- If you need to check whether a matching Weixin session already exists, prefer `sessions_list({ channel: "weixin", to, accountId })` over a broad unfiltered session listing.
+
+### Weixin User ID Safety
+
+Weixin `user_id@im.wechat` is channel-specific route data.
+
+- Do not call Feishu/Lark/Telegram contact lookup tools to guess a Weixin user id.
+- Do not assume a user id from another channel can be reused on Weixin.
+- Do not ask for a generic "user info" field when the only missing value is the Weixin `user_id`.
+- Ask only for the exact missing field, for example: `Please provide the Weixin user id in the form <user_id@im.wechat>.`
+
 Do not turn this skill into a Weixin-only skill.
+
+## Feishu As Another Example
+
+When the user asks for Feishu/Lark delivery:
+
+- omitting `target` is only valid if the current session itself is already a Feishu conversation,
+- for proactive sends from UI, CLI, or another channel, resolve an explicit Feishu route first,
+- preferred explicit targets are `user:<open_id>` for direct messages and `chat:<chat_id>` for group chats,
+- if a saved Feishu session already exists, prefer reusing that session route over guessing.
+
+### Feishu Route Lookup Checklist
+
+Before asking the user again, check whether the environment already exposed any of these:
+
+- a current Feishu session,
+- an existing Feishu session from `sessions_list`,
+- saved session metadata such as `last_channel=feishu` and `last_to=ou_...`,
+- a known default Feishu account when multi-account routing matters.
+
+Rules:
+
+- If the current session is Feishu, replying there may omit `target`.
+- If the current session is not Feishu, do not call `message(channel=feishu)` without `to/chatId`.
+- If an existing Feishu session already gives you the route, prefer that route directly or use `sessions_send`.
+- If only the Feishu destination is missing, ask only for the missing `open_id` or `chat_id`.
 
 ## Failure Handling
 
@@ -134,6 +221,14 @@ If delivery fails because route information is missing or ambiguous:
 - do not silently send back into the current session instead.
 
 If the user asks for "notify me when done" but no target route is actually known, ask where to send it.
+
+## Common Failure Patterns To Avoid
+
+- Seeing "Weixin" and then trying unrelated user lookup tools from another channel.
+- Ignoring a known self-notify route that was already injected into context.
+- Asking for both `accountId` and `user_id` when only one of them is actually missing.
+- Falling back to a normal reply in the current chat when the user explicitly requested proactive delivery.
+- Claiming proactive send is impossible before checking tool hints, current session metadata, and known routes.
 
 ## Success Criteria
 

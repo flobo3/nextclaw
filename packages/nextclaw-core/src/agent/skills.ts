@@ -83,10 +83,7 @@ export class SkillsLoader {
     for (const name of skillNames) {
       const skill = this.getSkillInfo(name);
       if (skill) {
-        parts.push("  <skill>");
-        parts.push(`    <name>${this.escapeXml(skill.name)}</name>`);
-        parts.push(`    <location>${this.escapeXml(skill.path)}</location>`);
-        parts.push("  </skill>");
+        parts.push(...this.buildSkillXmlLines(skill, "  "));
       }
     }
     return parts.length ? parts.join("\n") : "";
@@ -100,10 +97,7 @@ export class SkillsLoader {
 
     const lines: string[] = ["<skills>"];
     for (const skill of allSkills) {
-      lines.push("  <skill>");
-      lines.push(`    <name>${this.escapeXml(skill.name)}</name>`);
-      lines.push(`    <location>${this.escapeXml(skill.path)}</location>`);
-      lines.push("  </skill>");
+      lines.push(...this.buildSkillXmlLines(skill, "  "));
     }
     lines.push("</skills>");
     return lines.join("\n");
@@ -143,6 +137,20 @@ export class SkillsLoader {
 
   private escapeXml(value: string): string {
     return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  private buildSkillXmlLines(skill: SkillInfo, indent: string): string[] {
+    const description = this.getSkillMetadata(skill.name)?.description?.trim();
+    const lines = [
+      `${indent}<skill>`,
+      `${indent}  <name>${this.escapeXml(skill.name)}</name>`,
+    ];
+    if (description) {
+      lines.push(`${indent}  <description>${this.escapeXml(description)}</description>`);
+    }
+    lines.push(`${indent}  <location>${this.escapeXml(skill.path)}</location>`);
+    lines.push(`${indent}</skill>`);
+    return lines;
   }
 
   private parseSkillMetadata(raw: string): Record<string, unknown> {

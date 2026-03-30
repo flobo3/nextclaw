@@ -4,6 +4,18 @@ import { resolve } from "node:path";
 import { Tool } from "./base.js";
 
 const execAsync = promisify(exec);
+type ExecRunnerOptions = {
+  cwd: string;
+  timeout: number;
+  maxBuffer: number;
+  env: NodeJS.ProcessEnv;
+  windowsHide?: boolean;
+};
+type ExecRunnerResult = {
+  stdout: string;
+  stderr: string;
+};
+type ExecRunner = (command: string, options: ExecRunnerOptions) => Promise<ExecRunnerResult>;
 
 export class ExecTool extends Tool {
   private denyPatterns: RegExp[];
@@ -18,7 +30,8 @@ export class ExecTool extends Tool {
       denyPatterns?: string[];
       allowPatterns?: string[];
       restrictToWorkspace?: boolean;
-    } = {}
+    } = {},
+    private readonly runner: ExecRunner = execAsync as ExecRunner
   ) {
     super();
     this.denyPatterns = (options.denyPatterns ?? [
@@ -80,11 +93,12 @@ export class ExecTool extends Tool {
       if (this.context.chatId) {
         env.NEXTCLAW_RUNTIME_CHAT_ID = this.context.chatId;
       }
-      const { stdout, stderr } = await execAsync(command, {
+      const { stdout, stderr } = await this.runner(command, {
         cwd,
         timeout: (this.options.timeout ?? 60) * 1000,
         maxBuffer: 10_000_000,
-        env
+        env,
+        windowsHide: process.platform === "win32",
       });
       const outputParts: string[] = [];
       if (stdout) {
