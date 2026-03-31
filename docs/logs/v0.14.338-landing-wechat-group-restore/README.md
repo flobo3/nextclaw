@@ -7,6 +7,7 @@
   - 将社区说明与二维码标签同步修正，避免按钮、弹窗、社区 section 三处信息不一致。
 - 为满足仓库治理规则，顺手把 `LandingPage` 中本次触达 class 的实例方法统一改为箭头 class field；仅为治理收尾，不改变页面行为。
 - 同批次补充：将 landing/docs 站点实际使用的 `logo.svg` 叠加 `🐾` emoji（右下角），与当前前端品牌图标视觉保持一致。
+- 同批次续改：为避免微信群二维码被 CDN / 浏览器缓存命中，新增带日期后缀的资源 [`nextclaw-contact-wechat-group-2026-03-31.png`](../../../apps/landing/public/contact/nextclaw-contact-wechat-group-2026-03-31.png)，并把 landing 页引用切换为 `'/contact/nextclaw-contact-wechat-group-2026-03-31.png'`；后续换码时只需新增新日期文件并更新常量。
 
 ## 测试/验证/验收方式
 - 类型检查：
@@ -19,9 +20,9 @@
 - 前端冒烟：
   - 本地预览：`PATH=/opt/homebrew/bin:$PATH pnpm -C apps/landing preview --host 127.0.0.1 --port 4173`
   - 页面可达：`curl -I http://127.0.0.1:4173/zh/`
-  - 资源可达：`curl -I http://127.0.0.1:4173/contact/nextclaw-contact-wechat-group.png`
-  - 构建产物检查：`rg -n "WeChat Group|加入微信群|微信群二维码|nextclaw-contact-wechat-group" apps/landing/dist -S`
-  - 结果：中文首页预览返回 `200`，微信二维码资源返回 `200`，构建产物命中微信文案与资源路径。
+  - 资源可达：`curl -I http://127.0.0.1:4173/contact/nextclaw-contact-wechat-group-2026-03-31.png`
+  - 构建产物检查：`rg -n "WeChat Group|加入微信群|微信群二维码|nextclaw-contact-wechat-group-2026-03-31" apps/landing/dist -S`
+  - 结果：中文首页预览返回 `200`，微信二维码带日期资源返回 `200`，构建产物命中微信文案与新资源路径。
 - 图标资源检查（本次补充）：
   - `rg -n "🐾" apps/landing/public/logo.svg apps/docs/public/logo.svg`
   - 结果：两处 `logo.svg` 均命中 paw emoji 叠加层。
@@ -34,7 +35,7 @@
 ## 用户/产品视角的验收步骤
 1. 打开中文 landing 首页 `/zh/`。
 2. 确认首页绿色按钮显示为“加入微信群”，而不是“加入QQ群”。
-3. 点击该按钮，确认弹出的二维码为微信群二维码。
+3. 点击该按钮，确认弹出的二维码为微信群二维码，且图片 URL 为带日期后缀的新地址。
 4. 下滑到社区 section，确认左侧卡片标题为“微信群二维码”，页脚入口也显示“微信群”。
 5. 英文页 `/en/` 同样确认对应入口显示为 `WeChat Group`。
 6. 打开任一 landing/docs 页面标签页，确认浏览器页签图标为原图标叠加右下角 `🐾`。
