@@ -3,7 +3,7 @@ import { TerminalExecutionView, FileOperationView, SearchSnippetView, GenericToo
 
 function isTerminalTool(name: string) {
   const lowered = name.toLowerCase();
-  return lowered === 'exec' || lowered === 'execute_command' || lowered === 'bash' || lowered === 'shell' || lowered.includes('run_');
+  return lowered === 'exec' || lowered === 'exec_command' || lowered === 'execute_command' || lowered === 'bash' || lowered === 'shell' || lowered.includes('run_');
 }
 
 function isFileEditTool(name: string) {
@@ -30,5 +30,4 @@ export function ChatToolCard({ card }: { card: ChatToolPartViewModel }) {
   // Fallback minimalist card for read_url_content, multi_replace, etc.
   return <GenericToolCard card={card} />;
 }
-
 

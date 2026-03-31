@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ChatMessageList } from "./chat-message-list";
 
 const defaultTexts = {
@@ -225,6 +225,134 @@ it("renders running tool cards with live status feedback", () => {
   expect(screen.queryByText("Input Summary")).toBeNull();
   expect(screen.queryByText("Call ID")).toBeNull();
   expect(screen.queryByText("View Output")).toBeNull();
+});
+
+it("reveals long-running tool card output only after a short delay", () => {
+  vi.useFakeTimers();
+
+  try {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "assistant-tool-delayed-expand",
+            role: "assistant",
+            roleLabel: "Assistant",
+            timestampLabel: "10:09",
+            parts: [
+              {
+                type: "tool-card",
+                card: {
+                  kind: "call",
+                  toolName: "exec_command",
+                  summary: "command: pnpm dev",
+                  output: "streamed result body",
+                  hasResult: false,
+                  statusTone: "running",
+                  statusLabel: "Running",
+                  titleLabel: "Tool Call",
+                  outputLabel: "View Output",
+                  emptyLabel: "No output",
+                },
+              },
+            ],
+          },
+        ]}
+        isSending={false}
+        hasAssistantDraft={false}
+        texts={defaultTexts}
+      />,
+    );
+
+    expect(screen.queryByText("streamed result body")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(199);
+    });
+    expect(screen.queryByText("streamed result body")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.getByText("streamed result body")).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps fast-completing tool cards collapsed instead of flashing open", () => {
+  vi.useFakeTimers();
+
+  const runningMessage = {
+    id: "assistant-tool-fast-finish",
+    role: "assistant" as const,
+    roleLabel: "Assistant",
+    timestampLabel: "10:09",
+    parts: [
+      {
+        type: "tool-card" as const,
+        card: {
+          kind: "call" as const,
+          toolName: "exec_command",
+          summary: "command: pnpm lint",
+          output: "flash prone body",
+          hasResult: false,
+          statusTone: "running" as const,
+          statusLabel: "Running",
+          titleLabel: "Tool Call",
+          outputLabel: "View Output",
+          emptyLabel: "No output",
+        },
+      },
+    ],
+  };
+
+  try {
+    const { rerender } = render(
+      <ChatMessageList
+        messages={[runningMessage]}
+        isSending={false}
+        hasAssistantDraft={false}
+        texts={defaultTexts}
+      />,
+    );
+
+    expect(screen.queryByText("flash prone body")).toBeNull();
+
+    rerender(
+      <ChatMessageList
+        messages={[
+          {
+            ...runningMessage,
+            parts: [
+              {
+                ...runningMessage.parts[0],
+                card: {
+                  ...runningMessage.parts[0].card,
+                  kind: "result",
+                  hasResult: true,
+                  statusTone: "success",
+                  statusLabel: "Completed",
+                  titleLabel: "Tool Result",
+                },
+              },
+            ],
+          },
+        ]}
+        isSending={false}
+        hasAssistantDraft={false}
+        texts={defaultTexts}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+
+    expect(screen.queryByText("flash prone body")).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("renders completed terminal tool cards collapsed by default on initial mount", () => {

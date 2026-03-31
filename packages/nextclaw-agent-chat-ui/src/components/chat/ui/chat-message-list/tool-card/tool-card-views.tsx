@@ -4,6 +4,81 @@ import type { ChatToolPartViewModel } from '../../../view-models/chat-ui.types';
 import { ToolCardRoot, ToolCardContent } from './tool-card-root';
 import { ToolCardHeader } from './tool-card-header';
 
+const TOOL_CARD_AUTO_EXPAND_DELAY_MS = 200;
+
+function useToolCardExpandedState({
+  canExpand,
+  isRunning,
+  expandOnError = false,
+  statusTone,
+}: {
+  canExpand: boolean;
+  isRunning: boolean;
+  expandOnError?: boolean;
+  statusTone: ChatToolPartViewModel['statusTone'];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [hasUserToggled, setHasUserToggled] = useState(false);
+  const expandTimerRef = useRef<number | null>(null);
+  const prevRunningRef = useRef(isRunning);
+  const isFirstRenderRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      if (expandTimerRef.current !== null) {
+        window.clearTimeout(expandTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (expandOnError && statusTone === 'error' && canExpand && !hasUserToggled) {
+      if (expandTimerRef.current !== null) {
+        window.clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = null;
+      }
+      setExpanded(true);
+      prevRunningRef.current = isRunning;
+      isFirstRenderRef.current = false;
+      return;
+    }
+
+    if (isRunning && canExpand && !hasUserToggled && !expanded && (isFirstRenderRef.current || !prevRunningRef.current)) {
+      expandTimerRef.current = window.setTimeout(() => {
+        setExpanded(true);
+        expandTimerRef.current = null;
+      }, TOOL_CARD_AUTO_EXPAND_DELAY_MS);
+    }
+
+    if (!isRunning) {
+      if (expandTimerRef.current !== null) {
+        window.clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = null;
+      }
+      if (prevRunningRef.current && !hasUserToggled) {
+        setExpanded(false);
+      }
+    }
+
+    prevRunningRef.current = isRunning;
+    isFirstRenderRef.current = false;
+  }, [canExpand, expandOnError, expanded, hasUserToggled, isRunning, statusTone]);
+
+  const onToggle = () => {
+    if (!canExpand) {
+      return;
+    }
+    if (expandTimerRef.current !== null) {
+      window.clearTimeout(expandTimerRef.current);
+      expandTimerRef.current = null;
+    }
+    setExpanded((current) => !current);
+    setHasUserToggled(true);
+  };
+
+  return { expanded, onToggle };
+}
+
 // -------------------------------------------------------------
 // 1. Terminal View
 // -------------------------------------------------------------
@@ -11,30 +86,12 @@ export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel })
   const output = card.output?.trim() ?? '';
   const isRunning = card.statusTone === 'running';
   const hasContent = !!(card.summary?.trim() || output.length > 0);
-  const wasEmptyRef = useRef(!hasContent);
-  const [expanded, setExpanded] = useState(hasContent && (isRunning || card.statusTone === 'error'));
-  const [hasUserToggled, setHasUserToggled] = useState(false);
-  const prevRunningRef = useRef(isRunning);
-
-  useEffect(() => {
-    if (wasEmptyRef.current && hasContent && isRunning) {
-      setExpanded(true);
-      wasEmptyRef.current = false;
-    }
-  }, [hasContent, isRunning]);
-
-  useEffect(() => {
-    if (prevRunningRef.current && !isRunning && !hasUserToggled) {
-      setExpanded(false);
-    }
-    prevRunningRef.current = isRunning;
-  }, [isRunning, hasUserToggled]);
-
-  const onToggle = () => {
-    if (!output && !isRunning) return;
-    setExpanded(!expanded);
-    setHasUserToggled(true);
-  };
+  const { expanded, onToggle } = useToolCardExpandedState({
+    canExpand: !!output || isRunning,
+    isRunning,
+    expandOnError: hasContent,
+    statusTone: card.statusTone,
+  });
 
   const commandPart = card.summary?.replace(/^(command|path|args|query|input):\s*/i, '');
 
@@ -86,22 +143,11 @@ export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel })
 export function FileOperationView({ card }: { card: ChatToolPartViewModel }) {
   const output = card.output?.trim() ?? '';
   const isRunning = card.statusTone === 'running';
-  const [expanded, setExpanded] = useState(false);
-  const [hasUserToggled, setHasUserToggled] = useState(false);
-  const prevRunningRef = useRef(isRunning);
-
-  useEffect(() => {
-    if (prevRunningRef.current && !isRunning && !hasUserToggled) {
-      setExpanded(false);
-    }
-    prevRunningRef.current = isRunning;
-  }, [isRunning, hasUserToggled]);
-
-  const onToggle = () => {
-    if (!output && !isRunning) return;
-    setExpanded(!expanded);
-    setHasUserToggled(true);
-  };
+  const { expanded, onToggle } = useToolCardExpandedState({
+    canExpand: !!output || isRunning,
+    isRunning,
+    statusTone: card.statusTone,
+  });
 
   const isEdit = card.toolName === 'edit_file' || card.toolName === 'write_file';
   const renderLine = (line: string, idx: number) => {
@@ -146,23 +192,12 @@ export function FileOperationView({ card }: { card: ChatToolPartViewModel }) {
 // -------------------------------------------------------------
 export function SearchSnippetView({ card }: { card: ChatToolPartViewModel }) {
   const isRunning = card.statusTone === 'running';
-  const [expanded, setExpanded] = useState(isRunning);
-  const [hasUserToggled, setHasUserToggled] = useState(false);
-  const prevRunningRef = useRef(isRunning);
   const output = card.output?.trim() ?? '';
-
-  useEffect(() => {
-    if (prevRunningRef.current && !isRunning && !hasUserToggled) {
-      setExpanded(false);
-    }
-    prevRunningRef.current = isRunning;
-  }, [isRunning, hasUserToggled]);
-
-  const onToggle = () => {
-    if (!output && !isRunning) return;
-    setExpanded(!expanded);
-    setHasUserToggled(true);
-  };
+  const { expanded, onToggle } = useToolCardExpandedState({
+    canExpand: !!output || isRunning,
+    isRunning,
+    statusTone: card.statusTone,
+  });
 
   return (
     <ToolCardRoot>
@@ -190,23 +225,12 @@ export function SearchSnippetView({ card }: { card: ChatToolPartViewModel }) {
 export function GenericToolCard({ card }: { card: ChatToolPartViewModel }) {
   const output = card.output?.trim() ?? '';
   const isRunning = card.statusTone === 'running';
-  const [expanded, setExpanded] = useState(isRunning);
-  const [hasUserToggled, setHasUserToggled] = useState(false);
-  const prevRunningRef = useRef(isRunning);
   const showOutputSection = card.kind === 'result' || card.hasResult;
-
-  useEffect(() => {
-    if (prevRunningRef.current && !isRunning && !hasUserToggled) {
-      setExpanded(false);
-    }
-    prevRunningRef.current = isRunning;
-  }, [isRunning, hasUserToggled]);
-
-  const onToggle = () => {
-    if (!showOutputSection) return;
-    setExpanded(!expanded);
-    setHasUserToggled(true);
-  };
+  const { expanded, onToggle } = useToolCardExpandedState({
+    canExpand: showOutputSection || isRunning,
+    isRunning,
+    statusTone: card.statusTone,
+  });
 
   return (
     <ToolCardRoot>
