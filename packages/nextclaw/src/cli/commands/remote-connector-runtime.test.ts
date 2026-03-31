@@ -3,6 +3,7 @@ import { RemoteConnector, type RegisteredRemoteDevice, type RemoteRuntimeState }
 
 class FakeRemoteConnectorSocket {
   readonly readyState = 1;
+  readonly sentFrames: string[] = [];
   private readonly listeners = new Map<string, Array<(event: unknown) => void>>();
 
   addEventListener(type: string, listener: (event: unknown) => void): void {
@@ -13,7 +14,9 @@ class FakeRemoteConnectorSocket {
 
   close(): void {}
 
-  send(): void {}
+  send(data: string): void {
+    this.sentFrames.push(data);
+  }
 
   emit(type: string, event: unknown): void {
     for (const listener of this.listeners.get(type) ?? []) {
@@ -71,6 +74,55 @@ function createStatusWriter(statusWrites: Array<Omit<RemoteRuntimeState, "mode" 
 }
 
 describe("RemoteConnector runtime policy", () => {
+  it("sends connector keepalive frames while the websocket stays open", async () => {
+    vi.useFakeTimers();
+    try {
+      const statusWrites: Array<Omit<RemoteRuntimeState, "mode" | "updatedAt">> = [];
+      const logger = createLogger();
+      const socket = new FakeRemoteConnectorSocket();
+      const platformClient = {
+        resolveRunContext: vi.fn().mockReturnValue({
+          ...createRunContext(),
+          autoReconnect: false
+        }),
+        registerDevice: vi.fn<() => Promise<RegisteredRemoteDevice>>().mockResolvedValue(createDevice())
+      };
+      const connector = new RemoteConnector({
+        platformClient: platformClient as never,
+        relayBridgeFactory: () =>
+          ({
+            ensureLocalUiHealthy: vi.fn().mockResolvedValue(undefined)
+          }) as never,
+        logger,
+        createSocket: () => {
+          queueMicrotask(() => {
+            socket.emit("open", {});
+          });
+          return socket as unknown as WebSocket;
+        }
+      });
+
+      const runTask = connector.run({
+        mode: "service",
+        autoReconnect: false,
+        statusStore: createStatusWriter(statusWrites)
+      });
+
+      await vi.advanceTimersByTimeAsync(25_000);
+      socket.emit("close", {
+        code: 1000,
+        reason: "",
+        wasClean: true
+      });
+      await runTask;
+
+      expect(socket.sentFrames).toContain('{"type":"connector.ping"}');
+      expect(statusWrites.some((entry) => entry.state === "connected")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops reconnecting and preserves the runtime error when the platform rejects the token", async () => {
     const statusWrites: Array<Omit<RemoteRuntimeState, "mode" | "updatedAt">> = [];
     const logger = createLogger();

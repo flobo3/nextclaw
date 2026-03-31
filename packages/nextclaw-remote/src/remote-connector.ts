@@ -17,6 +17,9 @@ import type {
   RemoteRunContext
 } from "./types.js";
 
+const CONNECTOR_KEEPALIVE_INTERVAL_MS = 25_000;
+const CONNECTOR_KEEPALIVE_FRAME = JSON.stringify({ type: "connector.ping" });
+
 export class RemoteConnector {
   constructor(
     private readonly deps: {
@@ -28,19 +31,15 @@ export class RemoteConnector {
       random?: () => number;
     }
   ) {}
-
   private get logger(): RemoteLogger {
     return this.deps.logger ?? console;
   }
-
   private get delayFn(): typeof delay {
     return this.deps.delayFn ?? delay;
   }
-
   private get random(): () => number {
     return this.deps.random ?? Math.random;
   }
-
   private createSocket(wsUrl: string): WebSocket {
     return this.deps.createSocket?.(wsUrl) ?? new WebSocket(wsUrl);
   }
@@ -58,13 +57,16 @@ export class RemoteConnector {
     return await new Promise<"closed" | "aborted">((resolve, reject) => {
       const socket = this.createSocket(params.wsUrl);
       const appAdapter = new RemoteAppAdapter(params.localOrigin, socket);
+      let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
       let settled = false;
       let aborted = false;
-
       const cleanup = () => {
+        if (keepaliveTimer) {
+          clearInterval(keepaliveTimer);
+          keepaliveTimer = null;
+        }
         params.signal?.removeEventListener("abort", onAbort);
       };
-
       const finishResolve = (value: "closed" | "aborted") => {
         if (settled) {
           return;
@@ -82,7 +84,6 @@ export class RemoteConnector {
         cleanup();
         reject(error);
       };
-
       const onAbort = () => {
         aborted = true;
         try {
@@ -101,6 +102,16 @@ export class RemoteConnector {
       }
 
       socket.addEventListener("open", () => {
+        keepaliveTimer = setInterval(() => {
+          if (socket.readyState !== 1) {
+            return;
+          }
+          try {
+            socket.send(CONNECTOR_KEEPALIVE_FRAME);
+          } catch {
+            // Let the close/error event drive reconnect behavior.
+          }
+        }, CONNECTOR_KEEPALIVE_INTERVAL_MS);
         params.statusStore?.write({
           enabled: true,
           state: "connected",

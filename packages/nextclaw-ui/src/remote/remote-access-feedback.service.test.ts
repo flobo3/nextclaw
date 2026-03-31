@@ -70,6 +70,24 @@ describe('remote-access-feedback.service', () => {
 
     expect(feedback.hero.title).toBe('远程访问暂时没有连上');
     expect(feedback.primaryAction?.kind).toBe('repair');
+    expect(feedback.issueHint?.body).toBe(
+      '远程访问暂时不可用。你可以先重新连接；如果问题持续，再重新登录或稍后再试。 (Remote relay closed unexpectedly.)'
+    );
+  });
+
+  it('keeps the generic hint unchanged when there is no runtime error detail', () => {
+    const status = createRemoteAccessView({
+      runtime: {
+        enabled: true,
+        mode: 'service',
+        state: 'disconnected',
+        lastError: null,
+        updatedAt: '2026-03-23T00:00:00.000Z'
+      }
+    });
+
+    const feedback = buildRemoteAccessFeedbackView(status);
+
     expect(feedback.issueHint?.body).toBe('远程访问暂时不可用。你可以先重新连接；如果问题持续，再重新登录或稍后再试。');
   });
 });

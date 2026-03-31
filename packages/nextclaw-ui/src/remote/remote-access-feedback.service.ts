@@ -42,6 +42,15 @@ function readRuntimeError(status: RemoteAccessView | undefined): string {
   return status?.runtime?.lastError?.trim() || '';
 }
 
+function buildRuntimeIssueHintBody(status: RemoteAccessView | undefined): string {
+  const genericHint = t('remoteStatusIssueDetailGeneric');
+  const error = readRuntimeError(status);
+  if (!error) {
+    return genericHint;
+  }
+  return `${genericHint} (${error})`;
+}
+
 export function requiresRemoteReauthorization(status: RemoteAccessView | undefined): boolean {
   if (!status?.settings.enabled) {
     return false;
@@ -187,7 +196,7 @@ export function buildRemoteAccessFeedbackView(status: RemoteAccessView | undefin
     },
     issueHint: {
       title: t('remoteStatusRecoveryTitle'),
-      body: t('remoteStatusIssueDetailGeneric')
+      body: buildRuntimeIssueHintBody(status)
     },
     shouldShowIssueHint: Boolean(status.settings.enabled && status.account.loggedIn),
     requiresReauthorization: false
