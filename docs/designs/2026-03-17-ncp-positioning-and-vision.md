@@ -1,5 +1,7 @@
 # NCP 定位与愿景
 
+> 上位产品愿景见 [NextClaw 产品愿景](../VISION.md)。本文聚焦 NCP 作为基础设施层的定位与愿景，不替代 NextClaw 整体产品愿景。
+
 ## 一句话定义
 
 NCP 不是某一个 Agent 产品，而是一套用于构建 Agent 应用的通用 building blocks。
