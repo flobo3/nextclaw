@@ -1,5 +1,11 @@
 # @nextclaw/agent-chat-ui
 
+## 0.2.15
+
+### Patch Changes
+
+- Release pending session labeling and session context icon improvements.
+
 ## 0.2.14
 
 ### Patch Changes

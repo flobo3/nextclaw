@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DiagnosticsCommands } from "./diagnostics.js";
+import type { RuntimeStatusReport } from "../types.js";
+
+type DiagnosticsCommandsStatusProbe = {
+  collectRuntimeStatus: (params: { verbose: boolean; fix: boolean }) => Promise<RuntimeStatusReport>;
+};
 
 describe("DiagnosticsCommands status", () => {
   afterEach(() => {
@@ -9,7 +14,10 @@ describe("DiagnosticsCommands status", () => {
 
   it("returns zero exit code for stopped JSON status output", async () => {
     const commands = new DiagnosticsCommands({ logo: "🤖" });
-    vi.spyOn(commands as never, "collectRuntimeStatus" as never).mockResolvedValue({
+    vi.spyOn(
+      commands as unknown as DiagnosticsCommandsStatusProbe,
+      "collectRuntimeStatus"
+    ).mockResolvedValue({
       generatedAt: "2026-03-07T00:00:00.000Z",
       configPath: "/tmp/config.json",
       configExists: true,
@@ -41,6 +49,10 @@ describe("DiagnosticsCommands status", () => {
       issues: [],
       recommendations: ["Run nextclaw start to launch the service."],
       logTail: [],
+      remote: {
+        configuredEnabled: false,
+        runtime: null
+      },
       level: "stopped",
       exitCode: 0
     });

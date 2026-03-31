@@ -1,5 +1,11 @@
 # @nextclaw/ncp-toolkit
 
+## 0.4.11
+
+### Patch Changes
+
+- Release pending session labeling and session context icon improvements.
+
 ## 0.4.10
 
 ### Patch Changes
