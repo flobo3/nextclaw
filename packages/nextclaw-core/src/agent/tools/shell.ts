@@ -18,6 +18,35 @@ type ExecRunnerResult = {
 };
 type ExecRunner = (command: string, options: ExecRunnerOptions) => Promise<ExecRunnerResult>;
 
+const MAX_EXEC_STREAM_CHARS = 10_000;
+
+export type ExecToolResult = {
+  ok: boolean;
+  command: string;
+  workingDir: string;
+  exitCode: number | null;
+  errorCode: string | null;
+  signal: string | null;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  timedOut: boolean;
+  killed: boolean;
+  stdoutTruncated: boolean;
+  stderrTruncated: boolean;
+  message?: string;
+  blocked?: boolean;
+  blockedReason?: string;
+};
+
+type ExecErrorLike = Error & {
+  code?: number | string;
+  signal?: NodeJS.Signals | null;
+  stdout?: string;
+  stderr?: string;
+  killed?: boolean;
+};
+
 export class ExecTool extends Tool {
   private denyPatterns: RegExp[];
   private allowPatterns: RegExp[];
@@ -48,13 +77,13 @@ export class ExecTool extends Tool {
     this.dangerousCommands = ["format", "diskpart", "mkfs"];
   }
 
-  setContext(context: { sessionKey?: string; channel?: string; chatId?: string }): void {
+  setContext = (context: { sessionKey?: string; channel?: string; chatId?: string }): void => {
     this.context = {
       sessionKey: typeof context.sessionKey === "string" ? context.sessionKey.trim() || undefined : undefined,
       channel: typeof context.channel === "string" ? context.channel.trim() || undefined : undefined,
       chatId: typeof context.chatId === "string" ? context.chatId.trim() || undefined : undefined
     };
-  }
+  };
 
   get name(): string {
     return "exec";
@@ -75,14 +104,20 @@ export class ExecTool extends Tool {
     };
   }
 
-  async execute(params: Record<string, unknown>): Promise<string> {
+  execute = async (params: Record<string, unknown>): Promise<ExecToolResult> => {
     const command = String(params.command ?? "");
     const cwd = String(params.workingDir ?? this.options.workingDir ?? process.cwd());
     const guardError = this.guardCommand(command, cwd);
     if (guardError) {
-      return guardError;
+      return createBlockedExecResult({
+        command,
+        workingDir: cwd,
+        message: guardError,
+        blockedReason: normalizeBlockedReason(guardError)
+      });
     }
 
+    const startedAt = Date.now();
     try {
       const env = createExternalCommandEnv(process.env, {}, { cwd });
       if (this.context.sessionKey) {
@@ -101,21 +136,39 @@ export class ExecTool extends Tool {
         env,
         windowsHide: process.platform === "win32",
       });
-      const outputParts: string[] = [];
-      if (stdout) {
-        outputParts.push(stdout);
-      }
-      if (stderr?.trim()) {
-        outputParts.push(`STDERR:\n${stderr}`);
-      }
-      const result = outputParts.length ? outputParts.join("\n") : "(no output)";
-      return truncateOutput(result);
+      return createExecResult({
+        ok: true,
+        command,
+        workingDir: cwd,
+        exitCode: 0,
+        errorCode: null,
+        signal: null,
+        stdout,
+        stderr,
+        durationMs: Date.now() - startedAt,
+        timedOut: false,
+        killed: false
+      });
     } catch (err) {
-      return `Error executing command: ${String(err)}`;
+      const normalized = normalizeExecError(err);
+      return createExecResult({
+        ok: false,
+        command,
+        workingDir: cwd,
+        exitCode: normalized.exitCode,
+        errorCode: normalized.errorCode,
+        signal: normalized.signal,
+        stdout: normalized.stdout,
+        stderr: normalized.stderr,
+        durationMs: Date.now() - startedAt,
+        timedOut: normalized.timedOut,
+        killed: normalized.killed,
+        message: normalized.message
+      });
     }
-  }
+  };
 
-  private guardCommand(command: string, cwd: string): string | null {
+  private guardCommand = (command: string, cwd: string): string | null => {
     const normalized = command.trim().toLowerCase();
     if (this.isDangerousCommand(normalized)) {
       return "Error: Command blocked by safety guard (dangerous pattern detected)";
@@ -144,9 +197,9 @@ export class ExecTool extends Tool {
       }
     }
     return null;
-  }
+  };
 
-  private isDangerousCommand(command: string): boolean {
+  private isDangerousCommand = (command: string): boolean => {
     const segments = command.split(/\s*(?:\|\||&&|;|\|)\s*/);
     for (const segment of segments) {
       const match = segment.trim().match(/^(?:sudo\s+)?([^\s]+)/i);
@@ -165,12 +218,128 @@ export class ExecTool extends Tool {
       }
     }
     return false;
-  }
+  };
 }
 
-function truncateOutput(result: string, maxLen = 10000): string {
-  if (result.length <= maxLen) {
-    return result;
+function createBlockedExecResult(params: {
+  command: string;
+  workingDir: string;
+  message: string;
+  blockedReason: string;
+}): ExecToolResult {
+  return {
+    ok: false,
+    command: params.command,
+    workingDir: params.workingDir,
+    exitCode: null,
+    errorCode: null,
+    signal: null,
+    stdout: "",
+    stderr: "",
+    durationMs: 0,
+    timedOut: false,
+    killed: false,
+    stdoutTruncated: false,
+    stderrTruncated: false,
+    message: params.message,
+    blocked: true,
+    blockedReason: params.blockedReason
+  };
+}
+
+function createExecResult(params: {
+  ok: boolean;
+  command: string;
+  workingDir: string;
+  exitCode: number | null;
+  errorCode: string | null;
+  signal: string | null;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  timedOut: boolean;
+  killed: boolean;
+  message?: string;
+}): ExecToolResult {
+  const stdout = truncateExecStream(params.stdout);
+  const stderr = truncateExecStream(params.stderr);
+  return {
+    ok: params.ok,
+    command: params.command,
+    workingDir: params.workingDir,
+    exitCode: params.exitCode,
+    errorCode: params.errorCode,
+    signal: params.signal,
+    stdout: stdout.text,
+    stderr: stderr.text,
+    durationMs: params.durationMs,
+    timedOut: params.timedOut,
+    killed: params.killed,
+    stdoutTruncated: stdout.truncated,
+    stderrTruncated: stderr.truncated,
+    ...(params.message ? { message: params.message } : {})
+  };
+}
+
+function normalizeExecError(error: unknown): {
+  message: string;
+  exitCode: number | null;
+  errorCode: string | null;
+  signal: string | null;
+  stdout: string;
+  stderr: string;
+  timedOut: boolean;
+  killed: boolean;
+} {
+  const typed = error instanceof Error ? (error as ExecErrorLike) : undefined;
+  const rawCode = typed?.code;
+  const exitCode = typeof rawCode === "number" ? rawCode : null;
+  const errorCode = typeof rawCode === "string" ? rawCode : null;
+  const message = typed?.message || String(error ?? "Unknown exec error");
+  const signal = typeof typed?.signal === "string" ? typed.signal : null;
+  const stdout = toExecText(typed?.stdout);
+  const stderr = toExecText(typed?.stderr);
+  const killed = typed?.killed === true;
+  const timedOut = errorCode === "ETIMEDOUT" || /timed out/i.test(message);
+
+  return {
+    message,
+    exitCode,
+    errorCode,
+    signal,
+    stdout,
+    stderr,
+    timedOut,
+    killed
+  };
+}
+
+function normalizeBlockedReason(message: string): string {
+  if (message.includes("dangerous pattern detected")) {
+    return "dangerous_pattern";
   }
-  return `${result.slice(0, maxLen)}\n... (truncated, ${result.length - maxLen} more chars)`;
+  if (message.includes("not in allowlist")) {
+    return "not_in_allowlist";
+  }
+  if (message.includes("path traversal detected")) {
+    return "path_traversal";
+  }
+  if (message.includes("path outside working dir")) {
+    return "outside_working_dir";
+  }
+  return "blocked";
+}
+
+function toExecText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function truncateExecStream(text: string, maxLen = MAX_EXEC_STREAM_CHARS): { text: string; truncated: boolean } {
+  if (text.length <= maxLen) {
+    return { text, truncated: false };
+  }
+  return {
+    text: `${text.slice(0, maxLen)}\n... (truncated, ${text.length - maxLen} more chars)`,
+    truncated: true
+  };
 }
