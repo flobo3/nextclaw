@@ -16,7 +16,7 @@ export class CronTool extends Tool {
   }
 
   get description(): string {
-    return "Manage scheduled tasks. Use at for one-time jobs, every/cron for recurring jobs, disable to pause without deleting, and remove to delete permanently.";
+    return "Manage scheduled tasks. Use at for one-time jobs, every/cron for recurring jobs, disable to pause without deleting, and remove to delete permanently. For relative times like 'in 5 minutes', first check the current local time with an available tool and then convert to an absolute ISO datetime with timezone; do not guess.";
   }
 
   get parameters(): Record<string, unknown> {
@@ -50,7 +50,7 @@ export class CronTool extends Tool {
         },
         at: {
           type: "string",
-          description: "Run once at a specific ISO datetime with timezone, for example 2026-03-31T18:05:00+08:00."
+          description: "Run once at a specific ISO datetime with timezone, for example 2026-03-31T18:05:00+08:00. If the user gave a relative time such as 'in 5 minutes', first check the current local time with an available tool, then convert it to this absolute value."
         },
         deliver: {
           type: "boolean",
@@ -67,13 +67,13 @@ export class CronTool extends Tool {
     };
   }
 
-  setContext(channel: string, chatId: string, accountId?: string | null): void {
+  setContext = (channel: string, chatId: string, accountId?: string | null): void => {
     this.channel = channel;
     this.chatId = chatId;
     this.accountId = typeof accountId === "string" && accountId.trim().length > 0 ? accountId : undefined;
-  }
+  };
 
-  async execute(params: Record<string, unknown>): Promise<string> {
+  execute = async (params: Record<string, unknown>): Promise<string> => {
     const action = this.readAction(params);
     if (action === "list") {
       const includeDisabled = this.readIncludeDisabled(params);
@@ -138,7 +138,7 @@ export class CronTool extends Tool {
         name: job.name
       }
     });
-  }
+  };
 
   private readAction = (params: Record<string, unknown>): "add" | "list" | "enable" | "disable" | "remove" => {
     const action = this.readString(params, "action")?.toLowerCase();

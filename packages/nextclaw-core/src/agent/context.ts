@@ -56,11 +56,16 @@ export class ContextBuilder {
     this.contextConfig = mergeContextConfig(contextConfig);
   }
 
-  setContextConfig(contextConfig?: ContextConfig): void {
+  setContextConfig = (contextConfig?: ContextConfig): void => {
     this.contextConfig = mergeContextConfig(contextConfig);
-  }
+  };
 
-  buildSystemPrompt(skillNames?: string[], sessionKey?: string, messageToolHints?: string[], availableTools?: ToolCatalogEntry[]): string {
+  buildSystemPrompt = (
+    skillNames?: string[],
+    sessionKey?: string,
+    messageToolHints?: string[],
+    availableTools?: ToolCatalogEntry[],
+  ): string => {
     const parts: string[] = [];
     parts.push(this.getIdentity(messageToolHints, availableTools));
 
@@ -99,9 +104,9 @@ export class ContextBuilder {
     }
 
     return parts.join("\n\n");
-  }
+  };
 
-  buildMessages(params: {
+  buildMessages = (params: {
     history: Message[];
     currentMessage: string;
     skillNames?: string[];
@@ -112,7 +117,7 @@ export class ContextBuilder {
     thinkingLevel?: ThinkingLevel | null;
     messageToolHints?: string[];
     availableTools?: ToolCatalogEntry[];
-  }): Message[] {
+  }): Message[] => {
     const messages: Message[] = [];
     let systemPrompt = this.buildSystemPrompt(params.skillNames, params.sessionKey, params.messageToolHints, params.availableTools);
     if (params.channel && params.chatId) {
@@ -131,9 +136,9 @@ export class ContextBuilder {
     messages.push({ role: "user", content: userContent });
 
     return messages;
-  }
+  };
 
-  addToolResult(messages: Message[], toolCallId: string, toolName: string, result: string): Message[] {
+  addToolResult = (messages: Message[], toolCallId: string, toolName: string, result: string): Message[] => {
     messages.push({
       role: "tool",
       tool_call_id: toolCallId,
@@ -141,14 +146,14 @@ export class ContextBuilder {
       content: result
     });
     return messages;
-  }
+  };
 
-  addAssistantMessage(
+  addAssistantMessage = (
     messages: Message[],
     content: string | null,
     toolCalls?: Message[] | null,
     reasoningContent?: string | null
-  ): Message[] {
+  ): Message[] => {
     const msg: Message = { role: "assistant", content: content ?? "" };
     if (toolCalls?.length) {
       msg.tool_calls = toolCalls;
@@ -158,9 +163,9 @@ export class ContextBuilder {
     }
     messages.push(msg);
     return messages;
-  }
+  };
 
-  private getIdentity(messageToolHints?: string[], availableTools?: ToolCatalogEntry[]): string {
+  private getIdentity = (messageToolHints?: string[], availableTools?: ToolCatalogEntry[]): string => {
     const sanitizedMessageToolHints = (messageToolHints ?? [])
       .map((hint) => hint.trim())
       .filter(Boolean);
@@ -174,6 +179,7 @@ export class ContextBuilder {
       "Tool names are case-sensitive. Call tools exactly as listed.",
       "TOOLS.md does not control tool availability; it is user guidance for how to use external tools.",
       "For long waits, avoid rapid poll loops: use exec with enough yieldMs.",
+      "For relative time/date scheduling requests (for example 'in 5 minutes' / '1分钟后'), first check the current local time with an available tool such as exec/date, then convert it to an absolute ISO time with timezone. Do not guess.",
       "If a task is more complex or takes longer, spawn a sub-agent. Completion is push-based: it will auto-announce when done.",
       "Do not poll `subagents list` / `sessions_list` in a loop; only check status on-demand (for intervention, debugging, or when explicitly asked).",
       "",
@@ -279,9 +285,9 @@ export class ContextBuilder {
         : ["- No tools available for this turn."];
     lines.splice(5, 0, ...toolLines);
     return lines.join("\n");
-  }
+  };
 
-  private buildMemorySection(): string {
+  private buildMemorySection = (): string => {
     const memoryConfig = this.contextConfig.memory;
     if (!memoryConfig.enabled) {
       return "";
@@ -292,9 +298,9 @@ export class ContextBuilder {
     }
     const truncated = this.truncateText(memory, memoryConfig.maxChars);
     return `# Memory\n\n${truncated}`;
-  }
+  };
 
-  private truncateText(text: string, limit: number): string {
+  private truncateText = (text: string, limit: number): string => {
     if (limit <= 0 || text.length <= limit) {
       return text;
     }
@@ -305,9 +311,9 @@ export class ContextBuilder {
     }
     const head = text.slice(0, limit - suffix.length).trimEnd();
     return `${head}${suffix}`;
-  }
+  };
 
-  private buildUserContent(text: string, attachments: InboundAttachment[]): string | Message[] {
+  private buildUserContent = (text: string, attachments: InboundAttachment[]): string | Message[] => {
     if (!attachments.length) {
       return text;
     }
@@ -336,7 +342,7 @@ export class ContextBuilder {
       return text;
     }
     return [...images, { type: "text", text }];
-  }
+  };
 }
 
 function guessImageMime(pathOrUrl: string): string | null {

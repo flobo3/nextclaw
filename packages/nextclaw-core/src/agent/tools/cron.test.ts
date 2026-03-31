@@ -2,6 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { CronTool } from "./cron.js";
 
 describe("CronTool", () => {
+  it("documents that relative times must be based on checked current time", () => {
+    const tool = new CronTool({} as never);
+
+    expect(tool.description).toContain("For relative times like 'in 5 minutes'");
+    expect(tool.description).toContain("do not guess");
+    expect(
+      ((tool.parameters.properties as Record<string, { description?: string }>).at?.description ?? ""),
+    ).toContain("If the user gave a relative time");
+  });
+
   it("adds a job with legacy flat params when action is omitted", async () => {
     const cronService = {
       addJob: vi.fn().mockReturnValue({ id: "job-1", name: "reminder" })

@@ -60,4 +60,15 @@ describe("ContextBuilder tool catalog", () => {
     expect(prompt).toContain("<name>demo-skill</name>");
     expect(prompt).toContain("<description>Demo skill for routing tests</description>");
   });
+
+  it("tells the agent to check current time before converting relative schedules", () => {
+    const workspace = createWorkspace();
+    const builder = new ContextBuilder(workspace);
+
+    const prompt = builder.buildSystemPrompt();
+
+    expect(prompt).toContain("For relative time/date scheduling requests");
+    expect(prompt).toContain("first check the current local time");
+    expect(prompt).toContain("Do not guess.");
+  });
 });

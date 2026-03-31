@@ -13,6 +13,12 @@ Before creating a job, decide whether the user wants a one-time action or a recu
 - Use `every` only for true intervals that should repeat forever.
 - Use `cron` only for repeating calendar schedules such as "every weekday at 9am".
 
+When the user gives a relative time such as "in 1 minute", "5 minutes later", or "1分钟后", do not guess the base time.
+
+- First check the current local time using an available tool, such as `exec` with `date`.
+- If the prompt already includes a current local time hint, you may use that hint instead of calling another tool.
+- Then convert the relative time into an exact ISO datetime with timezone and pass that absolute value to `at`.
+
 When filling `message`, write the runtime instruction for the agent, not just the final outbound text fragment.
 
 - Good: `At the scheduled time, send a WeChat message to the current chat saying: "会议还有 5 分钟开始。"`
