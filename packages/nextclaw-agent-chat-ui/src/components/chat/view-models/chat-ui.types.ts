@@ -229,6 +229,8 @@ export type ChatMessageViewModel = {
 export type ChatMessageTexts = {
   copyCodeLabel: string;
   copiedCodeLabel: string;
+  copyMessageLabel: string;
+  copiedMessageLabel: string;
   typingLabel: string;
 };
 

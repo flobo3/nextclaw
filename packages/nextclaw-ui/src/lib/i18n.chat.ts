@@ -85,6 +85,8 @@ export const CHAT_LABELS: Record<string, { zh: string; en: string }> = {
   chatUnknownPart: { zh: '未知消息片段', en: 'Unknown message part' },
   chatCodeCopy: { zh: '复制代码', en: 'Copy' },
   chatCodeCopied: { zh: '已复制', en: 'Copied' },
+  chatMessageCopy: { zh: '复制', en: 'Copy' },
+  chatMessageCopied: { zh: '已复制', en: 'Copied' },
   chatSidebarNewTask: { zh: '新任务', en: 'New Task' },
   chatSidebarSearchPlaceholder: { zh: '搜索对话...', en: 'Search conversations...' },
   chatSidebarScheduledTasks: { zh: '定时任务', en: 'Scheduled Tasks' },

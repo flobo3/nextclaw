@@ -25,9 +25,9 @@ export function ChatMessageAvatar({ role }: { role: ChatMessageRole }) {
   return (
     <div
       data-testid="chat-message-avatar-assistant"
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200/80 bg-gray-900 text-white shadow-sm"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-gray-700 to-gray-950 text-white shadow-md ring-1 ring-inset ring-white/20"
     >
-      <Bot className="h-4 w-4" />
+      <Bot className="h-[18px] w-[18px] text-white/95" strokeWidth={2.5} />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { ChatMessageList } from "./chat-message-list";
 const defaultTexts = {
   copyCodeLabel: "Copy",
   copiedCodeLabel: "Copied",
+  copyMessageLabel: "Copy",
+  copiedMessageLabel: "Copied",
   typingLabel: "Typing...",
 };
 
@@ -32,7 +34,7 @@ it("renders user, assistant, and tool content and supports code copy", async () 
     },
   });
 
-  render(
+  const { container } = render(
     <ChatMessageList
       messages={[
         {
@@ -77,6 +79,8 @@ it("renders user, assistant, and tool content and supports code copy", async () 
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,
@@ -93,8 +97,11 @@ it("renders user, assistant, and tool content and supports code copy", async () 
   expect(
     screen.getAllByTestId("chat-message-avatar-assistant").length,
   ).toBeGreaterThan(0);
+  expect(screen.getAllByRole("button", { name: "Copy" }).length).toBe(2);
 
-  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  const codeCopyButton = container.querySelector(".chat-codeblock-copy");
+  expect(codeCopyButton).toBeTruthy();
+  fireEvent.click(codeCopyButton as HTMLButtonElement);
   await waitFor(() => {
     expect(writeText).toHaveBeenCalledWith("const x = 1;");
   });
@@ -124,6 +131,8 @@ it("renders unknown parts with fallback label", () => {
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,
@@ -164,6 +173,8 @@ it("renders running tool cards with live status feedback", () => {
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,
@@ -306,6 +317,8 @@ it("does not render the typing placeholder after assistant output has started bu
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,
@@ -333,6 +346,8 @@ it("uses the typing placeholder instead of rendering an empty assistant draft bu
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,
@@ -370,6 +385,8 @@ it("renders image attachments as rich preview cards", () => {
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,
@@ -412,6 +429,8 @@ it("renders non-image attachments as polished file cards", () => {
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,
@@ -442,6 +461,8 @@ it("treats whitespace-only and zero-width markdown drafts as loading instead of 
       texts={{
         copyCodeLabel: "Copy",
         copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
         typingLabel: "Typing...",
       }}
     />,

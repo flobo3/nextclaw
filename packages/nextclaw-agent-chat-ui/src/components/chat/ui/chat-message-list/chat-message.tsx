@@ -25,12 +25,12 @@ export const ChatMessage = memo(function ChatMessage(props: ChatMessageProps) {
   return (
     <div
       className={cn(
-        "inline-block w-fit max-w-full rounded-2xl border px-4 py-3 shadow-sm",
+        "inline-block w-fit max-w-full rounded-2xl border px-4 shadow-sm",
         isUser
-          ? "border-primary bg-primary text-white"
+          ? "border-primary bg-primary py-3 text-white"
           : role === "assistant"
-            ? "border-gray-200 bg-white text-gray-900"
-            : "border-orange-200/80 bg-orange-50/70 text-gray-900",
+            ? "border-gray-200 bg-white pb-3 pt-4 text-gray-900"
+            : "border-orange-200/80 bg-orange-50/70 py-3 text-gray-900",
       )}
     >
       <div className="space-y-2">

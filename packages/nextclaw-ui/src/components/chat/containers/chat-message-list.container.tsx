@@ -57,6 +57,8 @@ function buildChatMessageTexts(language: string) {
   return {
     copyCodeLabel: t("chatCodeCopy"),
     copiedCodeLabel: t("chatCodeCopied"),
+    copyMessageLabel: t("chatMessageCopy"),
+    copiedMessageLabel: t("chatMessageCopied"),
     typingLabel: t("chatTyping"),
   };
 }

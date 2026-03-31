@@ -14,7 +14,7 @@ export function ChatReasoningBlock({ label, text, isUser, isInProgress }: ChatRe
   });
 
   return (
-    <details className="mt-3" open={isOpen}>
+    <details className="mt-2" open={isOpen}>
       <summary
         className={cn("cursor-pointer text-xs", isUser ? "text-primary-100" : "text-gray-500")}
         onClick={onSummaryClick}
