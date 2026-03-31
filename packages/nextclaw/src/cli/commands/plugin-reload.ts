@@ -40,6 +40,16 @@ function readPluginIdFromPluginsEntryPath(path: string): string | null {
   return pluginId?.trim() ? pluginId.trim() : null;
 }
 
+function readChannelIdFromChannelPath(path: string): string | null {
+  const prefix = "channels.";
+  if (!path.startsWith(prefix)) {
+    return null;
+  }
+  const suffix = path.slice(prefix.length);
+  const [channelId] = suffix.split(".");
+  return channelId?.trim() ? channelId.trim() : null;
+}
+
 export function shouldRestartChannelsForPluginReload(params: {
   changedPaths: readonly string[];
   currentPluginChannelBindings: readonly PluginChannelBinding[];
@@ -70,6 +80,17 @@ export function shouldRestartChannelsForPluginReload(params: {
   for (const path of params.changedPaths) {
     const pluginId = readPluginIdFromPluginsEntryPath(path);
     if (pluginId && channelPluginIds.has(pluginId)) {
+      return true;
+    }
+
+    const channelId = readChannelIdFromChannelPath(path);
+    if (!channelId) {
+      continue;
+    }
+    if (
+      params.currentPluginChannelBindings.some((binding) => binding.channelId === channelId) ||
+      params.nextPluginChannelBindings.some((binding) => binding.channelId === channelId)
+    ) {
       return true;
     }
   }

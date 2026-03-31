@@ -45,4 +45,36 @@ describe("shouldRestartChannelsForPluginReload", () => {
       }),
     ).toBe(true);
   });
+
+  it("restarts channels when a projected plugin channel config changes under channels.*", () => {
+    expect(
+      shouldRestartChannelsForPluginReload({
+        changedPaths: ["channels.feishu.enabled"],
+        currentPluginChannelBindings: [{
+          pluginId: "builtin-channel-feishu",
+          channelId: "feishu",
+          channel: { id: "feishu" },
+        }],
+        nextPluginChannelBindings: [{
+          pluginId: "builtin-channel-feishu",
+          channelId: "feishu",
+          channel: { id: "feishu" },
+        }],
+        currentExtensionChannels: [
+          {
+            extensionId: "builtin-channel-feishu",
+            channel: { id: "feishu" },
+            source: "plugin",
+          },
+        ],
+        nextExtensionChannels: [
+          {
+            extensionId: "builtin-channel-feishu",
+            channel: { id: "feishu" },
+            source: "plugin",
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
 });

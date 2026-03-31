@@ -18,7 +18,12 @@ export const CHANNEL_AUTH_LABELS: Record<string, { zh: string; en: string }> = {
   weixinAuthWaiting: { zh: '等待扫码确认', en: 'Waiting for scan confirmation' },
   weixinAuthScanned: { zh: '已扫码，等待确认', en: 'Scanned, waiting for confirmation' },
   weixinAuthAuthorized: { zh: '已连接', en: 'Connected' },
+  weixinAuthConnectedDisabled: { zh: '已连接，但渠道未启用', en: 'Connected, but channel inactive' },
   weixinAuthNotConnected: { zh: '未连接', en: 'Not connected' },
+  weixinAuthDisabledHint: {
+    zh: '当前账号已完成扫码连接，但渠道处于未启用状态。打开 Enabled 后才会开始收发消息。',
+    en: 'This account is connected, but the channel is inactive. Turn on Enabled before it can send or receive messages.'
+  },
   weixinAuthRetryRequired: { zh: '二维码已失效，请重新扫码。', en: 'QR session expired. Please start again.' },
   weixinAuthQrAlt: { zh: '微信登录二维码', en: 'Weixin login QR code' },
   weixinAuthScanPrompt: { zh: '请用微信扫码，并在手机上确认登录。', en: 'Scan with Weixin and confirm the login on your phone.' },

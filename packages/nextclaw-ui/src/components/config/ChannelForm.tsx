@@ -72,6 +72,9 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
   const channelMeta = meta?.channels.find((item) => item.name === channelName);
   const tutorialUrl = channelMeta ? resolveChannelTutorialUrl(channelMeta) : undefined;
   const isWeixinChannel = channelName === 'weixin';
+  const hasInlineAuthSection = isWeixinChannel;
+  const primaryFields = fields.filter((field) => field.section === 'primary');
+  const advancedFields = fields.filter((field) => field.section !== 'primary');
 
   useEffect(() => {
     if (channelConfig) {
@@ -193,7 +196,7 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
     );
   }
 
-  const enabled = Boolean(channelConfig.enabled);
+  const enabled = typeof formData.enabled === 'boolean' ? formData.enabled : Boolean(channelConfig.enabled);
 
   return (
     <div className={CONFIG_DETAIL_CARD_CLASS}>
@@ -230,11 +233,23 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
 
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-5">
-          {isWeixinChannel ? (
+          {hasInlineAuthSection ? (
             <>
+              {primaryFields.length > 0 ? (
+                <ChannelFormFieldsSection
+                  channelName={channelName}
+                  fields={primaryFields}
+                  formData={formData}
+                  jsonDrafts={jsonDrafts}
+                  setJsonDrafts={setJsonDrafts}
+                  updateField={updateField}
+                  uiHints={uiHints}
+                />
+              ) : null}
               <WeixinChannelAuthSection
                 channelConfig={channelConfig}
                 formData={formData}
+                channelEnabled={enabled}
                 disabled={updateChannel.isPending || Boolean(runningActionId)}
               />
               <details className="group rounded-2xl border border-gray-200/80 bg-white">
@@ -248,7 +263,7 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
                 <div className="space-y-6 border-t border-gray-100 px-5 py-5">
                   <ChannelFormFieldsSection
                     channelName={channelName}
-                    fields={fields}
+                    fields={advancedFields}
                     formData={formData}
                     jsonDrafts={jsonDrafts}
                     setJsonDrafts={setJsonDrafts}

@@ -12,6 +12,7 @@ import type { ChannelAuthPollResult, ChannelAuthStartResult } from '@/api/channe
 type WeixinChannelAuthSectionProps = {
   channelConfig: Record<string, unknown>;
   formData: Record<string, unknown>;
+  channelEnabled: boolean;
   disabled?: boolean;
 };
 
@@ -45,6 +46,7 @@ function resolveBaseUrl(formData: Record<string, unknown>, channelConfig: Record
 export function WeixinChannelAuthSection({
   channelConfig,
   formData,
+  channelEnabled,
   disabled = false
 }: WeixinChannelAuthSectionProps) {
   const queryClient = useQueryClient();
@@ -192,7 +194,9 @@ export function WeixinChannelAuthSection({
       ? t('weixinAuthScanned')
       : t('weixinAuthWaiting')
     : hasConnectedAccount
-      ? t('weixinAuthAuthorized')
+      ? channelEnabled
+        ? t('weixinAuthAuthorized')
+        : t('weixinAuthConnectedDisabled')
       : t('weixinAuthNotConnected');
 
   const connectButtonLabel = startChannelAuth.isPending
@@ -229,7 +233,7 @@ export function WeixinChannelAuthSection({
             {statusLabel}
           </div>
           <div className="space-y-1 text-sm text-gray-600">
-            <p>{t('weixinAuthCapabilityHint')}</p>
+            <p>{channelEnabled || !hasConnectedAccount ? t('weixinAuthCapabilityHint') : t('weixinAuthDisabledHint')}</p>
             {primaryAccountId ? (
               <p>
                 {t('weixinAuthPrimaryAccount')}: <span className="font-mono text-xs text-gray-900">{primaryAccountId}</span>

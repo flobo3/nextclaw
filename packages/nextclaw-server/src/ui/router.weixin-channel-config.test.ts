@@ -147,4 +147,80 @@ describe("weixin plugin channel config route", () => {
     });
     expect(applyLiveConfigReload).toHaveBeenCalledTimes(1);
   });
+
+  it("persists disabled weixin state through projected channel updates", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(
+      ConfigSchema.parse({
+        channels: {
+          weixin: {
+            enabled: true,
+            defaultAccountId: "1344b2b24720@im.bot",
+            baseUrl: "https://ilinkai.weixin.qq.com",
+            accounts: {
+              "1344b2b24720@im.bot": {
+                enabled: true
+              }
+            }
+          }
+        },
+        plugins: {
+          entries: {
+            "nextclaw-channel-weixin": {
+              enabled: true
+            }
+          }
+        }
+      }),
+      configPath
+    );
+    const publish = vi.fn();
+    const applyLiveConfigReload = vi.fn(async () => undefined);
+
+    const app = createUiRouter({
+      configPath,
+      publish,
+      applyLiveConfigReload,
+      getPluginChannelBindings: () => [createWeixinPluginBinding()],
+      getPluginUiMetadata: () => [createWeixinPluginUiMetadata()]
+    });
+
+    const updateResponse = await app.request("http://localhost/api/config/channels/weixin", {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        enabled: false
+      })
+    });
+
+    expect(updateResponse.status).toBe(200);
+    const updatePayload = await updateResponse.json() as {
+      ok: true;
+      data: Record<string, unknown>;
+    };
+    expect(updatePayload.data).toMatchObject({
+      enabled: false,
+      defaultAccountId: "1344b2b24720@im.bot",
+      baseUrl: "https://ilinkai.weixin.qq.com"
+    });
+
+    const saved = loadConfig(configPath);
+    expect(saved.channels.weixin).toEqual({
+      enabled: false,
+      defaultAccountId: "1344b2b24720@im.bot",
+      baseUrl: "https://ilinkai.weixin.qq.com",
+      accounts: {
+        "1344b2b24720@im.bot": {
+          enabled: true
+        }
+      }
+    });
+    expect(publish).toHaveBeenCalledWith({
+      type: "config.updated",
+      payload: { path: "channels.weixin" }
+    });
+    expect(applyLiveConfigReload).toHaveBeenCalledTimes(1);
+  });
 });

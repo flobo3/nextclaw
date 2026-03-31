@@ -2,7 +2,13 @@ import { t } from '@/lib/i18n';
 
 export type ChannelFieldType = 'boolean' | 'text' | 'email' | 'password' | 'number' | 'tags' | 'select' | 'json';
 export type ChannelOption = { value: string; label: string };
-export type ChannelField = { name: string; type: ChannelFieldType; label: string; options?: ChannelOption[] };
+export type ChannelField = {
+  name: string;
+  type: ChannelFieldType;
+  label: string;
+  options?: ChannelOption[];
+  section?: 'primary' | 'advanced';
+};
 
 const DM_POLICY_OPTIONS: ChannelOption[] = [
   { value: 'pairing', label: 'pairing' },
@@ -97,7 +103,7 @@ export function buildChannelFields(): Record<string, ChannelField[]> {
       { name: 'allowFrom', type: 'tags', label: t('allowFrom') }
     ],
     weixin: [
-      { name: 'enabled', type: 'boolean', label: t('enabled') },
+      { name: 'enabled', type: 'boolean', label: t('enabled'), section: 'primary' },
       { name: 'defaultAccountId', type: 'text', label: t('defaultAccountId') },
       { name: 'baseUrl', type: 'text', label: t('baseUrl') },
       { name: 'pollTimeoutMs', type: 'number', label: t('pollTimeoutMs') },

@@ -59,6 +59,7 @@ describe('WeixinChannelAuthSection', () => {
       <WeixinChannelAuthSection
         channelConfig={{ enabled: false }}
         formData={{}}
+        channelEnabled={false}
       />
     );
 
@@ -80,6 +81,7 @@ describe('WeixinChannelAuthSection', () => {
           }
         }}
         formData={{}}
+        channelEnabled={true}
       />
     );
 
@@ -87,5 +89,29 @@ describe('WeixinChannelAuthSection', () => {
       expect(screen.getByText('Connected')).toBeTruthy();
       expect(screen.getByRole('button', { name: 'Reconnect with QR' })).toBeTruthy();
     });
+  });
+
+  it('shows connected-but-inactive state when account is authorized but channel is disabled', async () => {
+    render(
+      <WeixinChannelAuthSection
+        channelConfig={{
+          enabled: false,
+          defaultAccountId: 'bot-1@im.bot',
+          accounts: {
+            'bot-1@im.bot': {
+              enabled: true
+            }
+          }
+        }}
+        formData={{ enabled: false }}
+        channelEnabled={false}
+      />
+    );
+
+    expect(screen.getByText('Connected, but channel inactive')).toBeTruthy();
+    expect(
+      screen.getByText('This account is connected, but the channel is inactive. Turn on Enabled before it can send or receive messages.')
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reconnect with QR' })).toBeTruthy();
   });
 });
