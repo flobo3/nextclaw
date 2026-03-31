@@ -153,6 +153,7 @@ export function ChatConversationPanel() {
         ) : (
           <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
             <ChatMessageListContainer
+              key={snapshot.selectedSessionKey ?? "draft"}
               messages={snapshot.messages}
               isSending={
                 snapshot.isSending && snapshot.isAwaitingAssistantOutput

@@ -187,6 +187,101 @@ it("renders running tool cards with live status feedback", () => {
   expect(screen.queryByText("View Output")).toBeNull();
 });
 
+it("renders completed terminal tool cards collapsed by default on initial mount", () => {
+  render(
+    <ChatMessageList
+      messages={[
+        {
+          id: "assistant-tool-completed",
+          role: "assistant",
+          roleLabel: "Assistant",
+          timestampLabel: "10:10",
+          parts: [
+            {
+              type: "tool-card",
+              card: {
+                kind: "result",
+                toolName: "shell",
+                summary: "cmd: pnpm test",
+                output: "short finished output",
+                hasResult: true,
+                statusTone: "success",
+                statusLabel: "Completed",
+                titleLabel: "Tool Result",
+                outputLabel: "View Output",
+                emptyLabel: "No output",
+              },
+            },
+          ],
+        },
+      ]}
+      isSending={false}
+      hasAssistantDraft={false}
+      texts={{
+        copyCodeLabel: "Copy",
+        copiedCodeLabel: "Copied",
+        copyMessageLabel: "Copy",
+        copiedMessageLabel: "Copied",
+        typingLabel: "Typing...",
+      }}
+    />,
+  );
+
+  expect(screen.getByText("cmd: pnpm test")).toBeTruthy();
+  expect(screen.queryByText("short finished output")).toBeNull();
+});
+
+it("resets completed terminal tool cards to collapsed when the message list remounts", () => {
+  const message = {
+    id: "assistant-tool-remount",
+    role: "assistant" as const,
+    roleLabel: "Assistant",
+    timestampLabel: "10:11",
+    parts: [
+      {
+        type: "tool-card" as const,
+        card: {
+          kind: "result" as const,
+          toolName: "shell",
+          summary: "cmd: pnpm test",
+          output: "short finished output",
+          hasResult: true,
+          statusTone: "success" as const,
+          statusLabel: "Completed",
+          titleLabel: "Tool Result",
+          outputLabel: "View Output",
+          emptyLabel: "No output",
+        },
+      },
+    ],
+  };
+
+  const { rerender } = render(
+    <ChatMessageList
+      key="session-a"
+      messages={[message]}
+      isSending={false}
+      hasAssistantDraft={false}
+      texts={defaultTexts}
+    />,
+  );
+
+  fireEvent.click(screen.getByText("cmd: pnpm test"));
+  expect(screen.getByText("short finished output")).toBeTruthy();
+
+  rerender(
+    <ChatMessageList
+      key="session-b"
+      messages={[message]}
+      isSending={false}
+      hasAssistantDraft={false}
+      texts={defaultTexts}
+    />,
+  );
+
+  expect(screen.queryByText("short finished output")).toBeNull();
+});
+
 it("renders completed reasoning collapsed by default while keeping the original details layout", () => {
   render(
     <ChatMessageList

@@ -12,7 +12,7 @@ export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel })
   const isRunning = card.statusTone === 'running';
   const hasContent = !!(card.summary?.trim() || output.length > 0);
   const wasEmptyRef = useRef(!hasContent);
-  const [expanded, setExpanded] = useState(hasContent && (isRunning || card.statusTone === 'error' || output.length < 500));
+  const [expanded, setExpanded] = useState(hasContent && (isRunning || card.statusTone === 'error'));
   const [hasUserToggled, setHasUserToggled] = useState(false);
   const prevRunningRef = useRef(isRunning);
 
