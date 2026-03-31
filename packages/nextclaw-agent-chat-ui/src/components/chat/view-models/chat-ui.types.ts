@@ -92,6 +92,12 @@ export type ChatSkillPickerOption = {
   badgeLabel?: string;
 };
 
+export type ChatSkillPickerOptionGroup = {
+  key: string;
+  label?: string;
+  options: ChatSkillPickerOption[];
+};
+
 export type ChatSkillPickerProps = {
   title: string;
   searchPlaceholder: string;
@@ -101,6 +107,7 @@ export type ChatSkillPickerProps = {
   manageLabel?: string;
   manageHref?: string;
   options: ChatSkillPickerOption[];
+  groups?: ChatSkillPickerOptionGroup[];
   selectedKeys: string[];
   onSelectedKeysChange: (next: string[]) => void;
 };
@@ -161,7 +168,9 @@ export type ChatInputBarProps = {
     onFilesAdd?: (files: File[]) => Promise<void> | void;
     onSlashQueryChange?: (query: string | null) => void;
   };
-  slashMenu: Pick<ChatSlashMenuProps, "isLoading" | "items" | "texts">;
+  slashMenu: Pick<ChatSlashMenuProps, "isLoading" | "items" | "texts"> & {
+    onSelectItem?: (item: ChatSlashItem) => void;
+  };
   hint?: ChatInlineHint | null;
   toolbar: ChatInputBarToolbarProps;
 };

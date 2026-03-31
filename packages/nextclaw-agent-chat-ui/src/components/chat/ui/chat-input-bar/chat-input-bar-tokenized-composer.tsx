@@ -20,6 +20,7 @@ type ChatInputBarTokenizedComposerProps = {
   placeholder: string;
   disabled: boolean;
   slashItems: ChatSlashItem[];
+  onSlashItemSelect?: (item: ChatSlashItem) => void;
   actions: Pick<ChatInputBarActionsProps, 'onSend' | 'onStop' | 'isSending' | 'canStopGeneration'>;
   onNodesChange: (nodes: ChatComposerNode[]) => void;
   onFilesAdd?: (files: File[]) => Promise<void> | void;
@@ -39,6 +40,7 @@ export const ChatInputBarTokenizedComposer = forwardRef<
     placeholder,
     disabled,
     slashItems,
+    onSlashItemSelect,
     actions,
     onNodesChange,
     onFilesAdd,
@@ -66,6 +68,7 @@ export const ChatInputBarTokenizedComposer = forwardRef<
     nodes,
     disabled,
     slashItems,
+    onSlashItemSelect,
     actions,
     onNodesChange,
     onFilesAdd,

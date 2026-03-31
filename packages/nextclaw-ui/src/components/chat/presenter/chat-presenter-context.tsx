@@ -29,6 +29,7 @@ export type ChatInputManagerLike = {
   selectModel: (value: string) => void;
   selectThinkingLevel: (value: ThinkingLevel) => void;
   selectSkills: (next: string[]) => void;
+  rememberSkillSelection: (value: string) => void;
 };
 
 export type ChatThreadManagerLike = {

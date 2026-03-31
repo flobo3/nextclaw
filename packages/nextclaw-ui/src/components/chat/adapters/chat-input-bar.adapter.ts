@@ -44,6 +44,8 @@ export type ChatInputBarAdapterTexts = {
   slashSkillSubtitle: string;
   slashSkillSpecLabel: string;
   noSkillDescription: string;
+  recentSkillsLabel: string;
+  allSkillsLabel: string;
   modelSelectPlaceholder: string;
   modelNoOptionsLabel: string;
   recentModelsLabel: string;
@@ -129,12 +131,51 @@ function scoreSkillRecord(record: ChatSkillRecord, query: string): number {
   return 0;
 }
 
+function resolveSlashMatchTier(score: number): number {
+  if (score >= SLASH_ITEM_MATCH_SCORE.exactLabel) {
+    return 4;
+  }
+  if (score >= SLASH_ITEM_MATCH_SCORE.prefixToken) {
+    return 3;
+  }
+  if (score >= SLASH_ITEM_MATCH_SCORE.containsLabel) {
+    return 2;
+  }
+  if (score > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+function buildRecentOrderIndex(values: string[]): Map<string, number> {
+  return new Map(values.map((value, index) => [value, index] as const));
+}
+
+function prioritizeSkillRecords(skillRecords: ChatSkillRecord[], recentSkillValues: string[]): ChatSkillRecord[] {
+  const recentOrderIndex = buildRecentOrderIndex(recentSkillValues);
+  const recentRecords: ChatSkillRecord[] = [];
+  const remainingRecords: ChatSkillRecord[] = [];
+  for (const record of skillRecords) {
+    if (recentOrderIndex.has(record.key)) {
+      recentRecords.push(record);
+      continue;
+    }
+    remainingRecords.push(record);
+  }
+  recentRecords.sort(
+    (left, right) => (recentOrderIndex.get(left.key) ?? Number.POSITIVE_INFINITY) - (recentOrderIndex.get(right.key) ?? Number.POSITIVE_INFINITY)
+  );
+  return [...recentRecords, ...remainingRecords];
+}
+
 export function buildChatSlashItems(
   skillRecords: ChatSkillRecord[],
   normalizedSlashQuery: string,
-  texts: Pick<ChatInputBarAdapterTexts, 'slashSkillSubtitle' | 'slashSkillSpecLabel' | 'noSkillDescription'>
+  texts: Pick<ChatInputBarAdapterTexts, 'slashSkillSubtitle' | 'slashSkillSpecLabel' | 'noSkillDescription'>,
+  recentSkillValues: string[] = []
 ): ChatSlashItem[] {
   const skillSortCollator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  const recentOrderIndex = buildRecentOrderIndex(recentSkillValues);
 
   return skillRecords
     .map((record, order) => ({
@@ -144,6 +185,16 @@ export function buildChatSlashItems(
     }))
     .filter((entry) => entry.score > 0)
     .sort((left, right) => {
+      const leftTier = resolveSlashMatchTier(left.score);
+      const rightTier = resolveSlashMatchTier(right.score);
+      if (rightTier !== leftTier) {
+        return rightTier - leftTier;
+      }
+      const leftRecentIndex = recentOrderIndex.get(left.record.key) ?? Number.POSITIVE_INFINITY;
+      const rightRecentIndex = recentOrderIndex.get(right.record.key) ?? Number.POSITIVE_INFINITY;
+      if (leftRecentIndex !== rightRecentIndex) {
+        return leftRecentIndex - rightRecentIndex;
+      }
       if (right.score !== left.score) {
         return right.score - left.score;
       }
@@ -189,6 +240,8 @@ export function buildSkillPickerOptions(skillRecords: ChatSkillRecord[]): ChatSk
 
 export function buildSkillPickerModel(params: {
   skillRecords: ChatSkillRecord[];
+  recentSkillValues?: string[];
+  groupedRecentSkillValues?: string[];
   selectedSkills: string[];
   isLoading: boolean;
   onSelectedKeysChange: (next: string[]) => void;
@@ -198,8 +251,18 @@ export function buildSkillPickerModel(params: {
     emptyLabel: string;
     loadingLabel: string;
     manageLabel: string;
+    recentSkillsLabel: string;
+    allSkillsLabel: string;
   };
 }): ChatSkillPickerProps {
+  const prioritizedSkillRecords = prioritizeSkillRecords(params.skillRecords, params.recentSkillValues ?? []);
+  const recentKeySet = new Set(params.groupedRecentSkillValues ?? []);
+  const recentSkillOptions = buildSkillPickerOptions(
+    prioritizedSkillRecords.filter((record) => recentKeySet.has(record.key))
+  );
+  const remainingSkillOptions = buildSkillPickerOptions(
+    prioritizedSkillRecords.filter((record) => !recentKeySet.has(record.key))
+  );
   return {
     title: params.texts.title,
     searchPlaceholder: params.texts.searchPlaceholder,
@@ -208,7 +271,22 @@ export function buildSkillPickerModel(params: {
     isLoading: params.isLoading,
     manageLabel: params.texts.manageLabel,
     manageHref: '/marketplace/skills',
-    options: buildSkillPickerOptions(params.skillRecords),
+    options: buildSkillPickerOptions(prioritizedSkillRecords),
+    groups:
+      recentSkillOptions.length > 0
+        ? [
+            {
+              key: 'recent-skills',
+              label: params.texts.recentSkillsLabel,
+              options: recentSkillOptions
+            },
+            {
+              key: 'all-skills',
+              label: params.texts.allSkillsLabel,
+              options: remainingSkillOptions
+            }
+          ].filter((group) => group.options.length > 0)
+        : undefined,
     selectedKeys: params.selectedSkills,
     onSelectedKeysChange: params.onSelectedKeysChange
   };

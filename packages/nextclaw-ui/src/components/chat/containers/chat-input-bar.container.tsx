@@ -20,6 +20,10 @@ import {
   CHAT_RECENT_MODELS_MIN_OPTIONS,
   chatRecentModelsManager
 } from '@/components/chat/chat-recent-models.manager';
+import {
+  CHAT_RECENT_SKILLS_MIN_OPTIONS,
+  chatRecentSkillsManager
+} from '@/components/chat/chat-recent-skills.manager';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { t } from '@/lib/i18n';
@@ -112,6 +116,14 @@ export function ChatInputBarContainer() {
     availableValues: modelRecords.map((option) => option.value),
     minAvailableCount: CHAT_RECENT_MODELS_MIN_OPTIONS
   });
+  const recentSkillValues = chatRecentSkillsManager.resolveVisible({
+    availableValues: skillRecords.map((record) => record.key),
+    minAvailableCount: 0
+  });
+  const recentSkillGroupValues = chatRecentSkillsManager.resolveVisible({
+    availableValues: skillRecords.map((record) => record.key),
+    minAvailableCount: CHAT_RECENT_SKILLS_MIN_OPTIONS
+  });
 
   const hasModelOptions = modelRecords.length > 0;
   const isModelOptionsLoading = !snapshot.isProviderStateResolved && !hasModelOptions;
@@ -126,10 +138,12 @@ export function ChatInputBarContainer() {
       : t('chatModelNoOptions');
   const recentModelsLabel = language === 'zh' ? '最近选择' : 'Recent';
   const allModelsLabel = language === 'zh' ? '全部模型' : 'All models';
+  const recentSkillsLabel = language === 'zh' ? '最近使用' : 'Recent';
+  const allSkillsLabel = language === 'zh' ? '全部技能' : 'All skills';
 
   const slashItems = useMemo(
-    () => buildChatSlashItems(skillRecords, slashQuery ?? '', slashTexts),
-    [slashQuery, skillRecords, slashTexts]
+    () => buildChatSlashItems(skillRecords, slashQuery ?? '', slashTexts, recentSkillValues),
+    [slashQuery, skillRecords, slashTexts, recentSkillValues]
   );
 
   const selectedModelOption = modelRecords.find((option) => option.value === snapshot.selectedModel);
@@ -206,6 +220,8 @@ export function ChatInputBarContainer() {
 
   const skillPicker = buildSkillPickerModel({
     skillRecords,
+    recentSkillValues,
+    groupedRecentSkillValues: recentSkillGroupValues,
     selectedSkills: snapshot.selectedSkills,
     isLoading: snapshot.isSkillsLoading,
     onSelectedKeysChange: presenter.chatInputManager.selectSkills,
@@ -214,7 +230,9 @@ export function ChatInputBarContainer() {
       searchPlaceholder: t('chatSkillsPickerSearchPlaceholder'),
       emptyLabel: t('chatSkillsPickerEmpty'),
       loadingLabel: t('sessionsLoading'),
-      manageLabel: t('chatSkillsPickerManage')
+      manageLabel: t('chatSkillsPickerManage'),
+      recentSkillsLabel,
+      allSkillsLabel
     }
   });
 
@@ -233,6 +251,11 @@ export function ChatInputBarContainer() {
         slashMenu={{
           isLoading: snapshot.isSkillsLoading,
           items: slashItems,
+          onSelectItem: (item) => {
+            if (item.value) {
+              presenter.chatInputManager.rememberSkillSelection(item.value);
+            }
+          },
           texts: {
             slashLoadingLabel: t('chatSlashLoading'),
             slashSectionLabel: t('chatSlashSectionSkills'),

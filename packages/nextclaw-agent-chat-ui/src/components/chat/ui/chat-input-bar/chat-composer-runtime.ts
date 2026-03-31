@@ -20,6 +20,7 @@ type ChatComposerRuntimeConfig = {
   nodes: ChatComposerNode[];
   disabled: boolean;
   slashItems: ChatSlashItem[];
+  onSlashItemSelect?: (item: ChatSlashItem) => void;
   actions: ComposerActions;
   onNodesChange: (nodes: ChatComposerNode[]) => void;
   onFilesAdd?: (files: File[]) => Promise<void> | void;
@@ -82,6 +83,7 @@ export class ChatComposerRuntime {
   readonly createHandle = (): ChatInputBarTokenizedComposerHandle => {
     return {
       insertSlashItem: (item) => {
+        this.config?.onSlashItemSelect?.(item);
         this.viewController.insertSlashItem(item, this.commitSnapshot);
       },
       insertFileToken: (tokenKey, label) => {
@@ -186,6 +188,7 @@ export class ChatComposerRuntime {
       actions: config.actions,
       commitSnapshot: this.commitSnapshot,
       insertSkillToken: this.insertSkillToken,
+      onSlashItemSelect: config.onSlashItemSelect,
       onSlashActiveIndexChange: config.onSlashActiveIndexChange,
       onSlashQueryChange: config.onSlashQueryChange,
       onSlashOpenChange: config.onSlashOpenChange

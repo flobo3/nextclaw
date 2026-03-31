@@ -111,6 +111,7 @@ export const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(fu
               placeholder={props.composer.placeholder}
               disabled={props.composer.disabled}
               slashItems={props.slashMenu.items}
+              onSlashItemSelect={props.slashMenu.onSelectItem}
               actions={props.toolbar.actions}
               activeSlashIndex={activeSlashIndex}
               onNodesChange={props.composer.onNodesChange}

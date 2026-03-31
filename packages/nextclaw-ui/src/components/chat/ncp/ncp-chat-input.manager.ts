@@ -20,6 +20,7 @@ import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-s
 import type { ChatUiManager } from '@/components/chat/managers/chat-ui.manager';
 import { ChatSessionPreferenceSync } from '@/components/chat/chat-session-preference-sync';
 import { chatRecentModelsManager } from '@/components/chat/chat-recent-models.manager';
+import { chatRecentSkillsManager } from '@/components/chat/chat-recent-skills.manager';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
 import { normalizeSessionType } from '@/components/chat/useChatSessionTypeState';
 
@@ -252,11 +253,24 @@ export class NcpChatInputManager {
     this.sessionPreferenceSync.syncSelectedSessionPreferences();
   };
 
+  rememberSkillSelection = (value: string) => {
+    chatRecentSkillsManager.remember(value);
+  };
+
   selectSkills = (next: string[]) => {
+    const prev = useChatInputStore.getState().snapshot.selectedSkills;
+    for (const value of next) {
+      if (!prev.includes(value)) {
+        this.rememberSkillSelection(value);
+      }
+    }
     this.setSelectedSkills(next);
   };
 
-  private resolveThinkingForModel(modelOption: ChatModelOption | undefined, current: ThinkingLevel | null): ThinkingLevel | null {
+  private resolveThinkingForModel = (
+    modelOption: ChatModelOption | undefined,
+    current: ThinkingLevel | null
+  ): ThinkingLevel | null => {
     const capability = modelOption?.thinkingCapability;
     if (!capability || capability.supported.length === 0) {
       return null;
@@ -271,9 +285,9 @@ export class NcpChatInputManager {
       return capability.default;
     }
     return 'off';
-  }
+  };
 
-  private reconcileThinkingForModel(model: string): void {
+  private reconcileThinkingForModel = (model: string): void => {
     const snapshot = useChatInputStore.getState().snapshot;
     const modelOption = snapshot.modelOptions.find((option) => option.value === model);
     const { selectedThinkingLevel } = snapshot;
@@ -281,5 +295,5 @@ export class NcpChatInputManager {
     if (nextThinking !== selectedThinkingLevel) {
       useChatInputStore.getState().setSnapshot({ selectedThinkingLevel: nextThinking });
     }
-  }
+  };
 }

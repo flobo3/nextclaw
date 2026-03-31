@@ -137,6 +137,7 @@ export class ChatComposerViewController {
     actions: ComposerActions;
     commitSnapshot: (snapshot: ChatComposerControllerSnapshot) => void;
     insertSkillToken: (tokenKey: string, label: string) => void;
+    onSlashItemSelect?: (item: ChatSlashItem) => void;
     onSlashActiveIndexChange: (index: number) => void;
     onSlashQueryChange?: (query: string | null) => void;
     onSlashOpenChange: (open: boolean) => void;
@@ -149,6 +150,7 @@ export class ChatComposerViewController {
       actions,
       commitSnapshot,
       insertSkillToken,
+      onSlashItemSelect,
       onSlashActiveIndexChange,
       onSlashQueryChange,
       onSlashOpenChange
@@ -178,6 +180,7 @@ export class ChatComposerViewController {
     }
     if (action.type === 'insert-active-slash-item') {
       if (activeSlashItem) {
+        onSlashItemSelect?.(activeSlashItem);
         insertSkillToken(activeSlashItem.value ?? activeSlashItem.key, activeSlashItem.title);
       }
       return;

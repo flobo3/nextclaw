@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEventHandler } from 'react';
 import { useActiveItemScroll } from '../../hooks/use-active-item-scroll';
-import type { ChatSkillPickerOption, ChatSkillPickerProps } from '../../view-models/chat-ui.types';
+import type { ChatSkillPickerOption, ChatSkillPickerOptionGroup, ChatSkillPickerProps } from '../../view-models/chat-ui.types';
 import { ChatUiPrimitives } from '../primitives/chat-ui-primitives';
 import { BrainCircuit, Check, ExternalLink, Puzzle, Search } from 'lucide-react';
 
@@ -27,7 +27,20 @@ export function ChatInputBarSkillPicker(props: { picker: ChatSkillPickerProps })
   const [activeIndex, setActiveIndex] = useState(0);
   const selectedSet = useMemo(() => new Set(picker.selectedKeys), [picker.selectedKeys]);
   const selectedCount = picker.selectedKeys.length;
-  const filteredOptions = useMemo(() => filterOptions(picker.options, query), [picker.options, query]);
+  const isSearchActive = query.trim().length > 0;
+  const groupedOptions = useMemo<ChatSkillPickerOptionGroup[] | null>(() => {
+    if (isSearchActive) {
+      return null;
+    }
+    const groups = picker.groups?.filter((group) => group.options.length > 0) ?? [];
+    return groups.length > 0 ? groups : null;
+  }, [isSearchActive, picker.groups]);
+  const visibleOptions = useMemo(() => {
+    if (groupedOptions) {
+      return groupedOptions.flatMap((group) => group.options);
+    }
+    return filterOptions(picker.options, query);
+  }, [groupedOptions, picker.options, query]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -35,18 +48,18 @@ export function ChatInputBarSkillPicker(props: { picker: ChatSkillPickerProps })
 
   useEffect(() => {
     setActiveIndex((current) => {
-      if (filteredOptions.length === 0) {
+      if (visibleOptions.length === 0) {
         return 0;
       }
-      return Math.min(current, filteredOptions.length - 1);
+      return Math.min(current, visibleOptions.length - 1);
     });
-  }, [filteredOptions.length]);
+  }, [visibleOptions.length]);
 
   useActiveItemScroll({
     containerRef: listRef,
     activeIndex,
-    itemCount: filteredOptions.length,
-    isEnabled: filteredOptions.length > 0,
+    itemCount: visibleOptions.length,
+    isEnabled: visibleOptions.length > 0,
     getItemSelector: (index) => `[data-skill-index="${index}"]`
   });
 
@@ -59,13 +72,13 @@ export function ChatInputBarSkillPicker(props: { picker: ChatSkillPickerProps })
   };
 
   const onSearchKeyDown: KeyboardEventHandler<HTMLInputElement> = (event) => {
-    if (filteredOptions.length === 0) {
+    if (visibleOptions.length === 0) {
       return;
     }
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setActiveIndex((current) => Math.min(current + 1, filteredOptions.length - 1));
+      setActiveIndex((current) => Math.min(current + 1, visibleOptions.length - 1));
       return;
     }
 
@@ -77,7 +90,7 @@ export function ChatInputBarSkillPicker(props: { picker: ChatSkillPickerProps })
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      const activeOption = filteredOptions[activeIndex];
+      const activeOption = visibleOptions[activeIndex];
       if (activeOption) {
         onToggleOption(activeOption.key);
       }
@@ -115,7 +128,7 @@ export function ChatInputBarSkillPicker(props: { picker: ChatSkillPickerProps })
               aria-controls={listId}
               aria-expanded="true"
               aria-autocomplete="list"
-              aria-activedescendant={filteredOptions[activeIndex] ? `${listId}-option-${activeIndex}` : undefined}
+              aria-activedescendant={visibleOptions[activeIndex] ? `${listId}-option-${activeIndex}` : undefined}
               className="h-8 rounded-lg pl-8 text-xs"
             />
           </div>
@@ -130,55 +143,70 @@ export function ChatInputBarSkillPicker(props: { picker: ChatSkillPickerProps })
         >
           {picker.isLoading ? (
             <div className="p-4 text-xs text-gray-500">{picker.loadingLabel}</div>
-          ) : filteredOptions.length === 0 ? (
+          ) : visibleOptions.length === 0 ? (
             <div className="p-4 text-center text-xs text-gray-500">{picker.emptyLabel}</div>
           ) : (
             <div className="py-1">
-              {filteredOptions.map((option, index) => {
-                const isSelected = selectedSet.has(option.key);
-                const isActive = index === activeIndex;
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    id={`${listId}-option-${index}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    data-skill-index={index}
-                    onClick={() => onToggleOption(option.key)}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                      isActive ? 'bg-gray-50' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                      <Puzzle className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-sm text-gray-900">{option.label}</span>
-                        {option.badgeLabel ? (
-                          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                            {option.badgeLabel}
-                          </span>
-                        ) : null}
+              {(() => {
+                const groups = groupedOptions ?? [{ key: 'all-skills', options: visibleOptions }];
+                let visibleIndex = 0;
+                return groups.map((group) => (
+                  <div key={group.key}>
+                    {group.label ? (
+                      <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        {group.label}
                       </div>
-                      <div className="mt-0.5 truncate text-xs text-gray-500">{option.description || option.key}</div>
-                    </div>
-                    <div className="ml-3 shrink-0">
-                      <span
-                        className={
-                          isSelected
-                            ? 'inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white'
-                            : 'inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white'
-                        }
-                      >
-                        {isSelected ? <Check className="h-3 w-3" /> : null}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+                    ) : null}
+                    {group.options.map((option) => {
+                      const index = visibleIndex;
+                      visibleIndex += 1;
+                      const isSelected = selectedSet.has(option.key);
+                      const isActive = index === activeIndex;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          id={`${listId}-option-${index}`}
+                          role="option"
+                          aria-selected={isSelected}
+                          data-skill-index={index}
+                          onClick={() => onToggleOption(option.key)}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                            isActive ? 'bg-gray-50' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+                            <Puzzle className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate text-sm text-gray-900">{option.label}</span>
+                              {option.badgeLabel ? (
+                                <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                  {option.badgeLabel}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-0.5 truncate text-xs text-gray-500">{option.description || option.key}</div>
+                          </div>
+                          <div className="ml-3 shrink-0">
+                            <span
+                              className={
+                                isSelected
+                                  ? 'inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white'
+                                  : 'inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white'
+                              }
+                            >
+                              {isSelected ? <Check className="h-3 w-3" /> : null}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>

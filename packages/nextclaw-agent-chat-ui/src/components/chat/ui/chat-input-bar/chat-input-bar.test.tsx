@@ -91,7 +91,50 @@ function SlashMenuHarness() {
               title: 'Web Search',
               subtitle: 'Skill',
               description: 'Search the web',
-              detailLines: []
+              detailLines: [],
+              value: 'web-search'
+            }
+          ],
+          texts: {
+            slashLoadingLabel: 'Loading',
+            slashSectionLabel: 'Skills',
+            slashEmptyLabel: 'No result',
+            slashHintLabel: 'Type /',
+            slashSkillHintLabel: 'Enter to add'
+          }
+        }
+      })}
+    />
+  );
+}
+
+function SlashMenuSelectionHarness(props: { onSelectItem: (value: string) => void }) {
+  const [nodes, setNodes] = useState<ChatComposerNode[]>([createChatComposerTextNode('')]);
+
+  return (
+    <ChatInputBar
+      {...createInputBarProps({
+        composer: {
+          nodes,
+          placeholder: 'Type a message',
+          disabled: false,
+          onNodesChange: setNodes
+        },
+        slashMenu: {
+          isLoading: false,
+          onSelectItem: (item) => {
+            if (item.value) {
+              props.onSelectItem(item.value);
+            }
+          },
+          items: [
+            {
+              key: 'web-search',
+              title: 'Web Search',
+              subtitle: 'Skill',
+              description: 'Search the web',
+              detailLines: [],
+              value: 'web-search'
             }
           ],
           texts: {
@@ -193,6 +236,20 @@ it('keeps the slash menu dismissed after escape until slash mode exits', () => {
   setCursorToEnd(textbox, '/b');
   fireEvent.input(textbox);
   expect(screen.getByRole('dialog')).toBeTruthy();
+});
+
+it('reports slash skill selection when clicking a menu item', () => {
+  const onSelectItem = vi.fn();
+  render(<SlashMenuSelectionHarness onSelectItem={onSelectItem} />);
+
+  const textbox = screen.getByRole('textbox');
+  fireEvent.focus(textbox);
+  textbox.textContent = '/';
+  setCursorToEnd(textbox, '/');
+  fireEvent.input(textbox);
+
+  fireEvent.click(screen.getByRole('option', { name: /Web Search/i }));
+  expect(onSelectItem).toHaveBeenCalledWith('web-search');
 });
 
 it('renders inline skill tokens inside the composer surface', () => {

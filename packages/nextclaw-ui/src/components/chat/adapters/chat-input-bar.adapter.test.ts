@@ -39,6 +39,36 @@ describe('buildChatSlashItems', () => {
     const items = buildChatSlashItems([createSkillRecord({ key: 'weather' })], 'terminal', texts);
     expect(items).toEqual([]);
   });
+
+  it('pushes recent skills ahead when the match strength is the same', () => {
+    const items = buildChatSlashItems(
+      [
+        createSkillRecord({ key: 'docs', label: 'Docs' }),
+        createSkillRecord({ key: 'web-search', label: 'Web Search' }),
+        createSkillRecord({ key: 'weather', label: 'Weather' })
+      ],
+      '',
+      texts,
+      ['weather', 'docs']
+    );
+
+    expect(items.map((item) => item.value)).toEqual(['weather', 'docs', 'web-search']);
+  });
+
+  it('lets recent skills win inside the same slash match tier', () => {
+    const items = buildChatSlashItems(
+      [
+        createSkillRecord({ key: 'web-search', label: 'Web Search' }),
+        createSkillRecord({ key: 'weather', label: 'Web Weather' }),
+        createSkillRecord({ key: 'docs', label: 'Docs for web' })
+      ],
+      'web',
+      texts,
+      ['weather']
+    );
+
+    expect(items.map((item) => item.value)).toEqual(['weather', 'web-search', 'docs']);
+  });
 });
 
 describe('buildSelectedSkillItems', () => {
@@ -60,6 +90,8 @@ describe('buildSkillPickerModel', () => {
     const onSelectedKeysChange = vi.fn();
     const model = buildSkillPickerModel({
       skillRecords: [createSkillRecord({ key: 'web-search', label: 'Web Search', description: 'Search web' })],
+      recentSkillValues: [],
+      groupedRecentSkillValues: [],
       selectedSkills: ['web-search'],
       isLoading: false,
       onSelectedKeysChange,
@@ -68,7 +100,9 @@ describe('buildSkillPickerModel', () => {
         searchPlaceholder: 'Search skills',
         emptyLabel: 'No skills',
         loadingLabel: 'Loading',
-        manageLabel: 'Manage'
+        manageLabel: 'Manage',
+        recentSkillsLabel: 'Recent',
+        allSkillsLabel: 'All skills'
       }
     });
 
@@ -81,6 +115,74 @@ describe('buildSkillPickerModel', () => {
       key: 'web-search',
       label: 'Web Search'
     });
+  });
+
+  it('groups recent skills ahead of the remaining catalog', () => {
+    const model = buildSkillPickerModel({
+      skillRecords: [
+        createSkillRecord({ key: 'docs', label: 'Docs' }),
+        createSkillRecord({ key: 'web-search', label: 'Web Search' }),
+        createSkillRecord({ key: 'weather', label: 'Weather' })
+      ],
+      recentSkillValues: ['weather', 'docs'],
+      groupedRecentSkillValues: ['weather', 'docs'],
+      selectedSkills: ['weather'],
+      isLoading: false,
+      onSelectedKeysChange: vi.fn(),
+      texts: {
+        title: 'Skills',
+        searchPlaceholder: 'Search skills',
+        emptyLabel: 'No skills',
+        loadingLabel: 'Loading',
+        manageLabel: 'Manage',
+        recentSkillsLabel: 'Recent',
+        allSkillsLabel: 'All skills'
+      }
+    });
+
+    expect(model.options.map((option) => option.key)).toEqual(['weather', 'docs', 'web-search']);
+    expect(model.groups).toEqual([
+      {
+        key: 'recent-skills',
+        label: 'Recent',
+        options: [
+          expect.objectContaining({ key: 'weather', label: 'Weather' }),
+          expect.objectContaining({ key: 'docs', label: 'Docs' })
+        ]
+      },
+      {
+        key: 'all-skills',
+        label: 'All skills',
+        options: [expect.objectContaining({ key: 'web-search', label: 'Web Search' })]
+      }
+    ]);
+  });
+
+  it('still reorders recent skills even when grouped labels are omitted', () => {
+    const model = buildSkillPickerModel({
+      skillRecords: [
+        createSkillRecord({ key: 'docs', label: 'Docs' }),
+        createSkillRecord({ key: 'web-search', label: 'Web Search' }),
+        createSkillRecord({ key: 'weather', label: 'Weather' })
+      ],
+      recentSkillValues: ['weather'],
+      groupedRecentSkillValues: [],
+      selectedSkills: [],
+      isLoading: false,
+      onSelectedKeysChange: vi.fn(),
+      texts: {
+        title: 'Skills',
+        searchPlaceholder: 'Search skills',
+        emptyLabel: 'No skills',
+        loadingLabel: 'Loading',
+        manageLabel: 'Manage',
+        recentSkillsLabel: 'Recent',
+        allSkillsLabel: 'All skills'
+      }
+    });
+
+    expect(model.options.map((option) => option.key)).toEqual(['weather', 'docs', 'web-search']);
+    expect(model.groups).toBeUndefined();
   });
 });
 
