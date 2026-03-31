@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SessionRunBadge } from '@/components/common/SessionRunBadge';
 import { adaptNcpSessionSummaries } from '@/components/chat/ncp/ncp-session-adapter';
-import { sessionDisplayName } from '@/components/chat/chat-session-display';
+import { sessionDisplayName, sessionMatchesQuery } from '@/components/chat/chat-session-display';
 import { cn } from '@/lib/utils';
 import { formatDateShort, formatDateTime, t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
@@ -167,15 +167,11 @@ export function SessionsConfig() {
   const sessionEntries = useMemo(() => adaptNcpSessionSummaries(sessionSummaries), [sessionSummaries]);
   const sessionSummaryById = useMemo(() => new Map(sessionSummaries.map((session) => [session.sessionId, session])), [sessionSummaries]);
   const filteredSessions = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
     return sessionEntries.filter((session) => {
       if (selectedChannel !== 'all' && resolveChannelFromSessionKey(session.key) !== selectedChannel) {
         return false;
       }
-      if (!normalizedQuery) {
-        return true;
-      }
-      return session.key.toLowerCase().includes(normalizedQuery) || sessionDisplayName(session).toLowerCase().includes(normalizedQuery);
+      return sessionMatchesQuery(session, query);
     });
   }, [query, selectedChannel, sessionEntries]);
   const selectedSession = useMemo(

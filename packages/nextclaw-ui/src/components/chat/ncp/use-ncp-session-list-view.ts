@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { SessionEntryView } from '@/api/types';
 import { adaptNcpSessionSummaries } from '@/components/chat/ncp/ncp-session-adapter';
+import { sessionMatchesQuery } from '@/components/chat/chat-session-display';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 import { useNcpSessions } from '@/hooks/useConfig';
 import type { SessionRunStatus } from '@/lib/session-run-status';
@@ -11,12 +12,7 @@ export type NcpSessionListItemView = {
 };
 
 function filterSessionsByQuery(sessions: readonly SessionEntryView[], query: string): SessionEntryView[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return [...sessions];
-  }
-
-  return sessions.filter((session) => session.key.toLowerCase().includes(normalizedQuery));
+  return sessions.filter((session) => sessionMatchesQuery(session, query));
 }
 
 export function useNcpSessionListView(params: { limit?: number } = {}) {

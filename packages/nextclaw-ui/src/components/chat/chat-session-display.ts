@@ -7,3 +7,18 @@ export function sessionDisplayName(session: SessionEntryView): string {
   const chunks = session.key.split(':');
   return chunks[chunks.length - 1] || session.key;
 }
+
+function normalizeSessionSearchValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export function sessionMatchesQuery(session: SessionEntryView, query: string): boolean {
+  const normalizedQuery = normalizeSessionSearchValue(query);
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [session.key, sessionDisplayName(session)]
+    .map(normalizeSessionSearchValue)
+    .some((value) => value.includes(normalizedQuery));
+}

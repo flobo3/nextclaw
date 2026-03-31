@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SessionEntryView, ThinkingLevel } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
+import { sessionMatchesQuery } from '@/components/chat/chat-session-display';
 import { adaptNcpSessionSummaries } from '@/components/chat/ncp/ncp-session-adapter';
 import { useChatSessionTypeState } from '@/components/chat/useChatSessionTypeState';
 import {
@@ -30,11 +31,7 @@ type UseNcpChatPageDataParams = {
 };
 
 function filterSessionsByQuery(sessions: SessionEntryView[], query: string): SessionEntryView[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return sessions;
-  }
-  return sessions.filter((session) => session.key.toLowerCase().includes(normalizedQuery));
+  return sessions.filter((session) => sessionMatchesQuery(session, query));
 }
 
 export function filterModelOptionsBySessionType(params: {
