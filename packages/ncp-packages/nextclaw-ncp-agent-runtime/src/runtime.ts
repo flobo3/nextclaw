@@ -102,7 +102,8 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
    * RunFinished is emitted only when the entire loop completes (no more tool calls).
    * The stream encoder does not emit RunFinished; it only converts chunks to NCP events.
    */
-  private async *runLoop(
+  private runLoop = async function* (
+    this: DefaultNcpAgentRuntime,
     llmInput: NcpLLMApiInput,
     ctx: NcpEncodeContext,
     options?: NcpAgentRunOptions,
@@ -137,12 +138,17 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
           });
         } else {
           const schemaIssues = validateToolArgs(parsedArgs.value, tool?.parameters);
-          if (schemaIssues.length > 0) {
+          const validationIssues = schemaIssues.length > 0
+            ? schemaIssues
+            : typeof tool?.validateArgs === "function"
+              ? tool.validateArgs(parsedArgs.value)
+              : [];
+          if (validationIssues.length > 0) {
             result = createInvalidToolArgumentsResult({
               toolCallId: toolCall.toolCallId,
               toolName: toolCall.toolName,
               rawArgumentsText: parsedArgs.rawText,
-              issues: schemaIssues,
+              issues: validationIssues,
             });
           } else {
             args = parsedArgs.value;
@@ -187,9 +193,10 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
         toolResults,
       );
     }
-  }
+  };
 
-  private async *tapStream(
+  private tapStream = async function* (
+    this: DefaultNcpAgentRuntime,
     stream: AsyncIterable<OpenAIChatChunk>,
     onChunk: (chunk: OpenAIChatChunk) => void,
   ): AsyncGenerator<OpenAIChatChunk> {
@@ -197,5 +204,5 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
       onChunk(chunk);
       yield chunk;
     }
-  }
+  };
 }

@@ -243,7 +243,9 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
 
     expect(textDeltas).toEqual(["s", "l", "o", "w"]);
   });
+});
 
+describe("DefaultNcpAgentBackend invalid tool arguments", () => {
   it("returns structured invalid args result and preserves raw arguments for the next round", async () => {
     const llmApi = new InvalidArgsThenAnswerNcpLLMApi();
     const toolRegistry = new RecordingSchemaToolRegistry();
@@ -295,6 +297,51 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
     expect(secondRoundAssistantMessage?.tool_calls?.[0]?.function?.arguments).toBe(
       "{\"path\":\"/tmp/a.txt\"}}",
     );
+  });
+
+  it("uses tool-provided semantic validation for structured invalid args", async () => {
+    const llmApi = new SemanticInvalidArgsThenAnswerNcpLLMApi();
+    const toolRegistry = new RecordingSemanticToolRegistry();
+    const backend = new DefaultNcpAgentBackend({
+      sessionStore: new InMemoryAgentSessionStore(),
+      createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
+        return new DefaultNcpAgentRuntime({
+          contextBuilder: new DefaultNcpContextBuilder(toolRegistry),
+          llmApi,
+          toolRegistry,
+          stateManager,
+        });
+      },
+    });
+
+    const toolResults: unknown[] = [];
+    backend.subscribe((event) => {
+      if (event.type === NcpEventType.MessageToolCallResult) {
+        toolResults.push(event.payload.content);
+      }
+    });
+
+    await backend.emit({
+      type: NcpEventType.MessageRequest,
+      payload: createEnvelope("send message"),
+    });
+
+    expect(toolRegistry.executeCalls).toHaveLength(0);
+    expect(toolResults).toHaveLength(1);
+    expect(toolResults[0]).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_tool_arguments",
+        message: "Tool arguments are invalid.",
+        toolCallId: "call-semantic-invalid",
+        toolName: "message",
+        rawArgumentsText: "{\"channel\":\"feishu\",\"message\":\"hello\"}",
+        issues: [
+          "missing required to or chatId when channel differs from current session (ui:web-ui)",
+        ],
+      },
+    });
+    expect(llmApi.inputs).toHaveLength(2);
   });
 });
 
@@ -439,6 +486,51 @@ class InvalidArgsThenAnswerNcpLLMApi implements NcpLLMApi {
   }
 }
 
+class SemanticInvalidArgsThenAnswerNcpLLMApi implements NcpLLMApi {
+  readonly inputs: NcpLLMApiInput[] = [];
+
+  generate = async function* (
+    this: SemanticInvalidArgsThenAnswerNcpLLMApi,
+    input: NcpLLMApiInput,
+  ): AsyncGenerator<OpenAIChatChunk> {
+    this.inputs.push(structuredClone(input));
+
+    const hasToolFeedback = input.messages.some((message) => message.role === "tool");
+    if (!hasToolFeedback) {
+      yield {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: "call-semantic-invalid",
+                  type: "function",
+                  function: {
+                    name: "message",
+                    arguments: "{\"channel\":\"feishu\",\"message\":\"hello\"}",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      };
+      yield {
+        choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      };
+      return;
+    }
+
+    yield {
+      choices: [{ delta: { content: "handled semantic invalid args" } }],
+    };
+    yield {
+      choices: [{ delta: {}, finish_reason: "stop" }],
+    };
+  };
+}
+
 class RecordingSchemaToolRegistry implements NcpToolRegistry {
   readonly executeCalls: Array<{
     toolCallId: string;
@@ -459,15 +551,11 @@ class RecordingSchemaToolRegistry implements NcpToolRegistry {
     execute: async () => "should-not-run",
   };
 
-  listTools(): readonly NcpTool[] {
-    return [this.tool];
-  }
+  listTools = (): readonly NcpTool[] => [this.tool];
 
-  getTool(name: string): NcpTool | undefined {
-    return name === this.tool.name ? this.tool : undefined;
-  }
+  getTool = (name: string): NcpTool | undefined => name === this.tool.name ? this.tool : undefined;
 
-  getToolDefinitions(): ReadonlyArray<NcpToolDefinition> {
+  getToolDefinitions = (): ReadonlyArray<NcpToolDefinition> => {
     return [
       {
         name: this.tool.name,
@@ -475,12 +563,64 @@ class RecordingSchemaToolRegistry implements NcpToolRegistry {
         parameters: this.tool.parameters,
       },
     ];
-  }
+  };
 
-  async execute(toolCallId: string, toolName: string, args: unknown): Promise<unknown> {
+  execute = async (toolCallId: string, toolName: string, args: unknown): Promise<unknown> => {
     this.executeCalls.push({ toolCallId, toolName, args });
     return this.tool.execute(args);
-  }
+  };
+}
+
+class RecordingSemanticToolRegistry implements NcpToolRegistry {
+  readonly executeCalls: Array<{
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+  }> = [];
+
+  private readonly tool: NcpTool = {
+    name: "message",
+    description: "Send a message to a chat channel",
+    parameters: {
+      type: "object",
+      properties: {
+        channel: { type: "string" },
+        message: { type: "string" },
+        to: { type: "string" },
+        chatId: { type: "string" },
+      },
+      required: [],
+    },
+    validateArgs: (args) => {
+      const explicitChannel = typeof args.channel === "string" ? args.channel.trim() : "";
+      const explicitTo = typeof args.to === "string" ? args.to.trim() : "";
+      const explicitChatId = typeof args.chatId === "string" ? args.chatId.trim() : "";
+      if (explicitChannel.toLowerCase() === "feishu" && !explicitTo && !explicitChatId) {
+        return ["missing required to or chatId when channel differs from current session (ui:web-ui)"];
+      }
+      return [];
+    },
+    execute: async () => "should-not-run",
+  };
+
+  listTools = (): readonly NcpTool[] => [this.tool];
+
+  getTool = (name: string): NcpTool | undefined => name === this.tool.name ? this.tool : undefined;
+
+  getToolDefinitions = (): ReadonlyArray<NcpToolDefinition> => {
+    return [
+      {
+        name: this.tool.name,
+        description: this.tool.description,
+        parameters: this.tool.parameters,
+      },
+    ];
+  };
+
+  execute = async (toolCallId: string, toolName: string, args: unknown): Promise<unknown> => {
+    this.executeCalls.push({ toolCallId, toolName, args });
+    return this.tool.execute(args);
+  };
 }
 
 function getLastUserText(input: NcpLLMApiInput): string {

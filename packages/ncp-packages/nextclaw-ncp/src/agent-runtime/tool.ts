@@ -8,6 +8,7 @@ export interface NcpTool {
   readonly name: string;
   readonly description?: string;
   readonly parameters?: Record<string, unknown>;
+  validateArgs?(args: Record<string, unknown>): string[];
   execute(args: unknown): Promise<unknown>;
 }
 

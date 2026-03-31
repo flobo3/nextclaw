@@ -36,29 +36,44 @@ export class MessageTool extends Tool {
     };
   }
 
-  setContext(channel: string, chatId: string, accountId?: string | null): void {
+  setContext = (channel: string, chatId: string, accountId?: string | null): void => {
     this.channel = channel;
     this.chatId = chatId;
     this.accountId = typeof accountId === "string" && accountId.trim().length > 0 ? accountId : undefined;
-  }
+  };
 
-  async execute(params: Record<string, unknown>): Promise<string> {
+  protected override validateSemanticParams = (params: Record<string, unknown>): string[] => {
+    const issues: string[] = [];
+    if (!this.resolveContent(params)) {
+      issues.push("missing required content or message");
+    }
+
+    const explicitChannel = this.readTrimmedString(params.channel);
+    const explicitChatId = this.readTrimmedString(params.chatId);
+    const explicitTo = this.readTrimmedString(params.to);
+    if (explicitChannel && explicitChannel.toLowerCase() !== this.channel.toLowerCase() && !explicitChatId && !explicitTo) {
+      issues.push(`missing required to or chatId when channel differs from current session (${this.channel}:${this.chatId})`);
+    }
+    return issues;
+  };
+
+  override async execute(params: Record<string, unknown>): Promise<string> {
     const action = params.action ? String(params.action) : "send";
     if (action !== "send") {
       return `Error: Unsupported action '${action}'`;
     }
-    const content = String(params.content ?? params.message ?? "");
+    const validationIssues = this.validateSemanticParams(params);
+    if (validationIssues.length > 0) {
+      return `Error: ${validationIssues.join("; ")}`;
+    }
+    const content = this.resolveContent(params);
     if (!content) {
-      return "Error: content/message is required";
+      return "Error: missing required content or message";
     }
-    const explicitChannel = typeof params.channel === "string" ? params.channel.trim() : "";
-    const explicitChatId = typeof params.chatId === "string" ? params.chatId.trim() : "";
-    const explicitTo = typeof params.to === "string" ? params.to.trim() : "";
+    const explicitChannel = this.readTrimmedString(params.channel);
+    const explicitChatId = this.readTrimmedString(params.chatId);
+    const explicitTo = this.readTrimmedString(params.to);
     const channel = explicitChannel || this.channel;
-
-    if (explicitChannel && explicitChannel.toLowerCase() !== this.channel.toLowerCase() && !explicitChatId && !explicitTo) {
-      return `Error: to/chatId is required when sending to another channel (current session: ${this.channel}:${this.chatId})`;
-    }
 
     const chatId = explicitChatId || explicitTo || this.chatId;
     const accountId =
@@ -83,4 +98,16 @@ export class MessageTool extends Tool {
     });
     return `Message sent to ${channel}:${chatId}`;
   }
+
+  private readTrimmedString = (value: unknown): string => typeof value === "string" ? value.trim() : "";
+
+  private resolveContent = (params: Record<string, unknown>): string | null => {
+    if (typeof params.content === "string" && params.content.trim().length > 0) {
+      return params.content;
+    }
+    if (typeof params.message === "string" && params.message.trim().length > 0) {
+      return params.message;
+    }
+    return null;
+  };
 }

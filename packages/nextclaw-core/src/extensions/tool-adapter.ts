@@ -94,11 +94,9 @@ export class ExtensionToolAdapter extends Tool {
     return normalizeSchema(preview?.parameters ?? this.fallbackParameters);
   }
 
-  override isAvailable(): boolean {
-    return this.resolveToolPreview() !== null;
-  }
+  override isAvailable = (): boolean => this.resolveToolPreview() !== null;
 
-  async execute(params: Record<string, unknown>, toolCallId?: string): Promise<string> {
+  override async execute(params: Record<string, unknown>, toolCallId?: string): Promise<string> {
     const resolved = this.resolveToolRuntime();
     if (!resolved) {
       return `Error: Tool '${this.name}' not available in extension '${this.params.registration.extensionId}'`;
@@ -118,24 +116,24 @@ export class ExtensionToolAdapter extends Tool {
     }
   }
 
-  private buildContext(): ExtensionToolContext {
+  private buildContext = (): ExtensionToolContext => {
     return {
       config: this.params.config,
       workspaceDir: this.params.workspaceDir,
       ...this.params.contextProvider()
     };
-  }
+  };
 
-  private resolveToolPreview(): ExtensionTool | null {
+  private resolveToolPreview = (): ExtensionTool | null => {
     try {
       const tools = normalizeToolList(this.params.registration.factory(this.buildContext()));
       return this.pickToolForAlias(tools);
     } catch {
       return null;
     }
-  }
+  };
 
-  private resolveToolRuntime(): ExtensionTool | null {
+  private resolveToolRuntime = (): ExtensionTool | null => {
     try {
       const tools = normalizeToolList(this.params.registration.factory(this.buildContext()));
       return this.pickToolForAlias(tools);
@@ -148,9 +146,9 @@ export class ExtensionToolAdapter extends Tool {
       });
       return null;
     }
-  }
+  };
 
-  private pickToolForAlias(tools: ExtensionTool[]): ExtensionTool | null {
+  private pickToolForAlias = (tools: ExtensionTool[]): ExtensionTool | null => {
     if (tools.length === 0) {
       return null;
     }
@@ -169,5 +167,5 @@ export class ExtensionToolAdapter extends Tool {
       }
     }
     return tools[0];
-  }
+  };
 }
