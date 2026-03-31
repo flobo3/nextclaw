@@ -10,6 +10,7 @@ import {
   buildRenderableText,
   buildTextPart,
 } from "@/components/chat/adapters/chat-message-inline-content.adapter";
+import { buildFileOperationCardData } from "@/components/chat/adapters/chat-message.file-operation-card";
 import { buildSubagentToolCard } from "@/components/chat/adapters/chat-message.subagent-tool-card";
 import type {
   ChatMessagePartViewModel,
@@ -77,6 +78,7 @@ export type ChatMessagePartSource =
 type ToolCardViewSource = ToolCard & {
   statusTone: ChatToolPartViewModel["statusTone"];
   statusLabel: string;
+  fileOperation?: ChatToolPartViewModel["fileOperation"];
 };
 
 type ChatMessagePartAdapterParams = {
@@ -169,6 +171,9 @@ function buildToolCard(
       toolCard.kind === "call" ? texts.toolCallLabel : texts.toolResultLabel,
     outputLabel: texts.toolOutputLabel,
     emptyLabel: texts.toolNoOutputLabel,
+    ...("fileOperation" in toolCard && toolCard.fileOperation
+      ? { fileOperation: toolCard.fileOperation }
+      : {}),
   };
 }
 
@@ -296,22 +301,30 @@ function buildToolInvocationPart(
     result: invocation.result,
     texts,
   });
-  const detail = summarizeToolArgs(invocation.parsedArgs ?? invocation.args);
+  const fileOperationCardData = buildFileOperationCardData(invocation);
+  const detail =
+    fileOperationCardData?.summary ??
+    summarizeToolArgs(invocation.parsedArgs ?? invocation.args);
   const rawResult =
     typeof invocation.error === "string" && invocation.error.trim()
       ? invocation.error.trim()
       : invocation.result != null
         ? stringifyUnknown(invocation.result).trim()
         : "";
+  const shouldShowRawResult =
+    !fileOperationCardData?.fileOperation || Boolean(invocation.error);
   const card: ToolCardViewSource = {
     kind: statusView.kind,
     name: invocation.toolName,
     detail,
-    text: rawResult || undefined,
+    text: shouldShowRawResult && rawResult ? rawResult : undefined,
     callId: invocation.toolCallId || undefined,
     hasResult: statusView.hasResult,
     statusTone: statusView.statusTone,
     statusLabel: statusView.statusLabel,
+    ...(fileOperationCardData?.fileOperation
+      ? { fileOperation: fileOperationCardData.fileOperation }
+      : {}),
   };
   return {
     type: "tool-card",

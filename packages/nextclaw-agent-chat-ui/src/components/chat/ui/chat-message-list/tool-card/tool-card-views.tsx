@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { ChatToolPartViewModel } from '../../../view-models/chat-ui.types';
 import { ToolCardRoot, ToolCardContent } from './tool-card-root';
 import { ToolCardHeader } from './tool-card-header';
+import { ToolCardFileOperationContent } from './tool-card-file-operation';
 
 const TOOL_CARD_AUTO_EXPAND_DELAY_MS = 200;
 
@@ -143,29 +144,16 @@ export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel })
 export function FileOperationView({ card }: { card: ChatToolPartViewModel }) {
   const output = card.output?.trim() ?? '';
   const isRunning = card.statusTone === 'running';
+  const hasStructuredPreview = Boolean(card.fileOperation?.blocks.length);
+  const hasContent = hasStructuredPreview || Boolean(output);
   const { expanded, onToggle } = useToolCardExpandedState({
-    canExpand: !!output || isRunning,
+    canExpand: hasContent || isRunning,
     isRunning,
+    expandOnError: hasContent,
     statusTone: card.statusTone,
   });
 
-  const isEdit = card.toolName === 'edit_file' || card.toolName === 'write_file';
-  const renderLine = (line: string, idx: number) => {
-    if (isEdit) {
-      if (line.startsWith('+') && !line.startsWith('+++')) {
-        return <div key={idx} className="bg-emerald-500/10 text-emerald-700 px-2 py-0.5 w-full break-all whitespace-pre-wrap"><span className="select-none opacity-40 mr-2 w-3 inline-block shrink-0">+</span><span>{line.slice(1)}</span></div>;
-      }
-      if (line.startsWith('-') && !line.startsWith('---')) {
-        return <div key={idx} className="bg-rose-500/10 text-rose-700 px-2 py-0.5 w-full break-all whitespace-pre-wrap"><span className="select-none opacity-40 mr-2 w-3 inline-block shrink-0">-</span><span className="line-through decoration-rose-400/50">{line.slice(1)}</span></div>;
-      }
-    }
-    return <div key={idx} className="py-0.5 text-amber-950/80 w-full break-all whitespace-pre-wrap"><span>{line}</span></div>;
-  };
-
-  const lines = output.split('\n');
-  const maxLines = 15;
-  const isLong = lines.length > maxLines;
-  const displayLines = (!expanded && isLong) ? lines.slice(0, maxLines) : lines;
+  const isEdit = card.toolName === 'edit_file' || card.toolName === 'write_file' || card.toolName === 'apply_patch' || card.toolName === 'file_change';
 
   return (
     <ToolCardRoot>
@@ -173,14 +161,12 @@ export function FileOperationView({ card }: { card: ChatToolPartViewModel }) {
         card={card} 
         icon={isEdit ? Code2 : FileText} 
         expanded={expanded} 
-        canExpand={!!output || isRunning} 
+        canExpand={hasContent || isRunning} 
         onToggle={onToggle} 
       />
-      {expanded && output && (
+      {expanded && hasContent && (
         <ToolCardContent>
-          <div className="font-mono text-[12px] leading-relaxed max-h-48 overflow-y-auto overflow-x-hidden min-w-0 custom-scrollbar-amber text-amber-950/80 w-full">
-            {displayLines.map(renderLine)}
-          </div>
+          <ToolCardFileOperationContent card={card} />
         </ToolCardContent>
       )}
     </ToolCardRoot>

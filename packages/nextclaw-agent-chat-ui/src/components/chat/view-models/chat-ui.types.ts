@@ -182,6 +182,22 @@ export type ChatMessageRole =
   | "system"
   | "message";
 
+export type ChatFileOperationLineViewModel = {
+  kind: "context" | "add" | "remove";
+  text: string;
+  oldLineNumber?: number;
+  newLineNumber?: number;
+};
+
+export type ChatFileOperationBlockViewModel = {
+  key: string;
+  path: string;
+  caption?: string;
+  lines: ChatFileOperationLineViewModel[];
+  rawText?: string;
+  truncated?: boolean;
+};
+
 export type ChatToolPartViewModel = {
   kind: "call" | "result";
   toolName: string;
@@ -193,6 +209,9 @@ export type ChatToolPartViewModel = {
   titleLabel: string;
   outputLabel: string;
   emptyLabel: string;
+  fileOperation?: {
+    blocks: ChatFileOperationBlockViewModel[];
+  };
 };
 
 export type ChatInlineTokenViewModel = {

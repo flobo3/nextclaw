@@ -377,3 +377,132 @@ it("renders asset tool results as previewable files", () => {
     },
   });
 });
+
+it("builds edit-file previews from structured args before the tool finishes", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-edit-preview",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-invocation",
+          toolInvocation: {
+            status: ToolInvocationStatus.CALL,
+            toolCallId: "edit-call-1",
+            toolName: "edit_file",
+            args: JSON.stringify({
+              path: "src/app.ts",
+              oldText: "const color = 'red';",
+              newText: "const color = 'blue';",
+            }),
+            parsedArgs: {
+              path: "src/app.ts",
+              oldText: "const color = 'red';",
+              newText: "const color = 'blue';",
+            },
+          },
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toMatchObject({
+    type: "tool-card",
+    card: {
+      toolName: "edit_file",
+      summary: "src/app.ts",
+      statusTone: "running",
+      fileOperation: {
+        blocks: [
+          {
+            path: "src/app.ts",
+            lines: [
+              {
+                kind: "remove",
+                text: "const color = 'red';",
+              },
+              {
+                kind: "add",
+                text: "const color = 'blue';",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+});
+
+it("renders codex file_change results as structured diff previews", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-file-change",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-invocation",
+          toolInvocation: {
+            status: ToolInvocationStatus.RESULT,
+            toolCallId: "file-change-1",
+            toolName: "file_change",
+            args: JSON.stringify({
+              changes: [
+                {
+                  path: "src/main.ts",
+                  diff: [
+                    "--- a/src/main.ts",
+                    "+++ b/src/main.ts",
+                    "@@",
+                    "-console.log('old');",
+                    "+console.log('new');",
+                  ].join("\n"),
+                },
+              ],
+            }),
+            result: {
+              status: "completed",
+              changes: [
+                {
+                  path: "src/main.ts",
+                  diff: [
+                    "--- a/src/main.ts",
+                    "+++ b/src/main.ts",
+                    "@@",
+                    "-console.log('old');",
+                    "+console.log('new');",
+                  ].join("\n"),
+                },
+              ],
+            },
+          },
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toMatchObject({
+    type: "tool-card",
+    card: {
+      toolName: "file_change",
+      summary: "src/main.ts",
+      statusTone: "success",
+      fileOperation: {
+        blocks: [
+          {
+            path: "src/main.ts",
+            lines: [
+              {
+                kind: "remove",
+                text: "console.log('old');",
+              },
+              {
+                kind: "add",
+                text: "console.log('new');",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+});
