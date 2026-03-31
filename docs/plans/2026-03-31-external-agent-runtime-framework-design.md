@@ -164,7 +164,7 @@ Codex / Claude / Cursor / Gemini
 
 职责包括：
 
-- session type / runtime kind 的产品语义
+- 当前 registry 暴露的 `session type` 及其产品语义
 - 会话创建、恢复、删除、列表展示
 - 某个 chat / thread 与某个外部 agent session 的绑定
 - `sessions_spawn`、`resume`、`close`、`status` 等统一入口
@@ -182,7 +182,7 @@ Codex / Claude / Cursor / Gemini
 - 如何 `runTurn`
 - 如何 `cancel`
 - 如何 `close`
-- 如何返回 event / status / session identity
+- 如何返回 event / status / `backend_session_id`
 
 这一层也应由 `NextClaw` 主导，因为它决定我们未来是否能统一容纳：
 
@@ -206,6 +206,57 @@ Codex / Claude / Cursor / Gemini
 
 `acpx` 在这个结构里处于第三层，不应上升为整个系统的唯一底座。
 
+## 命名与术语约定
+
+为了避免后续继续把“产品语义”“实现语义”“外部会话语义”混在一起，这份文档统一采用以下命名约定。
+
+### 1. 当前系统已有术语
+
+现有代码与历史文档中，已经存在这些术语：
+
+- `session type`
+- `runtime kind`
+- `backend`
+- `agent`
+
+它们在不同上下文中都成立，但也最容易互相污染。
+
+例如：
+
+- `session type` 更偏用户可见产品语义
+- `runtime kind` 更偏当前 registry / plugin 注册语义
+- `backend` 更偏具体接入实现
+- `agent` 在不同上下文里可能指实例、类型、alias、目标 runtime，歧义最大
+
+### 2. 本文档的推荐规范名
+
+从本文档开始，凡是面向统一 contract 与持久化字段的命名，优先使用以下术语：
+
+- `session_type`
+  - 用户可见产品语义
+- `runtime_family`
+  - 执行族
+  - 例如：`native` / `external`
+- `backend_id`
+  - 具体 adapter / backend 实现
+- `backend_target_id`
+  - backend 内部目标标识
+  - 可以是 harness alias、runtime target、provider target，但不假定它是某个系统级 agent 实体 id
+- `backend_session_id`
+  - backend 返回的真实外部会话标识
+- `working_directory`
+  - 运行工作目录
+
+### 3. 一个重要边界
+
+后续设计与实现里要尽量避免：
+
+- 把 `runtime kind` 直接当作持久化字段名
+- 把 `agent id` 直接当作统一 contract 字段名
+- 把产品层 `session id` 和外部 backend 返回的 `backend_session_id` 混为一谈
+
+如果必须引用现有实现中的历史命名，应明确标注“这是当前代码中的已有术语”，不要直接把它延续成新 contract 的规范字段名。
+
 ## 推荐的核心抽象
 
 ### 1. ExternalRuntimeBackend
@@ -220,19 +271,109 @@ Codex / Claude / Cursor / Gemini
 
 这是 SDK 型 runtime 与 ACP/harness 型 runtime 的共同交汇点。
 
+但这里必须明确：
+
+- 这只是“执行控制面”的最小接口
+- 不代表所有 backend 在事件、权限、恢复、工具、binding 上天然等价
+- 因此统一方法接口之外，还必须有单独的 capability contract
+
+### 1.1 RuntimeCapabilitySnapshot
+
+仅靠 `ensureSession/runTurn/cancel/close/getStatus` 不足以支撑真正的通用框架。
+
+原因是：
+
+- `Codex SDK runtime`
+- `Claude SDK runtime`
+- `acpx/codex`
+- 未来其它 ACP backend
+
+在以下方面都可能显著不同：
+
+- 是否支持持久 session resume
+- 是否支持 current-conversation bind
+- 是否支持 child-thread bind
+- 是否支持工具事件流
+- 是否支持 approval / permission profile
+- 是否支持严格 sandbox
+- 是否支持结构化 status / progress
+- 是否支持将 OpenClaw / NextClaw 的 tools 透传到 runtime
+
+因此建议统一定义一份 `RuntimeCapabilitySnapshot`，至少覆盖：
+
+- `sessionResume`
+- `conversationBinding`
+- `threadBinding`
+- `toolStreaming`
+- `structuredStatus`
+- `interactiveApproval`
+- `nonInteractivePermissionProfile`
+- `sandboxModes`
+- `toolBridge`
+
+后续：
+
+- `sessions_spawn` 是否允许某个组合
+- 前端是否展示某个入口
+- 某个 `session_type` 是否 ready
+- 某个 binding 操作是否可执行
+
+都应首先判断 capability，而不是写死“某类 runtime 应该能做什么”。
+
 ### 2. ExternalSession
 
 需要统一会话身份模型，至少包含：
 
-- `runtime kind`
-- `backend id`
-- `agent id`
-- `session runtime id`
-- `workingDirectory`
+- `session_type`
+- `runtime_family`
+- `backend_id`
+- `backend_target_id`
+- `backend_session_id`
+- `working_directory`
 - `mode`
 - `state`
 
 无论底层是 `Codex SDK`、`Claude Code SDK` 还是 `acpx/codex`，都应能落到同一套 session 元模型上。
+
+### 2.1 必须先拍板的持久化契约
+
+这是进入实现前必须明确的第一优先级问题。
+
+如果未来同一个用户可见 `session_type`（例如 `Codex`）既可以走：
+
+- `Codex SDK runtime`
+- `acpx/codex`
+
+那就必须明确“用户语义”和“运行时实现语义”不是同一个字段。
+
+建议将 session metadata 最少拆成以下几层：
+
+- `session_type`
+  - 用户可见产品语义
+  - 例如：`native` / `codex` / `claude`
+- `runtime_family`
+  - 执行族
+  - 例如：`native` / `external`
+- `backend_id`
+  - 具体 backend / adapter
+  - 例如：`sdk-codex` / `sdk-claude` / `acpx`
+- `backend_target_id`
+  - backend 内部目标标识
+  - 例如：`codex` / `claude` / `cursor`
+- `backend_session_id`
+  - backend 返回的真实外部会话标识
+
+推荐原则：
+
+- `session_type` 负责 UI 与产品语义
+- `backend_id + backend_target_id + backend_session_id` 负责真实恢复
+- 恢复会话时，`backend_id` 必须是唯一真相源，不能再通过 `session_type` 反推具体实现
+
+否则后面一定会出现：
+
+- 同一个 `Codex` 会话到底该按 SDK 恢复还是按 ACP 恢复
+- 历史会话升级后无法稳定回到原 backend
+- `session_type` 列表与真实实现发生漂移
 
 ### 3. ConversationBinding
 
@@ -254,11 +395,11 @@ Codex / Claude / Cursor / Gemini
 
 ```text
 sessions_spawn({
-  runtime: "native" | "external",
-  backend: "sdk" | "acpx" | "<future-backend>",
-  agentId: "codex" | "claude" | "<future-agent>",
+  runtime_family: "native" | "external",
+  backend_id: "native" | "sdk-codex" | "sdk-claude" | "acpx" | "<future-backend>",
+  backend_target_id: "codex" | "claude" | "<future-target>",
   mode: "run" | "session",
-  cwd,
+  working_directory,
   bind,
   thread,
   metadata
@@ -270,6 +411,24 @@ sessions_spawn({
 - “创建一个新执行单元”
 - “这个执行单元可能是 native，也可能是 external”
 - “系统后续能统一编排、观察、恢复和绑定它”
+
+### 4.1 sessions_spawn 与 capability 的关系
+
+`sessions_spawn` 不应被理解为“所有字段组合都对所有 backend 生效”。
+
+更合理的原则是：
+
+- `sessions_spawn` 提供统一入口
+- 但每次 spawn 都必须经过目标 runtime capability 校验
+
+例如：
+
+- 某个 backend 不支持 `thread bind`
+- 某个 backend 不支持 `mode="session"`
+- 某个 backend 不支持 `sandbox=require`
+- 某个 backend 不支持 tools bridge
+
+则应在 spawn 前直接给出显式错误，而不是进入运行期后再隐式失败。
 
 ## 我们现有体系与推荐方向的关系
 
@@ -347,18 +506,37 @@ NextClaw External Agent Session Framework
 
 避免后续继续把不同层级的“插件”混在一起谈。
 
-### Phase 1：在现有 NCP runtime 插件体系上新增 external session 元模型
+### Phase 0.5：先做 acpx / ACP contract spike
+
+在正式实现统一框架之前，建议先做一个很小的探索性 spike，而不是立即接入生产链路。
+
+目标不是“马上支持 acpx”，而是验证：
+
+- 我们设想中的 `ExternalRuntimeBackend` contract，是否真的能容纳 ACP backend
+- 我们设想中的 `ExternalSession` 元模型，是否足以表达 `acpx` external session identity
+- 我们设想中的 capability snapshot，是否能覆盖 ACP runtime 的真实差异
+
+这一步只需要做到：
+
+- 建立最小 adapter 原型
+- 验证一条 `ensureSession -> runTurn -> close` happy path
+- 明确哪些字段或 contract 仍然缺失
+
+如果这个 spike 不先做，后续很容易先按当前 SDK runtime 的形状把框架做死，再发现 ACP backend 接不进来。
+
+### Phase 1：在现有 NCP runtime 插件体系上新增 external session 元模型与 capability 模型
 
 目标：
 
-- 让 `Codex` / `Claude` 不再只是“另一个 session type”
+- 让 `Codex` / `Claude` 不再只是“另一个 `session_type`”
 - 而是开始拥有统一的 `external session` 语义
 
 优先项包括：
 
 - session metadata 统一
 - runtime identity 统一
-- working directory / mode / state 统一
+- working_directory / mode / state 统一
+- capability snapshot 统一
 
 ### Phase 2：引入统一的 conversation binding 与 sessions_spawn
 
@@ -385,13 +563,112 @@ NextClaw External Agent Session Framework
 
 ### Phase 4：评估并接入 acpx adapter
 
-等我们拥有自己的 orchestrator contract 后，再评估：
+等我们完成前面几步并通过 spike 验证后，再正式接入：
 
 - 是否实现 `acpx adapter`
 - 接入后如何映射 session / status / event / permission
 - 如何把 ACP backend 纳入统一系统，而不是反客为主
 
 这一步的意义是“扩大生态”，而不是“决定核心架构归属”。
+
+## 不过度设计的边界
+
+为了避免这份方案在落地时演变成“抽象先行、实现失控”的过度设计，必须明确以下边界。
+
+### 1. 不重写现有 NCP runtime 插件体系
+
+这份方案不是要推翻现有：
+
+- `registerNcpAgentRuntime`
+- session type registry
+- `Codex SDK runtime`
+- `Claude SDK runtime`
+
+相反，它的目标是：
+
+- 保留这些已有 runtime implementation plugin
+- 只在其上补一层 external session orchestration
+
+如果某个实现步骤要求先重写现有 runtime 插件体系，默认应判定为方向过重。
+
+### 2. 不先发明完整 ACP 协议层
+
+我们当前要吸收的是：
+
+- external session
+- conversation binding
+- `sessions_spawn`
+- backend / adapter contract
+
+而不是一上来就在 `NextClaw` 内完整复刻 `OpenClaw ACP` 或自研一整套重量级协议系统。
+
+在正式证明业务价值和结构必要性之前：
+
+- 不应先做完整 ACP server
+- 不应先做全量 ACP protocol compatibility
+- 不应先做大而全的 harness hosting platform
+
+第一目标始终是：让统一 contract 足以托管现有 SDK runtime，并能容纳未来 ACP backend。
+
+### 3. 不把 capability 抽象扩大成统一行为假象
+
+引入 capability model 的目的，是显式承认差异，而不是掩盖差异。
+
+因此：
+
+- 不应为了“统一”而要求所有 runtime 都支持同样的 bind / tool / permission / sandbox 语义
+- 不应为了维持接口整齐，而在不支持的 runtime 上补大量伪兼容分支
+
+正确方向是：
+
+- contract 统一
+- capability 显式
+- 不支持的能力直接暴露为 unsupported
+
+### 4. 不把 acpx 等同于生态本身
+
+`acpx` 是重要候选 backend，但不是生态的全部。
+
+因此：
+
+- 不能为了尽快接入 `acpx`，就把我们的 external session identity、UI 语义、内部事件模型全部改成 `acpx-first`
+- 也不能因为已经有 `Codex SDK` / `Claude SDK`，就否定 `acpx` 的生态价值
+
+正确边界是：
+
+- 我们拥有主框架
+- `acpx` 是高价值 adapter
+- 未来还允许存在其它 adapter
+
+### 5. sessions_spawn 必须先收敛成最小产品语义
+
+`sessions_spawn` 很吸引人，但它不能一开始就膨胀成“大一统超级调度中心”。
+
+第一阶段只需要保证它能稳定表达：
+
+- 创建 native 或 external 执行单元
+- 选择 backend / target
+- 绑定到当前 conversation 或 thread
+- 恢复 / 关闭 / 查询状态
+
+像更复杂的：
+
+- 多级 delegation
+- 跨 session 编排图
+- runtime 间协作调度
+- 可视化 orchestration DAG
+
+都不应进入首轮设计范围。
+
+### 结论
+
+这份方案目前之所以仍然成立，正是因为它不是要“另起炉灶做一个 OpenClaw”，而是：
+
+- 延续我们已经做对的 runtime plugin 路线
+- 只补当前真正缺失的 external session orchestration
+- 把 `acpx` 放在高价值 adapter 的正确层级
+
+只要后续实现继续守住这几个边界，这个方向就属于“有明确收敛目标的结构升级”，而不是盲目造轮子。
 
 ## 本轮讨论形成的最终结论
 
@@ -414,6 +691,7 @@ NextClaw External Agent Session Framework
 当前最关键的缺口不是“再接一个 Agent”，而是缺少：
 
 - unified external session model
+- runtime capability contract
 - conversation binding
 - sessions_spawn
 - SDK runtime 与 ACP/harness runtime 的统一 orchestrator
@@ -447,5 +725,8 @@ NextClaw External Agent Session Framework
 - [NCP Phase 1: Codex SDK Runtime Integration Plan](./2026-03-19-ncp-phase1-codex-sdk-runtime-integration-plan.md)
 - [Claude Code SDK NCP Runtime Plan](./2026-03-19-claude-code-sdk-runtime-plan.md)
 - [Codex Plugin Runtime Plan](./2026-03-19-codex-plugin-runtime-plan.md)
-- [ACP Agents](/Users/peiwang/Projects/openclaw/docs/tools/acp-agents.md)
-- [CLI acp Bridge](/Users/peiwang/Projects/openclaw/docs/cli/acp.md)
+
+OpenClaw 侧参考（当前为 sibling repo / 本地参考，不作为本仓库内稳定链接）：
+
+- `openclaw/docs/tools/acp-agents.md`
+- `openclaw/docs/cli/acp.md`

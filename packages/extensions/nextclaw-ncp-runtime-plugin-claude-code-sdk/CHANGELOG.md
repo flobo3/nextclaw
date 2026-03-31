@@ -1,5 +1,19 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk
 
+## 0.1.39
+
+### Patch Changes
+
+- Publish the remaining unpublished drift from today's commits as one unified patch batch.
+
+  This batch includes the chat skill token rendering and recent-skill ordering updates, the enter-to-send guard while a chat run is active, and the tightened tool argument validation across the NCP/runtime bridge. It also republishes the dependent public package chain so workspace dependency versions stay aligned for downstream installs.
+
+- Updated dependencies
+  - @nextclaw/core@0.11.14
+  - @nextclaw/ncp@0.4.4
+  - @nextclaw/ncp-toolkit@0.4.13
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk@0.1.15
+
 ## 0.1.38
 
 ### Patch Changes

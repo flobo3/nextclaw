@@ -1,5 +1,25 @@
 # nextclaw
 
+## 0.16.29
+
+### Patch Changes
+
+- Publish the remaining unpublished drift from today's commits as one unified patch batch.
+
+  This batch includes the chat skill token rendering and recent-skill ordering updates, the enter-to-send guard while a chat run is active, and the tightened tool argument validation across the NCP/runtime bridge. It also republishes the dependent public package chain so workspace dependency versions stay aligned for downstream installs.
+
+- Updated dependencies
+  - @nextclaw/core@0.11.14
+  - @nextclaw/mcp@0.1.61
+  - @nextclaw/ncp@0.4.4
+  - @nextclaw/ncp-agent-runtime@0.3.4
+  - @nextclaw/ncp-mcp@0.1.62
+  - @nextclaw/ncp-toolkit@0.4.13
+  - @nextclaw/openclaw-compat@0.3.54
+  - @nextclaw/remote@0.1.72
+  - @nextclaw/runtime@0.2.28
+  - @nextclaw/server@0.11.20
+
 ## 0.16.28
 
 ### Patch Changes

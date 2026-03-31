@@ -1,5 +1,16 @@
 # @nextclaw/channel-plugin-discord
 
+## 0.2.27
+
+### Patch Changes
+
+- Publish the remaining unpublished drift from today's commits as one unified patch batch.
+
+  This batch includes the chat skill token rendering and recent-skill ordering updates, the enter-to-send guard while a chat run is active, and the tightened tool argument validation across the NCP/runtime bridge. It also republishes the dependent public package chain so workspace dependency versions stay aligned for downstream installs.
+
+- Updated dependencies
+  - @nextclaw/channel-runtime@0.4.13
+
 ## 0.2.26
 
 ### Patch Changes

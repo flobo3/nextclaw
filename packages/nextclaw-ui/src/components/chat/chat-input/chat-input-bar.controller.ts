@@ -22,14 +22,23 @@ function isSlashDismissKey(event: Pick<KeyboardEvent<HTMLTextAreaElement>, 'key'
 }
 
 export function useChatInputBarController(params: UseChatInputBarControllerParams) {
+  const {
+    isSlashMode,
+    slashItems,
+    onSelectSlashItem,
+    onSend,
+    onStop,
+    isSending,
+    canStopGeneration
+  } = params;
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [dismissedSlashPanel, setDismissedSlashPanel] = useState(false);
 
-  const isSlashPanelOpen = params.isSlashMode && !dismissedSlashPanel;
-  const activeSlashItem = params.slashItems[activeSlashIndex] ?? null;
+  const isSlashPanelOpen = isSlashMode && !dismissedSlashPanel;
+  const activeSlashItem = slashItems[activeSlashIndex] ?? null;
 
   useEffect(() => {
-    if (!isSlashPanelOpen || params.slashItems.length === 0) {
+    if (!isSlashPanelOpen || slashItems.length === 0) {
       setActiveSlashIndex(0);
       return;
     }
@@ -37,48 +46,48 @@ export function useChatInputBarController(params: UseChatInputBarControllerParam
       if (current < 0) {
         return 0;
       }
-      if (current >= params.slashItems.length) {
-        return params.slashItems.length - 1;
+      if (current >= slashItems.length) {
+        return slashItems.length - 1;
       }
       return current;
     });
-  }, [isSlashPanelOpen, params.slashItems.length]);
+  }, [isSlashPanelOpen, slashItems.length]);
 
   useEffect(() => {
-    if (!params.isSlashMode && dismissedSlashPanel) {
+    if (!isSlashMode && dismissedSlashPanel) {
       setDismissedSlashPanel(false);
     }
-  }, [dismissedSlashPanel, params.isSlashMode]);
+  }, [dismissedSlashPanel, isSlashMode]);
 
   const handleSelectSlashItem = useCallback((item: ChatSlashItem) => {
-    params.onSelectSlashItem(item);
+    onSelectSlashItem(item);
     setDismissedSlashPanel(false);
-  }, [params]);
+  }, [onSelectSlashItem]);
 
   const handleSlashKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
-    if (!isSlashPanelOpen || params.slashItems.length === 0) {
+    if (!isSlashPanelOpen || slashItems.length === 0) {
       return false;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setActiveSlashIndex((current) => (current + 1) % params.slashItems.length);
+      setActiveSlashIndex((current) => (current + 1) % slashItems.length);
       return true;
     }
     if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setActiveSlashIndex((current) => (current - 1 + params.slashItems.length) % params.slashItems.length);
+      setActiveSlashIndex((current) => (current - 1 + slashItems.length) % slashItems.length);
       return true;
     }
     if (!isSubmitKey(event) && event.key !== 'Tab') {
       return false;
     }
     event.preventDefault();
-    const selected = params.slashItems[activeSlashIndex];
+    const selected = slashItems[activeSlashIndex];
     if (selected) {
       handleSelectSlashItem(selected);
     }
     return true;
-  }, [activeSlashIndex, handleSelectSlashItem, isSlashPanelOpen, params.slashItems]);
+  }, [activeSlashIndex, handleSelectSlashItem, isSlashPanelOpen, slashItems]);
 
   const handleEscapeKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
     if (event.key !== 'Escape') {
@@ -89,16 +98,16 @@ export function useChatInputBarController(params: UseChatInputBarControllerParam
       setDismissedSlashPanel(true);
       return true;
     }
-    if (!params.isSending || !params.canStopGeneration) {
+    if (!isSending || !canStopGeneration) {
       return false;
     }
     event.preventDefault();
-    void params.onStop();
+    void onStop();
     return true;
-  }, [isSlashPanelOpen, params]);
+  }, [canStopGeneration, isSlashPanelOpen, isSending, onStop]);
 
   const onTextareaKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (isSubmitKey(event) && params.isSending) {
+    if (isSubmitKey(event) && isSending) {
       event.preventDefault();
       return;
     }
@@ -113,9 +122,9 @@ export function useChatInputBarController(params: UseChatInputBarControllerParam
     }
     if (isSubmitKey(event)) {
       event.preventDefault();
-      void params.onSend();
+      void onSend();
     }
-  }, [handleEscapeKeyDown, handleSlashKeyDown, isSlashPanelOpen, params.isSending, params.onSend]);
+  }, [handleEscapeKeyDown, handleSlashKeyDown, isSending, isSlashPanelOpen, onSend]);
 
   return {
     isSlashPanelOpen,
