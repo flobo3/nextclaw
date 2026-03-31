@@ -36,4 +36,21 @@ describe('chat composer keyboard utils', () => {
       direction: 'backward'
     });
   });
+
+  it('consumes enter while a response is still running', () => {
+    expect(
+      resolveChatComposerKeyboardAction({
+        key: 'Enter',
+        shiftKey: false,
+        isComposing: false,
+        isSlashMenuOpen: false,
+        slashItemCount: 0,
+        activeSlashIndex: 0,
+        isSending: true,
+        canStopGeneration: true
+      })
+    ).toEqual({
+      type: 'consume'
+    });
+  });
 });

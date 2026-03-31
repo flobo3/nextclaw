@@ -13,6 +13,14 @@ type UseChatInputBarControllerParams = {
   canStopGeneration: boolean;
 };
 
+function isSubmitKey(event: Pick<KeyboardEvent<HTMLTextAreaElement>, 'key' | 'shiftKey'>): boolean {
+  return event.key === 'Enter' && !event.shiftKey;
+}
+
+function isSlashDismissKey(event: Pick<KeyboardEvent<HTMLTextAreaElement>, 'key' | 'code' | 'nativeEvent'>): boolean {
+  return !event.nativeEvent.isComposing && (event.key === ' ' || event.code === 'Space');
+}
+
 export function useChatInputBarController(params: UseChatInputBarControllerParams) {
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [dismissedSlashPanel, setDismissedSlashPanel] = useState(false);
@@ -47,47 +55,67 @@ export function useChatInputBarController(params: UseChatInputBarControllerParam
     setDismissedSlashPanel(false);
   }, [params]);
 
+  const handleSlashKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (!isSlashPanelOpen || params.slashItems.length === 0) {
+      return false;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveSlashIndex((current) => (current + 1) % params.slashItems.length);
+      return true;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveSlashIndex((current) => (current - 1 + params.slashItems.length) % params.slashItems.length);
+      return true;
+    }
+    if (!isSubmitKey(event) && event.key !== 'Tab') {
+      return false;
+    }
+    event.preventDefault();
+    const selected = params.slashItems[activeSlashIndex];
+    if (selected) {
+      handleSelectSlashItem(selected);
+    }
+    return true;
+  }, [activeSlashIndex, handleSelectSlashItem, isSlashPanelOpen, params.slashItems]);
+
+  const handleEscapeKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (event.key !== 'Escape') {
+      return false;
+    }
+    if (isSlashPanelOpen) {
+      event.preventDefault();
+      setDismissedSlashPanel(true);
+      return true;
+    }
+    if (!params.isSending || !params.canStopGeneration) {
+      return false;
+    }
+    event.preventDefault();
+    void params.onStop();
+    return true;
+  }, [isSlashPanelOpen, params]);
+
   const onTextareaKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (isSlashPanelOpen && !event.nativeEvent.isComposing && (event.key === ' ' || event.code === 'Space')) {
+    if (isSubmitKey(event) && params.isSending) {
+      event.preventDefault();
+      return;
+    }
+    if (isSlashPanelOpen && isSlashDismissKey(event)) {
       setDismissedSlashPanel(true);
     }
-    if (isSlashPanelOpen && params.slashItems.length > 0) {
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        setActiveSlashIndex((current) => (current + 1) % params.slashItems.length);
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        setActiveSlashIndex((current) => (current - 1 + params.slashItems.length) % params.slashItems.length);
-        return;
-      }
-      if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
-        event.preventDefault();
-        const selected = params.slashItems[activeSlashIndex];
-        if (selected) {
-          handleSelectSlashItem(selected);
-        }
-        return;
-      }
+    if (handleSlashKeyDown(event)) {
+      return;
     }
-    if (event.key === 'Escape') {
-      if (isSlashPanelOpen) {
-        event.preventDefault();
-        setDismissedSlashPanel(true);
-        return;
-      }
-      if (params.isSending && params.canStopGeneration) {
-        event.preventDefault();
-        void params.onStop();
-        return;
-      }
+    if (handleEscapeKeyDown(event)) {
+      return;
     }
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (isSubmitKey(event)) {
       event.preventDefault();
       void params.onSend();
     }
-  }, [activeSlashIndex, handleSelectSlashItem, isSlashPanelOpen, params]);
+  }, [handleEscapeKeyDown, handleSlashKeyDown, isSlashPanelOpen, params.isSending, params.onSend]);
 
   return {
     isSlashPanelOpen,

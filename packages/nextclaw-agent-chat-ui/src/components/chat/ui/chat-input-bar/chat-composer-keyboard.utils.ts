@@ -3,6 +3,7 @@ export type ChatComposerKeyboardAction =
   | { type: 'insert-active-slash-item' }
   | { type: 'close-slash' }
   | { type: 'stop-generation' }
+  | { type: 'consume' }
   | { type: 'insert-line-break' }
   | { type: 'send-message' }
   | { type: 'delete-content'; direction: 'backward' | 'forward' }
@@ -28,6 +29,10 @@ export function resolveChatComposerKeyboardAction(params: {
     isSending,
     canStopGeneration
   } = params;
+
+  if (key === 'Enter' && !shiftKey && isSending) {
+    return { type: 'consume' };
+  }
 
   if (isSlashMenuOpen && slashItemCount > 0) {
     if (key === 'ArrowDown') {

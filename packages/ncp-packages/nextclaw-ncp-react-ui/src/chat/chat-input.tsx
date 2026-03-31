@@ -72,11 +72,11 @@ export function ChatInput({
           if (event.key !== "Enter" || event.shiftKey) {
             return;
           }
-          event.preventDefault();
           if (showAbort) {
-            void onAbort?.();
+            event.preventDefault();
             return;
           }
+          event.preventDefault();
           void onSend();
         }}
       />

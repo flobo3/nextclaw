@@ -125,4 +125,28 @@ describe('useChatInputBarController', () => {
     });
     expect(onSend).toHaveBeenCalledTimes(1);
   });
+
+  it('does not send on enter while a response is still running', () => {
+    const onSend = vi.fn();
+    const event = createKeyEvent('Enter');
+    const { result } = renderHook(() =>
+      useChatInputBarController({
+        isSlashMode: false,
+        slashItems: [],
+        isSlashLoading: false,
+        onSelectSlashItem: vi.fn(),
+        onSend,
+        onStop: vi.fn(),
+        isSending: true,
+        canStopGeneration: true
+      })
+    );
+
+    act(() => {
+      result.current.onTextareaKeyDown(event);
+    });
+
+    expect(onSend).not.toHaveBeenCalled();
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
 });

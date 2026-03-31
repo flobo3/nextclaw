@@ -173,38 +173,17 @@ export class ChatComposerViewController {
     }
 
     event.preventDefault();
-
-    if (action.type === 'move-slash-index') {
-      onSlashActiveIndexChange(action.index);
-      return;
-    }
-    if (action.type === 'insert-active-slash-item') {
-      if (activeSlashItem) {
-        onSlashItemSelect?.(activeSlashItem);
-        insertSkillToken(activeSlashItem.value ?? activeSlashItem.key, activeSlashItem.title);
-      }
-      return;
-    }
-    if (action.type === 'close-slash') {
-      onSlashQueryChange?.(null);
-      onSlashOpenChange(false);
-      return;
-    }
-    if (action.type === 'stop-generation') {
-      void actions.onStop();
-      return;
-    }
-    if (action.type === 'insert-line-break') {
-      commitSnapshot(this.controller.insertText('\n'));
-      return;
-    }
-    if (action.type === 'send-message') {
-      void actions.onSend();
-      return;
-    }
-    if (action.type === 'delete-content') {
-      commitSnapshot(this.controller.deleteContent(action.direction));
-    }
+    this.applyKeyboardAction({
+      action,
+      activeSlashItem,
+      actions,
+      commitSnapshot,
+      insertSkillToken,
+      onSlashItemSelect,
+      onSlashActiveIndexChange,
+      onSlashQueryChange,
+      onSlashOpenChange
+    });
   };
 
   handlePaste = (params: {
@@ -236,5 +215,71 @@ export class ChatComposerViewController {
     clearSelectedRange();
     onSlashQueryChange?.(null);
     onSlashOpenChange(false);
+  };
+
+  private readonly applyKeyboardAction = (params: {
+    action: ReturnType<typeof resolveChatComposerKeyboardAction>;
+    activeSlashItem: ChatSlashItem | null;
+    actions: ComposerActions;
+    commitSnapshot: (snapshot: ChatComposerControllerSnapshot) => void;
+    insertSkillToken: (tokenKey: string, label: string) => void;
+    onSlashItemSelect?: (item: ChatSlashItem) => void;
+    onSlashActiveIndexChange: (index: number) => void;
+    onSlashQueryChange?: (query: string | null) => void;
+    onSlashOpenChange: (open: boolean) => void;
+  }): void => {
+    const {
+      action,
+      activeSlashItem,
+      actions,
+      commitSnapshot,
+      insertSkillToken,
+      onSlashItemSelect,
+      onSlashActiveIndexChange,
+      onSlashQueryChange,
+      onSlashOpenChange
+    } = params;
+
+    switch (action.type) {
+      case 'move-slash-index': {
+        onSlashActiveIndexChange(action.index);
+        return;
+      }
+      case 'insert-active-slash-item': {
+        if (!activeSlashItem) {
+          return;
+        }
+        onSlashItemSelect?.(activeSlashItem);
+        insertSkillToken(activeSlashItem.value ?? activeSlashItem.key, activeSlashItem.title);
+        return;
+      }
+      case 'close-slash': {
+        onSlashQueryChange?.(null);
+        onSlashOpenChange(false);
+        return;
+      }
+      case 'consume': {
+        return;
+      }
+      case 'stop-generation': {
+        void actions.onStop();
+        return;
+      }
+      case 'insert-line-break': {
+        commitSnapshot(this.controller.insertText('\n'));
+        return;
+      }
+      case 'send-message': {
+        void actions.onSend();
+        return;
+      }
+      case 'delete-content': {
+        commitSnapshot(this.controller.deleteContent(action.direction));
+        return;
+      }
+      case 'noop': {
+        return;
+      }
+    }
   };
 }
