@@ -8,15 +8,19 @@ export function ToolCardHeader({
   icon: Icon, 
   expanded, 
   canExpand,
+  hideSummary = false,
   onToggle 
 }: { 
   card: ChatToolPartViewModel; 
   icon: LucideIcon; 
   expanded: boolean; 
   canExpand: boolean;
+  hideSummary?: boolean;
   onToggle: () => void; 
 }) {
-  const summaryPart = card.summary?.replace(/^(command|path|args|query|input):\s*/i, '');
+  const summaryPart = hideSummary
+    ? ''
+    : card.summary?.replace(/^(command|path|args|query|input):\s*/i, '') ?? '';
 
   return (
     <div 

@@ -23,6 +23,19 @@ function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_PATTERN, '');
 }
 
+function isStructuredTerminalRecord(record: Record<string, unknown>): boolean {
+  return (
+    'command' in record ||
+    'workingDir' in record ||
+    'exitCode' in record ||
+    'durationMs' in record ||
+    'stdout' in record ||
+    'stderr' in record ||
+    'aggregated_output' in record ||
+    'combinedOutput' in record
+  );
+}
+
 function extractTerminalOutputFromRecord(record: Record<string, unknown>): string | null {
   const aggregatedOutput =
     readNonEmptyString(record.aggregated_output) ??
@@ -53,7 +66,14 @@ function normalizeTerminalOutput(rawOutput?: string): string {
     if (!isRecord(parsed)) {
       return stripAnsi(rawOutput);
     }
-    return stripAnsi(extractTerminalOutputFromRecord(parsed) ?? rawOutput);
+    const terminalOutput = extractTerminalOutputFromRecord(parsed);
+    if (terminalOutput) {
+      return stripAnsi(terminalOutput);
+    }
+    if (isStructuredTerminalRecord(parsed)) {
+      return '';
+    }
+    return stripAnsi(rawOutput);
   } catch {
     return stripAnsi(rawOutput);
   }
@@ -238,10 +258,11 @@ export function FileOperationView({ card }: { card: ChatToolPartViewModel }) {
         icon={isEdit ? Code2 : FileText} 
         expanded={expanded} 
         canExpand={hasContent || isRunning} 
+        hideSummary={expanded && hasStructuredPreview}
         onToggle={onToggle} 
       />
       {expanded && hasContent && (
-        <ToolCardContent>
+        <ToolCardContent className="border-t border-amber-200/20 bg-transparent px-0 pt-0 pb-0">
           <ToolCardFileOperationContent card={card} />
         </ToolCardContent>
       )}

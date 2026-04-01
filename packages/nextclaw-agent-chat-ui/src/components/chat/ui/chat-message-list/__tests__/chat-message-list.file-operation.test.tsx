@@ -140,6 +140,7 @@ it("renders completed file-change cards with an expandable diff view", () => {
 
   expect(screen.getByText("console.log('old');")).toBeTruthy();
   expect(screen.getByText("console.log('new');")).toBeTruthy();
+  expect(screen.getAllByText("1")[0]?.className).toContain("justify-center");
   expect(screen.getByText("+1").className).toContain("emerald");
   expect(screen.getByText("+1").className).not.toContain("rounded");
   expect(screen.getByText("-1").className).toContain("rose");
@@ -272,8 +273,13 @@ it("renders write previews with a single gutter and without repeating the file p
   expect(screen.getAllByText("src/game.html")).toHaveLength(1);
   const lineNumber = screen.getByText("109");
   expect(lineNumber.className).toContain("bg-stone-100");
+  expect(lineNumber.className).toContain("justify-center");
+  const pathRow = screen.getByTitle("src/game.html");
+  expect(pathRow.className).toContain("truncate");
+  expect(pathRow.className).toContain("whitespace-nowrap");
   expect(screen.getByText("+2").className).toContain("emerald");
   expect(screen.getByText("+2").className).not.toContain("rounded");
+  expect(screen.queryByText("WRITE")).toBeNull();
   expect(screen.getByText(longLine).className).toContain("whitespace-pre");
   expect(screen.queryByText("Showing a shortened diff preview.")).toBeNull();
 });

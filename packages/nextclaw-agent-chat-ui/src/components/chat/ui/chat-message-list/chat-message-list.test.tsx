@@ -447,6 +447,56 @@ it("renders structured terminal payloads as terminal output instead of raw json"
   expect(screen.queryByText(/"stdout":/)).toBeNull();
 });
 
+it("suppresses structured terminal payload json when the command produced no terminal output", () => {
+  render(
+    <ChatMessageList
+      messages={[
+        {
+          id: "assistant-tool-empty-structured-output",
+          role: "assistant",
+          roleLabel: "Assistant",
+          timestampLabel: "10:14",
+          parts: [
+            {
+              type: "tool-card",
+              card: {
+                kind: "result",
+                toolName: "command_execution",
+                summary: "command: python3 -m http.server 8765",
+                output: JSON.stringify({
+                  ok: true,
+                  command: "python3 -m http.server 8765",
+                  workingDir: "/Users/peiwang/.nextclaw/workspace",
+                  exitCode: 0,
+                  stdout: "",
+                  stderr: "",
+                  durationMs: 60002,
+                  timedOut: false,
+                  killed: false,
+                }),
+                hasResult: true,
+                statusTone: "success",
+                statusLabel: "Completed",
+                titleLabel: "Tool Result",
+                outputLabel: "View Output",
+                emptyLabel: "No output",
+              },
+            },
+          ],
+        },
+      ]}
+      isSending={false}
+      hasAssistantDraft={false}
+      texts={defaultTexts}
+    />,
+  );
+
+  fireEvent.click(screen.getByText("python3 -m http.server 8765"));
+
+  expect(screen.queryByText(/"durationMs": 60002/)).toBeNull();
+  expect(screen.queryByText(/"workingDir":/)).toBeNull();
+});
+
 it("resets completed terminal tool cards to collapsed when the message list remounts", () => {
   const message = {
     id: "assistant-tool-remount",
