@@ -1,0 +1,27 @@
+{
+  "slug": "ui-ux-pro-max",
+  "name": "UI/UX Pro Max",
+  "summary": "Bring UI/UX Pro Max into NextClaw with bundled local design datasets, Python-powered search, design-system generation, and explicit write boundaries.",
+  "summaryI18n": {
+    "en": "Bring UI/UX Pro Max into NextClaw with bundled local design datasets, Python-powered search, design-system generation, and explicit write boundaries.",
+    "zh": "把 UI/UX Pro Max 以本地内置数据集和 Python 搜索运行时接入 NextClaw，提供设计系统生成、UI/UX 检索与明确的写入边界。"
+  },
+  "description": "Use this skill when the user wants professional UI/UX guidance inside NextClaw. It adapts the upstream UI/UX Pro Max skill into a marketplace-ready package with bundled local assets, Python 3 readiness checks, design-system generation, domain and stack searches, UX review guidance, and explicit confirmation rules before persisting files.",
+  "descriptionI18n": {
+    "en": "Use this skill when the user wants professional UI/UX guidance inside NextClaw. It adapts the upstream UI/UX Pro Max skill into a marketplace-ready package with bundled local assets, Python 3 readiness checks, design-system generation, domain and stack searches, UX review guidance, and explicit confirmation rules before persisting files.",
+    "zh": "当用户希望在 NextClaw 内获得专业 UI/UX 指导时使用此技能。它将上游 UI/UX Pro Max 改造成可上架的 marketplace 技能：内置本地数据与脚本、提供 Python 3 就绪检查、设计系统生成、领域/技术栈检索、UX 审查指导，以及在落盘前的显式确认规则。"
+  },
+  "author": "NextClaw (adapted from NextLevelBuilder)",
+  "tags": [
+    "skill",
+    "ui",
+    "ux",
+    "design-system",
+    "frontend",
+    "accessibility",
+    "python",
+    "local-runtime"
+  ],
+  "sourceRepo": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+  "homepage": "https://uupm.cc"
+}
