@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ensureDir, todayDate } from "../utils/helpers.js";
+import { ensureDir, todayDate } from "../../utils/helpers.js";
 
 export class MemoryStore {
   private memoryDir: string;
@@ -13,19 +13,19 @@ export class MemoryStore {
     this.workspaceMemoryFile = join(workspace, "MEMORY.md");
   }
 
-  getTodayFile(): string {
+  getTodayFile = (): string => {
     return join(this.memoryDir, `${todayDate()}.md`);
-  }
+  };
 
-  readToday(): string {
+  readToday = (): string => {
     const todayFile = this.getTodayFile();
     if (existsSync(todayFile)) {
       return readFileSync(todayFile, "utf-8");
     }
     return "";
-  }
+  };
 
-  appendToday(content: string): void {
+  appendToday = (content: string): void => {
     const todayFile = this.getTodayFile();
     let nextContent = content;
     if (existsSync(todayFile)) {
@@ -36,27 +36,27 @@ export class MemoryStore {
       nextContent = header + content;
     }
     writeFileSync(todayFile, nextContent, "utf-8");
-  }
+  };
 
-  readLongTerm(): string {
+  readLongTerm = (): string => {
     if (existsSync(this.memoryFile)) {
       return readFileSync(this.memoryFile, "utf-8");
     }
     return "";
-  }
+  };
 
-  readWorkspaceMemory(): string {
+  readWorkspaceMemory = (): string => {
     if (existsSync(this.workspaceMemoryFile)) {
       return readFileSync(this.workspaceMemoryFile, "utf-8");
     }
     return "";
-  }
+  };
 
-  writeLongTerm(content: string): void {
+  writeLongTerm = (content: string): void => {
     writeFileSync(this.memoryFile, content, "utf-8");
-  }
+  };
 
-  getRecentMemories(days = 7): string {
+  getRecentMemories = (days = 7): string => {
     const memories: string[] = [];
     const today = new Date();
     for (let i = 0; i < days; i += 1) {
@@ -69,9 +69,9 @@ export class MemoryStore {
       }
     }
     return memories.length ? memories.join("\n\n---\n\n") : "";
-  }
+  };
 
-  listMemoryFiles(): string[] {
+  listMemoryFiles = (): string[] => {
     if (!existsSync(this.memoryDir)) {
       return [];
     }
@@ -80,9 +80,9 @@ export class MemoryStore {
       .sort()
       .reverse()
       .map((name) => join(this.memoryDir, name));
-  }
+  };
 
-  getMemoryContext(): string {
+  getMemoryContext = (): string => {
     const parts: string[] = [];
     const workspaceMemory = this.readWorkspaceMemory();
     if (workspaceMemory) {
@@ -97,5 +97,5 @@ export class MemoryStore {
       parts.push(`## Today's Notes\n${today}`);
     }
     return parts.length ? parts.join("\n\n") : "";
-  }
+  };
 }

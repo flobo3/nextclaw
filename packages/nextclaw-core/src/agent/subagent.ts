@@ -7,7 +7,7 @@ import { ReadFileTool, WriteFileTool, ListDirTool } from "./tools/filesystem.js"
 import { ExecTool } from "./tools/shell.js";
 import { WebSearchTool, WebFetchTool } from "./tools/web.js";
 import { InputBudgetPruner } from "./input-budget-pruner.js";
-import { resolveSubagentModel } from "./subagent-model.js";
+import { resolveSubagentModel } from "./subagents/subagent-model.utils.js";
 import type { SearchConfig } from "../config/schema.js";
 
 export class SubagentManager {

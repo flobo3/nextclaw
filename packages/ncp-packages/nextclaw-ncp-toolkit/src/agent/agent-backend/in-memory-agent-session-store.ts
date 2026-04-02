@@ -3,20 +3,24 @@ import type { AgentSessionRecord, AgentSessionStore } from "./agent-backend-type
 export class InMemoryAgentSessionStore implements AgentSessionStore {
   private readonly sessions = new Map<string, AgentSessionRecord>();
 
-  async getSession(sessionId: string): Promise<AgentSessionRecord | null> {
+  getSession = async (sessionId: string): Promise<AgentSessionRecord | null> => {
     const session = this.sessions.get(sessionId);
     return session ? structuredClone(session) : null;
-  }
+  };
 
-  async listSessions(): Promise<AgentSessionRecord[]> {
+  listSessions = async (): Promise<AgentSessionRecord[]> => {
     return [...this.sessions.values()].map((session) => structuredClone(session));
-  }
+  };
 
-  async saveSession(session: AgentSessionRecord): Promise<void> {
+  saveSession = async (session: AgentSessionRecord): Promise<void> => {
     this.sessions.set(session.sessionId, structuredClone(session));
-  }
+  };
 
-  async deleteSession(sessionId: string): Promise<AgentSessionRecord | null> {
+  replaceSession = async (session: AgentSessionRecord): Promise<void> => {
+    this.sessions.set(session.sessionId, structuredClone(session));
+  };
+
+  deleteSession = async (sessionId: string): Promise<AgentSessionRecord | null> => {
     const session = this.sessions.get(sessionId);
     if (!session) {
       return null;
@@ -24,5 +28,5 @@ export class InMemoryAgentSessionStore implements AgentSessionStore {
 
     this.sessions.delete(sessionId);
     return structuredClone(session);
-  }
+  };
 }

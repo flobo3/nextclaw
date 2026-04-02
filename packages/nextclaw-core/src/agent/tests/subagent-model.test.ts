@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSubagentModel } from "./subagent-model.js";
+import { resolveSubagentModel } from "../subagents/subagent-model.utils.js";
 
 describe("resolveSubagentModel", () => {
   it("prioritizes explicit spawn model", () => {

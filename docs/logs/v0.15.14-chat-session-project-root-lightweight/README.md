@@ -16,16 +16,20 @@
 - 会话 header 新增 project badge，sidebar 搜索也支持匹配项目名/项目路径。
 - 草稿会话支持先绑定项目目录再进入正式会话；`UiSessionService.updateSession` 采用轻量 upsert 以承接这一路径。
 - 修复清除项目目录的持久化缺陷：
-  - session store 不再把已移除的 `project_root` 从旧 metadata merge 回来
+  - 真实 API 更新链路改为走 `replaceSession`，不再把旧 session metadata 保留回显式 patch 结果里
   - 路由 patch 时会同时清理历史兼容键 `projectRoot`，避免“提示清除成功但刷新后还在”
 - 调整 runtime 项目语义暴露：
   - prompt 里始终显式写出 `Current project directory`
-  - 若存在宿主 workspace，则额外以辅助信息形式提供 `NextClaw workspace directory`
-  - `project_root` 成为“当前项目”主语，workspace 只作为宿主环境背景，不再喧宾夺主
+  - 若存在宿主 workspace，则同时显式写出 `NextClaw host workspace directory`
+  - 两者都被视为真实且同时存在的上下文：
+    - `Current project directory` 表示当前正在工作的项目目录
+    - `NextClaw host workspace directory` 表示宿主 runtime 的 memory / workspace-local skills / bootstrap 所在目录
+  - 宿主 workspace 的 bootstrap 文件与 workspace-local skills 在项目目录切换后不会丢失
 - 收敛前端会话语义：线程态统一使用 `sessionKey` 表示当前线程，避免在同层重复引入 `activeSessionKey` 语义。
 - 修正 React hook 治理：会话相关 hook 统一落在 `packages/nextclaw-ui/src/components/chat/hooks/`，并使用 `use-*.ts` 命名。
 - 本次配套设计文档：
   - [chat-session-project-root-design](../../plans/2026-04-01-chat-session-project-root-design.md)
+  - [chat-session-project-root-retrospective](../../internal/2026-04-02-chat-session-project-root-retrospective.md)
 
 ## 测试 / 验证 / 验收方式
 
@@ -39,6 +43,12 @@ PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextc
 
 ```bash
 PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw test -- --run src/cli/commands/ncp/nextclaw-ncp-context-builder.test.ts src/cli/commands/ncp/ui-session-service.test.ts
+```
+
+- NCP backend 真实更新链路定向测试：
+
+```bash
+PATH=/opt/homebrew/bin:$PATH pnpm -C packages/ncp-packages/nextclaw-ncp-toolkit test -- --run src/agent/in-memory-agent-backend.test.ts
 ```
 
 - OpenClaw compat runtime 定向测试：
@@ -60,6 +70,7 @@ PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextc
 PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/extensions/nextclaw-ncp-runtime-plugin-codex-sdk exec tsc -p tsconfig.json --noEmit
 PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/extensions/nextclaw-ncp-runtime-plugin-claude-code-sdk exec tsc -p tsconfig.json --noEmit
 PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-openclaw-compat exec tsc -p tsconfig.json --noEmit
+PATH=/opt/homebrew/bin:$PATH pnpm -C packages/ncp-packages/nextclaw-ncp-toolkit exec tsc -p tsconfig.json --noEmit
 ```
 
 - maintainability / 新代码治理：
@@ -75,8 +86,17 @@ PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm lint:maintainabil
 - Codex / Claude / native runtime 都通过会话级目录解析得到一致工作目录。
 - 即使项目目录下没有 `AGENTS.md` / `SOUL.md`，runtime prompt 里也会明确暴露当前项目目录。
 - `project_root` 清除后，header、刷新后的列表、以及 runtime 上下文都不再残留旧目录。
+- 对真实运行中的 `/api/ncp/sessions/:id` 发 `PUT { "projectRoot": null }` 后，返回 payload 里不再包含 `project_root`。
 - 路径选择器浏览的是服务端机器目录，而不是浏览器当前机器目录。
 - maintainability guard 无新增阻塞错误；仅保留仓库历史目录预算类 warning。
+
+## 红区触达与减债记录
+
+### packages/nextclaw-core/src/agent/loop.ts
+
+- 本次是否减债：否
+- 说明：这次触达仅用于跟随 `agent` 目录内的文件归位更新 import path，没有继续把“会话项目目录”逻辑塞进这个热点编排文件里。项目目录能力的新增与修复被收敛在 session metadata、runtime context、runtime plugin 边界内，避免继续扩大 `loop.ts` 的职责面。
+- 下一步拆分缝：优先拆出 `session lookup / hydration`、`tool loop orchestration`、`response finalization` 三段，避免后续需求再次被迫落到同一个热点文件里。
 
 ## 发布 / 部署方式
 
@@ -105,7 +125,9 @@ PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextc
    - runtime 后续操作围绕该目录工作
    - 清除项目目录后，header 立即消失 project badge
    - 刷新页面后也不会回显旧目录
-   - runtime 恢复到默认 workspace 语义，但仍可把 workspace 作为辅助背景信息使用
+   - runtime 会同时保留两层清晰语义：
+     - 当前项目目录：当前工作的 repo / directory
+     - NextClaw host workspace：memory、workspace-local skills、bootstrap 所在目录
 6. 新建一个草稿会话，不先发送消息，直接在“更多操作”里设置项目目录。
 7. 验收点：
    - 设置成功后不会报错

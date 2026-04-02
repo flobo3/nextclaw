@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { SkillsLoader } from "./skills.js";
-import { buildBootstrapAwareUserPrompt } from "./runtime-user-prompt.js";
+import { SkillsLoader } from "../skills.js";
+import { buildBootstrapAwareUserPrompt } from "../../runtime-context/runtime-user-prompt.js";
 
 const tempWorkspaces: string[] = [];
 
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("buildBootstrapAwareUserPrompt", () => {
-  it("injects workspace bootstrap files before the user message", () => {
+  it("injects workspace context and bootstrap files before the user message", () => {
     const workspace = createWorkspace();
     writeFileSync(join(workspace, "IDENTITY.md"), "Identity rules.\n");
     writeFileSync(join(workspace, "SOUL.md"), "Warm, direct tone.\n");
@@ -49,12 +49,14 @@ describe("buildBootstrapAwareUserPrompt", () => {
       userMessage: "hello",
     });
 
-    expect(prompt).toContain("# Project Context");
+    expect(prompt).toContain("# Workspace Context");
+    expect(prompt).toContain(`Current project directory: ${workspace}`);
     expect(prompt).toContain("## IDENTITY.md");
     expect(prompt).toContain("Identity rules.");
     expect(prompt).toContain("## SOUL.md");
     expect(prompt).toContain("Warm, direct tone.");
     expect(prompt).toContain("If SOUL.md is present");
+    expect(prompt).toContain("Current project bootstrap files loaded:");
     expect(prompt).toContain("<name>demo-skill</name>");
     expect(prompt).toContain("`$weather`");
     expect(prompt).toContain("## User Message");
@@ -62,7 +64,7 @@ describe("buildBootstrapAwareUserPrompt", () => {
     expect(prompt).not.toContain("Use the demo skill instructions.");
   });
 
-  it("keeps the original user message when no workspace bootstrap files exist", () => {
+  it("still exposes the current project directory when no bootstrap files exist", () => {
     const workspace = createWorkspace();
     const prompt = buildBootstrapAwareUserPrompt({
       workspace,
@@ -72,6 +74,9 @@ describe("buildBootstrapAwareUserPrompt", () => {
       userMessage: "plain message",
     });
 
-    expect(prompt).toBe("plain message");
+    expect(prompt).toContain("# Workspace Context");
+    expect(prompt).toContain(`Current project directory: ${workspace}`);
+    expect(prompt).toContain("No bootstrap context files were found in the current project directory.");
+    expect(prompt).toContain("plain message");
   });
 });

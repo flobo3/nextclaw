@@ -2,9 +2,9 @@ import {
   getApiBase,
   buildBootstrapAwareUserPrompt,
   getProvider,
+  LayeredSkillsLoader,
   readRequestedSkillsFromMetadata,
   resolveSessionWorkspacePath,
-  SkillsLoader,
   type Config,
 } from "@nextclaw/core";
 import type { NcpAgentRunInput } from "@nextclaw/ncp";
@@ -96,7 +96,16 @@ export function buildClaudeInputBuilder(
     contextConfig?: Config["agents"]["context"];
   },
 ) {
-  const skillsLoader = new SkillsLoader(params.workspace);
+  const supportingSkillWorkspaces =
+    typeof params.hostWorkspace === "string" &&
+    params.hostWorkspace.trim().length > 0 &&
+    params.hostWorkspace.trim() !== params.workspace
+      ? [params.hostWorkspace.trim()]
+      : [];
+  const skillsLoader = new LayeredSkillsLoader(
+    params.workspace,
+    supportingSkillWorkspaces,
+  );
   return async (input: NcpAgentRunInput): Promise<string> => {
     const userText = readUserText(input);
     const metadata = {

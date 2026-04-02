@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConfigSchema } from "../config/schema.js";
-import { SessionManager } from "../session/manager.js";
-import { AgentLoop } from "./loop.js";
+import { ConfigSchema } from "../../config/schema.js";
+import { SessionManager } from "../../session/manager.js";
+import { AgentLoop } from "../loop.js";
 
 const tempWorkspaces: string[] = [];
 

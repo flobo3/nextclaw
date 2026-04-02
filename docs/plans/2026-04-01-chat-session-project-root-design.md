@@ -57,7 +57,10 @@
 - `project_root` 真正接入 `native / codex / claude` 的有效工作目录解析
 - runtime prompt 会显式区分：
   - `Current project directory`
-  - `NextClaw workspace directory`（仅辅助背景）
+  - `NextClaw host workspace directory`
+  - 两者都是真实上下文，而不是谁伪装成谁：
+    - `Current project directory` 表示当前正在工作的项目目录
+    - `NextClaw host workspace directory` 表示 runtime memory、workspace-local skills、bootstrap 所在目录
 
 本次明确不做：
 
@@ -257,6 +260,23 @@ effective_working_directory =
 ### 7.2 runtime prompt / bootstrap
 
 `buildRuntimeUserPrompt(...)` 的 `workspace` 参数应使用 `effective_working_directory`。
+
+但 runtime 暴露给模型的上下文不应只剩这一层目录。更准确的语义是：
+
+- `Current project directory = effective_working_directory`
+- `NextClaw host workspace directory = runtime host workspace`
+
+二者同时存在，并承担不同职责：
+
+- 当前项目目录：repo 理解、文件操作、项目级 bootstrap
+- host workspace：memory、workspace-local skills、宿主 bootstrap、NextClaw 自身工作区信息
+
+这意味着当用户把会话绑定到某个 `project_root` 后：
+
+- 不能让模型继续把 host workspace 误认成当前项目
+- 也不能因为切到 `project_root` 就把 host workspace 的 bootstrap / skills / memory 语义整个丢掉
+
+因此更合适的实现是“并存且显式命名”，而不是“只保留一个目录、把另一个降级成模糊背景”
 
 这意味着：
 

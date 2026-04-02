@@ -245,7 +245,7 @@ export class DefaultNcpAgentBackend
     const liveSession = this.sessionRegistry.getSession(sessionId);
     const storedSession = await this.sessionStore.getSession(sessionId);
     if (!liveSession && !storedSession) return null;
-    await this.sessionStore.saveSession(buildUpdatedSessionRecord({
+    await this.sessionStore.replaceSession(buildUpdatedSessionRecord({
       sessionId,
       patch,
       liveSession,

@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
-import { MemoryStore } from "./memory.js";
+import { MemoryStore } from "./memory/memory-store.js";
 import {
   buildWorkspaceProjectContextSection,
   DEFAULT_BOOTSTRAP_CONTEXT_CONFIG,
-} from "./bootstrap-context.js";
+} from "../runtime-context/bootstrap-context.js";
 import {
   buildActiveSkillsSystemSection,
   buildAvailableSkillsSystemSection,

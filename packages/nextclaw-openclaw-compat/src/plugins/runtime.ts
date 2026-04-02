@@ -3,10 +3,10 @@ import type { Config } from "@nextclaw/core";
 import {
   buildBootstrapAwareUserPrompt,
   getWorkspacePath,
+  LayeredSkillsLoader,
   readRequestedSkillsFromMetadata,
   resolveSessionWorkspacePath,
   resolveProviderRuntime,
-  SkillsLoader,
 } from "@nextclaw/core";
 import { getPackageVersion } from "@nextclaw/core";
 import { MemoryGetTool, MemorySearchTool } from "@nextclaw/core";
@@ -85,7 +85,7 @@ function createRuntimeUserPromptBuilder(params: {
   config?: Config;
   defaultWorkspace: string;
 }): PluginRuntime["agent"]["buildRuntimeUserPrompt"] {
-  const skillLoaders = new Map<string, SkillsLoader>();
+  const skillLoaders = new Map<string, LayeredSkillsLoader>();
 
   return ({ workspace, sessionKey, metadata, userMessage }) => {
     const hostWorkspace = getWorkspacePath(params.defaultWorkspace);
@@ -94,10 +94,16 @@ function createRuntimeUserPromptBuilder(params: {
       workspace: workspace ?? params.defaultWorkspace,
       defaultWorkspace: params.defaultWorkspace,
     });
-    let skills = skillLoaders.get(resolvedWorkspace);
+    const supportingSkillWorkspaces =
+      hostWorkspace !== resolvedWorkspace ? [hostWorkspace] : [];
+    const loaderKey = [resolvedWorkspace, ...supportingSkillWorkspaces].join("::");
+    let skills = skillLoaders.get(loaderKey);
     if (!skills) {
-      skills = new SkillsLoader(resolvedWorkspace);
-      skillLoaders.set(resolvedWorkspace, skills);
+      skills = new LayeredSkillsLoader(
+        resolvedWorkspace,
+        supportingSkillWorkspaces,
+      );
+      skillLoaders.set(loaderKey, skills);
     }
 
     return buildBootstrapAwareUserPrompt({

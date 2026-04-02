@@ -42,5 +42,6 @@ export interface AgentSessionStore {
   getSession(sessionId: string): Promise<AgentSessionRecord | null>;
   listSessions(): Promise<AgentSessionRecord[]>;
   saveSession(session: AgentSessionRecord): Promise<void>;
+  replaceSession(session: AgentSessionRecord): Promise<void>;
   deleteSession(sessionId: string): Promise<AgentSessionRecord | null>;
 }

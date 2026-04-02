@@ -1,4 +1,4 @@
-import { isSilentReplyText, SILENT_REPLY_TOKEN } from "./tokens.js";
+import { isSilentReplyText, SILENT_REPLY_TOKEN } from "./reply-tokens.utils.js";
 
 export type SilentReplyDropReason = "empty" | "silent";
 
@@ -38,4 +38,3 @@ export function evaluateSilentReply(params: {
     shouldDrop: false
   };
 }
-

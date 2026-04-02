@@ -23,6 +23,7 @@ import {
   DefaultNcpAgentBackend,
   InMemoryAgentSessionStore,
 } from "./index.js";
+import type { AgentSessionRecord, AgentSessionStore } from "./agent-backend/agent-backend-types.js";
 
 const now = "2026-03-15T00:00:00.000Z";
 
@@ -39,9 +40,14 @@ const createEnvelope = (text: string): NcpRequestEnvelope => ({
   },
 });
 
-function createBackend(llmApi: NcpLLMApi) {
+function createBackend(
+  llmApi: NcpLLMApi,
+  options: {
+    sessionStore?: AgentSessionStore;
+  } = {},
+) {
   return new DefaultNcpAgentBackend({
-    sessionStore: new InMemoryAgentSessionStore(),
+    sessionStore: options.sessionStore ?? new InMemoryAgentSessionStore(),
     createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
       const toolRegistry = new DefaultNcpToolRegistry();
       return new DefaultNcpAgentRuntime({
@@ -119,7 +125,8 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
   });
 
   it("updates persisted session metadata outside the active run path", async () => {
-    const backend = createBackend(new EchoNcpLLMApi());
+    const sessionStore = new RecordingSessionStore();
+    const backend = createBackend(new EchoNcpLLMApi(), { sessionStore });
 
     await backend.emit({
       type: NcpEventType.MessageRequest,
@@ -139,6 +146,7 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
       preferred_model: "openai/gpt-5",
       preferred_thinking: "medium",
     });
+    expect(sessionStore.replaceCallCount).toBe(1);
   });
 
   it("streams live session events for an active session", async () => {
@@ -655,11 +663,37 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
-class RecordingSessionStore extends InMemoryAgentSessionStore {
-  saveCallCount = 0;
+class RecordingSessionStore implements AgentSessionStore {
+  private readonly sessions = new Map<string, AgentSessionRecord>();
 
-  override async saveSession(...args: Parameters<InMemoryAgentSessionStore["saveSession"]>) {
+  saveCallCount = 0;
+  replaceCallCount = 0;
+
+  getSession = async (sessionId: string): Promise<AgentSessionRecord | null> => {
+    const session = this.sessions.get(sessionId);
+    return session ? structuredClone(session) : null;
+  };
+
+  listSessions = async (): Promise<AgentSessionRecord[]> => {
+    return [...this.sessions.values()].map((session) => structuredClone(session));
+  };
+
+  saveSession = async (session: AgentSessionRecord): Promise<void> => {
     this.saveCallCount += 1;
-    await super.saveSession(...args);
-  }
+    this.sessions.set(session.sessionId, structuredClone(session));
+  };
+
+  replaceSession = async (session: AgentSessionRecord): Promise<void> => {
+    this.replaceCallCount += 1;
+    this.sessions.set(session.sessionId, structuredClone(session));
+  };
+
+  deleteSession = async (sessionId: string): Promise<AgentSessionRecord | null> => {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return null;
+    }
+    this.sessions.delete(sessionId);
+    return structuredClone(session);
+  };
 }

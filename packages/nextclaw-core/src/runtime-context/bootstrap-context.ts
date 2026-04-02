@@ -29,9 +29,7 @@ export function buildWorkspaceProjectContextSection(params: {
   contextConfig?: ContextConfig;
   sessionKey?: string;
 }): string {
-  const bootstrap = loadWorkspaceBootstrapFiles(params);
-  const hasSoulFile = /##\s+SOUL\.md\b/i.test(bootstrap);
-  const hasBootstrap = bootstrap.trim().length > 0;
+  const budget = createBootstrapReadBudget(params.contextConfig);
   const hasExplicitProjectRoot =
     typeof params.projectRoot === "string" && params.projectRoot.trim().length > 0;
   const currentProjectDirectory = params.workspace;
@@ -39,26 +37,42 @@ export function buildWorkspaceProjectContextSection(params: {
     typeof params.hostWorkspace === "string" && params.hostWorkspace.trim().length > 0
       ? params.hostWorkspace.trim()
       : null;
-  const shouldDescribeHostWorkspace =
+  const hasDistinctHostWorkspace =
     Boolean(hostWorkspace) && hostWorkspace !== currentProjectDirectory;
+  const projectBootstrap = loadWorkspaceBootstrapFiles({
+    workspace: currentProjectDirectory,
+    contextConfig: params.contextConfig,
+    sessionKey: params.sessionKey,
+    budget,
+  });
+  const hostBootstrap = hasDistinctHostWorkspace && hostWorkspace
+    ? loadWorkspaceBootstrapFiles({
+        workspace: hostWorkspace,
+        contextConfig: params.contextConfig,
+        sessionKey: params.sessionKey,
+        budget,
+      })
+    : "";
+  const hasSoulFile = /##\s+SOUL\.md\b/i.test(`${projectBootstrap}\n${hostBootstrap}`);
   const lines = [
-    "# Project Context",
+    "# Workspace Context",
     "",
     `Current project directory: ${currentProjectDirectory}`,
   ];
   if (hasExplicitProjectRoot) {
     lines.push(
-      "Treat this session-bound project directory as the primary project context for code understanding, file operations, and repo-aware reasoning.",
+      "This session is explicitly bound to that project directory. Use it as the repo and file-operation context for the work the user is asking you to do.",
     );
   } else {
     lines.push(
-      "Treat this directory as the current project context for code understanding, file operations, and repo-aware reasoning.",
+      "Use this directory as the repo and file-operation context for the work the user is asking you to do.",
     );
   }
-  if (shouldDescribeHostWorkspace) {
+  if (hasDistinctHostWorkspace && hostWorkspace) {
     lines.push(
-      `NextClaw workspace directory: ${hostWorkspace}`,
-      "The NextClaw workspace is host environment context for runtime infrastructure and should not replace the current project directory unless both paths are the same.",
+      `NextClaw host workspace directory: ${hostWorkspace}`,
+      "This is the assistant's host workspace for runtime memory, workspace-local skills, and NextClaw-specific bootstrap context.",
+      "Both directories are simultaneously relevant: use the current project directory for the user's active project work, and use the NextClaw host workspace for host/runtime awareness.",
     );
   }
   if (hasSoulFile) {
@@ -66,28 +80,40 @@ export function buildWorkspaceProjectContextSection(params: {
       "If SOUL.md is present, embody its persona and tone. Avoid stiff, generic replies; follow its guidance unless higher-priority instructions override it.",
     );
   }
-  if (hasBootstrap) {
-    lines.push("", "The following project context files have been loaded:", "", bootstrap);
+  if (projectBootstrap) {
+    lines.push(
+      "",
+      "Current project bootstrap files loaded:",
+      "",
+      projectBootstrap,
+    );
   } else {
     lines.push("", "No bootstrap context files were found in the current project directory.");
+  }
+  if (hasDistinctHostWorkspace && hostWorkspace) {
+    if (hostBootstrap) {
+      lines.push(
+        "",
+        "NextClaw host workspace bootstrap files loaded:",
+        "",
+        hostBootstrap,
+      );
+    } else {
+      lines.push("", "No bootstrap context files were found in the NextClaw host workspace directory.");
+    }
   }
   return lines.join("\n");
 }
 
 function loadWorkspaceBootstrapFiles(params: {
   workspace: string;
-  hostWorkspace?: string;
-  projectRoot?: string | null;
   contextConfig?: ContextConfig;
   sessionKey?: string;
+  budget: BootstrapReadBudget;
 }): string {
   const parts: string[] = [];
-  const { perFileChars, totalChars } = resolveBootstrapContextConfig(
-    params.contextConfig,
-  );
+  const { perFileChars } = resolveBootstrapContextConfig(params.contextConfig);
   const fileList = selectBootstrapFiles(params.contextConfig, params.sessionKey);
-  const totalLimit = totalChars > 0 ? totalChars : Number.POSITIVE_INFINITY;
-  let remaining = totalLimit;
 
   for (const filename of fileList) {
     const filePath = join(params.workspace, filename);
@@ -101,20 +127,31 @@ function loadWorkspaceBootstrapFiles(params: {
     }
 
     const perFileLimit = perFileChars > 0 ? perFileChars : raw.length;
-    const allowed = Math.min(perFileLimit, remaining);
+    const allowed = Math.min(perFileLimit, params.budget.remaining);
     if (allowed <= 0) {
       break;
     }
 
     const content = truncateText(raw, allowed);
     parts.push(`## ${filename}\n\n${content}`);
-    remaining -= content.length;
-    if (remaining <= 0) {
+    params.budget.remaining -= content.length;
+    if (params.budget.remaining <= 0) {
       break;
     }
   }
 
   return parts.join("\n\n");
+}
+
+type BootstrapReadBudget = {
+  remaining: number;
+};
+
+function createBootstrapReadBudget(contextConfig?: ContextConfig): BootstrapReadBudget {
+  const { totalChars } = resolveBootstrapContextConfig(contextConfig);
+  return {
+    remaining: totalChars > 0 ? totalChars : Number.POSITIVE_INFINITY,
+  };
 }
 
 function selectBootstrapFiles(

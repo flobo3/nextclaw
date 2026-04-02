@@ -1,9 +1,27 @@
-import { homedir } from "node:os";
-import { resolve } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir, homedir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPluginRuntime, setPluginRuntimeBridge } from "./runtime.js";
 
-describe("createPluginRuntime", () => {
+const tempDirs: string[] = [];
+
+function createTempWorkspace(prefix: string): string {
+  const dir = mkdtempSync(resolve(tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop();
+    if (dir) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+describe("createPluginRuntime agent helpers", () => {
   it("exposes agent runtime helpers for plugin-side provider and prompt resolution", () => {
     const runtime = createPluginRuntime({
       workspace: "/tmp/nextclaw-plugin-runtime",
@@ -65,9 +83,11 @@ describe("createPluginRuntime", () => {
 
     expect(prompt).toContain("Reply exactly OK");
     expect(prompt).toContain("Current project directory: /tmp/project-alpha");
-    expect(prompt).toContain("NextClaw workspace directory: /tmp/nextclaw-plugin-runtime");
+    expect(prompt).toContain("NextClaw host workspace directory: /tmp/nextclaw-plugin-runtime");
   });
+});
 
+describe("createPluginRuntime channel helpers", () => {
   it("exposes debounce helpers required by channel gateways", async () => {
     const runtime = createPluginRuntime({
       workspace: "/tmp/nextclaw-test",
@@ -151,5 +171,71 @@ describe("createPluginRuntime", () => {
     });
 
     setPluginRuntimeBridge(null);
+  });
+});
+
+describe("createPluginRuntime workspace context", () => {
+  it("loads both project and host workspace context without losing host workspace skills", () => {
+    const hostWorkspace = createTempWorkspace("nextclaw-plugin-runtime-host-");
+    const projectWorkspace = createTempWorkspace("nextclaw-plugin-runtime-project-");
+    writeFileSync(join(hostWorkspace, "AGENTS.md"), "Host workspace guidance.\n");
+    writeFileSync(join(projectWorkspace, "AGENTS.md"), "Project workspace guidance.\n");
+    mkdirSync(join(hostWorkspace, "skills", "host-helper"), { recursive: true });
+    writeFileSync(
+      join(hostWorkspace, "skills", "host-helper", "SKILL.md"),
+      [
+        "---",
+        "name: host-helper",
+        "description: Host workspace helper",
+        "---",
+        "",
+        "Host helper instructions.",
+      ].join("\n"),
+    );
+
+    const runtime = createPluginRuntime({
+      workspace: hostWorkspace,
+      config: {
+        agents: {
+          defaults: {
+            workspace: hostWorkspace,
+            model: "custom-1/gpt-5.4",
+            maxToolIterations: 12,
+          },
+          context: {
+            bootstrap: {
+              files: ["AGENTS.md"],
+              minimalFiles: ["AGENTS.md"],
+              heartbeatFiles: [],
+              perFileChars: 1000,
+              totalChars: 3000,
+            },
+          },
+        },
+        providers: {
+          "custom-1": {
+            displayName: "yunyi",
+            apiKey: "test-key",
+            apiBase: "https://yunyi.example.com/v1",
+            models: ["gpt-5.4"],
+          },
+        },
+      } as never,
+    });
+
+    const prompt = runtime.agent.buildRuntimeUserPrompt({
+      userMessage: "Use the selected skill.",
+      metadata: {
+        project_root: projectWorkspace,
+        requested_skills: ["host-helper"],
+      },
+    });
+
+    expect(prompt).toContain(`Current project directory: ${projectWorkspace}`);
+    expect(prompt).toContain(`NextClaw host workspace directory: ${hostWorkspace}`);
+    expect(prompt).toContain("Project workspace guidance.");
+    expect(prompt).toContain("Host workspace guidance.");
+    expect(prompt).toContain("<name>host-helper</name>");
+    expect(prompt).not.toContain("Host helper instructions.");
   });
 });
