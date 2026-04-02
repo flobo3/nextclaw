@@ -32,9 +32,17 @@
   - 展开态布局继续收敛为更单层的结构：不再在内容区再套一层额外白盒壳，header 展开后不再重复展示路径，而是把路径与 `+N / -N` 摘要统一放到 header 下方那一行，形成“左侧路径、右侧变更统计”的信息排布。
   - 路径行进一步收敛为真正的单行布局：超长路径改为省略显示，不再把右侧统计挤到第二行；hover 时复用现有 tooltip primitive 展示完整路径，不额外新造一套提示组件。
   - `write_file` 一类场景不再额外显示 `WRITE` 这类重复语义，只保留真正有价值的变更统计数字。
-  - `edit_file / file_change / apply_patch` 的 gutter 也进一步从双列旧/新行号收敛为单列行号：只显示当前可见行的核心编号，并把 gutter 缩窄、数字居中，减少冗余留白，更接近主流 IDE / Cursor / Codex 的 diff 阅读方式。
+  - 文件工具的正文行渲染进一步收敛成真正可复用的一组组件：统一由独立的行号 gutter / 标记列 / 代码行组件负责渲染，避免 `preview` 和 `diff` 各自复制一套 JSX 逻辑。
+  - `edit_file / file_change / apply_patch` 的 gutter 最终收敛为更接近 IDE 的“单列真实行号 + 独立 `+ / -` 标记”结构，不再展示又宽又怪的双行号列。数字右对齐、行高压紧，新增/删除不再只靠颜色区分，阅读负担明显下降。
+  - `read_file / write_file` 这类纯预览场景继续保持单列行号，但不再额外显示 `+ / -` 标记列；纯内容预览回到更像编辑器查看器的结构，而不是伪装成 diff。
+  - `edit_file` 这条链路继续做了根因级补齐：工具执行成功后现在会返回结构化的真实起始行号，前端适配层会把这些行号并回现有 `oldText / newText` 预览里，因此完成态不再只剩空白 gutter。
+  - 当 `edit_file` 仍处于运行中、上游暂时还拿不到真实行号时，复用 gutter 组件会自动取消空的行号列，只保留紧凑的 `+ / -` 标记列，不再出现“没有行号却还占一大块宽度”的空白栏。
+  - 行号列宽度进一步收敛为按实际位数动态计算，而不是继续用固定宽列；三位数行号会明显更接近 VS Code / Cursor 一类编辑器的紧凑密度。
+  - 统一 diff 若携带 hunk header（如 `@@ -109,1 +109,1 @@`），前端现在会展示真实文件行号；只有 `oldText / newText` 片段却没有绝对位置信息时，不再伪造从 `1` 开始的假行号，避免把“不知道”误显示成“知道”。
+  - 文件工具正文内部的滚动区接入和聊天消息列表一致的 sticky-bottom 机制：当用户停留在底部阈值内时，新增内容会继续贴底跟随；一旦用户主动上滑离开阈值，就停止强制回到底部。
   - `write_file` 的运行中与完成态都改为完整预览模式，不再显示 `Preview truncated for streaming performance.` 这类为内部实现让位的提示；性能控制收敛为“大内容运行中默认不自动展开”，而不是直接裁内容。
   - 仍需截断的真正 diff 预览，提示文案改为更准确的 `Showing a shortened diff preview.`，避免把历史性能策略错误暴露给用户。
+  - 为了避免这轮续改把文件操作适配层重新堆成更大的平铺目录，`chat-message.file-operation-*` 相关实现进一步收敛到 `packages/nextclaw-ui/src/components/chat/adapters/file-operation/` 子目录，并拆出 `line-builder` 与 `record-readers` 两个职责单元，最终通过目录预算与文件预算闸门。
 - 同批次继续修正终端工具卡片，解决“结果区显示 JSON 对象而不是终端输出”的问题：
   - 终端卡片继续保留“上方命令、下方输出”的结构，但在展示层专门解析结构化结果，优先提取 `aggregated_output / stdout / stderr / output`，避免把整个结果对象直接渲染成 JSON。
   - 终端输出在展示层顺手去掉 ANSI 颜色控制字符，确保卡片里看到的是干净的人类可读终端文本，而不是终端协议残留。
@@ -65,7 +73,8 @@
   - native NCP `tool-invocation` 流式参数在 result 前即可被适配成文件预览卡片
   - NCP stream encoder 会先发 `tool-call-start / tool-call-args-delta`，再发 `tool-call-end`
   - 不完整的 `write_file` 原生参数也能提前生成结构化预览
-  - 单文件 `write_file` 预览不会重复显示路径，且只保留单列行号
+  - 单文件 `write_file / read_file` 预览不会重复显示路径，且只保留单列行号，不再额外出现 `+ / -` 标记列
+  - 运行中的 `edit_file` 若暂时还没有真实行号，不会再保留空白的宽 gutter；完成后收到结构化起始行号时，会切回真实行号展示
   - 完成态 `write_file` 会继续保留内容预览，不会退回只显示字节摘要
   - 文件预览区保持编辑器式单行展示，支持代码区横向滚动，且行号 gutter 不参与横向滚动
   - 统计文案中的 `+N / -N` 使用统一红绿语义且保持纯文本
@@ -78,6 +87,25 @@
   - 历史会话恢复时，不会再让重复的 legacy `tool.result` JSON 覆盖已有的结构化工具结果
 
 ## 测试/验证/验收方式
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-agent-chat-ui test -- src/components/chat/ui/chat-message-list/__tests__/chat-message-list.file-operation.test.tsx`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-ui test -- src/components/chat/adapters/chat-message.adapter.test.ts`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-core test -- src/agent/tests/filesystem.tool.test.ts`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-core tsc`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-agent-chat-ui tsc`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-ui tsc`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-core build`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-agent-chat-ui build`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-ui build`
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm lint:maintainability:guard`
+  - 结果：通过；warning 仅剩
+    - `packages/nextclaw-agent-chat-ui/src/components/chat/ui/chat-message-list/__tests__/chat-message-list.file-operation.test.tsx` 本轮增长较多，后续可把 fixture / builder 再下切
+    - `packages/nextclaw-core/src/agent/tools` 目录仍是历史高密度目录，本次未继续恶化，但后续应按职责继续拆子树
+    - `packages/nextclaw-ui/src/components/chat/adapters/chat-message-part.adapter.ts` 接近文件预算
+    - `packages/nextclaw-ui/src/components/chat/adapters/chat-message.adapter.test.ts` 接近文件预算
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-agent-chat-ui lint`
+  - 结果：仅历史 warning，无新增 error。
+- 已执行：`PATH=/Users/peiwang/.nvm/versions/node/v22.16.0/bin:$PATH pnpm -C packages/nextclaw-ui lint`
+  - 结果：被既有无关问题阻断，失败点为 `packages/nextclaw-ui/src/components/path-picker/server-path-picker-dialog.test.tsx` 中未使用的 `container`；本次未顺手改动该历史文件。
 - 已执行：`PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-ui exec vitest run src/components/chat/adapters/chat-message.adapter.test.ts`
 - 已执行：`PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-agent-chat-ui exec vitest run src/components/chat/ui/chat-message-list/chat-message-list.test.tsx src/components/chat/ui/chat-message-list/__tests__/chat-message-list.file-operation.test.tsx`
 - 已执行：`PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-agent-chat-ui exec vitest run src/components/chat/ui/chat-message-list/chat-message-list.test.tsx src/components/chat/ui/chat-message-list/__tests__/chat-message-list.terminal.test.tsx src/components/chat/ui/chat-message-list/__tests__/chat-message-list.generic-tool.test.tsx`
@@ -124,9 +152,20 @@
 1. 在聊天页触发一次会修改文件的工具调用，例如 `edit_file` 或 Codex `file_change`。
 2. 在 native 原生会话里观察工具调用开始后的中间阶段，确认不再只是长时间转圈；当工具参数逐步成形时，文件卡片会提前出现目标文件路径与预期改动。
 3. 再触发一次较大的 `write_file`，确认界面不会在“运行中”阶段明显卡住；大体积预览默认保持折叠，但点开后看到的是完整内容预览，而不是“双行号 + 重复路径 + 截断提示”。
-4. 观察单文件 `write_file` / `read_file` 卡片，确认 header 已展示路径时，正文区域不再重复显示同一路径；预览主体只保留一列行号，左侧留白明显收紧。
+4. 观察单文件 `write_file` / `read_file` 卡片，确认 header 已展示路径时，正文区域不再重复显示同一路径；预览主体只保留一列行号，不再额外出现 `+ / -` 标记列，左侧留白明显收紧。
 5. 水平滚动预览区，确认真正发生横向滚动的只有代码区，左侧行号 gutter 始终固定，不会在拖到边界时被带动或出现回弹错位。
-6. 等工具完成后，确认 `write_file` 仍保留内容预览，不会退回成只有 `Wrote xxxx bytes` 这类摘要；`edit_file / apply_patch / file_change` 仍保留结构化 diff 视图，且 `+N / -N` 计数与新增/删除行本身使用同一套红绿语义。
-7. 触发一次 `command_execution` 或 `exec_command`，确认卡片顶部仍显示命令摘要，展开后的正文展示真实终端输出，而不是一整段 JSON 结果对象。
-8. 触发一次普通工具调用（例如不属于 terminal/file/search 专用卡片的 generic 工具），确认 header 仍显示精简摘要；点击展开后，正文区域可以看到完整参数，而不是只能看到 header 里那段被截断的摘要。
-9. 刷新并重新打开一个已经保存过的本地开发态会话，确认历史里的 `command_execution` 卡片仍然展示结构化终端结果，而不是退回显示整段 legacy JSON。
+6. 先观察运行中的 `edit_file`，若此时上游尚未返回真实行号，确认左侧不会再保留一整块空白宽 gutter；此时只保留紧凑的 `+/-` 标记列。
+7. 等 `edit_file / apply_patch / file_change` 完成后再展开，确认左侧 gutter 会切回“单列真实行号 + 独立 `+/-` 标记”的结构，而不是双行号宽列；新增、删除行即使不看颜色也能靠符号辨认。
+8. 找一个带 hunk header 的 diff，确认显示的是文件里的真实行号；再观察只基于 `oldText / newText` 片段构造、且还没拿到起始位置的编辑预览，确认不会再伪造从 `1` 开始的假行号。
+9. 在运行中的 `write_file` 或长 diff 预览里保持滚动条靠近底部，确认新增内容会自动贴底；手动上滑离开底部后，确认自动贴底会停止，直到再次回到底部附近。
+10. 等工具完成后，确认 `write_file` 仍保留内容预览，不会退回成只有 `Wrote xxxx bytes` 这类摘要；`edit_file / apply_patch / file_change` 仍保留结构化 diff 视图，且 `+N / -N` 计数与新增/删除行本身使用同一套红绿语义。
+11. 触发一次 `command_execution` 或 `exec_command`，确认卡片顶部仍显示命令摘要，展开后的正文展示真实终端输出，而不是一整段 JSON 结果对象。
+12. 触发一次普通工具调用（例如不属于 terminal/file/search 专用卡片的 generic 工具），确认 header 仍显示精简摘要；点击展开后，正文区域可以看到完整参数，而不是只能看到 header 里那段被截断的摘要。
+13. 刷新并重新打开一个已经保存过的本地开发态会话，确认历史里的 `command_execution` 卡片仍然展示结构化终端结果，而不是退回显示整段 legacy JSON。
+
+## 可维护性总结汇总
+- 本次是否已尽最大努力优化可维护性：是。除完成用户要求的展示修正外，还把文件操作适配层从平铺目录中收拢到 `file-operation/` 子目录，并在展示层继续把复用的文件行渲染抽到独立 `tool-card-file-operation-lines.tsx`；同时把 `edit_file` 真实行号的根因修到工具层，最终让 maintainability guard 回到通过状态。
+- 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：是。关键决策不是继续在 UI 层猜行号，也不是继续保留双行号 gutter，而是停止伪造未知行号、删除预览场景里不必要的 `+/-` 列、在无行号时取消空白宽列，并把重复 JSX 收敛成一套复用组件。
+- 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：是。虽然为职责拆分新增了一个最小必要的行渲染组件文件和一个核心工具测试文件，但主展示文件同步瘦身，且问题不再靠前端补丁兜底，而是由工具层直接提供真实起始行号。
+- 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。文件工具链路现在分成“展示层文件卡片”“展示层复用行组件”“文件操作卡片数据提取”“行级构造与 hunk 行号解析”“记录字段读取”几层，边界比此前更清楚，没有再新增一层临时兜底抽象。
+- 目录结构与文件组织是否满足当前项目治理要求：是。本次新增的文件操作辅助模块已经下沉到 `packages/nextclaw-ui/src/components/chat/adapters/file-operation/`，展示层复用行组件也独立成文件；当前仅剩两个 warning：一个是文件预览测试文件本轮增长较多，后续可把 fixture / builder 再下切；另一个是 `chat-message-part.adapter.ts` 仍接近预算线，后续若该链路继续增长，应优先沿现有拆分缝继续下切。

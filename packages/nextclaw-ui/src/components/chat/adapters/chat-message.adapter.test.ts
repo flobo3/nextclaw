@@ -488,6 +488,11 @@ it("builds edit-file previews from structured args before the tool finishes", ()
     },
   ] as unknown as ChatMessageSource[]);
 
+  const editLines =
+    adapted[0]?.parts[0]?.type === "tool-card"
+      ? (adapted[0].parts[0].card.fileOperation?.blocks[0]?.lines ?? [])
+      : [];
+
   expect(adapted[0]?.parts[0]).toMatchObject({
     type: "tool-card",
     card: {
@@ -506,6 +511,71 @@ it("builds edit-file previews from structured args before the tool finishes", ()
               {
                 kind: "add",
                 text: "const color = 'blue';",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+  expect(editLines[0]).not.toHaveProperty("oldLineNumber");
+  expect(editLines[1]).not.toHaveProperty("newLineNumber");
+});
+
+it("uses structured edit-file result line numbers after the tool finishes", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-edit-result",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-invocation",
+          toolInvocation: {
+            status: ToolInvocationStatus.RESULT,
+            toolCallId: "edit-result-1",
+            toolName: "edit_file",
+            args: JSON.stringify({
+              path: "src/app.ts",
+              oldText: "const color = 'red';",
+              newText: "const color = 'blue';",
+            }),
+            parsedArgs: {
+              path: "src/app.ts",
+              oldText: "const color = 'red';",
+              newText: "const color = 'blue';",
+            },
+            result: {
+              path: "src/app.ts",
+              oldStartLine: 27,
+              newStartLine: 27,
+              message: "Edited src/app.ts",
+            },
+          },
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toMatchObject({
+    type: "tool-card",
+    card: {
+      toolName: "edit_file",
+      summary: "src/app.ts",
+      statusTone: "success",
+      fileOperation: {
+        blocks: [
+          {
+            path: "src/app.ts",
+            lines: [
+              {
+                kind: "remove",
+                text: "const color = 'red';",
+                oldLineNumber: 27,
+              },
+              {
+                kind: "add",
+                text: "const color = 'blue';",
+                newLineNumber: 27,
               },
             ],
           },
@@ -577,7 +647,7 @@ it("keeps completed write-file cards in preview mode instead of falling back to 
             toolName: "write_file",
             args: JSON.stringify({
               path: "games/snake.html",
-              content: "<!DOCTYPE html>\n<canvas id=\"game\"></canvas>",
+              content: '<!DOCTYPE html>\n<canvas id="game"></canvas>',
             }),
             result: "Wrote 3906 bytes to games/snake.html",
           },
@@ -605,7 +675,7 @@ it("keeps completed write-file cards in preview mode instead of falling back to 
               },
               {
                 kind: "add",
-                text: "<canvas id=\"game\"></canvas>",
+                text: '<canvas id="game"></canvas>',
                 newLineNumber: 2,
               },
             ],
@@ -641,7 +711,7 @@ it("renders codex file_change results as structured diff previews", () => {
                   diff: [
                     "--- a/src/main.ts",
                     "+++ b/src/main.ts",
-                    "@@",
+                    "@@ -109,1 +109,1 @@",
                     "-console.log('old');",
                     "+console.log('new');",
                   ].join("\n"),
@@ -656,7 +726,7 @@ it("renders codex file_change results as structured diff previews", () => {
                   diff: [
                     "--- a/src/main.ts",
                     "+++ b/src/main.ts",
-                    "@@",
+                    "@@ -109,1 +109,1 @@",
                     "-console.log('old');",
                     "+console.log('new');",
                   ].join("\n"),
@@ -683,10 +753,12 @@ it("renders codex file_change results as structured diff previews", () => {
               {
                 kind: "remove",
                 text: "console.log('old');",
+                oldLineNumber: 109,
               },
               {
                 kind: "add",
                 text: "console.log('new');",
+                newLineNumber: 109,
               },
             ],
           },

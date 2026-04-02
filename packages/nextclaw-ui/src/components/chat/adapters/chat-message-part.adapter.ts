@@ -3,14 +3,12 @@ import {
   summarizeToolArgs,
   type ToolCard,
 } from "@/lib/chat-message";
-import {
-  type ChatInlineTokenSource,
-} from "@/components/chat/chat-inline-token.utils";
+import { type ChatInlineTokenSource } from "@/components/chat/chat-inline-token.utils";
 import {
   buildRenderableText,
   buildTextPart,
 } from "@/components/chat/adapters/chat-message-inline-content.adapter";
-import { buildFileOperationCardData } from "@/components/chat/adapters/chat-message.file-operation-card";
+import { buildFileOperationCardData } from "@/components/chat/adapters/file-operation/card";
 import { buildSubagentToolCard } from "@/components/chat/adapters/chat-message.subagent-tool-card";
 import type {
   ChatMessagePartViewModel,
@@ -116,7 +114,9 @@ function readOptionalNumber(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function isTerminalResultRecord(value: unknown): value is Record<string, unknown> {
+function isTerminalResultRecord(
+  value: unknown,
+): value is Record<string, unknown> {
   if (!isRecord(value)) {
     return false;
   }
@@ -181,9 +181,10 @@ function buildToolCard(
     toolName: toolCard.name,
     summary: toolCard.detail,
     inputLabel: texts.toolInputLabel,
-    input: "input" in toolCard && typeof toolCard.input === "string"
-      ? toolCard.input
-      : undefined,
+    input:
+      "input" in toolCard && typeof toolCard.input === "string"
+        ? toolCard.input
+        : undefined,
     output: toolCard.text,
     outputData: toolCard.outputData,
     hasResult: Boolean(toolCard.hasResult),
@@ -269,7 +270,10 @@ function parseStructuredValue(value: unknown): unknown {
   }
 }
 
-function buildToolInvocationInput(args?: unknown, parsedArgs?: unknown): string | undefined {
+function buildToolInvocationInput(
+  args?: unknown,
+  parsedArgs?: unknown,
+): string | undefined {
   const source = parsedArgs ?? parseStructuredValue(args);
   const text = stringifyUnknown(source).trim();
   return text || undefined;

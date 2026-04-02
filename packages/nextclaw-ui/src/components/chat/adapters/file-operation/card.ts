@@ -1,12 +1,23 @@
-import type {
-  ChatFileOperationBlockViewModel,
-} from "@nextclaw/agent-chat-ui";
+import type { ChatFileOperationBlockViewModel } from "@nextclaw/agent-chat-ui";
 import {
   buildFullReplaceBlock,
   buildRawPreviewBlock,
   parsePatchBlocks,
   type ParsedBlock,
-} from "@/components/chat/adapters/chat-message.file-operation-diff";
+} from "@/components/chat/adapters/file-operation/diff";
+import {
+  isRecord,
+  readAfterText,
+  readBeforeText,
+  readNewStartLine,
+  readNonEmptyString,
+  readOldStartLine,
+  readOperation,
+  readPartialRecordPayload,
+  readPatchText,
+  readPath,
+  readRecordPayload,
+} from "@/components/chat/adapters/file-operation/record-readers";
 import { readPartialJsonStringField } from "@/components/chat/adapters/chat-message.partial-json";
 
 type ToolInvocationSource = {
@@ -33,167 +44,9 @@ const FILE_TOOL_NAMES = new Set([
   "apply_patch",
 ]);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readNonEmptyString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizePath(value: unknown): string | null {
-  if (typeof value === "string" && value.trim()) {
-    return value.trim();
-  }
-  return null;
-}
-
-function readRecordPayload(value: unknown): Record<string, unknown> | null {
-  if (isRecord(value)) {
-    return value;
-  }
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("{")) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    return isRecord(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function readPartialRecordPayload(value: unknown): Record<string, unknown> | null {
-  if (isRecord(value)) {
-    return value;
-  }
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("{")) {
-    return null;
-  }
-  const path =
-    readPartialJsonStringField(trimmed, [
-      "path",
-      "filePath",
-      "file_path",
-      "targetPath",
-      "target_path",
-      "filename",
-      "name",
-    ])?.value ?? null;
-  const content =
-    readPartialJsonStringField(
-      trimmed,
-      ["content", "text", "afterText", "after_text"],
-    )?.value ?? null;
-  const oldText =
-    readPartialJsonStringField(
-      trimmed,
-      ["oldText", "beforeText", "before_text"],
-    )?.value ?? null;
-  const newText =
-    readPartialJsonStringField(
-      trimmed,
-      ["newText", "afterText", "after_text"],
-    )?.value ?? null;
-  const patch =
-    readPartialJsonStringField(
-      trimmed,
-      ["patch", "diff", "unifiedDiff", "unified_diff"],
-    )?.value ?? null;
-
-  const partialRecord: Record<string, unknown> = {};
-  if (path) {
-    partialRecord.path = path;
-  }
-  if (content) {
-    partialRecord.content = content;
-  }
-  if (oldText) {
-    partialRecord.oldText = oldText;
-  }
-  if (newText) {
-    partialRecord.newText = newText;
-  }
-  if (patch) {
-    partialRecord.patch = patch;
-  }
-
-  return Object.keys(partialRecord).length > 0 ? partialRecord : null;
-}
-
-function readPath(record: Record<string, unknown>): string | null {
-  return (
-    normalizePath(record.path) ??
-    normalizePath(record.filePath) ??
-    normalizePath(record.file_path) ??
-    normalizePath(record.targetPath) ??
-    normalizePath(record.target_path) ??
-    normalizePath(record.filename) ??
-    normalizePath(record.name)
-  );
-}
-
-function readOperation(record: Record<string, unknown>): string | null {
-  return (
-    readNonEmptyString(record.operation) ??
-    readNonEmptyString(record.op) ??
-    readNonEmptyString(record.action) ??
-    readNonEmptyString(record.kind) ??
-    readNonEmptyString(record.type) ??
-    readNonEmptyString(record.status)
-  );
-}
-
-function readPatchText(record: Record<string, unknown>): string | null {
-  return (
-    readNonEmptyString(record.patch) ??
-    readNonEmptyString(record.diff) ??
-    readNonEmptyString(record.unifiedDiff) ??
-    readNonEmptyString(record.unified_diff)
-  );
-}
-
-function readBeforeText(record: Record<string, unknown>): string | null {
-  return (
-    readNonEmptyString(record.beforeText) ??
-    readNonEmptyString(record.before_text) ??
-    readNonEmptyString(record.oldText) ??
-    readNonEmptyString(record.old_text) ??
-    readNonEmptyString(record.oldContent) ??
-    readNonEmptyString(record.old_content) ??
-    readNonEmptyString(record.before) ??
-    readNonEmptyString(record.previous)
-  );
-}
-
-function readAfterText(record: Record<string, unknown>): string | null {
-  return (
-    readNonEmptyString(record.afterText) ??
-    readNonEmptyString(record.after_text) ??
-    readNonEmptyString(record.newText) ??
-    readNonEmptyString(record.new_text) ??
-    readNonEmptyString(record.newContent) ??
-    readNonEmptyString(record.new_content) ??
-    readNonEmptyString(record.content) ??
-    readNonEmptyString(record.text) ??
-    readNonEmptyString(record.after) ??
-    readNonEmptyString(record.updated)
-  );
-}
-
-function finalizeParsedBlocks(blocks: ParsedBlock[]): FileOperationCardData | null {
+function finalizeParsedBlocks(
+  blocks: ParsedBlock[],
+): FileOperationCardData | null {
   const normalizedBlocks = blocks
     .map((block, index) => ({
       key: `${block.path}-${index + 1}`,
@@ -224,9 +77,14 @@ function finalizeParsedBlocks(blocks: ParsedBlock[]): FileOperationCardData | nu
   };
 }
 
-function buildBlockFromChangeRecord(record: Record<string, unknown>, fallbackPath: string): ParsedBlock | null {
+function buildBlockFromChangeRecord(
+  record: Record<string, unknown>,
+  fallbackPath: string,
+): ParsedBlock | null {
   const path = readPath(record) ?? fallbackPath;
   const operation = readOperation(record);
+  const oldStartLine = readOldStartLine(record);
+  const newStartLine = readNewStartLine(record);
   const patchText = readPatchText(record);
   if (patchText) {
     const parsedBlocks = parsePatchBlocks(patchText);
@@ -243,6 +101,8 @@ function buildBlockFromChangeRecord(record: Record<string, unknown>, fallbackPat
       beforeText,
       afterText,
       operation,
+      oldStartLine,
+      newStartLine,
     });
   }
 
@@ -252,6 +112,8 @@ function buildBlockFromChangeRecord(record: Record<string, unknown>, fallbackPat
       path,
       text: previewText,
       operation,
+      oldStartLine,
+      newStartLine,
     });
   }
 
@@ -281,7 +143,9 @@ function buildBlocksFromChanges(changes: unknown): ParsedBlock[] {
       blocks.push(block);
       return;
     }
-    const nestedChanges = Array.isArray(entry.changes) ? buildBlocksFromChanges(entry.changes) : [];
+    const nestedChanges = Array.isArray(entry.changes)
+      ? buildBlocksFromChanges(entry.changes)
+      : [];
     if (nestedChanges.length > 0) {
       blocks.push(...nestedChanges);
     }
@@ -289,7 +153,9 @@ function buildBlocksFromChanges(changes: unknown): ParsedBlock[] {
   return blocks;
 }
 
-function buildFileChangeCardData(invocation: ToolInvocationSource): FileOperationCardData | null {
+function buildFileChangeCardData(
+  invocation: ToolInvocationSource,
+): FileOperationCardData | null {
   const sourceRecord =
     readRecordPayload(invocation.result) ??
     readRecordPayload(invocation.parsedArgs) ??
@@ -301,7 +167,9 @@ function buildFileChangeCardData(invocation: ToolInvocationSource): FileOperatio
   return finalizeParsedBlocks(blocks);
 }
 
-function buildReadFileCardData(invocation: ToolInvocationSource): FileOperationCardData | null {
+function buildReadFileCardData(
+  invocation: ToolInvocationSource,
+): FileOperationCardData | null {
   const argsRecord =
     readRecordPayload(invocation.parsedArgs) ??
     readRecordPayload(invocation.args) ??
@@ -322,7 +190,9 @@ function buildReadFileCardData(invocation: ToolInvocationSource): FileOperationC
   );
 }
 
-function buildWriteFileCardData(invocation: ToolInvocationSource): FileOperationCardData | null {
+function buildWriteFileCardData(
+  invocation: ToolInvocationSource,
+): FileOperationCardData | null {
   const isStreamingPartialCall = invocation.status === "partial-call";
   if (isStreamingPartialCall && typeof invocation.args === "string") {
     const pathField = readPartialJsonStringField(invocation.args, [
@@ -334,10 +204,12 @@ function buildWriteFileCardData(invocation: ToolInvocationSource): FileOperation
       "filename",
       "name",
     ]);
-    const contentField = readPartialJsonStringField(
-      invocation.args,
-      ["content", "text", "afterText", "after_text"],
-    );
+    const contentField = readPartialJsonStringField(invocation.args, [
+      "content",
+      "text",
+      "afterText",
+      "after_text",
+    ]);
     if (pathField?.value && contentField?.value) {
       const previewBlock = buildRawPreviewBlock({
         path: pathField.value,
@@ -373,17 +245,32 @@ function buildWriteFileCardData(invocation: ToolInvocationSource): FileOperation
   );
 }
 
-function buildEditFileCardData(invocation: ToolInvocationSource): FileOperationCardData | null {
+function buildEditFileCardData(
+  invocation: ToolInvocationSource,
+): FileOperationCardData | null {
+  const resultRecord = readRecordPayload(invocation.result);
   const argsRecord =
     readRecordPayload(invocation.parsedArgs) ??
     readRecordPayload(invocation.args) ??
     readPartialRecordPayload(invocation.args);
-  if (!argsRecord) {
+  if (!resultRecord && !argsRecord) {
     return null;
   }
-  const path = readPath(argsRecord);
-  const beforeText = readNonEmptyString(argsRecord.oldText) ?? readNonEmptyString(argsRecord.beforeText);
-  const afterText = readNonEmptyString(argsRecord.newText) ?? readNonEmptyString(argsRecord.afterText);
+  const path =
+    (resultRecord ? readPath(resultRecord) : null) ??
+    (argsRecord ? readPath(argsRecord) : null);
+  const beforeText =
+    (resultRecord ? readBeforeText(resultRecord) : null) ??
+    (argsRecord ? readBeforeText(argsRecord) : null);
+  const afterText =
+    (resultRecord ? readAfterText(resultRecord) : null) ??
+    (argsRecord ? readAfterText(argsRecord) : null);
+  const oldStartLine =
+    (resultRecord ? readOldStartLine(resultRecord) : null) ??
+    (argsRecord ? readOldStartLine(argsRecord) : null);
+  const newStartLine =
+    (resultRecord ? readNewStartLine(resultRecord) : null) ??
+    (argsRecord ? readNewStartLine(argsRecord) : null);
   if (!path || (beforeText == null && afterText == null)) {
     return null;
   }
@@ -394,14 +281,20 @@ function buildEditFileCardData(invocation: ToolInvocationSource): FileOperationC
         beforeText,
         afterText,
         operation: "edit",
+        oldStartLine,
+        newStartLine,
       }),
     ].filter((block): block is ParsedBlock => Boolean(block)),
   );
 }
 
-function buildApplyPatchCardData(invocation: ToolInvocationSource): FileOperationCardData | null {
+function buildApplyPatchCardData(
+  invocation: ToolInvocationSource,
+): FileOperationCardData | null {
   const parsedArgsRecord = readRecordPayload(invocation.parsedArgs);
-  const argsRecord = readRecordPayload(invocation.args) ?? readPartialRecordPayload(invocation.args);
+  const argsRecord =
+    readRecordPayload(invocation.args) ??
+    readPartialRecordPayload(invocation.args);
   const patchText =
     readNonEmptyString(invocation.args) ??
     (parsedArgsRecord ? readNonEmptyString(parsedArgsRecord.patch) : null) ??

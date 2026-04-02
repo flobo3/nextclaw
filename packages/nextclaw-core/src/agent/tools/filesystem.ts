@@ -13,6 +13,11 @@ function resolvePath(path: string, allowedDir?: string): string {
   return resolved;
 }
 
+function readLineNumberAtIndex(content: string, index: number): number {
+  const prefix = content.slice(0, index);
+  return prefix.split(/\r\n|\r|\n/).length;
+}
+
 export class ReadFileTool extends Tool {
   constructor(private allowedDir?: string) {
     super();
@@ -106,21 +111,29 @@ export class EditFileTool extends Tool {
     };
   }
 
-  async execute(params: Record<string, unknown>): Promise<string> {
-    const path = resolvePath(String(params.path), this.allowedDir);
+  execute = async (params: Record<string, unknown>): Promise<unknown> => {
+    const requestedPath = String(params.path);
+    const path = resolvePath(requestedPath, this.allowedDir);
     if (!existsSync(path)) {
       return `Error: File not found: ${path}`;
     }
     const oldText = String(params.oldText ?? "");
     const newText = String(params.newText ?? "");
     const content = readFileSync(path, "utf-8");
-    if (!content.includes(oldText)) {
+    const startIndex = content.indexOf(oldText);
+    if (startIndex < 0) {
       return "Error: Text to replace not found";
     }
     const updated = content.replace(oldText, newText);
     writeFileSync(path, updated, "utf-8");
-    return `Edited ${path}`;
-  }
+    const startLine = readLineNumberAtIndex(content, startIndex);
+    return {
+      path: requestedPath,
+      oldStartLine: startLine,
+      newStartLine: startLine,
+      message: `Edited ${path}`
+    };
+  };
 }
 
 export class ListDirTool extends Tool {

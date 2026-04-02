@@ -1,22 +1,33 @@
 import type {
   ChatFileOperationBlockViewModel,
-  ChatFileOperationLineViewModel,
   ChatToolPartViewModel,
 } from "../../../view-models/chat-ui.types";
 import { cn } from "../../../internal/cn";
-import { Fragment } from "react";
+import { useStickyBottomScroll } from "../../../hooks/use-sticky-bottom-scroll";
+import { Fragment, type ReactNode, useRef } from "react";
 import { ChatUiPrimitives } from "../../primitives/chat-ui-primitives";
-
-function formatLineNumber(value?: number): string {
-  return typeof value === "number" ? String(value) : "";
-}
-
-function readVisibleLineNumber(line: ChatFileOperationLineViewModel): string {
-  return formatLineNumber(line.newLineNumber ?? line.oldLineNumber);
-}
+import { FileOperationLinesGrid } from "./tool-card-file-operation-lines";
 
 function isPreviewBlock(block: ChatFileOperationBlockViewModel): boolean {
   return block.display === "preview";
+}
+
+function readFileOperationContentVersion(
+  block: Pick<ChatFileOperationBlockViewModel, "lines" | "rawText">,
+): string {
+  if (block.rawText) {
+    return block.rawText;
+  }
+  return block.lines
+    .map((line) =>
+      [
+        line.kind,
+        line.oldLineNumber ?? "",
+        line.newLineNumber ?? "",
+        line.text,
+      ].join(":"),
+    )
+    .join("\n");
 }
 
 function getCaptionTone(part: string): string {
@@ -41,91 +52,48 @@ function renderCaption(caption: string) {
     <div className="flex shrink-0 items-center gap-x-1 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.08em]">
       {parts.map((part, index) => (
         <Fragment key={`${part}-${index}`}>
-          {index > 0 ? (
-            <span className="text-stone-300">·</span>
-          ) : null}
-          <span className={cn(getCaptionTone(part))}>
-            {part}
-          </span>
+          {index > 0 ? <span className="text-stone-300">·</span> : null}
+          <span className={cn(getCaptionTone(part))}>{part}</span>
         </Fragment>
       ))}
     </div>
   );
 }
 
-function renderDiffGutterRow(
-  line: ChatFileOperationLineViewModel,
-  index: number,
-) {
-  const gutterTone =
-    line.kind === "add"
-      ? "border-r border-emerald-200 bg-emerald-100 text-emerald-700"
-      : line.kind === "remove"
-        ? "border-r border-rose-200 bg-rose-100 text-rose-700"
-        : "border-r border-stone-200 bg-stone-100 text-stone-500";
+function StickyFileOperationScrollArea({
+  children,
+  contentVersion,
+  resetKey,
+  className,
+  scrollKind,
+}: {
+  children: ReactNode;
+  contentVersion: unknown;
+  resetKey: string;
+  className?: string;
+  scrollKind: "block" | "raw" | "output";
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { onScroll } = useStickyBottomScroll({
+    scrollRef,
+    resetKey,
+    isLoading: false,
+    hasContent: true,
+    contentVersion,
+    stickyThresholdPx: 20,
+  });
 
   return (
     <div
-      key={`diff-gutter-${index}-${line.oldLineNumber ?? "x"}-${line.newLineNumber ?? "x"}`}
-      className="font-mono text-[11px] leading-relaxed"
-    >
-      <span className={cn("flex h-full w-11 items-center justify-center px-1 py-1 tabular-nums", gutterTone)}>
-        {readVisibleLineNumber(line)}
-      </span>
-    </div>
-  );
-}
-
-function renderPreviewGutterRow(
-  line: ChatFileOperationLineViewModel,
-  index: number,
-) {
-  return (
-    <div
-      key={`preview-gutter-${index}-${line.oldLineNumber ?? "x"}-${line.newLineNumber ?? "x"}`}
-      className="font-mono text-[11px] leading-relaxed"
-    >
-      <span className="flex h-full w-11 items-center justify-center border-r border-stone-200 bg-stone-100 px-1 py-1.5 tabular-nums text-stone-500">
-        {readVisibleLineNumber(line)}
-      </span>
-    </div>
-  );
-}
-
-function renderDiffCodeRow(
-  line: ChatFileOperationLineViewModel,
-  index: number,
-) {
-  const rowTone =
-    line.kind === "add"
-      ? "border-l-2 border-emerald-300 bg-emerald-50 text-emerald-950"
-      : line.kind === "remove"
-        ? "border-l-2 border-rose-300 bg-rose-50 text-rose-950"
-        : "border-l-2 border-transparent text-amber-950/80";
-
-  return (
-    <div
-      key={`diff-code-${index}-${line.oldLineNumber ?? "x"}-${line.newLineNumber ?? "x"}`}
+      ref={scrollRef}
+      onScroll={onScroll}
+      data-file-scroll-kind={scrollKind}
       className={cn(
-        "min-w-full whitespace-pre px-3 py-1 font-mono text-[11px] leading-relaxed",
-        rowTone,
+        "overflow-y-auto overscroll-contain bg-white custom-scrollbar-amber",
+        className,
       )}
     >
-      {line.text || " "}
-    </div>
-  );
-}
-
-function renderPreviewCodeRow(
-  line: ChatFileOperationLineViewModel,
-  index: number,
-) {
-  return (
-    <div
-      key={`preview-code-${index}-${line.oldLineNumber ?? "x"}-${line.newLineNumber ?? "x"}`}
-      className="min-w-full whitespace-pre px-3 py-1.5 font-mono text-[11px] leading-relaxed text-amber-950/85"
-    >
-      {line.text || " "}
+      {children}
     </div>
   );
 }
@@ -139,17 +107,23 @@ function FileOperationBlock({
   showPathRow: boolean;
   isFirst: boolean;
 }) {
-  const { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } = ChatUiPrimitives;
+  const { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } =
+    ChatUiPrimitives;
   const previewBlock = isPreviewBlock(block);
   const showMetaRow = showPathRow || Boolean(block.caption);
 
   return (
-    <section className={cn("overflow-hidden bg-white", !isFirst && "border-t border-stone-200/80")}>
+    <section
+      className={cn(
+        "overflow-hidden bg-white",
+        !isFirst && "border-t border-stone-200/80",
+      )}
+    >
       {showMetaRow ? (
         <div
           className={cn(
             "flex items-center justify-between gap-4 border-b border-stone-200/80 px-4 text-stone-700",
-            showPathRow ? "py-3" : "py-2",
+            showPathRow ? "py-2" : "py-1.5",
           )}
         >
           <div className="min-w-0 flex-1">
@@ -164,7 +138,10 @@ function FileOperationBlock({
                       {block.path}
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[420px] text-xs font-mono break-all">
+                  <TooltipContent
+                    side="top"
+                    className="max-w-[420px] text-xs font-mono break-all"
+                  >
                     {block.path}
                   </TooltipContent>
                 </Tooltip>
@@ -176,27 +153,27 @@ function FileOperationBlock({
       ) : null}
 
       {block.lines.length > 0 ? (
-        <div className="max-h-72 overflow-auto bg-white custom-scrollbar-amber">
-          <div
-            className={cn(
-              "grid min-w-0 max-w-full",
-              "grid-cols-[2.75rem_minmax(0,1fr)]",
-            )}
-          >
-            <div className="overflow-hidden">
-              {block.lines.map(previewBlock ? renderPreviewGutterRow : renderDiffGutterRow)}
-            </div>
-            <div className="overflow-x-auto custom-scrollbar-amber bg-white">
-              <div className="min-w-max">
-                {block.lines.map(previewBlock ? renderPreviewCodeRow : renderDiffCodeRow)}
-              </div>
-            </div>
-          </div>
-        </div>
+        <StickyFileOperationScrollArea
+          resetKey={`block:${block.key}`}
+          contentVersion={readFileOperationContentVersion(block)}
+          className="max-h-72"
+          scrollKind="block"
+        >
+          <FileOperationLinesGrid block={block} />
+        </StickyFileOperationScrollArea>
       ) : block.rawText ? (
-        <pre className="max-h-72 min-w-full w-max overflow-auto bg-white px-4 py-3 font-mono text-[11px] leading-relaxed text-amber-950/80 whitespace-pre custom-scrollbar-amber">
-          {block.rawText}
-        </pre>
+        <StickyFileOperationScrollArea
+          resetKey={`raw:${block.key}`}
+          contentVersion={block.rawText}
+          className="max-h-72"
+          scrollKind="raw"
+        >
+          <div className="overflow-x-auto custom-scrollbar-amber">
+            <pre className="min-w-max whitespace-pre bg-white px-4 py-2 font-mono text-[11px] leading-5 text-amber-950/80">
+              {block.rawText}
+            </pre>
+          </div>
+        </StickyFileOperationScrollArea>
       ) : null}
 
       {block.truncated && !previewBlock ? (
@@ -235,12 +212,21 @@ export function ToolCardFileOperationContent({
       })}
 
       {output ? (
-        <pre className={cn(
-          "max-h-56 min-w-full w-max overflow-auto bg-white px-4 py-3 font-mono text-[11px] leading-relaxed text-amber-950/80 whitespace-pre custom-scrollbar-amber",
-          blocks.length > 0 && "border-t border-stone-200/80",
-        )}>
-          {output}
-        </pre>
+        <StickyFileOperationScrollArea
+          resetKey={`output:${card.toolName}:${card.summary ?? "none"}`}
+          contentVersion={output}
+          className={cn(
+            "max-h-56",
+            blocks.length > 0 && "border-t border-stone-200/80",
+          )}
+          scrollKind="output"
+        >
+          <div className="overflow-x-auto custom-scrollbar-amber">
+            <pre className="min-w-max whitespace-pre bg-white px-4 py-2 font-mono text-[11px] leading-5 text-amber-950/80">
+              {output}
+            </pre>
+          </div>
+        </StickyFileOperationScrollArea>
       ) : null}
     </div>
   );
