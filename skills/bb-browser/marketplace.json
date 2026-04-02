@@ -1,0 +1,27 @@
+{
+  "slug": "bb-browser",
+  "name": "bb-browser",
+  "summary": "Use local bb-browser through NextClaw with guided install, daemon and browser readiness checks, site-adapter workflows, and clear browser write boundaries.",
+  "summaryI18n": {
+    "en": "Use local bb-browser through NextClaw with guided install, daemon and browser readiness checks, site-adapter workflows, and clear browser write boundaries.",
+    "zh": "在 NextClaw 中使用本地 bb-browser：覆盖安装引导、daemon 与浏览器就绪检查、site adapter 工作流，以及清晰的浏览器写操作边界。"
+  },
+  "description": "Use this skill when the user wants browser-backed web access through the local bb-browser runtime. The skill covers CLI installation, daemon or OpenClaw execution-path choice, browser readiness checks, site adapter discovery, authenticated fetch and browser automation workflows, troubleshooting, and explicit confirmation rules before risky write actions.",
+  "descriptionI18n": {
+    "en": "Use this skill when the user wants browser-backed web access through the local bb-browser runtime. The skill covers CLI installation, daemon or OpenClaw execution-path choice, browser readiness checks, site adapter discovery, authenticated fetch and browser automation workflows, troubleshooting, and explicit confirmation rules before risky write actions.",
+    "zh": "当用户希望通过本地 bb-browser 运行时获得基于真实浏览器登录态的网页访问能力时使用此技能。它覆盖 CLI 安装、daemon 或 OpenClaw 路径选择、浏览器就绪检查、site adapter 发现、带登录态的 fetch 与浏览器自动化工作流、排障路径，以及高风险写操作前的显式确认规则。"
+  },
+  "author": "NextClaw (adapted from epiral)",
+  "tags": [
+    "skill",
+    "browser",
+    "browser-automation",
+    "web-access",
+    "external-tool",
+    "cli",
+    "mcp",
+    "onboarding"
+  ],
+  "sourceRepo": "https://github.com/epiral/bb-browser",
+  "homepage": "https://github.com/epiral/bb-browser"
+}
