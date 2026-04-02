@@ -39,6 +39,12 @@
 - `.manager.ts`、`.store.ts`、`.repository.ts`、`.config.ts`
 - `.controller.ts`、`.provider.ts`
 
+React hook 文件例外：
+
+- 如果文件主职责是导出可复用 React hook，必须放在 `hooks/` 目录下。
+- 命名必须使用 `use-<domain>.ts` 或 `use-<domain>.tsx`。
+- 这类文件不使用 `.service.ts`、`.utils.ts` 等角色后缀。
+
 
 ## 4. 测试文件命名
 
@@ -54,6 +60,7 @@
 ## 5. 目录与导出约定
 
 - 优先 feature-first 目录组织（按业务域分目录）。
+- React hook 目录统一使用 `hooks/`，避免与 `services/`、`utils/` 混放。
 - `index.ts` 仅做导出聚合（barrel），不放业务逻辑。
 - 避免模糊文件名：`utils.ts`、`helpers.ts`、`common.ts`（除非在明确子域目录下且职责单一）。
 

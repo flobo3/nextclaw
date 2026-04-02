@@ -36,6 +36,7 @@ Trigger this skill when requests include any of these intents:
   - `.service.ts`, `.utils.ts`, `.types.ts`, `.test.ts`
   - `.manager.ts`, `.store.ts`, `.repository.ts`, `.config.ts`
   - `.controller.ts`, `.provider.ts`
+- React hook 模块例外：凡文件主职责是导出可复用 React hook，必须放在 `hooks/` 目录下，并命名为 `use-<domain>.ts` 或 `use-<domain>.tsx`；此类文件不使用 `.service.ts` 等角色后缀。
 - Do not use vague names like `controller.ts`, `common.ts`, `helpers.ts` at broad scope.
 - Do not mix multi-role suffixes in one file name (for example `chat.service.manager.ts`).
 - `index.ts` is only for export aggregation; no business logic.

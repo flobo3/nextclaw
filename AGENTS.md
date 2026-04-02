@@ -306,10 +306,10 @@
   - 执行方式：改动内部依赖后必须执行 `pnpm install` 更新锁文件；验证按影响范围最小化选择，至少覆盖受影响包的 `build`、`lint`、`tsc`。仅当改动触达 desktop 打包链路时，才要求执行 `pnpm desktop:package` 与 `pnpm desktop:package:verify`（或等效三平台验证）。
   - 维护责任人：当前助手。
 - **file-name-must-match-primary-responsibility**：
-  - 约束/适用范围：凡本仓库新增、重命名、移动、拆分，或明确评审源码/脚本/测试文件命名时，必须自动加载并遵循 `file-naming-convention` skill（`.agents/skills/file-naming-convention/SKILL.md`）以及 [`docs/workflows/file-naming-convention.md`](docs/workflows/file-naming-convention.md)；不得仅凭记忆或事后补救处理命名。当前采用白名单策略：允许后缀（同级，无优先级）为 `*.service.ts`、`*.utils.ts`、`*.types.ts`、`*.test.ts`、`*.manager.ts`、`*.store.ts`、`*.repository.ts`、`*.config.ts`、`*.controller.ts`、`*.provider.ts`。
-  - 示例：开始拆分模块前先读取 `file-naming-convention` skill，再将桥接 API 相关能力命名为 `ui-bridge-api.service.ts`，将展示/格式化辅助命名为 `cron-job.utils.ts`；类型聚合使用 `*.types.ts`，测试使用 `*.test.ts`。
-  - 反例：明知仓库有命名规范 skill，却在未读取 skill 的情况下直接创建 `chatManager.ts`、`helpers.ts`、`ui-bridge-api.client.ts`、`cron-job.view.ts`；或文件名与职责不匹配；或直到收尾阶段才被动发现命名不合规。
-  - 执行方式：发生命名决策前必须先打开 `file-naming-convention` skill，按单一主职责完成 role 分类，再生成目标文件名；若确需使用白名单之外的后缀，必须先完成审慎评估，并在迭代日志记录“为何现有白名单后缀不足 + 新后缀职责边界 + 后续回收计划”；触达存量文件时按“改动即治理”评估是否需要顺手重命名；若本次存在新增/改名，最终说明中必须给出命名决策结果（新文件名，或 `old -> new` 映射）；收尾阶段通过 `post-edit-maintainability-guard` 执行 diff-only 命名职责检查，并在保留债务时说明是否为历史遗留、为何暂不重命名以及下一步迁移位点。
+  - 约束/适用范围：凡本仓库新增、重命名、移动、拆分，或明确评审源码/脚本/测试文件命名时，必须自动加载并遵循 `file-naming-convention` skill（`.agents/skills/file-naming-convention/SKILL.md`）以及 [`docs/workflows/file-naming-convention.md`](docs/workflows/file-naming-convention.md)；不得仅凭记忆或事后补救处理命名。当前采用白名单策略：允许后缀（同级，无优先级）为 `*.service.ts`、`*.utils.ts`、`*.types.ts`、`*.test.ts`、`*.manager.ts`、`*.store.ts`、`*.repository.ts`、`*.config.ts`、`*.controller.ts`、`*.provider.ts`。React hook 文件是唯一显式例外：若文件主职责是导出可复用 hook，则必须放在 `hooks/` 目录并命名为 `use-<domain>.ts` / `use-<domain>.tsx`，不得伪装成 `*.service.ts`。
+  - 示例：开始拆分模块前先读取 `file-naming-convention` skill，再将桥接 API 相关能力命名为 `ui-bridge-api.service.ts`，将展示/格式化辅助命名为 `cron-job.utils.ts`；类型聚合使用 `*.types.ts`，测试使用 `*.test.ts`；若新增 React hook，则放入 `hooks/use-chat-session-project.ts`。
+  - 反例：明知仓库有命名规范 skill，却在未读取 skill 的情况下直接创建 `chatManager.ts`、`helpers.ts`、`ui-bridge-api.client.ts`、`cron-job.view.ts`、`chat-session-project.service.ts`（实际却是 hook）；或文件名与职责不匹配；或直到收尾阶段才被动发现命名不合规。
+  - 执行方式：发生命名决策前必须先打开 `file-naming-convention` skill，按单一主职责完成 role 分类，再生成目标文件名；若文件主职责是 React hook，先落到 `hooks/` 再命名为 `use-*.ts(x)`；若确需使用白名单之外的后缀，必须先完成审慎评估，并在迭代日志记录“为何现有白名单后缀不足 + 新后缀职责边界 + 后续回收计划”；触达存量文件时按“改动即治理”评估是否需要顺手重命名；若本次存在新增/改名，最终说明中必须给出命名决策结果（新文件名，或 `old -> new` 映射）；收尾阶段通过 `post-edit-maintainability-guard` 执行 diff-only 命名职责检查，并在保留债务时说明是否为历史遗留、为何暂不重命名以及下一步迁移位点。
   - 维护责任人：当前助手。
 - **directory-file-budget-must-stay-explicit**：
   - 约束/适用范围：凡本仓库触达源码、脚本、测试文件所在目录时，必须防止“一个目录下无理由堆过多直接手写代码文件”。默认以直接子文件计数，不递归子目录；`12` 个起进入 review 区间，`20` 个以上默认禁止。`__tests__`、`tests`、`__fixtures__`、`fixtures`、`generated`、`migrations` 目录默认不纳入该约束。
