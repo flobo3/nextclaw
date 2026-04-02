@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import type { ChatComposerNode } from '@nextclaw/agent-chat-ui';
 import type { NcpDraftAttachment } from '@nextclaw/ncp-react';
-import type { MarketplaceInstalledRecord } from '@/api/types';
-import type { ThinkingLevel } from '@/api/types';
+import type { SessionSkillEntryView, ThinkingLevel } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
 import { createInitialChatComposerNodes } from '@/components/chat/chat-composer-state';
 
@@ -41,7 +40,7 @@ export type ChatInputSnapshot = {
   stopReason?: string;
   canEditSessionType: boolean;
   sessionTypeUnavailable: boolean;
-  skillRecords: MarketplaceInstalledRecord[];
+  skillRecords: SessionSkillEntryView[];
   isSkillsLoading: boolean;
   selectedSkills: string[];
 };

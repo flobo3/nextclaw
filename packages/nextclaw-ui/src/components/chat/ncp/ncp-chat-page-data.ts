@@ -14,15 +14,16 @@ import {
 import {
   useConfig,
   useConfigMeta,
+  useNcpSessionSkills,
   useNcpSessions
 } from '@/hooks/useConfig';
 import { useNcpChatSessionTypes } from '@/hooks/use-ncp-chat-session-types';
-import { useMarketplaceInstalled } from '@/hooks/useMarketplace';
 import { buildProviderModelCatalog, composeProviderModel, resolveModelThinkingCapability } from '@/lib/provider-models';
 
 type UseNcpChatPageDataParams = {
   query: string;
   sessionKey: string;
+  projectRootOverride?: string | null;
   currentSelectedModel: string;
   pendingSessionType: string;
   setPendingSessionType: Dispatch<SetStateAction<string>>;
@@ -51,7 +52,12 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
   const configMetaQuery = useConfigMeta();
   const sessionsQuery = useNcpSessions({ limit: 200 });
   const sessionTypesQuery = useNcpChatSessionTypes();
-  const installedSkillsQuery = useMarketplaceInstalled('skill');
+  const sessionSkillsQuery = useNcpSessionSkills({
+    sessionId: params.sessionKey,
+    ...(Object.prototype.hasOwnProperty.call(params, 'projectRootOverride')
+      ? { projectRoot: params.projectRootOverride ?? null }
+      : {})
+  });
   const isProviderStateResolved =
     (configQuery.isFetched || configQuery.isSuccess) &&
     (configMetaQuery.isFetched || configMetaQuery.isSuccess);
@@ -105,8 +111,8 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
     [allSessions, params.sessionKey]
   );
   const skillRecords = useMemo(
-    () => installedSkillsQuery.data?.records ?? [],
-    [installedSkillsQuery.data?.records]
+    () => sessionSkillsQuery.data?.records ?? [],
+    [sessionSkillsQuery.data?.records]
   );
   const sessionTypeState = useChatSessionTypeState({
     selectedSession,
@@ -178,7 +184,7 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
     configMetaQuery,
     sessionsQuery,
     sessionTypesQuery,
-    installedSkillsQuery,
+    sessionSkillsQuery,
     isProviderStateResolved,
     modelOptions: filteredModelOptions,
     sessionSummaries,

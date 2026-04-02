@@ -56,6 +56,7 @@ function registerNcpSessionRoutes(app: Hono, ncpSessionController: NcpSessionRou
   app.get("/api/ncp/sessions/:sessionId", ncpSessionController.getSession);
   app.put("/api/ncp/sessions/:sessionId", ncpSessionController.patchSession);
   app.get("/api/ncp/sessions/:sessionId/messages", ncpSessionController.listSessionMessages);
+  app.get("/api/ncp/sessions/:sessionId/skills", ncpSessionController.getSessionSkills);
   app.delete("/api/ncp/sessions/:sessionId", ncpSessionController.deleteSession);
 }
 

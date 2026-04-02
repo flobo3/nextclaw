@@ -437,6 +437,24 @@ export type SessionPatchUpdate = {
   clearHistory?: boolean;
 };
 
+export type SessionSkillEntryView = {
+  ref: string;
+  name: string;
+  path: string;
+  scope: "project" | "workspace";
+  source: "project" | "workspace";
+  available: boolean;
+  description?: string;
+  descriptionZh?: string;
+};
+
+export type NcpSessionSkillsView = {
+  sessionId: string;
+  total: number;
+  refs: string[];
+  records: SessionSkillEntryView[];
+};
+
 export type ServerPathEntryView = {
   name: string;
   path: string;

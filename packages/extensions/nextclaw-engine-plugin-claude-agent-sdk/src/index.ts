@@ -2,14 +2,11 @@ import { createRequire } from "node:module";
 import type {
   Options as ClaudeAgentOptions,
   Query as ClaudeAgentQuery,
-  SDKMessage
 } from "@anthropic-ai/claude-agent-sdk";
 import {
   getApiBase,
-  buildBootstrapAwareUserPrompt,
+  DEFAULT_RUNTIME_USER_PROMPT_BUILDER,
   getProvider,
-  readRequestedSkillsFromMetadata,
-  SkillsLoader,
   type AgentEngine,
   type AgentEngineDirectRequest,
   type AgentEngineFactoryContext,
@@ -20,6 +17,7 @@ import {
   type SessionEvent,
   type SessionManager
 } from "@nextclaw/core";
+import { ClaudeAgentQueryRunner } from "./claude-agent-query-runner.js";
 
 function readString(input: Record<string, unknown>, key: string): string | undefined {
   const value = input[key];
@@ -201,14 +199,15 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
   private sdkModulePromise: Promise<ClaudeAgentSdkModule> | null = null;
   private sessionIdsByKey = new Map<string, string>();
   private defaultModel: string;
-  private skillsLoader: SkillsLoader;
+  private readonly queryRunner = new ClaudeAgentQueryRunner(this.sessionIdsByKey);
 
   constructor(private options: PluginClaudeAgentSdkEngineOptions) {
     this.defaultModel = options.model;
-    this.skillsLoader = new SkillsLoader(options.workspace);
   }
 
-  async handleInbound(params: AgentEngineInboundRequest): Promise<OutboundMessage | null> {
+  handleInbound = async (
+    params: AgentEngineInboundRequest,
+  ): Promise<OutboundMessage | null> => {
     const reply = await this.processDirect({
       content: params.message.content,
       sessionKey: params.sessionKey,
@@ -230,9 +229,9 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
       await this.options.bus.publishOutbound(outbound);
     }
     return outbound;
-  }
+  };
 
-  async processDirect(params: AgentEngineDirectRequest): Promise<string> {
+  processDirect = async (params: AgentEngineDirectRequest): Promise<string> => {
     const sessionKey =
       typeof params.sessionKey === "string" && params.sessionKey.trim() ? params.sessionKey : "cli:direct";
     const channel = typeof params.channel === "string" && params.channel.trim() ? params.channel : "cli";
@@ -240,12 +239,18 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
     const session = this.options.sessionManager.getOrCreate(sessionKey);
     const modelInput = readString(params.metadata ?? {}, "model") ?? this.defaultModel;
     const model = normalizeClaudeModel(modelInput);
-    const requestedSkills = readRequestedSkillsFromMetadata(params.metadata ?? {});
-
-    const userExtra: Record<string, unknown> = { channel, chatId };
-    if (requestedSkills.length > 0) {
-      userExtra.requested_skills = requestedSkills;
-    }
+    const runtimeContext = DEFAULT_RUNTIME_USER_PROMPT_BUILDER.buildSessionPromptContext({
+      workspace: this.options.workspace,
+      contextConfig: this.options.contextConfig,
+      sessionKey,
+      metadata: params.metadata,
+      userMessage: params.content,
+    });
+    const userExtra: Record<string, unknown> = {
+      channel,
+      chatId,
+      ...runtimeContext.requestedSkills.eventMetadata,
+    };
     const userEvent = this.options.sessionManager.addMessage(session, "user", params.content, userExtra);
     params.onSessionEvent?.(userEvent);
 
@@ -262,54 +267,38 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
       params.abortSignal?.addEventListener("abort", onExternalAbort, { once: true });
     }
     const timeout = this.createRequestTimeout(abortController);
-    const queryOptions = this.buildQueryOptions(sessionKey, model, abortController);
-    const prompt = buildBootstrapAwareUserPrompt({
-      workspace: this.options.workspace,
-      contextConfig: this.options.contextConfig,
+    const queryOptions = this.buildQueryOptions(
       sessionKey,
-      skills: this.skillsLoader,
-      skillNames: requestedSkills,
-      userMessage: params.content,
-    });
+      model,
+      abortController,
+      runtimeContext.projectContext.effectiveWorkspace,
+    );
 
     const query = sdk.query({
-      prompt,
+      prompt: runtimeContext.prompt,
       options: queryOptions
     });
 
-    const assistantMessages: string[] = [];
-    let resultReply = "";
-
     try {
-      for await (const message of query) {
-        this.trackSessionId(sessionKey, message);
-
-        const streamEvent = this.options.sessionManager.appendEvent(session, {
-          type: this.toSessionEventType(message),
-          data: { message },
-          timestamp: new Date().toISOString()
-        });
-        params.onSessionEvent?.(streamEvent);
-
-        const delta = this.extractAssistantDelta(message);
-        if (delta) {
-          params.onAssistantDelta?.(delta);
-        }
-
-        const assistantText = this.extractAssistantText(message);
-        if (assistantText) {
-          assistantMessages.push(assistantText);
-        }
-
-        const result = this.extractResultMessage(message);
-        if (!result) {
-          continue;
-        }
-        if (!result.ok) {
-          throw new Error(result.error);
-        }
-        resultReply = result.text;
+      const reply = await this.queryRunner.run({
+        query,
+        sessionKey,
+        session,
+        sessionManager: this.options.sessionManager,
+        onSessionEvent: params.onSessionEvent,
+        onAssistantDelta: params.onAssistantDelta,
+      });
+      if (abortController.signal.aborted) {
+        throw toAbortError(abortController.signal.reason);
       }
+
+      const assistantEvent: SessionEvent = this.options.sessionManager.addMessage(session, "assistant", reply, {
+        channel,
+        chatId
+      });
+      params.onSessionEvent?.(assistantEvent);
+      this.options.sessionManager.save(session);
+      return reply;
     } finally {
       params.abortSignal?.removeEventListener("abort", onExternalAbort);
       if (timeout !== null) {
@@ -317,31 +306,23 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
       }
       query.close();
     }
-    if (abortController.signal.aborted) {
-      throw toAbortError(abortController.signal.reason);
-    }
+  };
 
-    const assistantReply = assistantMessages.join("\n").trim();
-    const reply = assistantReply || resultReply.trim();
-    const assistantEvent: SessionEvent = this.options.sessionManager.addMessage(session, "assistant", reply, {
-      channel,
-      chatId
-    });
-    params.onSessionEvent?.(assistantEvent);
-    this.options.sessionManager.save(session);
-    return reply;
-  }
+  applyRuntimeConfig = (_config: Config): void => {};
 
-  applyRuntimeConfig(_config: Config): void {}
-
-  private async getSdkModule(): Promise<ClaudeAgentSdkModule> {
+  private getSdkModule = async (): Promise<ClaudeAgentSdkModule> => {
     if (!this.sdkModulePromise) {
       this.sdkModulePromise = claudeAgentLoader.loadClaudeAgentSdkModule();
     }
     return this.sdkModulePromise;
-  }
+  };
 
-  private buildQueryOptions(sessionKey: string, model: string, abortController: AbortController): ClaudeAgentOptions {
+  private buildQueryOptions = (
+    sessionKey: string,
+    model: string,
+    abortController: AbortController,
+    cwd: string,
+  ): ClaudeAgentOptions => {
     const env: Record<string, string | undefined> = {
       ...process.env,
       ...(this.options.env ?? {})
@@ -357,7 +338,7 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
     const options: ClaudeAgentOptions = {
       ...this.options.baseQueryOptions,
       abortController,
-      cwd: this.options.workspace,
+      cwd,
       model,
       env
     };
@@ -372,9 +353,11 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
     }
 
     return options;
-  }
+  };
 
-  private createRequestTimeout(abortController: AbortController): ReturnType<typeof setTimeout> | null {
+  private createRequestTimeout = (
+    abortController: AbortController,
+  ): ReturnType<typeof setTimeout> | null => {
     if (this.options.requestTimeoutMs <= 0) {
       return null;
     }
@@ -383,93 +366,7 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
     }, this.options.requestTimeoutMs);
     timeout.unref?.();
     return timeout;
-  }
-
-  private trackSessionId(sessionKey: string, message: SDKMessage): void {
-    const maybeSessionId =
-      message && typeof message === "object" && "session_id" in message ? (message.session_id as unknown) : undefined;
-    if (typeof maybeSessionId === "string" && maybeSessionId.trim()) {
-      this.sessionIdsByKey.set(sessionKey, maybeSessionId.trim());
-    }
-  }
-
-  private toSessionEventType(message: SDKMessage): string {
-    const baseType =
-      message && typeof message === "object" && "type" in message && typeof message.type === "string"
-        ? message.type
-        : "unknown";
-    const maybeSubtype =
-      message && typeof message === "object" && "subtype" in message ? (message.subtype as unknown) : undefined;
-    if (typeof maybeSubtype === "string" && maybeSubtype.trim()) {
-      return `engine.claude.${baseType}.${maybeSubtype.trim()}`;
-    }
-    return `engine.claude.${baseType}`;
-  }
-
-  private extractAssistantText(message: SDKMessage): string {
-    if (message.type !== "assistant") {
-      return "";
-    }
-    const payload = (message as { message?: { content?: unknown } }).message;
-    const content = payload?.content;
-    if (typeof content === "string") {
-      return content.trim();
-    }
-    if (!Array.isArray(content)) {
-      return "";
-    }
-    const text = content
-      .map((block) => {
-        if (!block || typeof block !== "object") {
-          return "";
-        }
-        const candidate = block as { type?: unknown; text?: unknown };
-        if (candidate.type !== "text" || typeof candidate.text !== "string") {
-          return "";
-        }
-        return candidate.text;
-      })
-      .join("")
-      .trim();
-    return text;
-  }
-
-  private extractAssistantDelta(message: SDKMessage): string {
-    if (message.type !== "stream_event") {
-      return "";
-    }
-    const event = (message as { event?: unknown }).event;
-    if (!event || typeof event !== "object") {
-      return "";
-    }
-    const eventObj = event as { type?: unknown; delta?: unknown; text?: unknown };
-    if (eventObj.type === "content_block_delta") {
-      const delta = eventObj.delta as { type?: unknown; text?: unknown } | undefined;
-      if (delta?.type === "text_delta" && typeof delta.text === "string") {
-        return delta.text;
-      }
-    }
-    if (typeof eventObj.text === "string") {
-      return eventObj.text;
-    }
-    return "";
-  }
-
-  private extractResultMessage(message: SDKMessage): { ok: true; text: string } | { ok: false; error: string } | null {
-    if (message.type !== "result") {
-      return null;
-    }
-    if (message.subtype === "success") {
-      return { ok: true, text: typeof message.result === "string" ? message.result : "" };
-    }
-    const errors = Array.isArray(message.errors)
-      ? message.errors.map((entry) => String(entry)).filter(Boolean)
-      : [];
-    return {
-      ok: false,
-      error: errors.join("; ") || `claude-agent-sdk execution failed: ${message.subtype}`
-    };
-  }
+  };
 }
 
 type PluginApi = {

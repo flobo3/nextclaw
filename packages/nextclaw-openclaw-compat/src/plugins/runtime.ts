@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Config } from "@nextclaw/core";
 import {
-  buildBootstrapAwareUserPrompt,
+  DEFAULT_RUNTIME_USER_PROMPT_BUILDER,
   getWorkspacePath,
-  LayeredSkillsLoader,
-  readRequestedSkillsFromMetadata,
   resolveSessionWorkspacePath,
   resolveProviderRuntime,
 } from "@nextclaw/core";
@@ -85,37 +83,16 @@ function createRuntimeUserPromptBuilder(params: {
   config?: Config;
   defaultWorkspace: string;
 }): PluginRuntime["agent"]["buildRuntimeUserPrompt"] {
-  const skillLoaders = new Map<string, LayeredSkillsLoader>();
-
   return ({ workspace, sessionKey, metadata, userMessage }) => {
     const hostWorkspace = getWorkspacePath(params.defaultWorkspace);
-    const resolvedWorkspace = resolveSessionWorkspacePath({
-      sessionMetadata: metadata,
+    return DEFAULT_RUNTIME_USER_PROMPT_BUILDER.buildSessionPromptContext({
       workspace: workspace ?? params.defaultWorkspace,
-      defaultWorkspace: params.defaultWorkspace,
-    });
-    const supportingSkillWorkspaces =
-      hostWorkspace !== resolvedWorkspace ? [hostWorkspace] : [];
-    const loaderKey = [resolvedWorkspace, ...supportingSkillWorkspaces].join("::");
-    let skills = skillLoaders.get(loaderKey);
-    if (!skills) {
-      skills = new LayeredSkillsLoader(
-        resolvedWorkspace,
-        supportingSkillWorkspaces,
-      );
-      skillLoaders.set(loaderKey, skills);
-    }
-
-    return buildBootstrapAwareUserPrompt({
-      workspace: resolvedWorkspace,
       hostWorkspace,
       contextConfig: params.config?.agents?.context,
       sessionKey,
       metadata,
-      skills,
-      skillNames: readRequestedSkillsFromMetadata(metadata),
       userMessage,
-    });
+    }).prompt;
   };
 }
 

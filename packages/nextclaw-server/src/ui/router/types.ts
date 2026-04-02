@@ -78,7 +78,7 @@ export type CronJobEntry = {
 export type SkillInfo = {
   name: string;
   path: string;
-  source: "workspace" | "builtin";
+  source: "workspace";
 };
 
 export type SkillsLoaderInstance = {
@@ -86,4 +86,4 @@ export type SkillsLoaderInstance = {
   getSkillMetadata?: (name: string) => Record<string, string> | null;
 };
 
-export type SkillsLoaderConstructor = new (workspace: string, builtinSkillsDir?: string) => SkillsLoaderInstance;
+export type SkillsLoaderConstructor = new (workspace: string) => SkillsLoaderInstance;

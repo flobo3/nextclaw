@@ -52,7 +52,7 @@ export function buildNcpSendMetadata(payload: {
   }
   const requestedSkills = normalizeRequestedSkills(payload.requestedSkills);
   if (requestedSkills.length > 0) {
-    metadata.requested_skills = requestedSkills;
+    metadata.requested_skill_refs = requestedSkills;
   }
   const inlineSkillTokens = payload.composerNodes
     ? buildInlineSkillTokensFromComposer(payload.composerNodes)
@@ -92,8 +92,10 @@ export function NcpChatPage({ view }: ChatPageProps) {
     [routeSessionIdParam]
   );
   const sessionKey = selectedSessionKey ?? draftSessionId;
+  const sessionProjectRootOverride =
+    pendingProjectRootSessionKey === sessionKey ? pendingProjectRoot : undefined;
   const {
-    installedSkillsQuery,
+    sessionSkillsQuery,
     isProviderStateResolved,
     modelOptions,
     sessionSummaries,
@@ -108,6 +110,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
   } = useNcpChatPageData({
     query,
     sessionKey,
+    projectRootOverride: sessionProjectRootOverride,
     currentSelectedModel,
     pendingSessionType,
     setPendingSessionType: presenter.chatInputManager.setPendingSessionType,
@@ -332,7 +335,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
       canEditSessionType,
       sessionTypeUnavailable,
       skillRecords,
-      isSkillsLoading: installedSkillsQuery.isLoading
+      isSkillsLoading: sessionSkillsQuery.isLoading
     });
     presenter.chatThreadManager.syncSnapshot({
       isProviderStateResolved,
@@ -358,12 +361,11 @@ export function NcpChatPage({ view }: ChatPageProps) {
     currentSessionDisplayName,
     currentSessionTypeLabel,
     defaultSessionType,
-    installedSkillsQuery.isLoading,
+    sessionSkillsQuery.isLoading,
     isAwaitingAssistantOutput,
     isProviderStateResolved,
     isSending,
     lastSendError,
-    modelOptions.length,
     modelOptions,
     presenter,
     effectiveSessionProjectName,

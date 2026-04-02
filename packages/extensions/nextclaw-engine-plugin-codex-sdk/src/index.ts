@@ -1,10 +1,8 @@
 import { createRequire } from "node:module";
-import type { Codex as CodexClient, CodexOptions, Thread, ThreadEvent, ThreadOptions } from "@openai/codex-sdk";
+import type { Codex as CodexClient, CodexOptions, Thread, ThreadOptions } from "@openai/codex-sdk";
 import {
-  buildBootstrapAwareUserPrompt,
-  readRequestedSkillsFromMetadata,
+  DEFAULT_RUNTIME_USER_PROMPT_BUILDER,
   resolveProviderRuntime,
-  SkillsLoader,
   type AgentEngine,
   type AgentEngineDirectRequest,
   type AgentEngineFactoryContext,
@@ -15,6 +13,7 @@ import {
   type SessionEvent,
   type SessionManager
 } from "@nextclaw/core";
+import { CodexThreadStreamCollector } from "./codex-thread-stream-collector.js";
 
 function readString(input: Record<string, unknown>, key: string): string | undefined {
   const value = input[key];
@@ -158,17 +157,19 @@ class PluginCodexSdkEngine implements AgentEngine {
 
   private codexPromise: Promise<CodexClient> | null = null;
   private threads = new Map<string, Thread>();
+  private threadWorkingDirectories = new Map<string, string>();
   private defaultModel: string;
   private threadOptions: ThreadOptions;
-  private skillsLoader: SkillsLoader;
+  private readonly threadStreamCollector = new CodexThreadStreamCollector();
 
   constructor(private options: PluginCodexSdkEngineOptions) {
     this.defaultModel = options.model;
     this.threadOptions = options.threadOptions;
-    this.skillsLoader = new SkillsLoader(options.workspace);
   }
 
-  async handleInbound(params: AgentEngineInboundRequest): Promise<OutboundMessage | null> {
+  handleInbound = async (
+    params: AgentEngineInboundRequest,
+  ): Promise<OutboundMessage | null> => {
     const reply = await this.processDirect({
       content: params.message.content,
       sessionKey: params.sessionKey,
@@ -190,66 +191,47 @@ class PluginCodexSdkEngine implements AgentEngine {
       await this.options.bus.publishOutbound(outbound);
     }
     return outbound;
-  }
+  };
 
-  async processDirect(params: AgentEngineDirectRequest): Promise<string> {
+  processDirect = async (params: AgentEngineDirectRequest): Promise<string> => {
     const sessionKey = typeof params.sessionKey === "string" && params.sessionKey.trim() ? params.sessionKey : "cli:direct";
     const channel = typeof params.channel === "string" && params.channel.trim() ? params.channel : "cli";
     const chatId = typeof params.chatId === "string" && params.chatId.trim() ? params.chatId : "direct";
     const model = readString(params.metadata ?? {}, "model") ?? this.defaultModel;
-    const requestedSkills = readRequestedSkillsFromMetadata(params.metadata ?? {});
-    const session = this.options.sessionManager.getOrCreate(sessionKey);
-
-    const userExtra: Record<string, unknown> = { channel, chatId };
-    if (requestedSkills.length > 0) {
-      userExtra.requested_skills = requestedSkills;
-    }
-    const userEvent = this.options.sessionManager.addMessage(session, "user", params.content, userExtra);
-    params.onSessionEvent?.(userEvent);
-
-    const prompt = buildBootstrapAwareUserPrompt({
+    const runtimeContext = DEFAULT_RUNTIME_USER_PROMPT_BUILDER.buildSessionPromptContext({
       workspace: this.options.workspace,
       contextConfig: this.options.contextConfig,
       sessionKey,
-      skills: this.skillsLoader,
-      skillNames: requestedSkills,
+      metadata: params.metadata,
       userMessage: params.content,
     });
+    const session = this.options.sessionManager.getOrCreate(sessionKey);
+    const userExtra: Record<string, unknown> = {
+      channel,
+      chatId,
+      ...runtimeContext.requestedSkills.eventMetadata,
+    };
+    const userEvent = this.options.sessionManager.addMessage(session, "user", params.content, userExtra);
+    params.onSessionEvent?.(userEvent);
 
-    const thread = await this.resolveThread(sessionKey, model);
-    const streamed = await thread.runStreamed(prompt, {
-      ...(params.abortSignal ? { signal: params.abortSignal } : {})
+    const thread = await this.resolveThread(
+      sessionKey,
+      model,
+      runtimeContext.projectContext.effectiveWorkspace,
+    );
+    const reply = await this.threadStreamCollector.collect({
+      thread,
+      prompt: runtimeContext.prompt,
+      abortSignal: params.abortSignal,
+      session,
+      sessionManager: this.options.sessionManager,
+      onSessionEvent: params.onSessionEvent,
+      onAssistantDelta: params.onAssistantDelta,
     });
-    const itemTextById = new Map<string, string>();
-    const completedAgentMessages: string[] = [];
-
-    for await (const event of streamed.events) {
-      const streamEvent = this.options.sessionManager.appendEvent(session, {
-        type: `engine.codex.${event.type}`,
-        data: { event },
-        timestamp: new Date().toISOString()
-      });
-      params.onSessionEvent?.(streamEvent);
-
-      this.emitAssistantDelta(event, itemTextById, params.onAssistantDelta);
-      if (event.type === "item.completed" && event.item.type === "agent_message") {
-        const text = event.item.text.trim();
-        if (text) {
-          completedAgentMessages.push(text);
-        }
-      }
-      if (event.type === "turn.failed") {
-        throw new Error(event.error.message);
-      }
-      if (event.type === "error") {
-        throw new Error(event.message);
-      }
-    }
     if (params.abortSignal?.aborted) {
       throw toAbortError(params.abortSignal.reason);
     }
 
-    const reply = completedAgentMessages.join("\n").trim();
     const assistantEvent: SessionEvent = this.options.sessionManager.addMessage(session, "assistant", reply, {
       channel,
       chatId
@@ -257,11 +239,11 @@ class PluginCodexSdkEngine implements AgentEngine {
     params.onSessionEvent?.(assistantEvent);
     this.options.sessionManager.save(session);
     return reply;
-  }
+  };
 
-  applyRuntimeConfig(_config: Config): void {}
+  applyRuntimeConfig = (_config: Config): void => {};
 
-  private async getCodex(): Promise<CodexClient> {
+  private getCodex = async (): Promise<CodexClient> => {
     if (!this.codexPromise) {
       this.codexPromise = codexLoader.loadCodexConstructor().then((Ctor) =>
         new Ctor({
@@ -274,48 +256,27 @@ class PluginCodexSdkEngine implements AgentEngine {
       );
     }
     return this.codexPromise;
-  }
+  };
 
-  private async resolveThread(sessionKey: string, model: string): Promise<Thread> {
+  private resolveThread = async (
+    sessionKey: string,
+    model: string,
+    workingDirectory: string,
+  ): Promise<Thread> => {
     const cached = this.threads.get(sessionKey);
-    if (cached) {
+    if (cached && this.threadWorkingDirectories.get(sessionKey) === workingDirectory) {
       return cached;
     }
     const codex = await this.getCodex();
     const thread = codex.startThread({
       ...this.threadOptions,
-      model
+      model,
+      workingDirectory,
     });
     this.threads.set(sessionKey, thread);
+    this.threadWorkingDirectories.set(sessionKey, workingDirectory);
     return thread;
-  }
-
-  private emitAssistantDelta(
-    event: ThreadEvent,
-    itemTextById: Map<string, string>,
-    onAssistantDelta: ((delta: string) => void) | undefined
-  ): void {
-    if (!onAssistantDelta) {
-      return;
-    }
-    if (event.type !== "item.updated" && event.type !== "item.completed") {
-      return;
-    }
-    if (event.item.type !== "agent_message") {
-      return;
-    }
-    const current = event.item.text ?? "";
-    const previous = itemTextById.get(event.item.id) ?? "";
-    if (current.length <= previous.length) {
-      itemTextById.set(event.item.id, current);
-      return;
-    }
-    const delta = current.slice(previous.length);
-    if (delta) {
-      onAssistantDelta(delta);
-    }
-    itemTextById.set(event.item.id, current);
-  }
+  };
 }
 
 type PluginApi = {

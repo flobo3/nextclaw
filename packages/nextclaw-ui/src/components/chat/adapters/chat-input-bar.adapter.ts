@@ -12,6 +12,7 @@ export type ChatThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 
 export type ChatSkillRecord = {
   key: string;
   label: string;
+  scopeLabel?: string;
   description?: string;
   descriptionZh?: string;
   badgeLabel?: string;
@@ -43,6 +44,7 @@ const SLASH_ITEM_MATCH_SCORE = {
 export type ChatInputBarAdapterTexts = {
   slashSkillSubtitle: string;
   slashSkillSpecLabel: string;
+  slashSkillScopeLabel: string;
   noSkillDescription: string;
   recentSkillsLabel: string;
   allSkillsLabel: string;
@@ -171,7 +173,7 @@ function prioritizeSkillRecords(skillRecords: ChatSkillRecord[], recentSkillValu
 export function buildChatSlashItems(
   skillRecords: ChatSkillRecord[],
   normalizedSlashQuery: string,
-  texts: Pick<ChatInputBarAdapterTexts, 'slashSkillSubtitle' | 'slashSkillSpecLabel' | 'noSkillDescription'>,
+  texts: Pick<ChatInputBarAdapterTexts, 'slashSkillSubtitle' | 'slashSkillSpecLabel' | 'slashSkillScopeLabel' | 'noSkillDescription'>,
   recentSkillValues: string[] = []
 ): ChatSlashItem[] {
   const skillSortCollator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
@@ -211,7 +213,10 @@ export function buildChatSlashItems(
       title: record.label || record.key,
       subtitle: texts.slashSkillSubtitle,
       description: (record.descriptionZh ?? record.description ?? '').trim() || texts.noSkillDescription,
-      detailLines: [`${texts.slashSkillSpecLabel}: ${record.key}`],
+      detailLines: [
+        `${texts.slashSkillSpecLabel}: ${record.key}`,
+        ...(record.scopeLabel ? [`${texts.slashSkillScopeLabel}: ${record.scopeLabel}`] : [])
+      ],
       value: record.key
     }));
 }

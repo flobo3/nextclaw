@@ -18,6 +18,7 @@ describe('buildChatSlashItems', () => {
   const texts = {
     slashSkillSubtitle: 'Skill',
     slashSkillSpecLabel: 'Spec',
+    slashSkillScopeLabel: 'Scope',
     noSkillDescription: 'No description'
   };
 

@@ -1,5 +1,11 @@
 import { api } from './client';
-import type { NcpSessionMessagesView, NcpSessionsListView, NcpSessionSummaryView, SessionPatchUpdate } from './types';
+import type {
+  NcpSessionMessagesView,
+  NcpSessionSkillsView,
+  NcpSessionsListView,
+  NcpSessionSummaryView,
+  SessionPatchUpdate
+} from './types';
 
 // GET /api/ncp/sessions
 export async function fetchNcpSessions(params?: { limit?: number }): Promise<NcpSessionsListView> {
@@ -19,6 +25,28 @@ export async function fetchNcpSessions(params?: { limit?: number }): Promise<Ncp
 export async function fetchNcpSessionMessages(sessionId: string, limit = 200): Promise<NcpSessionMessagesView> {
   const response = await api.get<NcpSessionMessagesView>(
     `/api/ncp/sessions/${encodeURIComponent(sessionId)}/messages?limit=${Math.max(1, Math.trunc(limit))}`
+  );
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// GET /api/ncp/sessions/:sessionId/skills
+export async function fetchNcpSessionSkills(
+  sessionId: string,
+  params?: { projectRoot?: string | null }
+): Promise<NcpSessionSkillsView> {
+  const query = new URLSearchParams();
+  const projectRoot = params?.projectRoot?.trim();
+  if (projectRoot) {
+    query.set('projectRoot', projectRoot);
+  }
+  const suffix = query.toString();
+  const response = await api.get<NcpSessionSkillsView>(
+    suffix
+      ? `/api/ncp/sessions/${encodeURIComponent(sessionId)}/skills?${suffix}`
+      : `/api/ncp/sessions/${encodeURIComponent(sessionId)}/skills`
   );
   if (!response.ok) {
     throw new Error(response.error.message);

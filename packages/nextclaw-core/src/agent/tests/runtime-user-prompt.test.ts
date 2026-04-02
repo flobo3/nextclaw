@@ -3,7 +3,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import { SkillsLoader } from "../skills.js";
-import { buildBootstrapAwareUserPrompt } from "../../runtime-context/runtime-user-prompt.js";
+import {
+  DEFAULT_RUNTIME_USER_PROMPT_BUILDER,
+  buildBootstrapAwareUserPrompt,
+} from "../../runtime-context/runtime-user-prompt.js";
 
 const tempWorkspaces: string[] = [];
 
@@ -45,19 +48,20 @@ describe("buildBootstrapAwareUserPrompt", () => {
       workspace,
       sessionKey: "session-1",
       skills: new SkillsLoader(workspace),
-      skillNames: ["demo-skill"],
+      skillSelectors: ["demo-skill"],
       userMessage: "hello",
     });
 
-    expect(prompt).toContain("# Workspace Context");
-    expect(prompt).toContain(`Current project directory: ${workspace}`);
+    expect(prompt).toContain("# Project Context");
+    expect(prompt).toContain(`Active project directory: ${workspace}`);
     expect(prompt).toContain("## IDENTITY.md");
     expect(prompt).toContain("Identity rules.");
     expect(prompt).toContain("## SOUL.md");
     expect(prompt).toContain("Warm, direct tone.");
     expect(prompt).toContain("If SOUL.md is present");
-    expect(prompt).toContain("Current project bootstrap files loaded:");
+    expect(prompt).toContain("Project bootstrap files loaded:");
     expect(prompt).toContain("<name>demo-skill</name>");
+    expect(prompt).toContain("<ref>workspace:");
     expect(prompt).toContain("`$weather`");
     expect(prompt).toContain("## User Message");
     expect(prompt).toContain("hello");
@@ -70,13 +74,78 @@ describe("buildBootstrapAwareUserPrompt", () => {
       workspace,
       sessionKey: "session-2",
       skills: new SkillsLoader(workspace),
-      skillNames: [],
+      skillSelectors: [],
       userMessage: "plain message",
     });
 
-    expect(prompt).toContain("# Workspace Context");
-    expect(prompt).toContain(`Current project directory: ${workspace}`);
-    expect(prompt).toContain("No bootstrap context files were found in the current project directory.");
+    expect(prompt).toContain("# Project Context");
+    expect(prompt).toContain(`Active project directory: ${workspace}`);
+    expect(prompt).toContain("No bootstrap context files were found in the active project directory.");
     expect(prompt).toContain("plain message");
+  });
+
+  it("keeps project and host workspace skills distinct when names collide", () => {
+    const hostWorkspace = createWorkspace();
+    const projectRoot = createWorkspace();
+    writeFileSync(join(hostWorkspace, "IDENTITY.md"), "Host identity.\n");
+    writeFileSync(join(projectRoot, "AGENTS.md"), "Project instructions.\n");
+
+    const hostSkillDir = join(hostWorkspace, "skills", "shared-skill");
+    mkdirSync(hostSkillDir, { recursive: true });
+    writeFileSync(
+      join(hostSkillDir, "SKILL.md"),
+      [
+        "---",
+        "name: shared-skill",
+        "description: Host shared skill",
+        "---",
+        "",
+        "Host skill body.",
+      ].join("\n"),
+    );
+
+    const projectSkillDir = join(projectRoot, ".agents", "skills", "shared-skill");
+    mkdirSync(projectSkillDir, { recursive: true });
+    writeFileSync(
+      join(projectSkillDir, "SKILL.md"),
+      [
+        "---",
+        "name: shared-skill",
+        "description: Project shared skill",
+        "---",
+        "",
+        "Project skill body.",
+      ].join("\n"),
+    );
+
+    const projectSkillRef = `project:${projectSkillDir}`;
+    const hostSkillRef = `workspace:${hostSkillDir}`;
+    const runtimeContext = DEFAULT_RUNTIME_USER_PROMPT_BUILDER.buildSessionPromptContext({
+      workspace: projectRoot,
+      hostWorkspace,
+      sessionKey: "session-3",
+      metadata: {
+        project_root: projectRoot,
+        requested_skill_refs: [projectSkillRef, hostSkillRef],
+      },
+      userMessage: "hello",
+    });
+
+    expect(runtimeContext.projectContext.hostWorkspace).toBe(hostWorkspace);
+    expect(runtimeContext.projectContext.projectRoot).toBe(projectRoot);
+    expect(runtimeContext.requestedSkills.selectors).toEqual([projectSkillRef, hostSkillRef]);
+    expect(runtimeContext.requestedSkills.eventMetadata).toEqual({
+      requested_skill_refs: [projectSkillRef, hostSkillRef],
+    });
+    expect(
+      runtimeContext.skills.listSkills().filter((skill) => skill.name === "shared-skill"),
+    ).toEqual([
+      expect.objectContaining({ ref: projectSkillRef, scope: "project" }),
+      expect.objectContaining({ ref: hostSkillRef, scope: "workspace" }),
+    ]);
+    expect(runtimeContext.prompt).toContain("# Project Context");
+    expect(runtimeContext.prompt).toContain("# Host Workspace Context");
+    expect(runtimeContext.prompt).toContain(projectSkillRef);
+    expect(runtimeContext.prompt).toContain(hostSkillRef);
   });
 });

@@ -26,7 +26,13 @@ import {
   setCronJobEnabled,
   runCronJob
 } from '@/api/config';
-import { deleteNcpSession, fetchNcpSessionMessages, fetchNcpSessions, updateNcpSession } from '@/api/ncp-session';
+import {
+  deleteNcpSession,
+  fetchNcpSessionMessages,
+  fetchNcpSessionSkills,
+  fetchNcpSessions,
+  updateNcpSession
+} from '@/api/ncp-session';
 import { toast } from 'sonner';
 import { t } from '@/lib/i18n';
 
@@ -248,6 +254,24 @@ export function useNcpSessionMessages(sessionId: string | null, limit = 200) {
   });
 }
 
+export function useNcpSessionSkills(params: {
+  sessionId: string | null;
+  projectRoot?: string | null;
+}) {
+  return useQuery({
+    queryKey: ['ncp-session-skills', params.sessionId, params.projectRoot ?? null],
+    queryFn: () =>
+      fetchNcpSessionSkills(params.sessionId as string, {
+        ...(Object.prototype.hasOwnProperty.call(params, 'projectRoot')
+          ? { projectRoot: params.projectRoot ?? null }
+          : {})
+      }),
+    enabled: Boolean(params.sessionId),
+    staleTime: 5_000,
+    retry: false
+  });
+}
+
 export function useDeleteNcpSession() {
   const queryClient = useQueryClient();
 
@@ -272,6 +296,7 @@ export function useUpdateNcpSession() {
       updateNcpSession(sessionId, data),
     onSuccess: (data) => {
       upsertNcpSessionSummaryInQueryClient(queryClient, data);
+      queryClient.invalidateQueries({ queryKey: ['ncp-session-skills', data.sessionId] });
       toast.success(t('configSavedApplied'));
     },
     onError: (error: Error) => {

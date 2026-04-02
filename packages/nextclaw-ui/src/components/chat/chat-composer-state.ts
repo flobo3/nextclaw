@@ -55,7 +55,7 @@ export function deriveSelectedAttachmentIdsFromComposer(nodes: ChatComposerNode[
 export function syncComposerSkills(
   nodes: ChatComposerNode[],
   nextSkills: string[],
-  skillRecords: Array<{ spec: string; label?: string }>
+  skillRecords: Array<{ ref: string; name: string }>
 ): ChatComposerNode[] {
   const nextSkillSet = new Set(nextSkills);
   const prunedNodes = removeChatComposerTokenNodes(
@@ -63,14 +63,14 @@ export function syncComposerSkills(
     (node) => node.tokenKind === 'skill' && !nextSkillSet.has(node.tokenKey)
   );
   const existingSkills = extractChatComposerTokenKeys(prunedNodes, 'skill');
-  const recordMap = new Map(skillRecords.map((record) => [record.spec, record]));
+  const recordMap = new Map(skillRecords.map((record) => [record.ref, record]));
   const appendedNodes = nextSkills
     .filter((skill) => !existingSkills.includes(skill))
     .map((skill) =>
       createChatComposerTokenNode({
         tokenKind: 'skill',
         tokenKey: skill,
-        label: recordMap.get(skill)?.label || skill
+        label: recordMap.get(skill)?.name || skill
       })
     );
 

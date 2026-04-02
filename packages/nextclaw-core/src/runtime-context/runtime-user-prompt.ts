@@ -1,46 +1,174 @@
 import type { Config } from "../config/schema.js";
 import { buildRequestedSkillsUserPrompt } from "../agent/skill-context.js";
-import type { SkillsLoader } from "../agent/skills.js";
-import { readSessionProjectRoot } from "../session/project-root.js";
+import { SkillsLoader } from "../agent/skills.js";
+import {
+  SessionProjectContextResolver,
+  type SessionProjectContext,
+} from "../session/session-project-context.js";
 import { buildWorkspaceProjectContextSection } from "./bootstrap-context.js";
 
 type ContextConfig = Config["agents"]["context"];
 
-function readString(value: unknown): string | undefined {
+function readString(value: unknown): string | null {
   if (typeof value !== "string") {
-    return undefined;
+    return null;
   }
   const trimmed = value.trim();
-  return trimmed || undefined;
+  return trimmed || null;
 }
 
-export function readRequestedSkillsFromMetadata(
-  metadata: Record<string, unknown> | undefined,
-): string[] {
-  if (!metadata) {
-    return [];
+function readStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => readString(entry))
+      .filter((entry): entry is string => Boolean(entry));
   }
-
-  const raw = metadata.requested_skills ?? metadata.requestedSkills;
-  const values: string[] = [];
-  if (Array.isArray(raw)) {
-    for (const entry of raw) {
-      const skillName = readString(entry);
-      if (skillName) {
-        values.push(skillName);
-      }
-    }
-  } else if (typeof raw === "string") {
-    values.push(
-      ...raw
-        .split(/[,\s]+/g)
-        .map((entry) => entry.trim())
-        .filter(Boolean),
-    );
+  if (typeof value === "string") {
+    return value
+      .split(/[,\s]+/g)
+      .map((entry) => readString(entry))
+      .filter((entry): entry is string => Boolean(entry));
   }
+  return [];
+}
 
+function dedupeRequestedSkills(values: string[]): string[] {
   return Array.from(new Set(values)).slice(0, 8);
 }
+
+export type RequestedSkillsSelection = {
+  refs: string[];
+  names: string[];
+  selectors: string[];
+  eventMetadata: Record<string, unknown>;
+};
+
+export class RequestedSkillsMetadataReader {
+  readRefs = (metadata: Record<string, unknown> | undefined): string[] => {
+    if (!metadata) {
+      return [];
+    }
+    return dedupeRequestedSkills(
+      readStringList(metadata.requested_skill_refs ?? metadata.requestedSkillRefs),
+    );
+  };
+
+  readNames = (metadata: Record<string, unknown> | undefined): string[] => {
+    if (!metadata) {
+      return [];
+    }
+    return dedupeRequestedSkills(
+      readStringList(metadata.requested_skills ?? metadata.requestedSkills),
+    );
+  };
+
+  readSelectors = (metadata: Record<string, unknown> | undefined): string[] => {
+    const refs = this.readRefs(metadata);
+    if (refs.length > 0) {
+      return refs;
+    }
+    return this.readNames(metadata);
+  };
+
+  readSelection = (
+    metadata: Record<string, unknown> | undefined,
+  ): RequestedSkillsSelection => {
+    const refs = this.readRefs(metadata);
+    const names = refs.length > 0 ? [] : this.readNames(metadata);
+    return {
+      refs,
+      names,
+      selectors: refs.length > 0 ? refs : names,
+      eventMetadata:
+        refs.length > 0
+          ? { requested_skill_refs: refs }
+          : names.length > 0
+            ? { requested_skills: names }
+            : {},
+    };
+  };
+}
+
+export type RuntimeUserPromptSessionContext = {
+  projectContext: SessionProjectContext;
+  skills: SkillsLoader;
+  requestedSkills: RequestedSkillsSelection;
+  prompt: string;
+};
+
+export class RuntimeUserPromptBuilder {
+  private readonly projectContextResolver = new SessionProjectContextResolver();
+  private readonly requestedSkillsReader = new RequestedSkillsMetadataReader();
+
+  buildSessionPromptContext = (params: {
+    workspace: string;
+    hostWorkspace?: string;
+    contextConfig?: ContextConfig;
+    sessionKey?: string;
+    metadata?: Record<string, unknown>;
+    userMessage: string;
+  }): RuntimeUserPromptSessionContext => {
+    const projectContext = this.projectContextResolver.resolve({
+      sessionMetadata: params.metadata,
+      workspace: params.hostWorkspace ?? params.workspace,
+      defaultWorkspace: params.workspace,
+    });
+    const skills = new SkillsLoader({
+      workspace: projectContext.hostWorkspace,
+      projectRoot: projectContext.projectRoot,
+    });
+    const requestedSkills = this.requestedSkillsReader.readSelection(
+      params.metadata,
+    );
+
+    return {
+      projectContext,
+      skills,
+      requestedSkills,
+      prompt: this.buildBootstrapAwareUserPrompt({
+        workspace: projectContext.effectiveWorkspace,
+        hostWorkspace: projectContext.hostWorkspace,
+        contextConfig: params.contextConfig,
+        sessionKey: params.sessionKey,
+        metadata: params.metadata,
+        skills,
+        skillSelectors: requestedSkills.selectors,
+        userMessage: params.userMessage,
+      }),
+    };
+  };
+
+  buildBootstrapAwareUserPrompt = (params: {
+    workspace: string;
+    hostWorkspace?: string;
+    contextConfig?: ContextConfig;
+    sessionKey?: string;
+    metadata?: Record<string, unknown>;
+    skills: SkillsLoader;
+    skillSelectors: string[];
+    userMessage: string;
+  }): string => {
+    const projectContext = this.projectContextResolver.resolve({
+      sessionMetadata: params.metadata,
+      workspace: params.hostWorkspace ?? params.workspace,
+      defaultWorkspace: params.workspace,
+    });
+    const requestedSkillsPrompt = buildRequestedSkillsUserPrompt(
+      params.skills,
+      params.skillSelectors,
+      params.userMessage,
+    );
+    const contextSection = buildWorkspaceProjectContextSection({
+      projectContext,
+      contextConfig: params.contextConfig,
+      sessionKey: params.sessionKey,
+    });
+
+    return [contextSection, requestedSkillsPrompt].join("\n\n");
+  };
+}
+
+export const DEFAULT_RUNTIME_USER_PROMPT_BUILDER = new RuntimeUserPromptBuilder();
 
 export function buildBootstrapAwareUserPrompt(params: {
   workspace: string;
@@ -49,20 +177,8 @@ export function buildBootstrapAwareUserPrompt(params: {
   sessionKey?: string;
   metadata?: Record<string, unknown>;
   skills: SkillsLoader;
-  skillNames: string[];
+  skillSelectors: string[];
   userMessage: string;
 }): string {
-  const prompt = buildRequestedSkillsUserPrompt(
-    params.skills,
-    params.skillNames,
-    params.userMessage,
-  );
-  const projectContext = buildWorkspaceProjectContextSection({
-    workspace: params.workspace,
-    hostWorkspace: params.hostWorkspace,
-    projectRoot: readSessionProjectRoot(params.metadata),
-    contextConfig: params.contextConfig,
-    sessionKey: params.sessionKey,
-  });
-  return [projectContext, prompt].join("\n\n");
+  return DEFAULT_RUNTIME_USER_PROMPT_BUILDER.buildBootstrapAwareUserPrompt(params);
 }

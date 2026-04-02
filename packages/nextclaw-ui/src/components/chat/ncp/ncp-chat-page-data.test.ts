@@ -64,4 +64,14 @@ describe('buildNcpSendMetadata', () => {
       }),
     ).not.toHaveProperty('project_root');
   });
+
+  it('sends requested skill refs instead of legacy requested skill names', () => {
+    expect(
+      buildNcpSendMetadata({
+        requestedSkills: ['project:/tmp/project-alpha/.agents/skills/review'],
+      }),
+    ).toMatchObject({
+      requested_skill_refs: ['project:/tmp/project-alpha/.agents/skills/review'],
+    });
+  });
 });

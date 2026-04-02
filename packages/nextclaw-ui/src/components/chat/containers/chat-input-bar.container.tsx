@@ -27,6 +27,7 @@ import {
 } from '@/components/chat/chat-recent-skills.manager';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
+import type { SessionSkillEntryView } from '@/api/types';
 import { t } from '@/lib/i18n';
 import { toast } from 'sonner';
 
@@ -42,19 +43,17 @@ function buildThinkingLabels(): Record<ChatThinkingLevel, string> {
   };
 }
 
-function toSkillRecords(snapshotRecords: Array<{
-  spec: string;
-  label?: string;
-  description?: string;
-  descriptionZh?: string;
-  origin?: string;
-}>, officialBadgeLabel: string): ChatSkillRecord[] {
+function toSkillRecords(
+  snapshotRecords: SessionSkillEntryView[],
+  scopeLabels: Record<SessionSkillEntryView['scope'], string>
+): ChatSkillRecord[] {
   return snapshotRecords.map((record) => ({
-    key: record.spec,
-    label: record.label || record.spec,
+    key: record.ref,
+    label: record.name,
+    scopeLabel: scopeLabels[record.scope],
     description: record.description,
     descriptionZh: record.descriptionZh,
-    badgeLabel: record.origin === 'builtin' ? officialBadgeLabel : undefined
+    badgeLabel: scopeLabels[record.scope]
   }));
 }
 
@@ -88,20 +87,18 @@ export function ChatInputBarContainer() {
   const inputBarRef = useRef<ChatInputBarHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const officialSkillBadgeLabel = useMemo(() => {
-    // Keep memo reactive to locale switches even though `t` is imported as a stable function.
-    const locale = language;
-    void locale;
-    return t('chatSkillsPickerOfficial');
+  const skillScopeLabels = useMemo<Record<'project' | 'workspace', string>>(() => {
+    return {
+      project: t('chatSkillScopeProject'),
+      workspace: t('chatSkillScopeWorkspace'),
+    };
   }, [language]);
   const slashTexts = useMemo(
     () => {
-      // Keep memo reactive to locale switches even though `t` is imported as a stable function.
-      const locale = language;
-      void locale;
       return {
         slashSkillSubtitle: t('chatSlashTypeSkill'),
         slashSkillSpecLabel: t('chatSlashSkillSpec'),
+        slashSkillScopeLabel: t('chatSlashSkillScope'),
         noSkillDescription: t('chatSkillsPickerNoDescription')
       };
     },
@@ -109,8 +106,8 @@ export function ChatInputBarContainer() {
   );
 
   const skillRecords = useMemo(
-    () => toSkillRecords(snapshot.skillRecords, officialSkillBadgeLabel),
-    [snapshot.skillRecords, officialSkillBadgeLabel]
+    () => toSkillRecords(snapshot.skillRecords, skillScopeLabels),
+    [snapshot.skillRecords, skillScopeLabels]
   );
   const modelRecords = useMemo(() => toModelRecords(snapshot.modelOptions), [snapshot.modelOptions]);
   const recentModelValues = chatRecentModelsManager.resolveVisible({
@@ -137,10 +134,10 @@ export function ChatInputBarContainer() {
     : hasModelOptions
       ? t('chatInputPlaceholder')
       : t('chatModelNoOptions');
-  const recentModelsLabel = language === 'zh' ? '最近选择' : 'Recent';
-  const allModelsLabel = language === 'zh' ? '全部模型' : 'All models';
-  const recentSkillsLabel = language === 'zh' ? '最近使用' : 'Recent';
-  const allSkillsLabel = language === 'zh' ? '全部技能' : 'All skills';
+  const recentModelsLabel = t('chatPickerRecentModels');
+  const allModelsLabel = t('chatPickerAllModels');
+  const recentSkillsLabel = t('chatPickerRecent');
+  const allSkillsLabel = t('chatPickerAllSkills');
 
   const slashItems = useMemo(
     () => buildChatSlashItems(skillRecords, slashQuery ?? '', slashTexts, recentSkillValues),

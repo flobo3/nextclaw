@@ -1,9 +1,6 @@
 import {
   getApiBase,
-  RequestedSkillsMetadataReader,
-  SessionProjectContextResolver,
-  SkillsLoader,
-  buildBootstrapAwareUserPrompt,
+  DEFAULT_RUNTIME_USER_PROMPT_BUILDER,
   getProvider,
   resolveSessionWorkspacePath,
   type Config,
@@ -98,8 +95,6 @@ export function buildClaudeInputBuilder(
   },
 ) {
   const { contextConfig, hostWorkspace, sessionMetadata, workspace } = params;
-  const requestedSkillsReader = new RequestedSkillsMetadataReader();
-  const projectContextResolver = new SessionProjectContextResolver();
 
   return async (input: NcpAgentRunInput): Promise<string> => {
     const userText = readUserText(input);
@@ -107,26 +102,14 @@ export function buildClaudeInputBuilder(
       ...readMetadata(sessionMetadata),
       ...readMetadata(input.metadata),
     };
-    const projectContext = projectContextResolver.resolve({
-      sessionMetadata: metadata,
-      workspace: hostWorkspace ?? workspace,
-      defaultWorkspace: workspace,
-    });
-    const skillsLoader = new SkillsLoader({
-      workspace: projectContext.hostWorkspace,
-      projectRoot: projectContext.projectRoot,
-    });
-
-    return buildBootstrapAwareUserPrompt({
-      workspace: projectContext.effectiveWorkspace,
-      hostWorkspace: projectContext.hostWorkspace,
+    return DEFAULT_RUNTIME_USER_PROMPT_BUILDER.buildSessionPromptContext({
+      workspace,
+      hostWorkspace,
       contextConfig,
       sessionKey: input.sessionId,
       metadata,
-      skills: skillsLoader,
-      skillSelectors: requestedSkillsReader.readSelectors(metadata),
       userMessage: userText,
-    });
+    }).prompt;
   };
 }
 

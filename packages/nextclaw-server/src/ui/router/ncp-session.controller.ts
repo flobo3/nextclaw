@@ -10,6 +10,7 @@ import {
   isSessionProjectRootValidationError,
   normalizeSessionProjectRoot,
 } from "../session-project/session-project-root.js";
+import { SessionSkillsViewBuilder } from "../session-project/session-skills.js";
 import { err, ok, readJson } from "./response.js";
 import type { UiRouterOptions } from "./types.js";
 
@@ -82,7 +83,11 @@ async function buildPatchedSessionMetadata(params: {
 }
 
 export class NcpSessionRoutesController {
-  constructor(private readonly options: UiRouterOptions) {}
+  private readonly sessionSkillsViewBuilder: SessionSkillsViewBuilder;
+
+  constructor(private readonly options: UiRouterOptions) {
+    this.sessionSkillsViewBuilder = new SessionSkillsViewBuilder(options);
+  }
 
   readonly getSessionTypes = async (c: Context) => {
     const listSessionTypes = this.options.ncpAgent?.listSessionTypes;
@@ -146,6 +151,41 @@ export class NcpSessionRoutesController {
       total: messages.length,
     };
     return c.json(ok(payload));
+  };
+
+  readonly getSessionSkills = async (c: Context) => {
+    const sessionApi = this.options.ncpSessionService;
+    if (!sessionApi) {
+      return c.json(err("NOT_AVAILABLE", "ncp session api unavailable"), 503);
+    }
+
+    const sessionId = decodeURIComponent(c.req.param("sessionId"));
+    const query = c.req.query();
+    const hasProjectRootOverride = Object.prototype.hasOwnProperty.call(query, "projectRoot");
+    const existing = await sessionApi.getSession(sessionId);
+    const metadata = readSessionMetadata(existing?.metadata);
+
+    if (hasProjectRootOverride) {
+      try {
+        const projectRoot = await normalizeSessionProjectRoot(query.projectRoot);
+        if (projectRoot) {
+          metadata.project_root = projectRoot;
+        } else {
+          delete metadata.project_root;
+          delete metadata.projectRoot;
+        }
+      } catch (error) {
+        if (isSessionProjectRootValidationError(error)) {
+          return c.json(err(error.code, error.message), 400);
+        }
+        throw error;
+      }
+    }
+
+    return c.json(ok(this.sessionSkillsViewBuilder.build({
+      sessionId,
+      sessionMetadata: metadata,
+    })));
   };
 
   readonly patchSession = async (c: Context) => {

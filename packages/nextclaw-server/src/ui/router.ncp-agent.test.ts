@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, expect, it } from "vitest";
@@ -507,6 +507,141 @@ it("clears both canonical and legacy project root metadata keys", async () => {
   expect(patchPayload.ok).toBe(true);
   expect(patchPayload.data.metadata).toEqual({});
   expect(agent.sessionMetadata.get("session-1")).toEqual({});
+});
+
+it("exposes session-scoped skills for persisted and draft sessions", async () => {
+  useIsolatedHome();
+  const configPath = createTempConfigPath();
+  const hostWorkspace = createTempDir("nextclaw-ui-host-workspace-");
+  const projectRoot = realpathSync(createTempDir("nextclaw-ui-session-project-"));
+  mkdirSync(join(hostWorkspace, "skills", "shared-review"), { recursive: true });
+  writeFileSync(
+    join(hostWorkspace, "skills", "shared-review", "SKILL.md"),
+    ["---", "name: shared-review", "description: Workspace review", "---"].join("\n"),
+  );
+  mkdirSync(join(projectRoot, ".agents", "skills", "shared-review"), { recursive: true });
+  writeFileSync(
+    join(projectRoot, ".agents", "skills", "shared-review", "SKILL.md"),
+    ["---", "name: shared-review", "description: Project review", "---"].join("\n"),
+  );
+  saveConfig(ConfigSchema.parse({
+    agents: {
+      defaults: {
+        workspace: hostWorkspace,
+      },
+    },
+  }), configPath);
+
+  const agent = new StubNcpAgent();
+  agent.sessionMetadata.set("session-1", { project_root: projectRoot });
+  const app = createUiRouter({
+    configPath,
+    publish: () => {},
+    ncpSessionService: agent,
+    ncpAgent: {
+      agentClientEndpoint: agent,
+      streamProvider: {
+        stream: async function* () {},
+      },
+      listSessionTypes: (params) => agent.listSessionTypes(params),
+      assetApi: agent.assetApi,
+    }
+  });
+
+  const response = await app.request("http://localhost/api/ncp/sessions/session-1/skills");
+  expect(response.status).toBe(200);
+  const payload = await response.json() as {
+    ok: boolean;
+    data: {
+      sessionId: string;
+      records: Array<{
+        ref: string;
+        name: string;
+        scope: string;
+      }>;
+    };
+  };
+  expect(payload.ok).toBe(true);
+  expect(payload.data.sessionId).toBe("session-1");
+  expect(payload.data.records).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      name: "shared-review",
+      scope: "project",
+      ref: `project:${join(projectRoot, ".agents", "skills", "shared-review")}`,
+    }),
+    expect.objectContaining({
+      name: "shared-review",
+      scope: "workspace",
+      ref: `workspace:${join(hostWorkspace, "skills", "shared-review")}`,
+    }),
+  ]));
+
+  const draftResponse = await app.request(
+    `http://localhost/api/ncp/sessions/draft-session/skills?projectRoot=${encodeURIComponent(projectRoot)}`,
+  );
+  expect(draftResponse.status).toBe(200);
+  const draftPayload = await draftResponse.json() as {
+    ok: boolean;
+    data: {
+      records: Array<{ scope: string }>;
+    };
+  };
+  expect(draftPayload.ok).toBe(true);
+  expect(draftPayload.data.records.some((record) => record.scope === "project")).toBe(true);
+});
+
+it("exposes draft session skills without requiring an empty projectRoot override", async () => {
+  useIsolatedHome();
+  const configPath = createTempConfigPath();
+  const hostWorkspace = createTempDir("nextclaw-ui-host-workspace-");
+  mkdirSync(join(hostWorkspace, "skills", "workspace-only-skill"), { recursive: true });
+  writeFileSync(
+    join(hostWorkspace, "skills", "workspace-only-skill", "SKILL.md"),
+    ["---", "name: workspace-only-skill", "description: Workspace only", "---"].join("\n"),
+  );
+  saveConfig(ConfigSchema.parse({
+    agents: {
+      defaults: {
+        workspace: hostWorkspace,
+      },
+    },
+  }), configPath);
+
+  const agent = new StubNcpAgent();
+  const app = createUiRouter({
+    configPath,
+    publish: () => {},
+    ncpSessionService: agent,
+    ncpAgent: {
+      agentClientEndpoint: agent,
+      streamProvider: {
+        stream: async function* () {},
+      },
+      listSessionTypes: (params) => agent.listSessionTypes(params),
+      assetApi: agent.assetApi,
+    }
+  });
+
+  const response = await app.request("http://localhost/api/ncp/sessions/draft-session/skills");
+  expect(response.status).toBe(200);
+  const payload = await response.json() as {
+    ok: boolean;
+    data: {
+      sessionId: string;
+      records: Array<{
+        name: string;
+        scope: string;
+      }>;
+    };
+  };
+  expect(payload.ok).toBe(true);
+  expect(payload.data.sessionId).toBe("draft-session");
+  expect(payload.data.records).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      name: "workspace-only-skill",
+      scope: "workspace",
+    }),
+  ]));
 });
 
 it("creates a lightweight session when patching a draft session", async () => {

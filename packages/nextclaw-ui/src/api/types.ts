@@ -247,6 +247,24 @@ export type NcpSessionMessagesView = {
   total: number;
 };
 
+export type SessionSkillEntryView = {
+  ref: string;
+  name: string;
+  path: string;
+  scope: 'project' | 'workspace';
+  source: 'project' | 'workspace';
+  available: boolean;
+  description?: string;
+  descriptionZh?: string;
+};
+
+export type NcpSessionSkillsView = {
+  sessionId: string;
+  total: number;
+  refs: string[];
+  records: SessionSkillEntryView[];
+};
+
 export type NcpAssetView = {
   id: string;
   name: string;

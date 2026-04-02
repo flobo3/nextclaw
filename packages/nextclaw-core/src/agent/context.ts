@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
 import { MemoryStore } from "./memory/memory-store.js";
-import { LayeredSkillsLoader } from "../runtime-context/layered-skills-loader.js";
 import {
   buildWorkspaceProjectContextSection,
   DEFAULT_BOOTSTRAP_CONTEXT_CONFIG,
@@ -18,6 +17,10 @@ import type { Config } from "../config/schema.js";
 import type { InboundAttachment } from "../bus/events.js";
 import { SILENT_REPLY_TOKEN } from "./tokens.js";
 import type { ThinkingLevel } from "../utils/thinking.js";
+import {
+  SessionProjectContextResolver,
+  type SessionProjectContext,
+} from "../session/session-project-context.js";
 
 export type Message = Record<string, unknown>;
 
@@ -54,27 +57,27 @@ export class ContextBuilder {
   private memory: MemoryStore;
   private skills: SkillsLoader;
   private contextConfig: ContextConfig;
-  private hostWorkspace: string | null;
-  private sessionProjectRoot: string | null;
+  private readonly projectContext: SessionProjectContext;
+  private readonly projectContextResolver = new SessionProjectContextResolver();
 
   constructor(
     private workspace: string,
     contextConfig?: ContextConfig,
     options: ContextBuilderOptions = {},
   ) {
-    this.hostWorkspace =
-      typeof options.hostWorkspace === "string" && options.hostWorkspace.trim().length > 0
-        ? options.hostWorkspace.trim()
-        : null;
-    this.sessionProjectRoot =
-      typeof options.sessionProjectRoot === "string" && options.sessionProjectRoot.trim().length > 0
-        ? options.sessionProjectRoot.trim()
-        : null;
-    this.memory = new MemoryStore(this.hostWorkspace ?? workspace);
-    this.skills = new LayeredSkillsLoader(
-      workspace,
-      this.hostWorkspace && this.hostWorkspace !== workspace ? [this.hostWorkspace] : [],
-    );
+    const sessionMetadata = options.sessionProjectRoot
+      ? { project_root: options.sessionProjectRoot }
+      : null;
+    this.projectContext = this.projectContextResolver.resolve({
+      sessionMetadata,
+      workspace: options.hostWorkspace ?? workspace,
+      defaultWorkspace: workspace,
+    });
+    this.memory = new MemoryStore(this.projectContext.hostWorkspace);
+    this.skills = new SkillsLoader({
+      workspace: this.projectContext.hostWorkspace,
+      projectRoot: this.projectContext.projectRoot,
+    });
     this.contextConfig = mergeContextConfig(contextConfig);
   }
 
@@ -98,15 +101,13 @@ export class ContextBuilder {
       }
     }
 
-    const projectContext = buildWorkspaceProjectContextSection({
-      workspace: this.workspace,
-      hostWorkspace: this.hostWorkspace ?? undefined,
-      projectRoot: this.sessionProjectRoot,
+    const projectContextSection = buildWorkspaceProjectContextSection({
+      projectContext: this.projectContext,
       contextConfig: this.contextConfig,
       sessionKey,
     });
-    if (projectContext) {
-      parts.push(projectContext);
+    if (projectContextSection) {
+      parts.push(projectContextSection);
     }
 
     const memory = this.buildMemorySection();
