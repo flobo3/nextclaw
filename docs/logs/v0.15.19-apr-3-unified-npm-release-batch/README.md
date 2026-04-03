@@ -36,9 +36,14 @@
   - [`packages/nextclaw/src/cli/commands/ncp/nextclaw-agent-session-metadata.utils.ts`](../../../packages/nextclaw/src/cli/commands/ncp/nextclaw-agent-session-metadata.utils.ts) 中把 metadata 合并路径收敛成明确的非空 `Record<string, unknown>` 流程，消除 `undefined` 传入 `mergeSessionMetadata(...)` 的类型错误。
   - [`packages/nextclaw/src/cli/commands/ncp/nextclaw-agent-session-store.ts`](../../../packages/nextclaw/src/cli/commands/ncp/nextclaw-agent-session-store.ts) 恢复 `SessionMessage` 的正确类型导入，修复发布检查阶段的 TypeScript 失败。
   - [`packages/nextclaw/src/cli/skills/marketplace.ts`](../../../packages/nextclaw/src/cli/skills/marketplace.ts) 删除已过时的本地 `builtin` 查找假设，改为从当前 workspace 安装位读取技能，和本轮 session-scoped project/workspace skill 设计保持一致。
-- 同步把面向用户的发布笔记写入文档站：
+- 同步把面向用户的发布内容写入文档站，不再只停留在 `Notes`：
   - 中文：[2026-04-03 · 会话现在会真正带着项目一起工作](../../../apps/docs/zh/notes/2026-04-03-project-aware-sessions-and-unified-patch-release.md)
   - 英文：[2026-04-03 · Sessions Now Actually Stay Project-Aware](../../../apps/docs/en/notes/2026-04-03-project-aware-sessions-and-unified-patch-release.md)
+  - 中文发布日志：[2026-04-03 · 项目感知会话统一 npm Patch 发布](../../../apps/docs/zh/changelog/2026-04-03-unified-npm-patch-release.md)
+  - 英文发布日志：[2026-04-03 · Unified npm Patch Release for Project-Aware Sessions](../../../apps/docs/en/changelog/2026-04-03-unified-npm-patch-release.md)
+  - 中文博客：[2026-04-03 · 为什么项目感知会话比再多一个 AI 功能更重要](../../../apps/docs/zh/blog/2026-04-03-why-project-aware-sessions-matter.md)
+  - 英文博客：[2026-04-03 · Why Project-Aware Sessions Matter More Than One More AI Feature](../../../apps/docs/en/blog/2026-04-03-why-project-aware-sessions-matter.md)
+  - 同时补齐了 docs 站导航与侧边栏中的 `Notes / Release Log / Blog` 三条内容入口，避免新内容只存在文件里却没有站点入口。
 
 ## 测试/验证/验收方式
 

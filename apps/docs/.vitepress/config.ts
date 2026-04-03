@@ -145,8 +145,29 @@ const enNotesSidebar = [
     text: 'Product Notes',
     items: [
       { text: 'Overview', link: '/en/notes/' },
+      { text: '2026-04-03: Sessions Now Actually Stay Project-Aware', link: '/en/notes/2026-04-03-project-aware-sessions-and-unified-patch-release' },
       { text: '2026-03-31: Cron Is Clearer Now, and One-Shot Jobs Finally Feel One-Shot', link: '/en/notes/2026-03-31-cron-clarity-and-one-shot-upgrade' },
       { text: '2026-03-11: Bocha Search Integration + Runtime Alignment', link: '/en/notes/2026-03-11-search-provider-controls-and-runtime-alignment' }
+    ]
+  }
+]
+
+const enChangelogSidebar = [
+  {
+    text: 'Release Log',
+    items: [
+      { text: 'Overview', link: '/en/changelog/' },
+      { text: '2026-04-03: Unified npm Patch Release for Project-Aware Sessions', link: '/en/changelog/2026-04-03-unified-npm-patch-release' }
+    ]
+  }
+]
+
+const enBlogSidebar = [
+  {
+    text: 'Blog',
+    items: [
+      { text: 'Overview', link: '/en/blog/' },
+      { text: '2026-04-03: Why Project-Aware Sessions Matter More Than One More AI Feature', link: '/en/blog/2026-04-03-why-project-aware-sessions-matter' }
     ]
   }
 ]
@@ -218,8 +239,29 @@ const zhNotesSidebar = [
     text: '产品更新笔记',
     items: [
       { text: '总览', link: '/zh/notes/' },
+      { text: '2026-04-03：会话现在会真正带着项目一起工作', link: '/zh/notes/2026-04-03-project-aware-sessions-and-unified-patch-release' },
       { text: '2026-03-31：定时任务更清楚了，也终于更像“定时”了', link: '/zh/notes/2026-03-31-cron-clarity-and-one-shot-upgrade' },
       { text: '2026-03-11：集成博查搜索 + 运行时对齐', link: '/zh/notes/2026-03-11-search-provider-controls-and-runtime-alignment' }
+    ]
+  }
+]
+
+const zhChangelogSidebar = [
+  {
+    text: '发布日志',
+    items: [
+      { text: '总览', link: '/zh/changelog/' },
+      { text: '2026-04-03：项目感知会话统一 npm Patch 发布', link: '/zh/changelog/2026-04-03-unified-npm-patch-release' }
+    ]
+  }
+]
+
+const zhBlogSidebar = [
+  {
+    text: '博客',
+    items: [
+      { text: '总览', link: '/zh/blog/' },
+      { text: '2026-04-03：为什么项目感知会话比再多一个 AI 功能更重要', link: '/zh/blog/2026-04-03-why-project-aware-sessions-matter' }
     ]
   }
 ]
@@ -255,6 +297,8 @@ export default defineConfig({
           { text: 'Start Using', link: '/en/guide/getting-started' },
           { text: 'Features', link: '/en/guide/channels' },
           { text: 'Notes', link: '/en/notes/' },
+          { text: 'Release Log', link: '/en/changelog/' },
+          { text: 'Blog', link: '/en/blog/' },
           { text: 'Learn & Resources', link: '/en/guide/tutorials' },
           { text: 'Reference', link: '/en/guide/commands' },
           { text: 'Advanced', link: '/en/guide/advanced' },
@@ -262,7 +306,9 @@ export default defineConfig({
         ],
         sidebar: {
           '/en/guide/': enSidebar,
-          '/en/notes/': enNotesSidebar
+          '/en/notes/': enNotesSidebar,
+          '/en/changelog/': enChangelogSidebar,
+          '/en/blog/': enBlogSidebar
         },
         outline: { level: [2, 3], label: 'On this page' },
         footer: {
@@ -282,6 +328,8 @@ export default defineConfig({
           { text: '开始使用', link: '/zh/guide/getting-started' },
           { text: '功能', link: '/zh/guide/channels' },
           { text: '更新笔记', link: '/zh/notes/' },
+          { text: '发布日志', link: '/zh/changelog/' },
+          { text: '博客', link: '/zh/blog/' },
           { text: '学习与资源', link: '/zh/guide/tutorials' },
           { text: '参考与排错', link: '/zh/guide/commands' },
           { text: '进阶', link: '/zh/guide/advanced' },
@@ -289,7 +337,9 @@ export default defineConfig({
         ],
         sidebar: {
           '/zh/guide/': zhSidebar,
-          '/zh/notes/': zhNotesSidebar
+          '/zh/notes/': zhNotesSidebar,
+          '/zh/changelog/': zhChangelogSidebar,
+          '/zh/blog/': zhBlogSidebar
         },
         outline: { level: [2, 3], label: '本页目录' },
         footer: {
