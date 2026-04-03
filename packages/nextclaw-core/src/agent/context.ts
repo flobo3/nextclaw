@@ -90,6 +90,7 @@ export class ContextBuilder {
     sessionKey?: string,
     messageToolHints?: string[],
     availableTools?: ToolCatalogEntry[],
+    additionalSystemSections?: string[],
   ): string => {
     const parts: string[] = [];
     parts.push(this.getIdentity(messageToolHints, availableTools));
@@ -128,6 +129,11 @@ export class ContextBuilder {
       parts.push(availableSkillsSection);
     }
 
+    for (const section of additionalSystemSections ?? []) {
+      const trimmed = section.trim();
+      if (trimmed) parts.push(trimmed);
+    }
+
     return parts.join("\n\n");
   };
 
@@ -142,9 +148,10 @@ export class ContextBuilder {
     thinkingLevel?: ThinkingLevel | null;
     messageToolHints?: string[];
     availableTools?: ToolCatalogEntry[];
+    additionalSystemSections?: string[];
   }): Message[] => {
     const messages: Message[] = [];
-    let systemPrompt = this.buildSystemPrompt(params.skillNames, params.sessionKey, params.messageToolHints, params.availableTools);
+    let systemPrompt = this.buildSystemPrompt(params.skillNames, params.sessionKey, params.messageToolHints, params.availableTools, params.additionalSystemSections);
     if (params.channel && params.chatId) {
       systemPrompt += `\n\n## Current Session\nChannel: ${params.channel}\nChat ID: ${params.chatId}`;
     }

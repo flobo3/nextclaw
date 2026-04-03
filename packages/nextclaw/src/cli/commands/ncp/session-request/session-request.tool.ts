@@ -92,7 +92,7 @@ export class SessionRequestTool extends Tool {
   }
 
   get description(): string {
-    return "Send one task to another session and optionally resume this session when the final reply is ready.";
+    return "Send one task to another session. Use this after sessions_spawn or to reuse an existing session, and optionally resume this session when the target final reply is ready.";
   }
 
   get parameters(): Record<string, unknown> {
@@ -101,6 +101,7 @@ export class SessionRequestTool extends Tool {
       properties: {
         target: {
           type: "object",
+          description: "Target session reference. Pass an object like {\"session_id\":\"...\"}, not a bare string.",
           properties: {
             session_id: {
               type: "string",

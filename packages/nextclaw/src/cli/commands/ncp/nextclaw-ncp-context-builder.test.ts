@@ -98,6 +98,70 @@ it("injects runtime tool definitions into the system prompt", () => {
     expect(prepareForRun).toHaveBeenCalledTimes(1);
 });
 
+it("injects session orchestration guidance into the NCP system prompt", () => {
+    const { workspace } = createWorkspace();
+    const config = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "dashscope/qwen3.5-plus",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+      providers: {
+        openai: {
+          enabled: true,
+          apiKey: "test-openai-key",
+          models: ["gpt-5.4"],
+        },
+      },
+    });
+    const builder = new NextclawNcpContextBuilder({
+      sessionManager: new SessionManager(workspace),
+      toolRegistry: {
+        prepareForRun: vi.fn(),
+        getToolDefinitions: () => [
+          {
+            name: "spawn",
+            description: "Create a child session",
+            parameters: { type: "object", properties: {}, additionalProperties: false },
+          },
+          {
+            name: "sessions_spawn",
+            description: "Create a standalone session",
+            parameters: { type: "object", properties: {}, additionalProperties: false },
+          },
+          {
+            name: "sessions_request",
+            description: "Request work from another session",
+            parameters: { type: "object", properties: {}, additionalProperties: false },
+          },
+        ],
+      } as never,
+      getConfig: () => config,
+    });
+
+    const prepared = builder.prepare({
+      sessionId: `session-${randomUUID()}`,
+      messages: [
+        {
+          role: "user",
+          timestamp: new Date("2026-03-25T10:00:00.000Z").toISOString(),
+          parts: [{ type: "text", text: "open a new session and let it investigate" }],
+        },
+      ],
+      metadata: {},
+    } as never);
+
+    const systemPrompt = String(prepared.messages[0]?.content ?? "");
+    expect(systemPrompt).toContain("## Session Orchestration");
+    expect(systemPrompt).toContain("`spawn` creates a child session");
+    expect(systemPrompt).toContain("`sessions_spawn` creates a standalone session");
+    expect(systemPrompt).toContain("the usual sequence is: 1) call `sessions_spawn`; 2) call `sessions_request`");
+    expect(systemPrompt).toContain("`sessions_request.target` must be an object shaped like");
+  });
+
 it("prefers session project_root over the default workspace for tool context", () => {
     const { workspace } = createWorkspace();
     const projectRoot = join(workspace, "project-alpha");
@@ -222,7 +286,7 @@ it("keeps host workspace context and skills when a session is bound to a project
     } as never);
 
     const systemPrompt = String(prepared.messages[0]?.content ?? "");
-    expect(systemPrompt).toContain(`Current project directory: ${projectRoot}`);
+    expect(systemPrompt).toContain(`Active project directory: ${projectRoot}`);
     expect(systemPrompt).toContain(`NextClaw host workspace directory: ${workspace}`);
     expect(systemPrompt).toContain("Project workspace guidance.");
     expect(systemPrompt).toContain("Host workspace guidance.");

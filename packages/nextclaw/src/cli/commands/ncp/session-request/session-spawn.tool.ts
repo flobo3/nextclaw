@@ -30,7 +30,7 @@ export class SessionSpawnTool extends Tool {
   }
 
   get description(): string {
-    return "Create a new session without sending it a task yet.";
+    return "Create a standalone session. Usually follow this with sessions_request if you want the new session to start working immediately.";
   }
 
   get parameters(): Record<string, unknown> {
