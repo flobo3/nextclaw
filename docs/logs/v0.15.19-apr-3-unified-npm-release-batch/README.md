@@ -39,11 +39,9 @@
 - 同步把面向用户的发布内容写入文档站，不再只停留在 `Notes`：
   - 中文：[2026-04-03 · 会话现在会真正带着项目一起工作](../../../apps/docs/zh/notes/2026-04-03-project-aware-sessions-and-unified-patch-release.md)
   - 英文：[2026-04-03 · Sessions Now Actually Stay Project-Aware](../../../apps/docs/en/notes/2026-04-03-project-aware-sessions-and-unified-patch-release.md)
-  - 中文发布日志：[2026-04-03 · 项目感知会话统一 npm Patch 发布](../../../apps/docs/zh/changelog/2026-04-03-unified-npm-patch-release.md)
-  - 英文发布日志：[2026-04-03 · Unified npm Patch Release for Project-Aware Sessions](../../../apps/docs/en/changelog/2026-04-03-unified-npm-patch-release.md)
   - 中文博客：[2026-04-03 · 为什么项目感知会话比再多一个 AI 功能更重要](../../../apps/docs/zh/blog/2026-04-03-why-project-aware-sessions-matter.md)
   - 英文博客：[2026-04-03 · Why Project-Aware Sessions Matter More Than One More AI Feature](../../../apps/docs/en/blog/2026-04-03-why-project-aware-sessions-matter.md)
-  - 同时补齐了 docs 站导航与侧边栏中的 `Notes / Release Log / Blog` 三条内容入口，避免新内容只存在文件里却没有站点入口。
+  - 当前 docs 站内容入口已收敛为 `Notes + Blog` 两条内容线：发布硬信息合并回更新笔记，博客则改为更偏用户问题导向与高信息密度的版本。
 
 ## 测试/验证/验收方式
 
@@ -104,7 +102,8 @@
   - changeset tag：已完成
   - docs build：已完成
   - docs 站上线：已完成
-  - Cloudflare Pages 部署地址：`https://65b6976b.nextclaw-docs.pages.dev`
+  - 初次 Cloudflare Pages 部署地址：`https://65b6976b.nextclaw-docs.pages.dev`
+  - 文案修订后再次部署地址：`https://acf11bac.nextclaw-docs.pages.dev`
   - 正式域名验证：`https://docs.nextclaw.io` 返回 `HTTP 200`
 
 ## 用户/产品视角的验收步骤

@@ -8,26 +8,57 @@ description: New sessions can bind a project before the first message, project s
 Published: April 3, 2026  
 Tags: `release` `chat` `project context`
 
-## What changed
+## Core changes
 
-- New sessions no longer need a “dummy first message” before a project can really stick. You can set the project directory first and start chatting after that.
-- Skill loading now follows the session's real project context:
-  - it reads `.agents/skills` from the selected project
-  - it keeps workspace-installed `skills`
-  - same-name skills no longer overwrite each other because they are distinguished by stable refs
-- A project's own `AGENTS.md` and project-specific context now live in a separate `Project Context` block instead of being mixed into the host workspace context.
-- The project badge in the chat header is now an action surface, not just a label:
-  - click it to open a menu
+- New sessions can bind a project before the first real message. No more dummy first turn just to make project context stick.
+- Session skills now load from the session's actual project context:
+  - read `.agents/skills` from the selected project
+  - keep workspace-installed `skills`
+  - distinguish same-name skills by stable refs instead of merging by display name
+- A project's own `AGENTS.md` and project context now flow into a dedicated `Project Context` block.
+- The project badge in chat header is now actionable:
   - change the project directory there
-  - or remove the project directly there
-- This release also includes follow-up polish such as immediate skill refresh after project changes, steadier path-picking behavior, and related UI cleanup.
+  - remove the project there
+  - refresh skills immediately after project changes
 
-## Why it matters
+## Problems this fixes
 
-- NextClaw now behaves much more like a true project-aware session instead of a session that only changed `cwd` while the rest of the stack lagged behind.
-- Project skills, project rules, and project context can now apply from the very first turn.
-- When you switch between projects inside the same workspace, boundaries are clearer and it is much less likely that skills feel incomplete or that two sources get merged by accident.
-- The project badge itself becomes a fast control point for everyday project changes.
+- Project context no longer waits for a first persisted message to become real.
+- Project skills no longer silently disappear or get mixed with same-name workspace skills.
+- Skill lists now refresh immediately after project changes instead of showing stale data.
+- Removing project context now updates the visible header state consistently.
+
+## What actually shipped
+
+This is a coordinated npm patch release, not a one-package hotfix. Key published packages include:
+
+- `nextclaw@0.16.32`
+- `@nextclaw/core@0.11.16`
+- `@nextclaw/server@0.11.23`
+- `@nextclaw/ui@0.11.22`
+- `@nextclaw/openclaw-compat@0.3.57`
+- `@nextclaw/agent-chat-ui@0.2.20`
+- `@nextclaw/channel-runtime@0.4.15`
+- `@nextclaw/ncp-toolkit@0.4.16`
+- `@nextclaw/ncp-react@0.4.13`
+- `@nextclaw/ncp-mcp@0.1.65`
+- `@nextclaw/mcp@0.1.63`
+- `@nextclaw/remote@0.1.75`
+- `@nextclaw/runtime@0.2.30`
+- `@nextclaw/nextclaw-engine-claude-agent-sdk@0.3.14`
+- `@nextclaw/nextclaw-engine-codex-sdk@0.3.15`
+- `@nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk@0.1.42`
+- `@nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk@0.1.42`
+
+Related channel plugin patches were published in the same batch to keep dependency alignment clean.
+
+## Verification
+
+- `pnpm release:publish`
+- `pnpm -C packages/nextclaw tsc`
+- `pnpm -C apps/docs build`
+- `pnpm lint:maintainability:guard`
+- `npm view <pkg> version` checks against published versions
 
 ## How to use
 
@@ -35,29 +66,11 @@ Tags: `release` `chat` `project context`
 2. Set the project directory first.
 3. Open the skill picker and confirm that `.agents/skills` from the project is already available.
 4. Send the first message and let the model work in that project context from turn one.
-5. If you want to change or remove the project later, click the project badge in the header.
-
-## Also in this release
-
-- This is not a one-package hotfix. It ships as one unified npm patch release.
-- The release batch covers the core public packages and direct dependents that needed synchronized publication, including:
-  - `nextclaw`
-  - `@nextclaw/core`
-  - `@nextclaw/server`
-  - `@nextclaw/ui`
-  - `@nextclaw/openclaw-compat`
-  - `@nextclaw/ncp-toolkit`
-  - `@nextclaw/ncp-react`
-  - `@nextclaw/ncp-mcp`
-  - `@nextclaw/mcp`
-  - `@nextclaw/remote`
-  - `@nextclaw/runtime`
-  - `@nextclaw/agent-chat-ui`
-  - `@nextclaw/channel-runtime` plus related channel plugins
-  - `@nextclaw/nextclaw-engine-*` and `@nextclaw/nextclaw-ncp-runtime-plugin-*` engine/runtime plugins
+5. Change or remove the project later from the header badge.
 
 ## Links
 
 - [Chat Guide](/en/guide/chat)
 - [Session Management](/en/guide/sessions)
 - [Skills Tutorial](/en/guide/tutorials/skills)
+- [Blog: Why Project-Aware Sessions Matter More Than One More AI Feature](/en/blog/2026-04-03-why-project-aware-sessions-matter)

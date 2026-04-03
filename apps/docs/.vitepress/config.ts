@@ -152,16 +152,6 @@ const enNotesSidebar = [
   }
 ]
 
-const enChangelogSidebar = [
-  {
-    text: 'Release Log',
-    items: [
-      { text: 'Overview', link: '/en/changelog/' },
-      { text: '2026-04-03: Unified npm Patch Release for Project-Aware Sessions', link: '/en/changelog/2026-04-03-unified-npm-patch-release' }
-    ]
-  }
-]
-
 const enBlogSidebar = [
   {
     text: 'Blog',
@@ -246,16 +236,6 @@ const zhNotesSidebar = [
   }
 ]
 
-const zhChangelogSidebar = [
-  {
-    text: '发布日志',
-    items: [
-      { text: '总览', link: '/zh/changelog/' },
-      { text: '2026-04-03：项目感知会话统一 npm Patch 发布', link: '/zh/changelog/2026-04-03-unified-npm-patch-release' }
-    ]
-  }
-]
-
 const zhBlogSidebar = [
   {
     text: '博客',
@@ -297,7 +277,6 @@ export default defineConfig({
           { text: 'Start Using', link: '/en/guide/getting-started' },
           { text: 'Features', link: '/en/guide/channels' },
           { text: 'Notes', link: '/en/notes/' },
-          { text: 'Release Log', link: '/en/changelog/' },
           { text: 'Blog', link: '/en/blog/' },
           { text: 'Learn & Resources', link: '/en/guide/tutorials' },
           { text: 'Reference', link: '/en/guide/commands' },
@@ -307,7 +286,6 @@ export default defineConfig({
         sidebar: {
           '/en/guide/': enSidebar,
           '/en/notes/': enNotesSidebar,
-          '/en/changelog/': enChangelogSidebar,
           '/en/blog/': enBlogSidebar
         },
         outline: { level: [2, 3], label: 'On this page' },
@@ -328,7 +306,6 @@ export default defineConfig({
           { text: '开始使用', link: '/zh/guide/getting-started' },
           { text: '功能', link: '/zh/guide/channels' },
           { text: '更新笔记', link: '/zh/notes/' },
-          { text: '发布日志', link: '/zh/changelog/' },
           { text: '博客', link: '/zh/blog/' },
           { text: '学习与资源', link: '/zh/guide/tutorials' },
           { text: '参考与排错', link: '/zh/guide/commands' },
@@ -338,7 +315,6 @@ export default defineConfig({
         sidebar: {
           '/zh/guide/': zhSidebar,
           '/zh/notes/': zhNotesSidebar,
-          '/zh/changelog/': zhChangelogSidebar,
           '/zh/blog/': zhBlogSidebar
         },
         outline: { level: [2, 3], label: '本页目录' },
