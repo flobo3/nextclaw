@@ -28,6 +28,11 @@
   - 顶层导航 `Project / 项目` 直接进入 `Project Pulse`
   - 中英文首页 Hero 增加 `Project Pulse` 按钮
   - 中英文 Roadmap 页顶部增加前往 `Project Pulse` 的显式跳转
+- 续改趋势图体验，按“成熟图表引擎 + 自定义产品摘要层”的方向重做趋势区：
+  - 趋势曲线从手写 SVG 命中区逻辑切换为 `ECharts`
+  - 每张趋势卡新增 `Latest / Change / Since start / Peak / Low` 这类摘要信息
+  - 保留产品叙事层与视觉样式，但把 tooltip、坐标轴、响应式渲染交给成熟图表引擎
+  - 移动端与桌面端统一为更稳定的 tooltip、轴标签和焦点高亮体验
 - 扩展 `.github/workflows/code-volume-metrics.yml`，在现有 LOC workflow 中同步刷新 `Project Pulse` 聚合数据与截图副本
 - 更新内部工作流说明与 metrics README
 
@@ -42,6 +47,29 @@ pnpm lint:maintainability:guard
 pnpm deploy:docs
 curl -s http://127.0.0.1:4174/en/guide/project-pulse | rg -n "<title>Project Pulse|/project-pulse/gallery/chat-en\\.png|/en/notes/2026-04-03-project-aware-sessions-and-unified-patch-release"
 curl -s http://127.0.0.1:4174/zh/guide/project-pulse | rg -n "<title>Project Pulse|/project-pulse/gallery/chat-zh\\.png|/zh/notes/2026-04-03-project-aware-sessions-and-unified-patch-release"
+node - <<'EOF'
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1600 } });
+  await page.goto('http://127.0.0.1:4174/en/guide/project-pulse', { waitUntil: 'networkidle' });
+  await page.waitForSelector('.trend-chart__canvas svg', { timeout: 15000 });
+  console.log(await page.locator('.trend-chart__canvas svg').count());
+  await browser.close();
+})();
+EOF
+curl -s https://d432c516.nextclaw-docs.pages.dev/en/guide/project-pulse | rg -n "Project Pulse|trend-chart__canvas"
+node - <<'EOF'
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1600 } });
+  await page.goto('https://d432c516.nextclaw-docs.pages.dev/en/guide/project-pulse', { waitUntil: 'networkidle' });
+  await page.waitForSelector('.trend-chart__canvas svg', { timeout: 20000 });
+  console.log(await page.locator('.trend-chart__canvas svg').count());
+  await browser.close();
+})();
+EOF
 ```
 
 验证结果：
@@ -50,7 +78,9 @@ curl -s http://127.0.0.1:4174/zh/guide/project-pulse | rg -n "<title>Project Pul
 - `apps/docs build` 通过，VitePress 可正常构建中英文 `Project Pulse` 页面
 - `lint:maintainability:guard` 通过，且在脚本下沉后无新增可维护性告警
 - docs preview 冒烟通过，中英文页面均能返回，且包含 `Project Pulse` 标题、截图路径与 Product Notes 链接
+- 本地浏览器冒烟通过，Playwright 已确认趋势区成功渲染出 3 张 `ECharts` SVG 图表
 - `pnpm deploy:docs` 通过，Cloudflare Pages 已返回部署成功
+- 线上冒烟通过，远端部署页成功渲染出 3 张趋势图，最新值展示正常
 
 ## 发布 / 部署方式
 
@@ -64,6 +94,7 @@ pnpm deploy:docs
 
 - `https://b95f9e8b.nextclaw-docs.pages.dev`
 - 入口修正续改后的最新部署地址：`https://8c9c2464.nextclaw-docs.pages.dev`
+- 图表体验优化续改后的最新部署地址：`https://d432c516.nextclaw-docs.pages.dev`
 
 ## 用户 / 产品视角的验收步骤
 
@@ -78,20 +109,26 @@ pnpm deploy:docs
    - LOC 历史
    - commit 节奏
    - release 节奏
-4. 确认结构区可见：
+4. 确认每张趋势卡不仅有曲线，还能看到：
+   - 最新值
+   - 相对上一窗口变化
+   - 相对起点变化
+   - 峰值 / 低点
+   - 悬停后的精确 tooltip
+5. 确认结构区可见：
    - Top scopes 分布
    - OpenClaw 对比卡
    - 近期 release 批次
-5. 确认产品演进区可直接跳转到 Product Notes。
-6. 确认截图区可看到当前产品画面，并显示最近截图刷新时间。
-7. 确认中英文导航均能从 `Project` 分组进入该页面。
+6. 确认产品演进区可直接跳转到 Product Notes。
+7. 确认截图区可看到当前产品画面，并显示最近截图刷新时间。
+8. 确认中英文导航均能从 `Project` 分组进入该页面。
 
 ## 可维护性总结汇总
 
 - 本次是否已尽最大努力优化可维护性：是。
-- 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：是。中途发现 `ProjectPulsePage.vue` 和聚合脚本接近预算后，立即拆分为组件主文件 + 文案文件 + 样式文件，以及聚合入口 + 数据核心模块，没有把功能完成建立在超长文件之上。
-- 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：基本做到“增长最小必要”。本次为新增公开页面与自动化链路，文件数净增无法避免，但已把脚本下沉到 `scripts/project-pulse/` 子目录，避免继续恶化 `scripts/` 根目录平铺度；组件也集中在 `apps/docs/.vitepress/components/project-pulse/` 子目录，没有把新功能摊平到根层。
-- 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。`generate-data.mjs` 只保留聚合入口，`data-core.mjs` 负责数据读取与时间序列，Vue 主组件只负责页面编排，图表与条形图拆为独立组件，文案与样式外移，边界清楚。
+- 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：是。中途发现 `ProjectPulsePage.vue` 和聚合脚本接近预算后，立即拆分为组件主文件 + 文案文件 + 样式文件，以及聚合入口 + 数据核心模块；本轮图表续改又进一步删除了自绘图表的命中区、坐标、hover 管理等自定义逻辑，改成“成熟库负责渲染，页面负责产品摘要”的更小复杂度方案。
+- 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：基本做到“增长最小必要”。本次为新增公开页面与自动化链路，文件数净增无法避免，但已把脚本下沉到 `scripts/project-pulse/` 子目录，避免继续恶化 `scripts/` 根目录平铺度；组件也集中在 `apps/docs/.vitepress/components/project-pulse/` 子目录，没有把新功能摊平到根层。本轮图表优化虽然引入一个第三方依赖，但删除了继续手搓图表引擎的维护方向，整体复杂度下降。
+- 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。`generate-data.mjs` 只保留聚合入口，`data-core.mjs` 负责数据读取与时间序列，Vue 主组件只负责页面编排，图表与条形图拆为独立组件，文案与样式外移；本轮趋势图进一步把“摘要信息”和“图形渲染”分层，没有继续把图表底层机制补丁式叠在页面组件里。
 - 目录结构与文件组织是否满足当前项目治理要求：满足。新增脚本、组件、页面、静态产物均落在已有职责目录下，没有新增平行站点或平行数据体系。
 - 若本次涉及代码可维护性评估，默认应基于一次独立于实现阶段的 `post-edit-maintainability-review` 填写，而不是只复述守卫结果：已执行独立复核，结论如下。
 
@@ -101,4 +138,4 @@ pnpm deploy:docs
 
 no maintainability findings
 
-可维护性总结：这次新增的是一条真实的新用户可见能力，因此代码有最小必要增长；但通过把脚本和页面都按职责拆开，避免了把新能力变成新的超长文件或新的扁平目录债务。后续若 `Project Pulse` 再扩指标，应继续优先把“数据生成”与“页面展示”分别收敛在现有子目录内，而不是再回到根目录平铺。
+可维护性总结：这次新增的是一条真实的新用户可见能力，因此代码有最小必要增长；但通过把脚本和页面都按职责拆开，避免了把新能力变成新的超长文件或新的扁平目录债务。本轮趋势图续改又把原本容易继续膨胀的自绘图表逻辑收敛为成熟图表引擎承载，保留的复杂度主要集中在产品摘要层，方向更可持续。后续若 `Project Pulse` 再扩指标，应继续优先把“数据生成”与“页面展示”分别收敛在现有子目录内，而不是再回到根目录平铺。

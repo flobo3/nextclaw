@@ -91,6 +91,46 @@ const gallery = computed(() =>
     image: item.images[props.locale] ?? item.images.en ?? item.images.zh ?? ''
   }))
 )
+
+const trendCards = computed(() => [
+  {
+    key: 'loc',
+    title: t.value.cards.loc.title,
+    description: t.value.cards.loc.description,
+    headline: pulseData.hero.currentLoc.toLocaleString(),
+    series: pulseData.trends.locDaily,
+    accentStart: '#f97316',
+    accentEnd: '#f2c94c',
+    valueUnit: t.value.chart.locUnit,
+    deltaLabel: t.value.chart.locDeltaLabel,
+    windowLabel: t.value.chart.locWindow,
+    featured: true
+  },
+  {
+    key: 'commits',
+    title: t.value.cards.commits.title,
+    description: t.value.cards.commits.description,
+    headline: pulseData.hero.recentCommitCount.toLocaleString(),
+    series: pulseData.trends.commitWeekly,
+    accentStart: '#0ea5a4',
+    accentEnd: '#38bdf8',
+    valueUnit: t.value.chart.commitUnit,
+    deltaLabel: t.value.chart.commitDeltaLabel,
+    windowLabel: t.value.chart.commitWindow
+  },
+  {
+    key: 'releases',
+    title: t.value.cards.releases.title,
+    description: t.value.cards.releases.description,
+    headline: pulseData.hero.recentReleaseCount.toLocaleString(),
+    series: pulseData.trends.releaseMonthly,
+    accentStart: '#2563eb',
+    accentEnd: '#34d399',
+    valueUnit: t.value.chart.releaseUnit,
+    deltaLabel: t.value.chart.releaseDeltaLabel,
+    windowLabel: t.value.chart.releaseWindow
+  }
+])
 </script>
 
 <template>
@@ -119,51 +159,28 @@ const gallery = computed(() =>
       </div>
 
       <div class="project-pulse__trend-grid">
-        <article class="project-pulse__panel">
+        <article
+          v-for="card in trendCards"
+          :key="card.key"
+          class="project-pulse__panel"
+          :class="{ 'project-pulse__panel--featured': card.featured }"
+        >
           <div class="project-pulse__panel-head">
             <div>
-              <h2>{{ t.cards.loc.title }}</h2>
-              <p>{{ t.cards.loc.description }}</p>
+              <h2>{{ card.title }}</h2>
+              <p>{{ card.description }}</p>
             </div>
-            <strong>{{ pulseData.hero.currentLoc.toLocaleString() }}</strong>
+            <strong>{{ card.headline }}</strong>
           </div>
           <ProjectPulseTrendChart
-            chart-id="loc-trend"
-            :series="pulseData.trends.locDaily"
-            accent-start="#f97316"
-            accent-end="#f2c94c"
-          />
-        </article>
-
-        <article class="project-pulse__panel">
-          <div class="project-pulse__panel-head">
-            <div>
-              <h2>{{ t.cards.commits.title }}</h2>
-              <p>{{ t.cards.commits.description }}</p>
-            </div>
-            <strong>{{ pulseData.hero.recentCommitCount.toLocaleString() }}</strong>
-          </div>
-          <ProjectPulseTrendChart
-            chart-id="commit-trend"
-            :series="pulseData.trends.commitWeekly"
-            accent-start="#0ea5a4"
-            accent-end="#38bdf8"
-          />
-        </article>
-
-        <article class="project-pulse__panel">
-          <div class="project-pulse__panel-head">
-            <div>
-              <h2>{{ t.cards.releases.title }}</h2>
-              <p>{{ t.cards.releases.description }}</p>
-            </div>
-            <strong>{{ pulseData.hero.recentReleaseCount.toLocaleString() }}</strong>
-          </div>
-          <ProjectPulseTrendChart
-            chart-id="release-trend"
-            :series="pulseData.trends.releaseMonthly"
-            accent-start="#2563eb"
-            accent-end="#34d399"
+            :series="card.series"
+            :accent-start="card.accentStart"
+            :accent-end="card.accentEnd"
+            :locale="props.locale"
+            :value-unit="card.valueUnit"
+            :delta-label="card.deltaLabel"
+            :window-label="card.windowLabel"
+            :copy="t.chart"
           />
         </article>
       </div>

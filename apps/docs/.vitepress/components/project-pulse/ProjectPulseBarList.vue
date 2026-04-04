@@ -16,8 +16,9 @@ const maxValue = computed(() =>
 )
 
 const withWidth = computed(() =>
-  props.items.map((item) => ({
+  props.items.map((item, index) => ({
     ...item,
+    rank: index + 1,
     widthPercent: maxValue.value > 0 ? Number(((item.value / maxValue.value) * 100).toFixed(1)) : 0
   }))
 )
@@ -27,7 +28,10 @@ const withWidth = computed(() =>
   <div class="bar-list">
     <div v-for="item in withWidth" :key="item.name" class="bar-list__row">
       <div class="bar-list__head">
-        <span class="bar-list__name">{{ item.name }}</span>
+        <span class="bar-list__name">
+          <span class="bar-list__rank">{{ item.rank }}</span>
+          <span>{{ item.name }}</span>
+        </span>
         <span class="bar-list__value">{{ item.value.toLocaleString() }}</span>
       </div>
       <div class="bar-list__track">
@@ -57,8 +61,15 @@ const withWidth = computed(() =>
 }
 
 .bar-list__name {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   font-size: 0.92rem;
   color: #132639;
+  min-width: 0;
+}
+
+.bar-list__name span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -67,6 +78,19 @@ const withWidth = computed(() =>
 .bar-list__value {
   font-size: 0.86rem;
   color: rgba(19, 38, 57, 0.72);
+}
+
+.bar-list__rank {
+  display: inline-flex;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  color: rgba(19, 38, 57, 0.66);
+  background: rgba(19, 38, 57, 0.07);
+  flex: 0 0 auto;
 }
 
 .bar-list__track {

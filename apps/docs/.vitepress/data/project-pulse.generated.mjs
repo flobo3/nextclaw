@@ -1,17 +1,17 @@
 export default {
-  "generatedAt": "2026-04-04T04:33:04.272Z",
+  "generatedAt": "2026-04-04T04:51:14.268Z",
   "hero": {
-    "currentLoc": 160793,
+    "currentLoc": 160797,
     "trackedFiles": 1157,
-    "recentCommitCount": 583,
+    "recentCommitCount": 585,
     "activeDays30": 30,
     "recentReleaseCount": 45,
     "latestReleaseDate": "2026-03-31",
     "latestNoteDate": "2026-04-03",
     "benchmarkName": "openclaw",
-    "benchmarkCodeLines": 1474540,
-    "basePercentOfBenchmark": 10.9,
-    "lighterByPercent": 89.1
+    "benchmarkCodeLines": 1524380,
+    "basePercentOfBenchmark": 10.55,
+    "lighterByPercent": 89.45
   },
   "trends": {
     "locDaily": [
@@ -238,7 +238,7 @@ export default {
       {
         "key": "2026-04-04",
         "label": "04-04",
-        "value": 160793
+        "value": 160797
       }
     ],
     "commitWeekly": [
@@ -300,7 +300,7 @@ export default {
       {
         "key": "2026-03-30",
         "label": "03-30",
-        "value": 111
+        "value": 113
       }
     ],
     "releaseMonthly": [
@@ -406,7 +406,7 @@ export default {
       },
       {
         "name": "packages/nextclaw-agent-chat-ui",
-        "codeLines": 7184,
+        "codeLines": 7188,
         "files": 63,
         "sharePercent": 4.5
       },
@@ -419,9 +419,9 @@ export default {
     ],
     "benchmark": {
       "name": "openclaw",
-      "benchmarkCodeLines": 1474540,
-      "basePercentOfBenchmark": 10.9,
-      "lighterByPercent": 89.1
+      "benchmarkCodeLines": 1524380,
+      "basePercentOfBenchmark": 10.55,
+      "lighterByPercent": 89.45
     },
     "recentReleaseBatches": [
       {
@@ -621,7 +621,7 @@ export default {
   },
   "meta": {
     "locProfile": "source",
-    "locGeneratedAt": "2026-04-03T03:20:22.660Z",
+    "locGeneratedAt": "2026-04-04T03:15:07.711Z",
     "sourceCount": {
       "notes": 3,
       "scopes": 8
