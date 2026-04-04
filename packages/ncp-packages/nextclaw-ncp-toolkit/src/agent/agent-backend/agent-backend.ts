@@ -15,23 +15,53 @@ import {
   type NcpStreamRequestPayload,
   NcpEventType,
 } from "@nextclaw/ncp";
-import { NcpErrorException } from "../../errors/ncp-error-exception.js";
 import { AgentLiveSessionRegistry } from "./agent-live-session-registry.js";
+import {
+  closeAgentBackendSessionExecution,
+  finishAgentBackendSessionExecution,
+  startAgentBackendSessionExecution,
+} from "./agent-backend-execution-utils.js";
 import { AgentRunExecutor } from "./agent-run-executor.js";
-import type { AgentSessionStore, CreateRuntimeFn, LiveSessionExecution, LiveSessionState } from "./agent-backend-types.js";
-import { now, readMessages, toLiveSessionSummary, toSessionSummary } from "./agent-backend-session-utils.js";
-import { buildPersistedLiveSessionRecord, buildUpdatedSessionRecord } from "./agent-backend-session-persistence.js";
-import { updateAgentBackendToolCallResult } from "./agent-backend-update-tool-call-result.js";
-import { appendAgentBackendMessage } from "./agent-backend-append-message.js";
-import { streamAgentBackendExecution } from "./agent-backend-stream.js";
+import { AgentBackendSessionRealtime } from "./agent-backend-session-realtime.js";
+import type {
+  AgentSessionStore,
+  CreateRuntimeFn,
+  LiveSessionExecution,
+  LiveSessionState,
+} from "./agent-backend-types.js";
+import {
+  now,
+  readMessages,
+  toLiveSessionSummary,
+  toSessionSummary,
+} from "./agent-backend-session-utils.js";
+import {
+  buildPersistedLiveSessionRecord,
+  buildUpdatedSessionRecord,
+} from "./agent-backend-session-persistence.js";
 import { EventPublisher } from "./event-publisher.js";
 
-const DEFAULT_SUPPORTED_PART_TYPES: NcpEndpointManifest["supportedPartTypes"] = ["text", "file", "source", "step-start", "reasoning", "tool-invocation", "card", "rich-text", "action", "extension"];
+const DEFAULT_SUPPORTED_PART_TYPES: NcpEndpointManifest["supportedPartTypes"] =
+  [
+    "text",
+    "file",
+    "source",
+    "step-start",
+    "reasoning",
+    "tool-invocation",
+    "card",
+    "rich-text",
+    "action",
+    "extension",
+  ];
 
 export type DefaultNcpAgentBackendConfig = {
   createRuntime: CreateRuntimeFn;
   sessionStore: AgentSessionStore;
-  onSessionRunStatusChanged?: (payload: { sessionKey: string; status: "running" | "idle" }) => void;
+  onSessionRunStatusChanged?: (payload: {
+    sessionKey: string;
+    status: "running" | "idle";
+  }) => void;
   endpointId?: string;
   version?: string;
   metadata?: Record<string, unknown>;
@@ -49,18 +79,31 @@ export class DefaultNcpAgentBackend
   readonly manifest: NcpEndpointManifest & { endpointKind: "agent" };
 
   private readonly sessionStore: AgentSessionStore;
-  private readonly onSessionRunStatusChanged: ((payload: { sessionKey: string; status: "running" | "idle" }) => void) | undefined;
+  private readonly onSessionRunStatusChanged:
+    | ((payload: { sessionKey: string; status: "running" | "idle" }) => void)
+    | undefined;
   private readonly sessionRegistry: AgentLiveSessionRegistry;
   private readonly executor: AgentRunExecutor;
   private readonly publisher: EventPublisher;
+  private readonly sessionRealtime: AgentBackendSessionRealtime;
   private started = false;
 
   constructor(config: DefaultNcpAgentBackendConfig) {
     this.sessionStore = config.sessionStore;
     this.onSessionRunStatusChanged = config.onSessionRunStatusChanged;
-    this.sessionRegistry = new AgentLiveSessionRegistry(this.sessionStore, config.createRuntime);
-    this.executor = new AgentRunExecutor(async (sessionId) => this.persistSession(sessionId));
+    this.sessionRegistry = new AgentLiveSessionRegistry(
+      this.sessionStore,
+      config.createRuntime,
+    );
+    this.executor = new AgentRunExecutor();
     this.publisher = new EventPublisher();
+    this.sessionRealtime = new AgentBackendSessionRealtime({
+      sessionRegistry: this.sessionRegistry,
+      sessionStore: this.sessionStore,
+      publishEndpointEvent: (event) => this.publishEndpointEvent(event),
+      persistSession: (sessionId) => this.persistSession(sessionId),
+      getSessionSummary: (sessionId) => this.getSession(sessionId),
+    });
     this.manifest = {
       endpointKind: "agent",
       endpointId: config.endpointId?.trim() || "ncp-agent-backend",
@@ -94,11 +137,13 @@ export class DefaultNcpAgentBackend
     for (const session of this.sessionRegistry.listSessions()) {
       const execution = session.activeExecution;
       if (!execution) {
+        session.publisher.close();
         continue;
       }
       execution.abortHandled = true;
       execution.controller.abort();
       this.finishSessionExecution(session, execution);
+      session.publisher.close();
     }
     this.sessionRegistry.clear();
   };
@@ -108,10 +153,12 @@ export class DefaultNcpAgentBackend
 
     switch (event.type) {
       case NcpEventType.MessageRequest:
-        await this.handleRequest(event.payload);
+        for await (const emittedEvent of this.send(event.payload)) {
+          void emittedEvent;
+        }
         return;
       case NcpEventType.MessageStreamRequest:
-        await this.streamToSubscribers(event.payload);
+        await this.ensureStarted();
         return;
       case NcpEventType.MessageAbort:
         await this.handleAbort(event.payload);
@@ -121,7 +168,7 @@ export class DefaultNcpAgentBackend
     }
   };
 
-  subscribe = (listener: (event: NcpEndpointEvent) => void): () => void => {
+  subscribe = (listener: (event: NcpEndpointEvent) => void): (() => void) => {
     return this.publisher.subscribe(listener);
   };
 
@@ -149,14 +196,21 @@ export class DefaultNcpAgentBackend
           envelope,
           execution.controller,
         )) {
-          self.publishLiveEvent(execution, event);
+          await self.sessionRealtime.publishSessionEvent(session, event);
           yield event;
         }
 
         if (execution.controller.signal.aborted && !execution.abortHandled) {
-          const abortEvent = await self.createAbortEvent(session.sessionId);
+          const abortEvent: NcpEndpointEvent = {
+            type: NcpEventType.MessageAbort,
+            payload: {
+              sessionId: session.sessionId,
+            },
+          };
           execution.abortHandled = true;
-          self.publishLiveEvent(execution, abortEvent);
+          await self.sessionRealtime.publishSessionEvent(session, abortEvent, {
+            dispatchToStateManager: true,
+          });
           yield abortEvent;
         }
       } finally {
@@ -176,33 +230,39 @@ export class DefaultNcpAgentBackend
       | { payload: NcpStreamRequestPayload; signal: AbortSignal },
     opts?: NcpAgentRunStreamOptions,
   ): AsyncIterable<NcpEndpointEvent> =>
-    streamAgentBackendExecution({
-      payloadOrParams,
-      opts,
-      sessionRegistry: this.sessionRegistry,
-    });
+    this.sessionRealtime.streamSessionEvents(payloadOrParams, opts);
 
   listSessions = async (): Promise<NcpSessionSummary[]> => {
     const storedSessions = await this.sessionStore.listSessions();
     const summaries = storedSessions.map((session) =>
-      toSessionSummary(session, this.sessionRegistry.getSession(session.sessionId)),
+      toSessionSummary(
+        session,
+        this.sessionRegistry.getSession(session.sessionId),
+      ),
     );
 
     for (const liveSession of this.sessionRegistry.listSessions()) {
-      if (summaries.some((session) => session.sessionId === liveSession.sessionId)) {
+      if (
+        summaries.some((session) => session.sessionId === liveSession.sessionId)
+      ) {
         continue;
       }
       summaries.push(toLiveSessionSummary(liveSession));
     }
 
-    return summaries.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return summaries.sort((left, right) =>
+      right.updatedAt.localeCompare(left.updatedAt),
+    );
   };
 
   listSessionMessages = async (sessionId: string): Promise<NcpMessage[]> => {
     const liveSession = this.sessionRegistry.getSession(sessionId);
-    if (liveSession) return readMessages(liveSession.stateManager.getSnapshot());
+    if (liveSession)
+      return readMessages(liveSession.stateManager.getSnapshot());
     const session = await this.sessionStore.getSession(sessionId);
-    return session ? session.messages.map((message) => structuredClone(message)) : [];
+    return session
+      ? session.messages.map((message) => structuredClone(message))
+      : [];
   };
 
   getSession = async (sessionId: string): Promise<NcpSessionSummary | null> => {
@@ -215,43 +275,43 @@ export class DefaultNcpAgentBackend
         : null;
   };
 
-  appendMessage = async (sessionId: string, message: NcpMessage): Promise<NcpSessionSummary | null> => {
+  appendMessage = async (
+    sessionId: string,
+    message: NcpMessage,
+  ): Promise<NcpSessionSummary | null> => {
     await this.ensureStarted();
-    return appendAgentBackendMessage({
-      sessionId,
-      message,
-      sessionRegistry: this.sessionRegistry,
-      sessionStore: this.sessionStore,
-      publisher: this.publisher,
-      persistSession: async (nextSessionId) => this.persistSession(nextSessionId),
-      getSession: async (nextSessionId) => this.getSession(nextSessionId),
-    });
+    return this.sessionRealtime.appendMessage(sessionId, message);
   };
 
-  updateToolCallResult = async (sessionId: string, toolCallId: string, content: unknown): Promise<NcpSessionSummary | null> => {
+  updateToolCallResult = async (
+    sessionId: string,
+    toolCallId: string,
+    content: unknown,
+  ): Promise<NcpSessionSummary | null> => {
     await this.ensureStarted();
-    return updateAgentBackendToolCallResult({
+    return this.sessionRealtime.updateToolCallResult(
       sessionId,
       toolCallId,
       content,
-      sessionRegistry: this.sessionRegistry,
-      publisher: this.publisher,
-      persistSession: async (nextSessionId) => this.persistSession(nextSessionId),
-      getSession: async (nextSessionId) => this.getSession(nextSessionId),
-    });
+    );
   };
 
-  updateSession = async (sessionId: string, patch: NcpSessionPatch): Promise<NcpSessionSummary | null> => {
+  updateSession = async (
+    sessionId: string,
+    patch: NcpSessionPatch,
+  ): Promise<NcpSessionSummary | null> => {
     const liveSession = this.sessionRegistry.getSession(sessionId);
     const storedSession = await this.sessionStore.getSession(sessionId);
     if (!liveSession && !storedSession) return null;
-    await this.sessionStore.replaceSession(buildUpdatedSessionRecord({
-      sessionId,
-      patch,
-      liveSession,
-      storedSession,
-      updatedAt: now(),
-    }));
+    await this.sessionStore.replaceSession(
+      buildUpdatedSessionRecord({
+        sessionId,
+        patch,
+        liveSession,
+        storedSession,
+        updatedAt: now(),
+      }),
+    );
     return this.getSession(sessionId);
   };
 
@@ -261,8 +321,9 @@ export class DefaultNcpAgentBackend
     if (execution) {
       execution.abortHandled = true;
       execution.controller.abort();
-      this.closeExecution(execution);
+      closeAgentBackendSessionExecution(execution);
     }
+    liveSession?.publisher.close();
     await this.sessionStore.deleteSession(sessionId);
   };
 
@@ -276,79 +337,31 @@ export class DefaultNcpAgentBackend
     session: LiveSessionState,
     envelope: NcpRequestEnvelope,
     signal?: AbortSignal,
-  ): LiveSessionExecution => {
-    if (session.activeExecution && !session.activeExecution.closed) {
-      throw new NcpErrorException(
-        "runtime-error",
-        `Session ${session.sessionId} already has an active execution.`,
-        { sessionId: session.sessionId },
-      );
-    }
-
-    const controller = new AbortController();
-    if (signal) {
-      signal.addEventListener("abort", () => controller.abort(), {
-        once: true,
-      });
-    }
-
-    const execution: LiveSessionExecution = {
-      controller,
-      publisher: new EventPublisher(),
-      requestEnvelope: structuredClone(envelope),
-      abortHandled: false,
-      closed: false,
-    };
-    session.activeExecution = execution;
-    this.onSessionRunStatusChanged?.({ sessionKey: session.sessionId, status: "running" });
-    return execution;
-  };
+  ): LiveSessionExecution =>
+    startAgentBackendSessionExecution({
+      session,
+      envelope,
+      signal,
+      onStatusChanged: this.onSessionRunStatusChanged,
+    });
 
   private finishSessionExecution = (
     session: LiveSessionState,
     execution: LiveSessionExecution,
-  ): void => {
-    if (session.activeExecution === execution) {
-      session.activeExecution = null;
-      this.onSessionRunStatusChanged?.({ sessionKey: session.sessionId, status: "idle" });
-    }
-    this.closeExecution(execution);
-  };
+  ): void =>
+    finishAgentBackendSessionExecution({
+      session,
+      execution,
+      onStatusChanged: this.onSessionRunStatusChanged,
+    });
 
-  private closeExecution = (execution: LiveSessionExecution): void => {
-    if (execution.closed) {
-      return;
-    }
-    execution.closed = true;
-    execution.publisher.close();
-  };
-
-  private publishLiveEvent = (
-    execution: LiveSessionExecution,
-    event: NcpEndpointEvent,
-  ): void => {
+  private publishEndpointEvent = (event: NcpEndpointEvent): void => {
     this.publisher.publish(event);
-    if (!execution.closed) {
-      execution.publisher.publish(event);
-    }
   };
 
-  private handleRequest = async (envelope: NcpRequestEnvelope): Promise<void> => {
-    for await (const event of this.send(envelope)) {
-      void event;
-    }
-  };
-
-  private streamToSubscribers = async (
-    payload: NcpStreamRequestPayload,
+  private handleAbort = async (
+    payload: NcpMessageAbortPayload,
   ): Promise<void> => {
-    const signal = new AbortController().signal;
-    for await (const event of this.stream({ payload, signal })) {
-      void event;
-    }
-  };
-
-  private handleAbort = async (payload: NcpMessageAbortPayload): Promise<void> => {
     const session = this.sessionRegistry.getSession(payload.sessionId);
     const execution = session?.activeExecution;
     if (!session || !execution || execution.closed) {
@@ -358,37 +371,28 @@ export class DefaultNcpAgentBackend
     execution.abortHandled = true;
     execution.controller.abort();
 
-    const abortEvent = await this.createAbortEvent(payload.sessionId, payload.messageId);
-    this.publishLiveEvent(execution, abortEvent);
-    this.finishSessionExecution(session, execution);
-  };
-
-  private createAbortEvent = async (
-    sessionId: string,
-    messageId?: string,
-  ): Promise<NcpEndpointEvent> => {
     const abortEvent: NcpEndpointEvent = {
       type: NcpEventType.MessageAbort,
       payload: {
-        sessionId,
-        ...(messageId ? { messageId } : {}),
+        sessionId: payload.sessionId,
+        ...(payload.messageId ? { messageId: payload.messageId } : {}),
       },
     };
-    const liveSession = this.sessionRegistry.getSession(sessionId);
-    if (liveSession) {
-      await liveSession.stateManager.dispatch(abortEvent);
-    }
-    await this.persistSession(sessionId);
-    return abortEvent;
+    await this.sessionRealtime.publishSessionEvent(session, abortEvent, {
+      dispatchToStateManager: true,
+    });
+    this.finishSessionExecution(session, execution);
   };
 
   private persistSession = async (sessionId: string): Promise<void> => {
     const session = this.sessionRegistry.getSession(sessionId);
     if (!session) return;
-    await this.sessionStore.saveSession(buildPersistedLiveSessionRecord({
-      sessionId,
-      session,
-      updatedAt: now(),
-    }));
+    await this.sessionStore.saveSession(
+      buildPersistedLiveSessionRecord({
+        sessionId,
+        session,
+        updatedAt: now(),
+      }),
+    );
   };
 }

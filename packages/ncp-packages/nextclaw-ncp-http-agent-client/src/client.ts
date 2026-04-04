@@ -49,6 +49,12 @@ type StreamRequestOptions = {
   body?: unknown;
 };
 
+type JsonRequestOptions = {
+  path: string;
+  method: "POST";
+  body?: unknown;
+};
+
 export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
   readonly manifest: NcpEndpointManifest;
 
@@ -124,7 +130,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
 
   async send(envelope: NcpRequestEnvelope): Promise<void> {
     await this.ensureStarted();
-    await this.streamRequest({
+    await this.jsonRequest({
       path: "/send",
       method: "POST",
       body: envelope,
@@ -190,6 +196,43 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
     return new URL(`${this.basePath}${path}`, this.baseUrl);
   }
 
+  private async jsonRequest(options: JsonRequestOptions): Promise<void> {
+    const controller = new AbortController();
+    this.activeControllers.add(controller);
+
+    try {
+      const response = await this.fetchImpl(this.resolveUrl(options.path), {
+        method: options.method,
+        headers: {
+          ...this.defaultHeaders,
+          "content-type": "application/json",
+          accept: "application/json",
+        },
+        body:
+          options.body === undefined ? undefined : JSON.stringify(options.body),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `NCP request failed with HTTP ${response.status}: ${await safeReadText(response)}`,
+        );
+      }
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return;
+      }
+      if (isNcpHttpAgentClientError(error)) {
+        throw error;
+      }
+      const ncpError = toNcpError(error);
+      this.publish({ type: NcpEventType.EndpointError, payload: ncpError });
+      throw ncpErrorToError(ncpError);
+    } finally {
+      this.activeControllers.delete(controller);
+    }
+  }
+
   private async streamRequest(options: StreamRequestOptions): Promise<void> {
     const controller = new AbortController();
     this.activeControllers.add(controller);
@@ -200,9 +243,12 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
         headers: {
           ...this.defaultHeaders,
           accept: "text/event-stream",
-          ...(options.body !== undefined ? { "content-type": "application/json" } : {}),
+          ...(options.body !== undefined
+            ? { "content-type": "application/json" }
+            : {}),
         },
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        body:
+          options.body === undefined ? undefined : JSON.stringify(options.body),
         signal: controller.signal,
       });
 

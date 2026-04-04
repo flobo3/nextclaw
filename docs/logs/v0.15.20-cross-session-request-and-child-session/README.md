@@ -11,6 +11,9 @@
 - `resume_source` 已打通：目标会话完成后，父会话 tool result 会更新为 `nextclaw.session_request` 的 `completed`，然后继续父会话本轮后续输出。
 - 前端已接入 child session 卡片、child session 详情面板、父子会话返回入口，以及 child session 默认不进入顶层侧边栏平铺。
 - `createUiNcpAgent` / deferred agent 相关 owner 已收敛出明确 `dispose/close` 资源回收边界，避免继续以 closure-backed owner 扩散。
+- 本轮继续完成 cross-session realtime 架构收敛：删除 `LiveSessionExecution.publisher`，把 realtime ownership 收回到 session 级唯一 publisher，`sessions_request` 这类 run 外异步结果写回不再依赖刷新修正前端状态。
+- HTTP transport 已切换为单一 session stream 语义：`/send` 只返回 json ack，`/stream` 成为唯一 realtime 消费入口；前端删除 `session.run-status -> attachRealtimeSessionStream` 补挂逻辑，进入会话页面后即建立唯一 session stream 订阅。
+- 本轮顺手减债：删除 `agent-backend-append-message.ts`、`agent-backend-update-tool-call-result.ts`、`agent-backend-stream.ts` 三个旧 helper 文件；同时把 session-level realtime 收敛进 `AgentBackendSessionRealtime`，把 execution 生命周期收敛进 `agent-backend-execution-utils.ts`，避免 `DefaultNcpAgentBackend` 继续膨胀成混合职责文件。
 
 相关设计文档：
 
@@ -29,13 +32,33 @@
 - `pnpm -C packages/nextclaw-core tsc`
 - `pnpm -C packages/nextclaw exec vitest run src/cli/commands/ncp/nextclaw-ncp-context-builder.test.ts src/cli/commands/ncp/nextclaw-ncp-tool-registry.mcp.test.ts`
 - `pnpm lint:maintainability:guard`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-toolkit test -- src/agent/in-memory-agent-backend.test.ts`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-server test -- src/index.test.ts`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-client test -- src/index.test.ts`
+- `pnpm -C packages/nextclaw-ui test -- src/components/chat/useHydratedNcpAgent.test.tsx src/components/chat/useNcpAgentRuntime.test.tsx`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-toolkit tsc`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-server tsc`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-client tsc`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-react tsc`
+- `pnpm -C packages/nextclaw-ui tsc`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-toolkit lint`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-server lint`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-http-agent-client lint`
+- `pnpm -C packages/ncp-packages/nextclaw-ncp-react lint`
+- `pnpm -C packages/nextclaw-ui lint`
 
 结果：
 
 - 后端目标测试通过；其中新增 NCP context builder / tool registry 目标测试通过，`2 files / 10 tests passed`
 - 前端目标测试通过，`2 files / 24 tests passed`
 - 四个相关包类型检查通过
-- 可维护性守卫与新代码治理检查通过；仅保留历史 warning，包括 `packages/nextclaw-ui/src/components/chat/adapters/chat-message.adapter.test.ts` 接近预算，以及 `packages/nextclaw/src/cli/commands/ncp` 目录/个别文件的历史体积预警
+- `nextclaw-ncp-toolkit` 目标测试通过，`1 file / 12 tests passed`
+- `nextclaw-ncp-http-agent-server` 目标测试通过，`1 file / 7 tests passed`
+- `nextclaw-ncp-http-agent-client` 目标测试通过，`1 file / 5 tests passed`
+- `nextclaw-ui` 目标测试通过，`2 files / 2 tests passed`
+- `nextclaw-ncp-toolkit`、`nextclaw-ncp-http-agent-server`、`nextclaw-ncp-http-agent-client`、`nextclaw-ncp-react`、`nextclaw-ui` 类型检查通过
+- 相关包 lint 通过；输出仅包含仓库内既有 warning，本次改动未新增 lint error
+- `pnpm lint:maintainability:guard` 已执行。当前唯一 error 来自工作区中另一条未完成改动 `scripts/project-pulse-data.mjs` 超出新文件预算，与本次 cross-session realtime 收敛无关；本次链路相关文件已把主线报警压回预算内，仅保留 `agent-backend.ts` 与 `in-memory-agent-backend.test.ts` 接近预算的 watchpoint，以及若干既有目录 warning
 
 ## 发布/部署方式
 
@@ -59,20 +82,29 @@
 9. 确认 `sessions_request` 卡片上的目标类型显示为 `session`，点击后进入普通会话视图，而不是 child session 视图。
 10. 在“另开一个独立会话继续做这件事”这类表述下，确认模型优先走 `sessions_spawn` + `sessions_request`，而不是错误地调用 `spawn`。
 11. 确认模型在调用 `sessions_request` 时传入的 `target` 形状为对象 `{ "session_id": "..." }`，而不是裸字符串。
+12. 保持 source session 页面停留在前台，不刷新页面，让目标会话完成 `sessions_request`。
+13. 确认 source session 里的 `sessions_request` tool card 会在当前页面实时从 `running` 进入 `completed`，不再依赖刷新恢复。
+14. 确认普通 assistant 文本流在 `/send` 已改为 ack 后仍能正常实时出现，说明页面实际消费的是唯一 `/stream`。
 
 ## 可维护性总结汇总
 
 - 本次是否已尽最大努力优化可维护性：是。
-- 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：是。本次不是继续给旧 subagent 回传链补丁，而是删除旧文件、统一到 session-request 目录和 broker/delivery/class owner 边界。
-- 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：基本满足。虽然本轮仍有必要的 UI 接入和协议落地代码增长，但它是伴随删除旧 `ncp-subagent-completion-*` 文件和多份平行实现一起发生的，属于以统一抽象替换旧分叉的最小必要增长。
-- 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。`SessionRequestBroker`、`SessionRequestDeliveryService`、`SessionCreationService`、`PluginRuntimeRegistrationController`、`DeferredUiNcpAgentControllerOwner` 的 owner 边界比原有 closure/follow-up 特判更清晰；并且本轮没有把 NCP 编排提示塞进 `messageToolHints`，而是给 `ContextBuilder` 增加了一个通用的 `additionalSystemSections` 注入点，让 NCP 以独立 section 注入 session orchestration 规则。
-- 目录结构与文件组织是否满足当前项目治理要求：部分满足。`packages/nextclaw/src/cli/commands/ncp/session-request/` 已形成清晰子目录；但 `packages/nextclaw-ui/src/components/chat/ncp` 仍被治理脚本标记为 flat mixed-responsibility directory，本次未继续拆目录，以免在功能落地主链之外引入额外 UI 结构漂移。后续可在独立整理批次中继续细分。
+- 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：是。本轮不是给 `sessions_request` 再补一个事件或前端特判，而是删除 execution-level realtime、删除 `/send` SSE、删除 run-status 补挂逻辑，直接收敛成单一 session stream。
+- 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：基本满足。本次删除了 3 个 backend helper 文件与一整套旧双轨 realtime 语义，同时只新增 2 个更聚焦的 backend 模块来压住 `agent-backend.ts` 的体积；总代码没有做到净减少，但增长已被限制在“让旧双轨真正消失”的最小必要范围内。
+- 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。session-level realtime 现在由 `AgentBackendSessionRealtime` 统一持有，execution lifecycle 回到无状态 utility，前端 stream attach 回到 hydrated agent hook；没有新增 `sessions_request` 专用 adapter、replay service 或双轨兼容层。
+- 目录结构与文件组织是否满足当前项目治理要求：部分满足。`packages/ncp-packages/nextclaw-ncp-toolkit/src/agent/agent-backend/` 已从 13 个直接文件收敛到 12 个，回到目录预算边界内；`packages/nextclaw-ui/src/components/chat/ncp` 仍是历史大页面聚集区，本次通过抽出 seed loader 把 `NcpChatPage` 的函数预算问题压回去，但目录本身仍适合后续继续整理。
 - 若本次涉及代码可维护性评估，是否基于独立于实现阶段的 `post-edit-maintainability-review`：是，已独立复核并结论如下。
 
 可维护性复核结论：保留债务经说明接受
 
 本次顺手减债：是
 
-no maintainability findings
+1. `packages/ncp-packages/nextclaw-ncp-toolkit/src/agent/agent-backend/agent-backend.ts` 目前已回到 budget 内，但仍接近上限。
+2. 这会让后续再往 backend 里叠加 session orchestration 逻辑时重新膨胀。
+3. 更小、更简单的后续方向是继续把只读 session API 或测试夹具进一步拆离，而不是重新往 `DefaultNcpAgentBackend` 回塞分支。
 
-可维护性总结：这次修复没有在 `sessions_spawn` 外层再补一个“前端特判”或“结果纠偏”，而是把普通 session / child session 的创建统一收口到 `SessionCreationService`，从源头修正语义；后续这轮提示词增强也没有走“在 NCP builder 里硬拼接一堆 message hints”的捷径，而是最小幅度扩展 `ContextBuilder` 的系统提示注入边界。保留的主要债务仍是若干历史大文件与平铺目录 warning；它们本次没有继续恶化，但后续仍适合按职责继续拆分。
+1. `packages/ncp-packages/nextclaw-ncp-toolkit/src/agent/in-memory-agent-backend.test.ts` 现在覆盖更完整，但也逼近体积预算。
+2. 后续如果继续在同一文件叠加 cross-session 场景，测试维护成本会明显上升。
+3. 更小、更简单的后续方向是把 echo/gated runtime builder 与复用 fixture 拆出，测试文件只保留行为断言。
+
+可维护性总结：这次改动真正删掉了旧双轨 realtime 语义，而不是把 `sessions_request` 再做成一个例外；新增的少量代码主要用于把 session-level realtime ownership 放到正确边界里，并把超预算的 backend/page 再压回可控范围。保留债务主要是 `agent-backend.ts` 与一份 toolkit 测试文件接近预算，以及工作区里另一条 `project-pulse` 改动导致的 guard 失败，这些都已明确隔离与标注。

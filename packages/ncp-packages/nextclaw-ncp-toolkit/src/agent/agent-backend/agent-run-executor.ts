@@ -7,10 +7,6 @@ import { NcpEventType } from "@nextclaw/ncp";
 import type { LiveSessionState } from "./agent-backend-types.js";
 
 export class AgentRunExecutor {
-  constructor(
-    private readonly persistSession: (sessionId: string) => Promise<void>,
-  ) {}
-
   async *executeRun(
     session: LiveSessionState,
     envelope: NcpRequestEnvelope,
@@ -26,7 +22,6 @@ export class AgentRunExecutor {
         },
       };
       await session.stateManager.dispatch(messageSent);
-      await this.persistSession(envelope.sessionId);
       yield structuredClone(messageSent);
     }
 
@@ -40,16 +35,17 @@ export class AgentRunExecutor {
         },
         { signal: controller.signal },
       )) {
-        await this.persistSession(envelope.sessionId);
         yield structuredClone(event);
       }
     } catch (error) {
       if (!controller.signal.aborted) {
-        const runErrorEvent = await this.publishFailure(error, envelope, session);
+        const runErrorEvent = await this.publishFailure(
+          error,
+          envelope,
+          session,
+        );
         yield structuredClone(runErrorEvent);
       }
-    } finally {
-      await this.persistSession(envelope.sessionId);
     }
   }
 
@@ -68,7 +64,6 @@ export class AgentRunExecutor {
     };
 
     await session.stateManager.dispatch(runErrorEvent);
-    await this.persistSession(envelope.sessionId);
     return runErrorEvent;
   }
 }

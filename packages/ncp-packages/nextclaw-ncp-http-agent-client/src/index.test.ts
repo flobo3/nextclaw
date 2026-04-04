@@ -1,16 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { type NcpEndpointEvent, type NcpRequestEnvelope, NcpEventType } from "@nextclaw/ncp";
+import {
+  type NcpEndpointEvent,
+  type NcpRequestEnvelope,
+  NcpEventType,
+} from "@nextclaw/ncp";
 import { NcpHttpAgentClientEndpoint } from "./index.js";
 
 const now = "2026-03-12T00:00:00.000Z";
 
 describe("createNcpHttpAgentClient stream behavior", () => {
   it("preserves utf-8 delta when multibyte character is split across chunks", async () => {
-    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> = [];
+    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> =
+      [];
     const frames = [
       sseFrame("ncp-event", {
         type: NcpEventType.MessageTextDelta,
-        payload: { sessionId: "session-1", messageId: "assistant-1", delta: "你" },
+        payload: {
+          sessionId: "session-1",
+          messageId: "assistant-1",
+          delta: "你",
+        },
       }),
       sseFrame("ncp-event", {
         type: NcpEventType.MessageCompleted,
@@ -28,7 +37,10 @@ describe("createNcpHttpAgentClient stream behavior", () => {
       }),
     ];
 
-    const fetchImpl = async (input: URL | string | Request, init?: RequestInit): Promise<Response> => {
+    const fetchImpl = async (
+      input: URL | string | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
       calls.push({ input, init });
       return createSseResponse(frames, { splitByUtf8Token: "你" });
     };
@@ -43,55 +55,32 @@ describe("createNcpHttpAgentClient stream behavior", () => {
       received.push(event);
     });
 
-    await client.send({
+    await client.stream({
       sessionId: "session-1",
-      message: {
-        id: "user-1",
-        sessionId: "session-1",
-        role: "user",
-        status: "final",
-        parts: [{ type: "text", text: "ping" }],
-        timestamp: now,
-      },
     });
 
     expect(calls).toHaveLength(1);
-    const deltaEvent = received.find((event) => event.type === NcpEventType.MessageTextDelta);
+    const deltaEvent = received.find(
+      (event) => event.type === NcpEventType.MessageTextDelta,
+    );
     expect(deltaEvent?.type).toBe(NcpEventType.MessageTextDelta);
     if (deltaEvent?.type === NcpEventType.MessageTextDelta) {
       expect(deltaEvent.payload.delta).toBe("你");
     }
   });
 
-  it("streams ncp events from /send and notifies subscribers", async () => {
-    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> = [];
-    const fetchImpl = async (input: URL | string | Request, init?: RequestInit): Promise<Response> => {
+  it("sends request to /send and does not treat it as a realtime stream", async () => {
+    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> =
+      [];
+    const fetchImpl = async (
+      input: URL | string | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
       calls.push({ input, init });
-      return createSseResponse([
-        sseFrame("ncp-event", {
-          type: NcpEventType.MessageAccepted,
-          payload: { messageId: "assistant-1", correlationId: "corr-1" },
-        }),
-        sseFrame("ncp-event", {
-          type: NcpEventType.MessageTextDelta,
-          payload: { sessionId: "session-1", messageId: "assistant-1", delta: "hello" },
-        }),
-        sseFrame("ncp-event", {
-          type: NcpEventType.MessageCompleted,
-          payload: {
-            sessionId: "session-1",
-            correlationId: "corr-1",
-            message: {
-              id: "assistant-1",
-              sessionId: "session-1",
-              role: "assistant",
-              status: "final",
-              parts: [{ type: "text", text: "hello" }],
-              timestamp: now,
-            },
-          },
-        }),
-      ]);
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     const client = new NcpHttpAgentClientEndpoint({
@@ -120,25 +109,30 @@ describe("createNcpHttpAgentClient stream behavior", () => {
     await client.send(envelope);
 
     expect(calls).toHaveLength(1);
-    const requestUrl = calls[0]?.input instanceof URL ? calls[0].input : new URL(String(calls[0]?.input));
+    const requestUrl =
+      calls[0]?.input instanceof URL
+        ? calls[0].input
+        : new URL(String(calls[0]?.input));
     expect(requestUrl.pathname).toBe("/ncp/agent/send");
     expect(calls[0]?.init?.method).toBe("POST");
+    expect(calls[0]?.init?.headers).toMatchObject({
+      accept: "application/json",
+      "content-type": "application/json",
+    });
 
     const eventTypes = received.map((event) => event.type);
-    expect(eventTypes).toEqual([
-      "endpoint.ready",
-      "message.accepted",
-      "message.text-delta",
-      "message.completed",
-    ]);
+    expect(eventTypes).toEqual(["endpoint.ready"]);
   });
-
 });
 
 describe("createNcpHttpAgentClient stream and abort", () => {
   it("stream builds stream query and maps SSE error to endpoint.error", async () => {
-    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> = [];
-    const fetchImpl = async (input: URL | string | Request, init?: RequestInit): Promise<Response> => {
+    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> =
+      [];
+    const fetchImpl = async (
+      input: URL | string | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
       calls.push({ input, init });
       return createSseResponse([
         sseFrame("error", {
@@ -165,12 +159,17 @@ describe("createNcpHttpAgentClient stream and abort", () => {
     ).rejects.toThrow("stream timeout");
 
     expect(calls).toHaveLength(1);
-    const requestUrl = calls[0]?.input instanceof URL ? calls[0].input : new URL(String(calls[0]?.input));
+    const requestUrl =
+      calls[0]?.input instanceof URL
+        ? calls[0].input
+        : new URL(String(calls[0]?.input));
     expect(requestUrl.pathname).toBe("/ncp/agent/stream");
     expect(requestUrl.searchParams.get("sessionId")).toBe("session-1");
     expect(calls[0]?.init?.method).toBe("GET");
 
-    const endpointErrors = received.filter((event) => event.type === "endpoint.error");
+    const endpointErrors = received.filter(
+      (event) => event.type === "endpoint.error",
+    );
     expect(endpointErrors).toHaveLength(1);
     const endpointError = endpointErrors[0];
     expect(endpointError?.type).toBe("endpoint.error");
@@ -181,8 +180,12 @@ describe("createNcpHttpAgentClient stream and abort", () => {
   });
 
   it("abort sends payload to /abort", async () => {
-    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> = [];
-    const fetchImpl = async (input: URL | string | Request, init?: RequestInit): Promise<Response> => {
+    const calls: Array<{ input: URL | string | Request; init?: RequestInit }> =
+      [];
+    const fetchImpl = async (
+      input: URL | string | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
       calls.push({ input, init });
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
@@ -198,17 +201,24 @@ describe("createNcpHttpAgentClient stream and abort", () => {
     await client.abort({ sessionId: "session-9" });
 
     expect(calls).toHaveLength(1);
-    const requestUrl = calls[0]?.input instanceof URL ? calls[0].input : new URL(String(calls[0]?.input));
+    const requestUrl =
+      calls[0]?.input instanceof URL
+        ? calls[0].input
+        : new URL(String(calls[0]?.input));
     expect(requestUrl.pathname).toBe("/ncp/agent/abort");
     expect(calls[0]?.init?.method).toBe("POST");
-    expect(calls[0]?.init?.body).toBe(JSON.stringify({ sessionId: "session-9" }));
+    expect(calls[0]?.init?.body).toBe(
+      JSON.stringify({ sessionId: "session-9" }),
+    );
   });
-
 });
 
 describe("createNcpHttpAgentClient edge cases", () => {
   it("does not publish endpoint.error when stop aborts in-flight abort request", async () => {
-    const fetchImpl = async (_input: URL | string | Request, init?: RequestInit): Promise<Response> => {
+    const fetchImpl = async (
+      _input: URL | string | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
       const signal = init?.signal;
       return new Promise<Response>((_resolve, reject) => {
         if (!signal) {
@@ -249,7 +259,9 @@ describe("createNcpHttpAgentClient edge cases", () => {
     await client.stop();
     await expect(abortPromise).resolves.toBeUndefined();
 
-    const endpointErrors = received.filter((event) => event.type === "endpoint.error");
+    const endpointErrors = received.filter(
+      (event) => event.type === "endpoint.error",
+    );
     expect(endpointErrors).toHaveLength(0);
   });
 });
@@ -267,7 +279,9 @@ function createSseResponse(
   const bytes = encoder.encode(payload);
   const splitAt =
     options.splitAt ??
-    (options.splitByUtf8Token ? findSplitInsideToken(bytes, options.splitByUtf8Token) : Math.max(1, Math.floor(bytes.length / 2)));
+    (options.splitByUtf8Token
+      ? findSplitInsideToken(bytes, options.splitByUtf8Token)
+      : Math.max(1, Math.floor(bytes.length / 2)));
   const safeSplitAt = Math.max(1, Math.min(splitAt, bytes.length - 1));
   const first = bytes.slice(0, safeSplitAt);
   const second = bytes.slice(safeSplitAt);

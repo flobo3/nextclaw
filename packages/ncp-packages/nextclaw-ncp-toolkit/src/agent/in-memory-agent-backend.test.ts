@@ -19,11 +19,11 @@ import {
   DefaultNcpToolRegistry,
   EchoNcpLLMApi,
 } from "@nextclaw/ncp-agent-runtime";
-import {
-  DefaultNcpAgentBackend,
-  InMemoryAgentSessionStore,
-} from "./index.js";
-import type { AgentSessionRecord, AgentSessionStore } from "./agent-backend/agent-backend-types.js";
+import { DefaultNcpAgentBackend, InMemoryAgentSessionStore } from "./index.js";
+import type {
+  AgentSessionRecord,
+  AgentSessionStore,
+} from "./agent-backend/agent-backend-types.js";
 
 const now = "2026-03-15T00:00:00.000Z";
 
@@ -48,7 +48,11 @@ function createBackend(
 ) {
   return new DefaultNcpAgentBackend({
     sessionStore: options.sessionStore ?? new InMemoryAgentSessionStore(),
-    createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
+    createRuntime: ({
+      stateManager,
+    }: {
+      stateManager: NcpAgentConversationStateManager;
+    }) => {
       const toolRegistry = new DefaultNcpToolRegistry();
       return new DefaultNcpAgentRuntime({
         contextBuilder: new DefaultNcpContextBuilder(toolRegistry),
@@ -156,39 +160,55 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
       payload: createEnvelope("slow"),
     });
 
-    await waitFor(async () => (await backend.getSession("session-1"))?.status === "running");
+    await waitFor(
+      async () => (await backend.getSession("session-1"))?.status === "running",
+    );
 
     const streamed: string[] = [];
-    for await (const event of backend.stream({
-      payload: { sessionId: "session-1" },
-      signal: new AbortController().signal,
-    })) {
-      streamed.push(event.type);
-    }
+    const controller = new AbortController();
+    const streamPromise = (async () => {
+      for await (const event of backend.stream({
+        payload: { sessionId: "session-1" },
+        signal: controller.signal,
+      })) {
+        streamed.push(event.type);
+        if (event.type === NcpEventType.RunFinished) {
+          controller.abort();
+        }
+      }
+    })();
 
-    await requestPromise;
+    await Promise.all([requestPromise, streamPromise]);
 
     expect(streamed).toContain(NcpEventType.MessageTextDelta);
-    expect(streamed.at(-1)).toBe(NcpEventType.RunFinished);
+    expect(streamed).toContain(NcpEventType.RunFinished);
   });
 
-  it("emits a terminal catch-up event when attaching after the run is already over", async () => {
-    const backend = createBackend(new EchoNcpLLMApi());
+  it("keeps an idle session stream open for the next run", async () => {
+    const backend = createBackend(new SlowEchoNcpLLMApi());
+    const streamed: string[] = [];
+    const controller = new AbortController();
+    const streamPromise = (async () => {
+      for await (const event of backend.stream({
+        payload: { sessionId: "session-1" },
+        signal: controller.signal,
+      })) {
+        streamed.push(event.type);
+        if (event.type === NcpEventType.RunFinished) {
+          controller.abort();
+        }
+      }
+    })();
+    await waitFor(async () => (await backend.getSession("session-1")) !== null);
 
     await backend.emit({
       type: NcpEventType.MessageRequest,
       payload: createEnvelope("hello"),
     });
+    await streamPromise;
 
-    const streamed: string[] = [];
-    for await (const event of backend.stream({
-      payload: { sessionId: "session-1" },
-      signal: new AbortController().signal,
-    })) {
-      streamed.push(event.type);
-    }
-
-    expect(streamed).toEqual([NcpEventType.RunFinished]);
+    expect(streamed).toContain(NcpEventType.MessageSent);
+    expect(streamed).toContain(NcpEventType.RunFinished);
   });
 
   it("publishes message.sent immediately before assistant streaming starts", async () => {
@@ -216,7 +236,9 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
       payload: createEnvelope("slow"),
     });
 
-    await waitFor(async () => (await backend.getSession("session-1"))?.status === "running");
+    await waitFor(
+      async () => (await backend.getSession("session-1"))?.status === "running",
+    );
     await backend.abort({ sessionId: "session-1" });
     await requestPromise;
 
@@ -241,15 +263,56 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
     });
 
     await llmApi.started;
-    const streamPromise = backend.emit({
-      type: NcpEventType.MessageStreamRequest,
-      payload: { sessionId: "session-1" },
-    });
+    const controller = new AbortController();
+    const streamPromise = (async () => {
+      for await (const event of backend.stream({
+        payload: { sessionId: "session-1" },
+        signal: controller.signal,
+      })) {
+        if (event.type === NcpEventType.RunFinished) {
+          controller.abort();
+        }
+      }
+    })();
 
     llmApi.release();
     await Promise.all([requestPromise, streamPromise]);
 
     expect(textDeltas).toEqual(["s", "l", "o", "w"]);
+  });
+
+  it("delivers async tool call results through the session stream after the run is already idle", async () => {
+    const backend = createBackend(new EchoNcpLLMApi());
+    await backend.emit({
+      type: NcpEventType.MessageRequest,
+      payload: createEnvelope("hello"),
+    });
+
+    const streamed: NcpEndpointEvent[] = [];
+    const controller = new AbortController();
+    const streamPromise = (async () => {
+      for await (const event of backend.stream({
+        payload: { sessionId: "session-1" },
+        signal: controller.signal,
+      })) {
+        streamed.push(event);
+        if (event.type === NcpEventType.MessageToolCallResult) {
+          controller.abort();
+        }
+      }
+    })();
+
+    await backend.updateToolCallResult("session-1", "tool-1", { ok: true });
+    await streamPromise;
+
+    expect(streamed).toContainEqual({
+      type: NcpEventType.MessageToolCallResult,
+      payload: {
+        sessionId: "session-1",
+        toolCallId: "tool-1",
+        content: { ok: true },
+      },
+    });
   });
 });
 
@@ -259,7 +322,11 @@ describe("DefaultNcpAgentBackend invalid tool arguments", () => {
     const toolRegistry = new RecordingSchemaToolRegistry();
     const backend = new DefaultNcpAgentBackend({
       sessionStore: new InMemoryAgentSessionStore(),
-      createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
+      createRuntime: ({
+        stateManager,
+      }: {
+        stateManager: NcpAgentConversationStateManager;
+      }) => {
         return new DefaultNcpAgentRuntime({
           contextBuilder: new DefaultNcpContextBuilder(toolRegistry),
           llmApi,
@@ -290,7 +357,7 @@ describe("DefaultNcpAgentBackend invalid tool arguments", () => {
         message: "Tool arguments are invalid.",
         toolCallId: "call-invalid",
         toolName: "read_file",
-        rawArgumentsText: "{\"path\":\"/tmp/a.txt\"}}",
+        rawArgumentsText: '{"path":"/tmp/a.txt"}}',
         issues: expect.any(Array),
       },
     });
@@ -302,9 +369,9 @@ describe("DefaultNcpAgentBackend invalid tool arguments", () => {
     const secondRoundAssistantMessage = llmApi.inputs[1]?.messages.at(-2) as
       | { tool_calls?: Array<{ function?: { arguments?: string } }> }
       | undefined;
-    expect(secondRoundAssistantMessage?.tool_calls?.[0]?.function?.arguments).toBe(
-      "{\"path\":\"/tmp/a.txt\"}}",
-    );
+    expect(
+      secondRoundAssistantMessage?.tool_calls?.[0]?.function?.arguments,
+    ).toBe('{"path":"/tmp/a.txt"}}');
   });
 
   it("uses tool-provided semantic validation for structured invalid args", async () => {
@@ -312,7 +379,11 @@ describe("DefaultNcpAgentBackend invalid tool arguments", () => {
     const toolRegistry = new RecordingSemanticToolRegistry();
     const backend = new DefaultNcpAgentBackend({
       sessionStore: new InMemoryAgentSessionStore(),
-      createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
+      createRuntime: ({
+        stateManager,
+      }: {
+        stateManager: NcpAgentConversationStateManager;
+      }) => {
         return new DefaultNcpAgentRuntime({
           contextBuilder: new DefaultNcpContextBuilder(toolRegistry),
           llmApi,
@@ -343,7 +414,7 @@ describe("DefaultNcpAgentBackend invalid tool arguments", () => {
         message: "Tool arguments are invalid.",
         toolCallId: "call-semantic-invalid",
         toolName: "message",
-        rawArgumentsText: "{\"channel\":\"feishu\",\"message\":\"hello\"}",
+        rawArgumentsText: '{"channel":"feishu","message":"hello"}',
         issues: [
           "missing required to or chatId when channel differs from current session (ui:web-ui)",
         ],
@@ -357,7 +428,11 @@ describe("DefaultNcpAgentBackend", () => {
   it("accepts an injected session store through the generic core", async () => {
     const sessionStore = new RecordingSessionStore();
     const backend = new DefaultNcpAgentBackend({
-      createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
+      createRuntime: ({
+        stateManager,
+      }: {
+        stateManager: NcpAgentConversationStateManager;
+      }) => {
         const toolRegistry = new DefaultNcpToolRegistry();
         return new DefaultNcpAgentRuntime({
           contextBuilder: new DefaultNcpContextBuilder(toolRegistry),
@@ -458,7 +533,9 @@ class InvalidArgsThenAnswerNcpLLMApi implements NcpLLMApi {
   async *generate(input: NcpLLMApiInput): AsyncGenerator<OpenAIChatChunk> {
     this.inputs.push(structuredClone(input));
 
-    const hasToolFeedback = input.messages.some((message) => message.role === "tool");
+    const hasToolFeedback = input.messages.some(
+      (message) => message.role === "tool",
+    );
     if (!hasToolFeedback) {
       yield {
         choices: [
@@ -471,7 +548,7 @@ class InvalidArgsThenAnswerNcpLLMApi implements NcpLLMApi {
                   type: "function",
                   function: {
                     name: "read_file",
-                    arguments: "{\"path\":\"/tmp/a.txt\"}}",
+                    arguments: '{"path":"/tmp/a.txt"}}',
                   },
                 },
               ],
@@ -503,7 +580,9 @@ class SemanticInvalidArgsThenAnswerNcpLLMApi implements NcpLLMApi {
   ): AsyncGenerator<OpenAIChatChunk> {
     this.inputs.push(structuredClone(input));
 
-    const hasToolFeedback = input.messages.some((message) => message.role === "tool");
+    const hasToolFeedback = input.messages.some(
+      (message) => message.role === "tool",
+    );
     if (!hasToolFeedback) {
       yield {
         choices: [
@@ -516,7 +595,7 @@ class SemanticInvalidArgsThenAnswerNcpLLMApi implements NcpLLMApi {
                   type: "function",
                   function: {
                     name: "message",
-                    arguments: "{\"channel\":\"feishu\",\"message\":\"hello\"}",
+                    arguments: '{"channel":"feishu","message":"hello"}',
                   },
                 },
               ],
@@ -561,7 +640,8 @@ class RecordingSchemaToolRegistry implements NcpToolRegistry {
 
   listTools = (): readonly NcpTool[] => [this.tool];
 
-  getTool = (name: string): NcpTool | undefined => name === this.tool.name ? this.tool : undefined;
+  getTool = (name: string): NcpTool | undefined =>
+    name === this.tool.name ? this.tool : undefined;
 
   getToolDefinitions = (): ReadonlyArray<NcpToolDefinition> => {
     return [
@@ -573,7 +653,11 @@ class RecordingSchemaToolRegistry implements NcpToolRegistry {
     ];
   };
 
-  execute = async (toolCallId: string, toolName: string, args: unknown): Promise<unknown> => {
+  execute = async (
+    toolCallId: string,
+    toolName: string,
+    args: unknown,
+  ): Promise<unknown> => {
     this.executeCalls.push({ toolCallId, toolName, args });
     return this.tool.execute(args);
   };
@@ -600,11 +684,19 @@ class RecordingSemanticToolRegistry implements NcpToolRegistry {
       required: [],
     },
     validateArgs: (args) => {
-      const explicitChannel = typeof args.channel === "string" ? args.channel.trim() : "";
+      const explicitChannel =
+        typeof args.channel === "string" ? args.channel.trim() : "";
       const explicitTo = typeof args.to === "string" ? args.to.trim() : "";
-      const explicitChatId = typeof args.chatId === "string" ? args.chatId.trim() : "";
-      if (explicitChannel.toLowerCase() === "feishu" && !explicitTo && !explicitChatId) {
-        return ["missing required to or chatId when channel differs from current session (ui:web-ui)"];
+      const explicitChatId =
+        typeof args.chatId === "string" ? args.chatId.trim() : "";
+      if (
+        explicitChannel.toLowerCase() === "feishu" &&
+        !explicitTo &&
+        !explicitChatId
+      ) {
+        return [
+          "missing required to or chatId when channel differs from current session (ui:web-ui)",
+        ];
       }
       return [];
     },
@@ -613,7 +705,8 @@ class RecordingSemanticToolRegistry implements NcpToolRegistry {
 
   listTools = (): readonly NcpTool[] => [this.tool];
 
-  getTool = (name: string): NcpTool | undefined => name === this.tool.name ? this.tool : undefined;
+  getTool = (name: string): NcpTool | undefined =>
+    name === this.tool.name ? this.tool : undefined;
 
   getToolDefinitions = (): ReadonlyArray<NcpToolDefinition> => {
     return [
@@ -625,7 +718,11 @@ class RecordingSemanticToolRegistry implements NcpToolRegistry {
     ];
   };
 
-  execute = async (toolCallId: string, toolName: string, args: unknown): Promise<unknown> => {
+  execute = async (
+    toolCallId: string,
+    toolName: string,
+    args: unknown,
+  ): Promise<unknown> => {
     this.executeCalls.push({ toolCallId, toolName, args });
     return this.tool.execute(args);
   };
@@ -641,7 +738,9 @@ function getLastUserText(input: NcpLLMApiInput): string {
   return "";
 }
 
-async function waitFor(assertion: () => boolean | Promise<boolean>): Promise<void> {
+async function waitFor(
+  assertion: () => boolean | Promise<boolean>,
+): Promise<void> {
   for (let index = 0; index < 100; index += 1) {
     if (await assertion()) {
       return;
@@ -669,13 +768,17 @@ class RecordingSessionStore implements AgentSessionStore {
   saveCallCount = 0;
   replaceCallCount = 0;
 
-  getSession = async (sessionId: string): Promise<AgentSessionRecord | null> => {
+  getSession = async (
+    sessionId: string,
+  ): Promise<AgentSessionRecord | null> => {
     const session = this.sessions.get(sessionId);
     return session ? structuredClone(session) : null;
   };
 
   listSessions = async (): Promise<AgentSessionRecord[]> => {
-    return [...this.sessions.values()].map((session) => structuredClone(session));
+    return [...this.sessions.values()].map((session) =>
+      structuredClone(session),
+    );
   };
 
   saveSession = async (session: AgentSessionRecord): Promise<void> => {
@@ -688,7 +791,9 @@ class RecordingSessionStore implements AgentSessionStore {
     this.sessions.set(session.sessionId, structuredClone(session));
   };
 
-  deleteSession = async (sessionId: string): Promise<AgentSessionRecord | null> => {
+  deleteSession = async (
+    sessionId: string,
+  ): Promise<AgentSessionRecord | null> => {
     const session = this.sessions.get(sessionId);
     if (!session) {
       return null;

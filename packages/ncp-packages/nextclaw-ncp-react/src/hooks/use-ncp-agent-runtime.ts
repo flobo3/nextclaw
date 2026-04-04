@@ -65,7 +65,11 @@ class NcpEventDispatchBatcher {
   };
 
   private scheduleFlush = (): void => {
-    if (this.flushTimerId !== null || this.isFlushing || this.queue.length === 0) {
+    if (
+      this.flushTimerId !== null ||
+      this.isFlushing ||
+      this.queue.length === 0
+    ) {
       return;
     }
     this.flushTimerId = window.setTimeout(() => {
@@ -111,7 +115,10 @@ function dispatchEventsToManager(
   );
 }
 
-function shouldDispatchEventToSession(event: NcpEndpointEvent, sessionId: string): boolean {
+function shouldDispatchEventToSession(
+  event: NcpEndpointEvent,
+  sessionId: string,
+): boolean {
   const payload = "payload" in event ? event.payload : null;
   if (!payload || typeof payload !== "object") {
     return true;
@@ -124,14 +131,21 @@ function shouldDispatchEventToSession(event: NcpEndpointEvent, sessionId: string
 
 function hasMessageContent(message: NcpMessage): boolean {
   return message.parts.some((part) => {
-    if (part.type === "text" || part.type === "rich-text" || part.type === "reasoning") {
+    if (
+      part.type === "text" ||
+      part.type === "rich-text" ||
+      part.type === "reasoning"
+    ) {
       return part.text.trim().length > 0;
     }
     return true;
   });
 }
 
-function normalizeSendEnvelope(input: NcpAgentSendInput, sessionId: string): NcpRequestEnvelope | null {
+function normalizeSendEnvelope(
+  input: NcpAgentSendInput,
+  sessionId: string,
+): NcpRequestEnvelope | null {
   if (typeof input === "string") {
     const content = input.trim();
     if (!content) {
@@ -164,7 +178,9 @@ function normalizeSendEnvelope(input: NcpAgentSendInput, sessionId: string): Ncp
   };
 }
 
-export function useScopedAgentManager(sessionId: string): DefaultNcpAgentConversationStateManager {
+export function useScopedAgentManager(
+  sessionId: string,
+): DefaultNcpAgentConversationStateManager {
   const managerRef = useRef<ScopedManagerRef>();
   if (!managerRef.current || managerRef.current.sessionId !== sessionId) {
     managerRef.current = {
@@ -250,10 +266,7 @@ export function useNcpAgentRuntime({
   };
 
   const streamRun = async () => {
-    if (!snapshot.activeRun) {
-      return;
-    }
-
+    await client.stop();
     await client.stream({ sessionId });
   };
 

@@ -4,9 +4,15 @@ import {
   parseRequestEnvelope,
   parseStreamPayloadFromUrl,
 } from "./parsers.js";
-import { createForwardResponse, createLiveStreamResponse } from "./stream-handlers.js";
+import {
+  createForwardResponse,
+  createLiveStreamResponse,
+} from "./stream-handlers.js";
 import { jsonResponse } from "./utils.js";
-import type { NcpHttpAgentHandler, NcpHttpAgentHandlerOptions } from "./handler-interface.js";
+import type {
+  NcpHttpAgentHandler,
+  NcpHttpAgentHandlerOptions,
+} from "./handler-interface.js";
 
 /**
  * Framework-agnostic controller for NCP agent HTTP routes.
@@ -16,33 +22,34 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
   constructor(private readonly options: NcpHttpAgentHandlerOptions) {}
 
   async handleSend(request: Request): Promise<Response> {
-    const { agentClientEndpoint, timeoutMs } = this.options;
+    const { agentClientEndpoint } = this.options;
     const envelope = await parseRequestEnvelope(request);
     if (!envelope) {
       return jsonResponse(
-        { ok: false, error: { code: "INVALID_BODY", message: "Invalid NCP request envelope." } },
+        {
+          ok: false,
+          error: {
+            code: "INVALID_BODY",
+            message: "Invalid NCP request envelope.",
+          },
+        },
         400,
       );
     }
 
-    return createForwardResponse({
-      endpoint: agentClientEndpoint,
-      requestEvent: { type: NcpEventType.MessageRequest, payload: envelope },
-      requestSignal: request.signal,
-      timeoutMs,
-      scope: {
-        sessionId: envelope.sessionId,
-        correlationId: envelope.correlationId,
-      },
-    });
+    await agentClientEndpoint.send(envelope);
+    return jsonResponse({ ok: true });
   }
 
   async handleStream(request: Request): Promise<Response> {
-    const { agentClientEndpoint, streamProvider, timeoutMs } = this.options;
+    const { agentClientEndpoint, streamProvider } = this.options;
     const streamPayload = parseStreamPayloadFromUrl(request.url);
     if (!streamPayload) {
       return jsonResponse(
-        { ok: false, error: { code: "INVALID_QUERY", message: "sessionId is required." } },
+        {
+          ok: false,
+          error: { code: "INVALID_QUERY", message: "sessionId is required." },
+        },
         400,
       );
     }
@@ -57,9 +64,12 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
 
     return createForwardResponse({
       endpoint: agentClientEndpoint,
-      requestEvent: { type: NcpEventType.MessageStreamRequest, payload: streamPayload },
+      requestEvent: {
+        type: NcpEventType.MessageStreamRequest,
+        payload: streamPayload,
+      },
       requestSignal: request.signal,
-      timeoutMs,
+      timeoutMs: null,
       scope: {
         sessionId: streamPayload.sessionId,
       },
@@ -71,7 +81,10 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
     const payload = await parseAbortPayload(request);
     if (!payload) {
       return jsonResponse(
-        { ok: false, error: { code: "INVALID_BODY", message: "sessionId is required." } },
+        {
+          ok: false,
+          error: { code: "INVALID_BODY", message: "sessionId is required." },
+        },
         400,
       );
     }

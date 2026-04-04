@@ -24,7 +24,6 @@ export type AgentSessionRecord = {
 
 export type LiveSessionExecution = {
   controller: AbortController;
-  publisher: EventPublisher;
   requestEnvelope: NcpRequestEnvelope;
   abortHandled: boolean;
   closed: boolean;
@@ -35,6 +34,7 @@ export type LiveSessionState = {
   runtime: NcpAgentRuntime;
   stateManager: NcpAgentConversationStateManager;
   metadata: Record<string, unknown>;
+  publisher: EventPublisher;
   activeExecution: LiveSessionExecution | null;
 };
 

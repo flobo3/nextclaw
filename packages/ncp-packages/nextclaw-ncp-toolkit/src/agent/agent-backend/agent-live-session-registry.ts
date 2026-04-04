@@ -5,6 +5,7 @@ import type {
   CreateRuntimeFn,
   LiveSessionState,
 } from "./agent-backend-types.js";
+import { EventPublisher } from "./event-publisher.js";
 
 export class AgentLiveSessionRegistry {
   private readonly sessions = new Map<string, LiveSessionState>();
@@ -36,7 +37,9 @@ export class AgentLiveSessionRegistry {
       messages: cloneMessages(storedSession?.messages ?? []),
     });
     const sessionMetadata = {
-      ...(storedSession?.metadata ? structuredClone(storedSession.metadata) : {}),
+      ...(storedSession?.metadata
+        ? structuredClone(storedSession.metadata)
+        : {}),
       ...(initialMetadata ? structuredClone(initialMetadata) : {}),
     };
 
@@ -45,19 +48,20 @@ export class AgentLiveSessionRegistry {
       stateManager,
       metadata: sessionMetadata,
       runtime: null as unknown as NcpAgentRuntime,
+      publisher: new EventPublisher(),
       activeExecution: null,
     };
 
     session.runtime = this.createRuntime({
-        sessionId,
-        stateManager,
-        sessionMetadata,
-        setSessionMetadata: (nextMetadata) => {
-          session.metadata = {
-            ...structuredClone(nextMetadata),
-          };
-        },
-      });
+      sessionId,
+      stateManager,
+      sessionMetadata,
+      setSessionMetadata: (nextMetadata) => {
+        session.metadata = {
+          ...structuredClone(nextMetadata),
+        };
+      },
+    });
     this.sessions.set(sessionId, session);
     return session;
   }

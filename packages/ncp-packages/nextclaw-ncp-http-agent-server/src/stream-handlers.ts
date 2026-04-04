@@ -3,7 +3,7 @@ import type {
   NcpEndpointEvent,
   NcpStreamRequestPayload,
 } from "@nextclaw/ncp";
-import { isTerminalEvent, matchesScope } from "./scope.js";
+import { matchesScope } from "./scope.js";
 import {
   buildSseResponse,
   createSseEventStream,
@@ -27,20 +27,23 @@ export type ForwardResponseOptions = {
   scope: EventScope;
 };
 
-export function createForwardResponse(options: ForwardResponseOptions): Response {
+export function createForwardResponse(
+  options: ForwardResponseOptions,
+): Response {
   const { requestSignal } = options;
   return buildSseResponse(
     createSseEventStream(createForwardSseEvents(options), requestSignal),
   );
 }
 
-async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGenerator<SseEventFrame> {
+async function* createForwardSseEvents(
+  options: ForwardResponseOptions,
+): AsyncGenerator<SseEventFrame> {
   const { endpoint, requestEvent, requestSignal, timeoutMs, scope } = options;
   const queue = createAsyncQueue<SseEventFrame>();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let unsubscribe: (() => void) | null = null;
   let stopped = false;
-  let terminalStopScheduled = false;
 
   const push = (frame: SseEventFrame) => {
     if (!stopped) {
@@ -68,7 +71,12 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
   requestSignal.addEventListener("abort", stop, { once: true });
   if (timeoutMs !== null) {
     timeoutId = setTimeout(() => {
-      push(toErrorFrame("TIMEOUT", "NCP HTTP stream timed out before terminal event."));
+      push(
+        toErrorFrame(
+          "TIMEOUT",
+          "NCP HTTP stream timed out before terminal event.",
+        ),
+      );
       stop();
     }, timeoutMs);
   }
@@ -78,12 +86,6 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
       return;
     }
     push(toNcpEventFrame(event));
-    if (isTerminalEvent(event)) {
-      if (!terminalStopScheduled) {
-        terminalStopScheduled = true;
-        queueMicrotask(stop);
-      }
-    }
   });
 
   void endpoint
@@ -93,7 +95,7 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
       stop();
     })
     .finally(() => {
-      if (!terminalStopScheduled) {
+      if (!requestSignal.aborted) {
         queueMicrotask(stop);
       }
     });
@@ -114,7 +116,9 @@ export type LiveStreamResponseOptions = {
   signal: AbortSignal;
 };
 
-export function createLiveStreamResponse(options: LiveStreamResponseOptions): Response {
+export function createLiveStreamResponse(
+  options: LiveStreamResponseOptions,
+): Response {
   const { signal } = options;
   return buildSseResponse(
     createSseEventStream(createLiveStreamSseEvents(options), signal),
@@ -131,9 +135,6 @@ async function* createLiveStreamSseEvents(
         break;
       }
       yield toNcpEventFrame(event);
-      if (isTerminalEvent(event)) {
-        break;
-      }
     }
   } catch (error) {
     yield toErrorFrame("STREAM_SOURCE_FAILED", errorMessage(error));
