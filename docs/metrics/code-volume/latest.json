@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-03T03:20:22.660Z",
+  "generatedAt": "2026-04-04T03:15:07.711Z",
   "projectRoot": "/home/runner/work/nextclaw/nextclaw",
   "git": {
-    "sha": "ec1ac727f9b20c47bb7aae521ad000f5bc4c2252",
+    "sha": "6d80df595aba2a3e0d618f99735d68c55d902cb1",
     "ref": "master"
   },
   "scope": {
@@ -83,10 +83,10 @@
   },
   "totals": {
     "files": 1157,
-    "totalLines": 179733,
+    "totalLines": 179737,
     "blankLines": 17374,
     "commentLines": 1566,
-    "codeLines": 160793
+    "codeLines": 160797
   },
   "byLanguage": [
     {
@@ -100,10 +100,10 @@
     {
       "name": "TSX",
       "files": 176,
-      "totalLines": 24191,
+      "totalLines": 24195,
       "blankLines": 2056,
       "commentLines": 64,
-      "codeLines": 22071
+      "codeLines": 22075
     },
     {
       "name": "JavaScript",
@@ -166,10 +166,10 @@
     {
       "name": "packages/nextclaw-agent-chat-ui",
       "files": 63,
-      "totalLines": 7944,
+      "totalLines": 7948,
       "blankLines": 746,
       "commentLines": 14,
-      "codeLines": 7184
+      "codeLines": 7188
     },
     {
       "name": "packages/nextclaw-openclaw-compat",
@@ -477,8 +477,8 @@
     }
   ],
   "delta": {
-    "previousCodeLines": 157036,
-    "codeLines": 3757,
-    "percent": 2.39
+    "previousCodeLines": 160793,
+    "codeLines": 4,
+    "percent": 0
   }
 }
