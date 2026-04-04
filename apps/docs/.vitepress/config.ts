@@ -283,7 +283,7 @@ export default defineConfig({
           { text: 'Learn & Resources', link: '/en/guide/tutorials' },
           { text: 'Reference', link: '/en/guide/commands' },
           { text: 'Advanced', link: '/en/guide/advanced' },
-          { text: 'Project', link: '/en/guide/roadmap' },
+          { text: 'Project', link: '/en/guide/project-pulse' },
         ],
         sidebar: {
           '/en/guide/': enSidebar,
@@ -312,7 +312,7 @@ export default defineConfig({
           { text: '学习与资源', link: '/zh/guide/tutorials' },
           { text: '参考与排错', link: '/zh/guide/commands' },
           { text: '进阶', link: '/zh/guide/advanced' },
-          { text: '项目', link: '/zh/guide/roadmap' },
+          { text: '项目', link: '/zh/guide/project-pulse' },
         ],
         sidebar: {
           '/zh/guide/': zhSidebar,

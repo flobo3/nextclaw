@@ -10,6 +10,9 @@ hero:
       text: Get Started
       link: /en/guide/getting-started
     - theme: alt
+      text: Project Pulse
+      link: /en/guide/project-pulse
+    - theme: alt
       text: Product Notes
       link: /en/notes/
     - theme: alt

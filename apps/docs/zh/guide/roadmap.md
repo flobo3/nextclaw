@@ -2,6 +2,8 @@
 
 本文档描述 NextClaw 当前阶段的具体优先级与执行计划。所有工作服务于[产品愿景](./vision.md)中的四大核心支柱。迭代历史见：[docs/logs](https://github.com/Peiiii/nextclaw/blob/master/docs/logs/README.md)。
 
+如果你想先看一个更直观的公开页面，了解最近发版节奏、代码规模变化、产品笔记和当前界面截图，先看 [Project Pulse](./project-pulse.md)。
+
 ---
 
 ## 当前阶段优先级

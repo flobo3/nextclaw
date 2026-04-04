@@ -24,6 +24,10 @@
   - `apps/docs/.vitepress/data/project-pulse.generated.mjs`
   - `apps/docs/public/project-pulse/gallery/*`
 - 更新 docs 导航，将 `Project Pulse` 纳入 `Project` 分组
+- 续改入口可见性，补齐三处显式入口：
+  - 顶层导航 `Project / 项目` 直接进入 `Project Pulse`
+  - 中英文首页 Hero 增加 `Project Pulse` 按钮
+  - 中英文 Roadmap 页顶部增加前往 `Project Pulse` 的显式跳转
 - 扩展 `.github/workflows/code-volume-metrics.yml`，在现有 LOC workflow 中同步刷新 `Project Pulse` 聚合数据与截图副本
 - 更新内部工作流说明与 metrics README
 

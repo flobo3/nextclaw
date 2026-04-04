@@ -2,6 +2,8 @@
 
 This document describes NextClaw's current priorities and execution plan. All work serves the four core pillars defined in the [Product Vision](./vision.md). Iteration history: [docs/logs](https://github.com/Peiiii/nextclaw/blob/master/docs/logs/README.md).
 
+Looking for the public-facing dashboard of shipping rhythm, code growth, release cadence, and recent product notes? Start with [Project Pulse](./project-pulse.md).
+
 ---
 
 ## Current Stage Priorities
