@@ -63,6 +63,7 @@ pnpm deploy:docs
 本次已实际执行完成，Cloudflare Pages 返回的部署地址为：
 
 - `https://b95f9e8b.nextclaw-docs.pages.dev`
+- 入口修正续改后的最新部署地址：`https://8c9c2464.nextclaw-docs.pages.dev`
 
 ## 用户 / 产品视角的验收步骤
 
