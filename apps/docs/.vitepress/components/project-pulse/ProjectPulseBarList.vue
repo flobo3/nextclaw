@@ -30,7 +30,7 @@ const withWidth = computed(() =>
       <div class="bar-list__head">
         <span class="bar-list__name">
           <span class="bar-list__rank">{{ item.rank }}</span>
-          <span>{{ item.name }}</span>
+          <span class="bar-list__label">{{ item.name }}</span>
         </span>
         <span class="bar-list__value">{{ item.value.toLocaleString() }}</span>
       </div>
@@ -54,30 +54,39 @@ const withWidth = computed(() =>
 }
 
 .bar-list__head {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 1rem;
-  align-items: baseline;
+  align-items: start;
 }
 
 .bar-list__name {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 0.55rem;
   font-size: 0.92rem;
   color: #132639;
   min-width: 0;
 }
 
-.bar-list__name span:last-child {
+.bar-list__label {
+  display: -webkit-box;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
 }
 
 .bar-list__value {
   font-size: 0.86rem;
   color: rgba(19, 38, 57, 0.72);
+  white-space: nowrap;
+  padding-top: 0.18rem;
 }
 
 .bar-list__rank {
@@ -112,5 +121,16 @@ const withWidth = computed(() =>
 .bar-list__meta {
   font-size: 0.78rem;
   color: rgba(19, 38, 57, 0.56);
+}
+
+@media (max-width: 640px) {
+  .bar-list__head {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .bar-list__value {
+    padding-top: 0;
+  }
 }
 </style>

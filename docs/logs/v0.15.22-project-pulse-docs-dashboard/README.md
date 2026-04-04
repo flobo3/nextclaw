@@ -33,6 +33,10 @@
   - 每张趋势卡新增 `Latest / Change / Since start / Peak / Low` 这类摘要信息
   - 保留产品叙事层与视觉样式，但把 tooltip、坐标轴、响应式渲染交给成熟图表引擎
   - 移动端与桌面端统一为更稳定的 tooltip、轴标签和焦点高亮体验
+- 续改 `Top scopes` 条形榜布局，修复长路径在双栏区域横向溢出并压到右侧卡片的问题：
+  - `bar-list` 头部改成真正可收缩的双列布局
+  - scope 名称改成两行截断 + 必要断词，而不是单行 `span` 省略
+  - 小屏下数值自动落到下一行，避免再出现路径与数值互相挤压
 - 扩展 `.github/workflows/code-volume-metrics.yml`，在现有 LOC workflow 中同步刷新 `Project Pulse` 聚合数据与截图副本
 - 更新内部工作流说明与 metrics README
 
@@ -58,6 +62,36 @@ const { chromium } = require('playwright');
   await browser.close();
 })();
 EOF
+node - <<'EOF'
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1236, height: 1364 } });
+  await page.goto('http://127.0.0.1:4174/zh/guide/project-pulse', { waitUntil: 'networkidle' });
+  const metrics = await page.evaluate(() => {
+    const card = document.querySelector('.project-pulse__two-column > .project-pulse__panel');
+    const benchmarkPanel = document.querySelector('.project-pulse__panel--accent');
+    if (card instanceof HTMLElement && benchmarkPanel instanceof HTMLElement) {
+      const cardRect = card.getBoundingClientRect();
+      const benchmarkRect = benchmarkPanel.getBoundingClientRect();
+      return Array.from(document.getElementsByClassName('bar-list__label')).map((label) => {
+        if (label instanceof HTMLElement) {
+          const rect = label.getBoundingClientRect();
+          return {
+            text: label.textContent,
+            overflowPastCard: rect.right > cardRect.right,
+            overlapBenchmark: rect.right > benchmarkRect.left
+          };
+        }
+        return null;
+      });
+    }
+    return null;
+  });
+  console.log(JSON.stringify(metrics, null, 2));
+  await browser.close();
+})();
+EOF
 curl -s https://d432c516.nextclaw-docs.pages.dev/en/guide/project-pulse | rg -n "Project Pulse|trend-chart__canvas"
 node - <<'EOF'
 const { chromium } = require('playwright');
@@ -79,6 +113,7 @@ EOF
 - `lint:maintainability:guard` 通过，且在脚本下沉后无新增可维护性告警
 - docs preview 冒烟通过，中英文页面均能返回，且包含 `Project Pulse` 标题、截图路径与 Product Notes 链接
 - 本地浏览器冒烟通过，Playwright 已确认趋势区成功渲染出 3 张 `ECharts` SVG 图表
+- 本地浏览器边界检查通过，`Top scopes` 所有长路径均未再越过左侧卡片边界，也未再与右侧基准卡重叠
 - `pnpm deploy:docs` 通过，Cloudflare Pages 已返回部署成功
 - 线上冒烟通过，远端部署页成功渲染出 3 张趋势图，最新值展示正常
 
@@ -95,6 +130,7 @@ pnpm deploy:docs
 - `https://b95f9e8b.nextclaw-docs.pages.dev`
 - 入口修正续改后的最新部署地址：`https://8c9c2464.nextclaw-docs.pages.dev`
 - 图表体验优化续改后的最新部署地址：`https://d432c516.nextclaw-docs.pages.dev`
+- `Top scopes` 布局溢出修复后的最新部署地址：`https://1513266e.nextclaw-docs.pages.dev`
 
 ## 用户 / 产品视角的验收步骤
 
