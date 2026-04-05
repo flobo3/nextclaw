@@ -1,3 +1,4 @@
+import { AGENT_LABELS } from './i18n.agents';
 import { CHANNEL_LABELS } from './i18n.channels';
 import { CHANNEL_AUTH_LABELS } from './i18n.channel-auth';
 import { CHAT_LABELS } from './i18n.chat';
@@ -24,7 +25,6 @@ export {
   setLanguage,
   subscribeLanguageChange
 };
-
 export function formatDateTime(value?: string | Date, lang: I18nLanguage = getLanguage()): string {
   if (!value) {
     return '-';
@@ -409,7 +409,6 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   peerIdPlaceholder: { zh: '对端 ID（需先设置对端类型）', en: 'Peer ID (requires peer kind)' },
   addBinding: { zh: '添加绑定', en: 'Add Binding' },
   saveRuntimeSettings: { zh: '保存运行时设置', en: 'Save Runtime Settings' },
-
   // Secrets
   secretsPageTitle: { zh: '密钥管理', en: 'Secrets Management' },
   secretsPageDescription: {
@@ -494,6 +493,7 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   },
 
   // Chat
+  ...AGENT_LABELS,
   ...CHAT_LABELS,
 
   // Cron

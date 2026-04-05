@@ -1,0 +1,90 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ConfigSchema, loadConfig, saveConfig } from "@nextclaw/core";
+import { createUiRouter } from "./router.js";
+
+const tempDirs: string[] = [];
+
+function createTempConfigPath(): string {
+  const dir = mkdtempSync(join(tmpdir(), "nextclaw-ui-agents-test-"));
+  tempDirs.push(dir);
+  return join(dir, "config.json");
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop();
+    if (dir) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+describe("agents routes", () => {
+  it("creates an agent and serves its generated avatar", async () => {
+    const configPath = createTempConfigPath();
+    const homeDir = join(dirname(configPath), "workspace");
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace: homeDir
+          }
+        }
+      }),
+      configPath
+    );
+    const publish = vi.fn();
+
+    const app = createUiRouter({
+      configPath,
+      publish
+    });
+
+    const createResponse = await app.request("http://localhost/api/agents", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        id: "researcher",
+        displayName: "Researcher"
+      })
+    });
+
+    expect(createResponse.status).toBe(200);
+    const createPayload = await createResponse.json() as { ok: true; data: { id: string; avatarUrl?: string } };
+    expect(createPayload.data.id).toBe("researcher");
+    expect(createPayload.data.avatarUrl).toBe("/api/agents/researcher/avatar");
+    expect(publish).toHaveBeenCalledWith({
+      type: "config.updated",
+      payload: { path: "agents.list" }
+    });
+
+    const saved = loadConfig(configPath);
+    expect(saved.agents.list.some((entry) => entry.id === "researcher")).toBe(true);
+
+    const avatarResponse = await app.request("http://localhost/api/agents/researcher/avatar");
+    expect(avatarResponse.status).toBe(200);
+    expect(avatarResponse.headers.get("content-type")).toBe("image/svg+xml");
+    expect(await avatarResponse.text()).toContain("<svg");
+  });
+
+  it("rejects reserved built-in agent deletion", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(ConfigSchema.parse({}), configPath);
+    const app = createUiRouter({
+      configPath,
+      publish: vi.fn()
+    });
+
+    const response = await app.request("http://localhost/api/agents/main", {
+      method: "DELETE"
+    });
+
+    expect(response.status).toBe(400);
+  });
+});

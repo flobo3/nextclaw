@@ -1,4 +1,5 @@
 import type { SessionEntryView } from '@/api/types';
+import { AgentAvatar } from '@/components/common/AgentAvatar';
 import { SessionContextIconNode } from '@/components/common/session-context-icon';
 import { SessionRunBadge } from '@/components/common/SessionRunBadge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,9 @@ type ChatSidebarSessionItemProps = {
   runStatus?: SessionRunStatus;
   context: SessionContextView;
   title: string;
+  agentId?: string | null;
+  agentLabel?: string | null;
+  agentAvatarUrl?: string | null;
   isEditing: boolean;
   draftLabel: string;
   isSaving: boolean;
@@ -32,6 +36,9 @@ export function ChatSidebarSessionItem(props: ChatSidebarSessionItemProps) {
     runStatus,
     context,
     title,
+    agentId,
+    agentLabel,
+    agentAvatarUrl,
     isEditing,
     draftLabel,
     isSaving,
@@ -105,6 +112,14 @@ export function ChatSidebarSessionItem(props: ChatSidebarSessionItemProps) {
           <button type="button" onClick={onSelect} className="w-full text-left">
             <div className="grid grid-cols-[minmax(0,1fr)_0.875rem] items-center gap-1.5 pr-8">
               <span className="flex min-w-0 items-center gap-1.5">
+                {agentId ? (
+                  <AgentAvatar
+                    agentId={agentId}
+                    displayName={agentLabel}
+                    avatarUrl={agentAvatarUrl}
+                    className="h-5 w-5 shrink-0"
+                  />
+                ) : null}
                 <span className="truncate font-medium">{title}</span>
                 {context.label ? (
                   <span
@@ -129,7 +144,7 @@ export function ChatSidebarSessionItem(props: ChatSidebarSessionItemProps) {
               </span>
             </div>
             <div className="mt-0.5 text-[11px] text-gray-400 truncate">
-              {session.messageCount} · {formatDateTime(session.updatedAt)}
+              {agentLabel?.trim() ? `${agentLabel} · ` : ''}{session.messageCount} · {formatDateTime(session.updatedAt)}
             </div>
           </button>
           <button

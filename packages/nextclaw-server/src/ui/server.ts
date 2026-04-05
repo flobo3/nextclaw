@@ -132,6 +132,7 @@ export function startUiServer(options: UiServerStartOptions): UiServerHandle {
       productVersion: options.productVersion,
       publish,
       applyLiveConfigReload: options.applyLiveConfigReload,
+      initializeAgentHomeDirectory: options.initializeAgentHomeDirectory,
       marketplace: options.marketplace,
       cronService: options.cronService,
       ncpAgent: options.ncpAgent,

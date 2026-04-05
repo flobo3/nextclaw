@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSkillsInstallWorkdir } from "./runtime.js";
+import { resolveSkillsInstallWorkdir } from "./runtime-helpers.js";
 
 describe("resolveSkillsInstallWorkdir", () => {
   it("uses explicit workdir when provided", () => {

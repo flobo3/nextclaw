@@ -21,7 +21,9 @@ function isMainWorkspaceRoute(pathname: string): boolean {
     normalized === '/skills' ||
     normalized.startsWith('/skills/') ||
     normalized === '/cron' ||
-    normalized.startsWith('/cron/')
+    normalized.startsWith('/cron/') ||
+    normalized === '/agents' ||
+    normalized.startsWith('/agents/')
   );
 }
 

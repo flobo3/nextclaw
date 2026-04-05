@@ -13,6 +13,7 @@ import { useNcpSessionListView, type NcpSessionListItemView } from '@/components
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
+import { useAgents } from '@/hooks/agents/useAgents';
 import { cn } from '@/lib/utils';
 import { LANGUAGE_OPTIONS, t, type I18nLanguage } from '@/lib/i18n';
 import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
@@ -23,6 +24,7 @@ import { SidebarActionItem, SidebarNavLinkItem, SidebarSelectItem } from '@/comp
 import { useUiStore } from '@/stores/ui.store';
 import {
   AlarmClock,
+  Bot,
   BookOpen,
   BrainCircuit,
   ChevronDown,
@@ -93,6 +95,7 @@ function resolveSessionTypeStatusText(option: {
 const navItems = [
   { target: '/cron', label: () => t('chatSidebarScheduledTasks'), icon: AlarmClock },
   { target: '/skills', label: () => t('chatSidebarSkills'), icon: BrainCircuit },
+  { target: '/agents', label: () => t('agentsPageTitle'), icon: Bot },
 ];
 
 export function ChatSidebar() {
@@ -105,12 +108,17 @@ export function ChatSidebar() {
   const inputSnapshot = useChatInputStore((state) => state.snapshot);
   const listSnapshot = useChatSessionListStore((state) => state.snapshot);
   const connectionStatus = useUiStore((state) => state.connectionStatus);
+  const agentsQuery = useAgents();
   const { isLoading, items } = useNcpSessionListView();
   const { language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
   const updateSessionLabel = useChatSessionLabel();
   const currentThemeLabel = t(THEME_OPTIONS.find((o) => o.value === theme)?.labelKey ?? 'themeWarm');
   const currentLanguageLabel = LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? language;
+  const agentsById = useMemo(
+    () => new Map((agentsQuery.data?.agents ?? []).map((agent) => [agent.id, agent])),
+    [agentsQuery.data?.agents]
+  );
 
   const groups = useMemo(() => groupSessionsByDate(items), [items]);
   const defaultSessionType = inputSnapshot.defaultSessionType || 'native';
@@ -293,6 +301,9 @@ export function ChatSidebar() {
                         runStatus={runStatus}
                         context={context}
                         title={sessionTitle(session)}
+                        agentId={session.agentId ?? null}
+                        agentLabel={session.agentId ? (agentsById.get(session.agentId)?.displayName ?? session.agentId) : null}
+                        agentAvatarUrl={session.agentId ? (agentsById.get(session.agentId)?.avatarUrl ?? null) : null}
                         isEditing={isEditing}
                         draftLabel={draftLabel}
                         isSaving={isSaving}

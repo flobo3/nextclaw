@@ -220,6 +220,8 @@ export const AgentDefaultsSchema = z.object({
 export const AgentProfileSchema = z.object({
   id: z.string().default("main"),
   default: z.boolean().default(false),
+  displayName: z.string().trim().max(80).optional(),
+  avatar: z.string().trim().optional(),
   workspace: z.string().optional(),
   model: z.string().optional(),
   engine: z.string().optional(),

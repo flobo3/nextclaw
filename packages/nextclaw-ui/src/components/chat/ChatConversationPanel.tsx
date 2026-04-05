@@ -7,6 +7,7 @@ import {
 } from "@/components/chat/nextclaw";
 import { ChatChildSessionPanel } from "@/components/chat/chat-child-session-panel";
 import { ChatWelcome } from "@/components/chat/ChatWelcome";
+import { AgentAvatar } from "@/components/common/AgentAvatar";
 import { usePresenter } from "@/components/chat/presenter/chat-presenter-context";
 import { ChatSessionHeaderActions } from "@/components/chat/session-header/chat-session-header-actions";
 import { ChatSessionProjectBadge } from "@/components/chat/session-header/chat-session-project-badge";
@@ -114,6 +115,19 @@ export function ChatConversationPanel() {
           )}
         >
           <div className="min-w-0 flex-1 flex items-center gap-2">
+            {snapshot.agentId ? (
+              <div className="inline-flex items-center gap-2 shrink-0 rounded-full border border-gray-200 bg-white/80 px-2 py-1">
+                <AgentAvatar
+                  agentId={snapshot.agentId}
+                  displayName={snapshot.agentDisplayName}
+                  avatarUrl={snapshot.agentAvatarUrl}
+                  className="h-5 w-5"
+                />
+                <span className="max-w-[120px] truncate text-xs font-medium text-gray-700">
+                  {snapshot.agentDisplayName?.trim() || snapshot.agentId}
+                </span>
+              </div>
+            ) : null}
             <span className="text-sm font-medium text-gray-700 truncate">
               {sessionHeaderTitle}
             </span>
@@ -174,6 +188,9 @@ export function ChatConversationPanel() {
           {showWelcome ? (
             <ChatWelcome
               onCreateSession={presenter.chatThreadManager.createSession}
+              agents={snapshot.availableAgents ?? []}
+              selectedAgentId={snapshot.agentId ?? "main"}
+              onSelectAgent={presenter.chatSessionListManager.setSelectedAgentId}
             />
           ) : hideEmptyHint ? (
             <div className="h-full" />

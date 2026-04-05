@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatConversationPanel } from '@/components/chat/ChatConversationPanel';
+import { AgentsPage } from '@/components/agents/AgentsPage';
 import { CronConfig } from '@/components/config/CronConfig';
 import { MarketplacePage } from '@/components/marketplace/MarketplacePage';
 
-export type MainPanelView = 'chat' | 'cron' | 'skills';
+export type MainPanelView = 'chat' | 'cron' | 'skills' | 'agents';
 
 export type ChatPageProps = {
   view: MainPanelView;
@@ -85,6 +86,12 @@ export function ChatPageLayout({ view, confirmDialog }: ChatPageLayoutProps) {
             <div className="h-full overflow-auto custom-scrollbar">
               <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
                 <CronConfig />
+              </div>
+            </div>
+          ) : view === 'agents' ? (
+            <div className="h-full overflow-auto custom-scrollbar">
+              <div className="mx-auto w-full max-w-[min(1180px,100%)] px-6 py-5">
+                <AgentsPage />
               </div>
             </div>
           ) : (

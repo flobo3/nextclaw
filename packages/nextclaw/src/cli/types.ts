@@ -48,6 +48,21 @@ export type PluginsListOptions = {
   verbose?: boolean;
 };
 
+export type AgentsListCommandOptions = {
+  json?: boolean;
+};
+
+export type AgentsNewCommandOptions = {
+  name?: string;
+  avatar?: string;
+  home?: string;
+  json?: boolean;
+};
+
+export type AgentsRemoveCommandOptions = {
+  json?: boolean;
+};
+
 export type PluginsInfoOptions = {
   json?: boolean;
 };

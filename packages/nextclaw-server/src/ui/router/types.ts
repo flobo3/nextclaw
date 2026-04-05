@@ -24,6 +24,7 @@ export type UiRouterOptions = {
   productVersion?: string;
   publish: (event: UiServerEvent) => void;
   applyLiveConfigReload?: () => Promise<void>;
+  initializeAgentHomeDirectory?: (homeDirectory: string) => void;
   marketplace?: MarketplaceApiConfig;
   cronService?: InstanceType<typeof NextclawCore.CronService>;
   ncpAgent?: UiNcpAgent;
@@ -76,14 +77,24 @@ export type CronJobEntry = {
 };
 
 export type SkillInfo = {
+  ref: string;
   name: string;
   path: string;
-  source: "workspace";
+  source: "builtin" | "project" | "workspace";
+  scope: "builtin" | "project" | "workspace";
 };
 
 export type SkillsLoaderInstance = {
   listSkills: (filterUnavailable?: boolean) => SkillInfo[];
-  getSkillMetadata?: (name: string) => Record<string, string> | null;
+  getSkillMetadata?: (selector: string | SkillInfo) => Record<string, string> | null;
 };
 
-export type SkillsLoaderConstructor = new (workspace: string) => SkillsLoaderInstance;
+export type SkillsLoaderConstructor = new (
+  workspace:
+    | string
+    | {
+        workspace: string;
+        projectRoot?: string | null;
+        includeBuiltin?: boolean;
+      }
+) => SkillsLoaderInstance;

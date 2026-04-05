@@ -55,6 +55,7 @@ export async function startUiShell(params: {
   openBrowserWindow: boolean;
   applyLiveConfigReload?: () => Promise<void>;
   ncpSessionService?: UiNcpSessionService;
+  initializeAgentHomeDirectory?: (homeDirectory: string) => void;
 }): Promise<UiStartupHandle | null> {
   logStartupTrace("service.start_ui_shell.begin");
   if (!params.uiConfig.enabled) {
@@ -70,6 +71,7 @@ export async function startUiShell(params: {
     productVersion: params.productVersion,
     staticDir: params.uiStaticDir ?? undefined,
     applyLiveConfigReload: params.applyLiveConfigReload,
+    initializeAgentHomeDirectory: params.initializeAgentHomeDirectory,
     cronService: params.cronService,
     marketplace: params.marketplace,
     remoteAccess: params.remoteAccess,

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { MutableRefObject } from 'react';
 import type { NcpMessage } from '@nextclaw/ncp';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
+import type { AgentProfileView } from '@/api/types';
 
 export type ChatThreadSnapshot = {
   isProviderStateResolved: boolean;
@@ -10,6 +11,10 @@ export type ChatThreadSnapshot = {
   sessionTypeUnavailableMessage?: string | null;
   sessionTypeLabel?: string | null;
   sessionKey: string | null;
+  agentId?: string | null;
+  agentDisplayName?: string | null;
+  agentAvatarUrl?: string | null;
+  availableAgents?: AgentProfileView[];
   sessionDisplayName?: string;
   sessionProjectRoot?: string | null;
   sessionProjectName?: string | null;
@@ -39,6 +44,10 @@ const initialSnapshot: ChatThreadSnapshot = {
   sessionTypeUnavailableMessage: null,
   sessionTypeLabel: null,
   sessionKey: null,
+  agentId: null,
+  agentDisplayName: null,
+  agentAvatarUrl: null,
+  availableAgents: [],
   sessionDisplayName: undefined,
   sessionProjectRoot: null,
   sessionProjectName: null,

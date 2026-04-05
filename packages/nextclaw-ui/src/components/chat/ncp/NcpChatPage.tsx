@@ -33,16 +33,14 @@ import {
 } from "@/components/chat/chat-session-route";
 import { useNcpChatPageData } from "@/components/chat/ncp/ncp-chat-page-data";
 import { NcpChatPresenter } from "@/components/chat/ncp/ncp-chat.presenter";
-import {
-  adaptNcpSessionSummary,
-  createNcpSessionId,
-} from "@/components/chat/ncp/ncp-session-adapter";
+import { createNcpSessionId } from "@/components/chat/ncp/ncp-session-adapter";
+import { useNcpChatDerivedState, useNcpChatSnapshotSync } from "@/components/chat/ncp/page/ncp-chat-derived-state";
 import { ChatPresenterProvider } from "@/components/chat/presenter/chat-presenter-context";
 import type { ResumeRunParams } from "@/components/chat/chat-stream/types";
 import { useChatInputStore } from "@/components/chat/stores/chat-input.store";
 import { useChatSessionListStore } from "@/components/chat/stores/chat-session-list.store";
-import { resolveSessionTypeLabel } from "@/components/chat/useChatSessionTypeState";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useAgents } from "@/hooks/agents/useAgents";
 import { normalizeRequestedSkills } from "@/lib/chat-runtime-utils";
 import {
   getSessionProjectName,
@@ -152,6 +150,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
   const pendingProjectRootSessionKey = useChatInputStore(
     (state) => state.snapshot.pendingProjectRootSessionKey,
   );
+  const agentsQuery = useAgents();
   const currentSelectedModel = useChatInputStore(
     (state) => state.snapshot.selectedModel,
   );
@@ -355,90 +354,55 @@ export function NcpChatPage({ view }: ChatPageProps) {
     });
   }, [confirm, location.pathname, navigate, presenter]);
 
-  const currentSessionDisplayName = selectedSession
-    ? sessionDisplayName(selectedSession)
-    : undefined;
-  const parentSession = useMemo(() => {
-    if (!parentSessionId) {
-      return null;
-    }
-    const parentSummary =
-      sessionSummaries.find(
-        (summary) => summary.sessionId === parentSessionId,
-      ) ?? null;
-    return parentSummary ? adaptNcpSessionSummary(parentSummary) : null;
-  }, [parentSessionId, sessionSummaries]);
-  const currentSessionTypeLabel =
-    sessionTypeOptions.find((option) => option.value === selectedSessionType)
-      ?.label ?? resolveSessionTypeLabel(selectedSessionType);
-
-  useEffect(() => {
-    presenter.chatInputManager.syncSnapshot({
-      isProviderStateResolved,
-      defaultSessionType,
-      canStopGeneration: canStopCurrentRun,
-      stopDisabledReason,
-      stopSupported: true,
-      stopReason: undefined,
-      sendError: lastSendError,
-      isSending,
-      modelOptions,
-      sessionTypeOptions,
-      selectedSessionType,
-      canEditSessionType,
-      sessionTypeUnavailable,
-      skillRecords,
-      isSkillsLoading: sessionSkillsQuery.isLoading,
-    });
-    presenter.chatThreadManager.syncSnapshot({
-      isProviderStateResolved,
-      modelOptions,
-      sessionTypeUnavailable,
-      sessionTypeUnavailableMessage,
-      sessionTypeLabel: currentSessionTypeLabel,
-      sessionKey,
-      sessionDisplayName: currentSessionDisplayName,
-      sessionProjectRoot: effectiveSessionProjectRoot,
-      sessionProjectName: effectiveSessionProjectName,
-      canDeleteSession: Boolean(selectedSession),
-      threadRef,
-      isHistoryLoading: agent.isHydrating,
-      messages: agent.visibleMessages,
-      isSending,
-      isAwaitingAssistantOutput,
-      parentSessionKey: parentSession?.key ?? null,
-      parentSessionLabel: parentSession
-        ? sessionDisplayName(parentSession)
-        : null,
-    });
-  }, [
-    agent.isHydrating,
-    canEditSessionType,
-    canStopCurrentRun,
+  const availableAgents = (agentsQuery.data?.agents?.length ?? 0) > 0
+    ? (agentsQuery.data?.agents ?? [])
+    : [{ id: selectedSession?.agentId ?? selectedAgentId }];
+  const {
     currentSessionDisplayName,
-    currentSessionTypeLabel,
-    defaultSessionType,
-    sessionSkillsQuery.isLoading,
-    isAwaitingAssistantOutput,
-    isProviderStateResolved,
-    isSending,
-    lastSendError,
-    modelOptions,
+    currentAgentId,
+    currentAgent,
     parentSession,
-    presenter,
-    effectiveSessionProjectName,
-    effectiveSessionProjectRoot,
+    currentSessionTypeLabel
+  } = useNcpChatDerivedState({
     selectedSession,
-    sessionKey,
+    selectedAgentId,
+    availableAgents,
+    parentSessionId,
+    sessionSummaries,
     selectedSessionType,
-    sessionTypeOptions,
-    sessionTypeUnavailable,
-    sessionTypeUnavailableMessage,
-    skillRecords,
+    sessionTypeOptions
+  });
+
+  useNcpChatSnapshotSync({
+    presenter,
+    isProviderStateResolved,
+    defaultSessionType,
+    canStopCurrentRun,
     stopDisabledReason,
+    lastSendError,
+    isSending,
+    modelOptions,
+    sessionTypeOptions,
+    selectedSessionType,
+    canEditSessionType,
+    sessionTypeUnavailable,
+    skillRecords,
+    isSkillsLoading: sessionSkillsQuery.isLoading,
+    sessionTypeUnavailableMessage,
+    currentSessionTypeLabel,
+    sessionKey,
+    currentAgentId,
+    currentAgent,
+    availableAgents,
+    currentSessionDisplayName,
+    effectiveSessionProjectRoot,
+    effectiveSessionProjectName,
+    selectedSession,
     threadRef,
-    agent.visibleMessages,
-  ]);
+    agent,
+    isAwaitingAssistantOutput,
+    parentSession
+  });
 
   return (
     <ChatPresenterProvider presenter={presenter}>

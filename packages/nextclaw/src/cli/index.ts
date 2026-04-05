@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { APP_NAME, APP_TAGLINE } from "@nextclaw/core";
 import { registerRemoteCommands } from "@nextclaw/remote";
 import { CliRuntime, LOGO } from "./runtime.js";
+import { registerAgentsCommands } from "./register-agents-commands.js";
 import { logStartupTrace, measureStartupSync } from "./startup-trace.js";
 import { getPackageVersion } from "./utils.js";
 
@@ -143,6 +144,8 @@ skills
   .option("--api-base <url>", "Marketplace API base URL")
   .option("--token <token>", "Marketplace admin token")
   .action(async (dir, opts) => runtime.skillsUpdate({ dir, ...opts, apiBaseUrl: opts.apiBase }));
+
+registerAgentsCommands(program, runtime);
 
 const plugins = program.command("plugins").description("Manage OpenClaw-compatible plugins");
 

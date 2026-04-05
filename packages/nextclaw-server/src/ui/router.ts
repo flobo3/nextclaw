@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { mountNcpHttpAgentRoutes } from "@nextclaw/ncp-http-agent-server";
 import { UiAuthService } from "./auth.service.js";
+import { AgentsRoutesController } from "./router/agents.controller.js";
 import { AppRoutesController } from "./router/app.controller.js";
 import { AuthRoutesController } from "./router/auth.controller.js";
 import { ConfigRoutesController } from "./router/config.controller.js";
@@ -27,6 +28,13 @@ function registerAuthRoutes(app: Hono, authController: AuthRoutesController): vo
   app.put("/api/auth/password", authController.updatePassword);
   app.put("/api/auth/enabled", authController.updateEnabled);
   app.post("/api/auth/bridge", authController.issueBridgeSession);
+}
+
+function registerAgentRoutes(app: Hono, agentsController: AgentsRoutesController): void {
+  app.get("/api/agents", agentsController.listAgents);
+  app.post("/api/agents", agentsController.createAgent);
+  app.delete("/api/agents/:agentId", agentsController.deleteAgent);
+  app.get("/api/agents/:agentId/avatar", agentsController.getAgentAvatar);
 }
 
 function registerConfigRoutes(app: Hono, configController: ConfigRoutesController): void {
@@ -110,6 +118,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   const authService = options.authService ?? new UiAuthService(options.configPath);
 
   const appController = new AppRoutesController(options);
+  const agentsController = new AgentsRoutesController(options);
   const authController = new AuthRoutesController(authService);
   const configController = new ConfigRoutesController(options);
   const cronController = new CronRoutesController(options);
@@ -141,6 +150,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   app.get("/api/app/meta", appController.appMeta);
   app.get("/api/runtime/bootstrap-status", appController.bootstrapStatus);
   registerAuthRoutes(app, authController);
+  registerAgentRoutes(app, agentsController);
   registerConfigRoutes(app, configController);
   registerNcpSessionRoutes(app, ncpSessionController);
   registerServerPathRoutes(app, serverPathController);

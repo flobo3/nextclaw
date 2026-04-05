@@ -5,6 +5,7 @@ import {
   getSessionProjectName,
   normalizeSessionProjectRootValue,
 } from '@/lib/session-project/session-project.utils';
+import { resolveAgentIdFromSessionKey } from '@/components/chat/chat-session-route';
 
 const THINKING_LEVEL_SET = new Set<string>(['off', 'minimal', 'low', 'medium', 'high', 'adaptive', 'xhigh']);
 
@@ -253,6 +254,7 @@ export function adaptNcpSessionSummary(summary: NcpSessionSummaryView): SessionE
     key: summary.sessionId,
     createdAt: summary.updatedAt,
     updatedAt: summary.updatedAt,
+    ...(resolveAgentIdFromSessionKey(summary.sessionId) ? { agentId: resolveAgentIdFromSessionKey(summary.sessionId) ?? undefined } : {}),
     ...(label ? { label } : {}),
     ...context,
     ...(preferredModel ? { preferredModel } : {}),

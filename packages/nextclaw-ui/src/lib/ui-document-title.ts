@@ -9,6 +9,7 @@ const ROUTE_TITLE_KEYS: Array<{ prefix: string; key: string }> = [
   { prefix: '/marketplace', key: 'marketplace' },
   { prefix: '/skills', key: 'marketplaceSkillsPageTitle' },
   { prefix: '/cron', key: 'cronPageTitle' },
+  { prefix: '/agents', key: 'agentsPageTitle' },
   { prefix: '/chat', key: 'chat' },
   { prefix: '/model', key: 'modelPageTitle' },
   { prefix: '/search', key: 'searchPageTitle' },

@@ -71,6 +71,14 @@ vi.mock('@/components/common/StatusBadge', () => ({
   StatusBadge: () => <div data-testid="status-badge" />
 }));
 
+vi.mock('@/hooks/agents/useAgents', () => ({
+  useAgents: () => ({
+    data: {
+      agents: []
+    }
+  })
+}));
+
 vi.mock('@/components/providers/I18nProvider', () => ({
   useI18n: () => ({
     language: 'en',

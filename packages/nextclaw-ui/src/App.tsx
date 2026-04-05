@@ -41,7 +41,9 @@ function ProtectedApp() {
           <Routes>
             <Route path="/chat/skills" element={<Navigate to="/skills" replace />} />
             <Route path="/chat/cron" element={<Navigate to="/cron" replace />} />
+            <Route path="/chat/agents" element={<Navigate to="/agents" replace />} />
             <Route path="/chat/:sessionId?" element={<LazyRoute><ChatPage view="chat" /></LazyRoute>} />
+            <Route path="/agents" element={<LazyRoute><ChatPage view="agents" /></LazyRoute>} />
             <Route path="/skills" element={<LazyRoute><ChatPage view="skills" /></LazyRoute>} />
             <Route path="/cron" element={<LazyRoute><ChatPage view="cron" /></LazyRoute>} />
             <Route path="/model" element={<LazyRoute><ModelConfigPage /></LazyRoute>} />

@@ -1,19 +1,4 @@
-import {
-  loadConfig,
-  saveConfig,
-  getConfigPath,
-  getDataDir,
-  type Config,
-  getWorkspacePath,
-  expandHome,
-  MessageBus,
-  AgentLoop,
-  ProviderManager,
-  resolveConfigSecrets,
-  APP_NAME,
-  DEFAULT_WORKSPACE_DIR,
-  DEFAULT_WORKSPACE_PATH,
-} from "@nextclaw/core";
+import { loadConfig, saveConfig, getConfigPath, getDataDir, type Config, getWorkspacePath, expandHome, MessageBus, AgentLoop, ProviderManager, resolveConfigSecrets, APP_NAME, DEFAULT_WORKSPACE_DIR, DEFAULT_WORKSPACE_PATH } from "@nextclaw/core";
 import { RemoteRuntimeActions } from "@nextclaw/remote";
 import {
   getPluginChannelBindings,
@@ -28,6 +13,7 @@ import { spawn } from "node:child_process";
 import { RestartCoordinator, type RestartStrategy } from "./restart-coordinator.js";
 import { initializeConfigIfMissing } from "./runtime-config-init.js";
 import { writeRestartSentinel } from "./restart-sentinel.js";
+import { parseStartTimeoutMs, resolveSkillsInstallWorkdir } from "./runtime-helpers.js";
 import { logStartupTrace, measureStartupSync } from "./startup-trace.js";
 import { installMarketplaceSkill, publishMarketplaceSkill } from "./skills/marketplace.js";
 import { runSelfUpdate } from "./update/runner.js";
@@ -45,6 +31,7 @@ import { McpCommands } from "./commands/mcp.js";
 import { SecretsCommands } from "./commands/secrets.js";
 import { ChannelCommands } from "./commands/channels.js";
 import { CronCommands } from "./commands/cron.js";
+import { AgentCommands } from "./commands/agents.js";
 import { PlatformAuthCommands } from "./commands/platform-auth.js";
 import { RemoteCommands } from "./commands/remote.js";
 import { DiagnosticsCommands } from "./commands/diagnostics.js";
@@ -53,6 +40,9 @@ import { ServiceCommands } from "./commands/service.js";
 import { WorkspaceManager } from "./workspace.js";
 import type {
   AgentCommandOptions,
+  AgentsListCommandOptions,
+  AgentsNewCommandOptions,
+  AgentsRemoveCommandOptions,
   ChannelsAddOptions,
   ChannelsLoginOptions,
   ConfigGetOptions,
@@ -83,15 +73,6 @@ export const LOGO = "🤖";
 
 const EXIT_COMMANDS = new Set(["exit", "quit", "/exit", "/quit", ":q"]);
 const FORCED_PUBLIC_UI_HOST = "0.0.0.0";
-export function resolveSkillsInstallWorkdir(params: {
-  explicitWorkdir?: string;
-  configuredWorkspace?: string;
-}): string {
-  if (params.explicitWorkdir) {
-    return expandHome(params.explicitWorkdir);
-  }
-  return getWorkspacePath(params.configuredWorkspace);
-}
 
 export class CliRuntime {
   private logo: string;
@@ -104,6 +85,7 @@ export class CliRuntime {
   private mcpCommands: McpCommands;
   private secretsCommands: SecretsCommands;
   private pluginCommands: PluginCommands;
+  private agentCommands: AgentCommands;
   private channelCommands: ChannelCommands;
   private cronCommands: CronCommands;
   private platformAuthCommands: PlatformAuthCommands;
@@ -117,6 +99,7 @@ export class CliRuntime {
 
     this.serviceCommands = measureStartupSync("cli.runtime.service_commands", () => new ServiceCommands({
       requestRestart: (params) => this.requestRestart(params),
+      initializeAgentHomeDirectory: (homeDirectory) => this.workspaceManager.createWorkspaceTemplates(homeDirectory)
     }));
     this.configCommands = measureStartupSync("cli.runtime.config_commands", () => new ConfigCommands({
       requestRestart: (params) => this.requestRestart(params),
@@ -126,6 +109,11 @@ export class CliRuntime {
       requestRestart: (params) => this.requestRestart(params),
     }));
     this.pluginCommands = measureStartupSync("cli.runtime.plugin_commands", () => new PluginCommands());
+    this.agentCommands = measureStartupSync("cli.runtime.agent_commands", () => new AgentCommands({
+      requestRestart: (params) => this.requestRestart(params),
+      initializeAgentHomeDirectory: (homeDirectory) => this.workspaceManager.createWorkspaceTemplates(homeDirectory),
+      appName: APP_NAME
+    }));
     this.channelCommands = measureStartupSync("cli.runtime.channel_commands", () => new ChannelCommands({
       logo: this.logo,
       getBridgeDir: () => this.workspaceManager.getBridgeDir(),
@@ -159,14 +147,14 @@ export class CliRuntime {
     return getPackageVersion();
   }
 
-  private scheduleProcessExit(delayMs: number, reason: string): void {
+  private scheduleProcessExit = (delayMs: number, reason: string): void => {
     console.warn(`Gateway restart requested (${reason}).`);
     setTimeout(() => {
       process.exit(0);
     }, delayMs);
-  }
+  };
 
-  private async restartBackgroundService(reason: string): Promise<boolean> {
+  private restartBackgroundService = async (reason: string): Promise<boolean> => {
     if (this.serviceRestartTask) {
       return this.serviceRestartTask;
     }
@@ -203,13 +191,13 @@ export class CliRuntime {
     } finally {
       this.serviceRestartTask = null;
     }
-  }
+  };
 
-  private armManagedServiceRelaunch(params: {
+  private armManagedServiceRelaunch = (params: {
     reason: string;
     strategy?: RestartStrategy;
     delayMs?: number;
-  }): void {
+  }): void => {
     const strategy = params.strategy ?? "background-service-or-manual";
     if (
       strategy !== "background-service-or-exit" &&
@@ -309,9 +297,9 @@ export class CliRuntime {
     } catch (error) {
       console.error(`Failed to arm gateway self-restart: ${String(error)}`);
     }
-  }
+  };
 
-  private async requestRestart(params: RequestRestartParams): Promise<void> {
+  private requestRestart = async (params: RequestRestartParams): Promise<void> => {
     this.armManagedServiceRelaunch({
       reason: params.reason,
       strategy: params.strategy,
@@ -341,11 +329,9 @@ export class CliRuntime {
     }
 
     console.warn(result.message);
-  }
+  };
 
-  private async writeRestartSentinelFromExecContext(
-    reason: string,
-  ): Promise<void> {
+  private writeRestartSentinelFromExecContext = async (reason: string): Promise<void> => {
     const sessionKeyRaw = process.env.NEXTCLAW_RUNTIME_SESSION_KEY;
     const sessionKey =
       typeof sessionKeyRaw === "string" ? sessionKeyRaw.trim() : "";
@@ -369,18 +355,16 @@ export class CliRuntime {
         `Warning: failed to write restart sentinel from exec context: ${String(error)}`,
       );
     }
-  }
+  };
 
-  async onboard(): Promise<void> {
+  onboard = async (): Promise<void> => {
     console.warn(
       `Warning: ${APP_NAME} onboard is deprecated. Use "${APP_NAME} init" instead.`,
     );
     await this.init({ source: "onboard" });
-  }
+  };
 
-  async init(
-    options: { source?: string; auto?: boolean; force?: boolean } = {},
-  ): Promise<void> {
+  init = async (options: { source?: string; auto?: boolean; force?: boolean } = {}): Promise<void> => {
     const source = options.source ?? "init";
     const prefix = options.auto ? "Auto init" : "Init";
     const force = Boolean(options.force);
@@ -428,14 +412,14 @@ export class CliRuntime {
         `Tip: Run "${APP_NAME} init${force ? " --force" : ""}" to re-run initialization if needed.`,
       );
     }
-  }
+  };
 
-  async login(opts: LoginCommandOptions = {}): Promise<void> {
+  login = async (opts: LoginCommandOptions = {}): Promise<void> => {
     await this.init({ source: "login", auto: true });
     await this.platformAuthCommands.login(opts);
-  }
+  };
 
-  async gateway(opts: GatewayCommandOptions): Promise<void> {
+  gateway = async (opts: GatewayCommandOptions): Promise<void> => {
     const uiOverrides: Partial<Config["ui"]> = {
       host: FORCED_PUBLIC_UI_HOST,
     };
@@ -449,9 +433,9 @@ export class CliRuntime {
       uiOverrides.open = true;
     }
     await this.serviceCommands.startGateway({ uiOverrides });
-  }
+  };
 
-  async ui(opts: UiCommandOptions): Promise<void> {
+  ui = async (opts: UiCommandOptions): Promise<void> => {
     const uiOverrides: Partial<Config["ui"]> = {
       enabled: true,
       host: FORCED_PUBLIC_UI_HOST,
@@ -464,10 +448,10 @@ export class CliRuntime {
       uiOverrides,
       allowMissingProvider: true,
     });
-  }
+  };
 
-  async start(opts: StartCommandOptions): Promise<void> {
-    const startupTimeoutMs = this.parseStartTimeoutMs(opts.startTimeout);
+  start = async (opts: StartCommandOptions): Promise<void> => {
+    const startupTimeoutMs = parseStartTimeoutMs(opts.startTimeout);
     await this.init({ source: "start", auto: true });
     const uiOverrides: Partial<Config["ui"]> = {
       enabled: true,
@@ -483,9 +467,9 @@ export class CliRuntime {
       open: Boolean(opts.open),
       startupTimeoutMs,
     });
-  }
+  };
 
-  async restart(opts: StartCommandOptions): Promise<void> {
+  restart = async (opts: StartCommandOptions): Promise<void> => {
     await this.writeRestartSentinelFromExecContext("cli.restart");
 
     const state = readServiceState();
@@ -500,9 +484,9 @@ export class CliRuntime {
     }
 
     await this.start(opts);
-  }
+  };
 
-  async serve(opts: StartCommandOptions): Promise<void> {
+  serve = async (opts: StartCommandOptions): Promise<void> => {
     const uiOverrides: Partial<Config["ui"]> = {
       enabled: true,
       host: FORCED_PUBLIC_UI_HOST,
@@ -516,25 +500,13 @@ export class CliRuntime {
       uiOverrides,
       open: Boolean(opts.open),
     });
-  }
+  };
 
-  private parseStartTimeoutMs(value: string | number | undefined): number | undefined {
-    if (value === undefined) {
-      return undefined;
-    }
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      console.error("Invalid --start-timeout value. Provide milliseconds (e.g. 45000).");
-      process.exit(1);
-    }
-    return Math.floor(parsed);
-  }
-
-  async stop(): Promise<void> {
+  stop = async (): Promise<void> => {
     await this.serviceCommands.stopService();
-  }
+  };
 
-  async agent(opts: AgentCommandOptions): Promise<void> {
+  agent = async (opts: AgentCommandOptions): Promise<void> => {
     const configPath = getConfigPath();
     const config = resolveConfigSecrets(loadConfig(), { configPath });
     const workspace = getWorkspacePath(config.agents.defaults.workspace);
@@ -662,9 +634,9 @@ export class CliRuntime {
     } finally {
       setPluginRuntimeBridge(null);
     }
-  }
+  };
 
-  async update(opts: UpdateCommandOptions): Promise<void> {
+  update = async (opts: UpdateCommandOptions): Promise<void> => {
     let timeoutMs: number | undefined;
     if (opts.timeout !== undefined) {
       const parsed = Number(opts.timeout);
@@ -716,61 +688,62 @@ export class CliRuntime {
     if (state && isProcessRunning(state.pid)) {
       console.log(`Tip: restart ${APP_NAME} to apply the update.`);
     }
-  }
+  };
 
-  pluginsList(opts: PluginsListOptions = {}): void {
+  agentsList = (opts: AgentsListCommandOptions = {}): void => { this.agentCommands.agentsList(opts); };
+  agentsNew = async (agentId: string, opts: AgentsNewCommandOptions = {}): Promise<void> => { await this.agentCommands.agentsNew(agentId, opts); };
+  agentsRemove = async (agentId: string, opts: AgentsRemoveCommandOptions = {}): Promise<void> => { await this.agentCommands.agentsRemove(agentId, opts); };
+
+  pluginsList = (opts: PluginsListOptions = {}): void => {
     this.pluginCommands.pluginsList(opts);
-  }
+  };
 
-  pluginsInfo(id: string, opts: PluginsInfoOptions = {}): void {
+  pluginsInfo = (id: string, opts: PluginsInfoOptions = {}): void => {
     this.pluginCommands.pluginsInfo(id, opts);
-  }
+  };
 
-  async pluginsEnable(id: string): Promise<void> {
+  pluginsEnable = async (id: string): Promise<void> => {
     await this.pluginCommands.pluginsEnable(id);
-  }
+  };
 
-  async pluginsDisable(id: string): Promise<void> {
+  pluginsDisable = async (id: string): Promise<void> => {
     await this.pluginCommands.pluginsDisable(id);
-  }
+  };
 
-  async pluginsUninstall(
-    id: string,
-    opts: PluginsUninstallOptions = {},
-  ): Promise<void> {
+  pluginsUninstall = async (id: string, opts: PluginsUninstallOptions = {}): Promise<void> => {
     await this.pluginCommands.pluginsUninstall(id, opts);
-  }
+  };
 
-  async pluginsInstall(pathOrSpec: string, opts: PluginsInstallOptions = {}): Promise<void> {
+  pluginsInstall = async (pathOrSpec: string, opts: PluginsInstallOptions = {}): Promise<void> => {
     await this.pluginCommands.pluginsInstall(pathOrSpec, opts);
-  }
+  };
 
-  pluginsDoctor(): void {
+  pluginsDoctor = (): void => {
     this.pluginCommands.pluginsDoctor();
-  }
+  };
 
-  configGet(pathExpr: string, opts: ConfigGetOptions = {}): void {
+  configGet = (pathExpr: string, opts: ConfigGetOptions = {}): void => {
     this.configCommands.configGet(pathExpr, opts);
-  }
+  };
 
-  async configSet(pathExpr: string, value: string, opts: ConfigSetOptions = {}): Promise<void> {
+  configSet = async (pathExpr: string, value: string, opts: ConfigSetOptions = {}): Promise<void> => {
     await this.configCommands.configSet(pathExpr, value, opts);
-  }
+  };
 
-  async configUnset(pathExpr: string): Promise<void> { await this.configCommands.configUnset(pathExpr); }
-  mcpList(opts: McpListOptions = {}): void { this.mcpCommands.mcpList(opts); }
-  async mcpAdd(name: string, command: string[], opts: McpAddCommandOptions = {}): Promise<void> { await this.mcpCommands.mcpAdd(name, command, opts); }
-  async mcpRemove(name: string): Promise<void> { await this.mcpCommands.mcpRemove(name); }
-  async mcpEnable(name: string): Promise<void> { await this.mcpCommands.mcpEnable(name); }
-  async mcpDisable(name: string): Promise<void> { await this.mcpCommands.mcpDisable(name); }
-  async mcpDoctor(name?: string, opts: McpDoctorOptions = {}): Promise<void> { await this.mcpCommands.mcpDoctor(name, opts); }
-  secretsAudit(opts: SecretsAuditOptions = {}): void { this.secretsCommands.secretsAudit(opts); }
-  async secretsConfigure(opts: SecretsConfigureOptions): Promise<void> { await this.secretsCommands.secretsConfigure(opts); }
-  async secretsApply(opts: SecretsApplyOptions): Promise<void> { await this.secretsCommands.secretsApply(opts); }
-  async secretsReload(opts: SecretsReloadOptions = {}): Promise<void> { await this.secretsCommands.secretsReload(opts); }
-  channelsStatus(): void { this.channelCommands.channelsStatus(); }
-  async channelsLogin(opts: ChannelsLoginOptions): Promise<void> { await this.channelCommands.channelsLogin(opts); }
-  async channelsAdd(opts: ChannelsAddOptions): Promise<void> { await this.channelCommands.channelsAdd(opts); }
+  configUnset = async (pathExpr: string): Promise<void> => { await this.configCommands.configUnset(pathExpr); };
+  mcpList = (opts: McpListOptions = {}): void => { this.mcpCommands.mcpList(opts); };
+  mcpAdd = async (name: string, command: string[], opts: McpAddCommandOptions = {}): Promise<void> => { await this.mcpCommands.mcpAdd(name, command, opts); };
+  mcpRemove = async (name: string): Promise<void> => { await this.mcpCommands.mcpRemove(name); };
+  mcpEnable = async (name: string): Promise<void> => { await this.mcpCommands.mcpEnable(name); };
+  mcpDisable = async (name: string): Promise<void> => { await this.mcpCommands.mcpDisable(name); };
+  mcpDoctor = async (name?: string, opts: McpDoctorOptions = {}): Promise<void> => { await this.mcpCommands.mcpDoctor(name, opts); };
+  secretsAudit = (opts: SecretsAuditOptions = {}): void => { this.secretsCommands.secretsAudit(opts); };
+  secretsConfigure = async (opts: SecretsConfigureOptions): Promise<void> => { await this.secretsCommands.secretsConfigure(opts); };
+  secretsApply = async (opts: SecretsApplyOptions): Promise<void> => { await this.secretsCommands.secretsApply(opts); };
+  secretsReload = async (opts: SecretsReloadOptions = {}): Promise<void> => { await this.secretsCommands.secretsReload(opts); };
+  channelsStatus = (): void => { this.channelCommands.channelsStatus(); };
+  channelsLogin = async (opts: ChannelsLoginOptions): Promise<void> => { await this.channelCommands.channelsLogin(opts); };
+  channelsAdd = async (opts: ChannelsAddOptions): Promise<void> => { await this.channelCommands.channelsAdd(opts); };
 
   readonly cronList = async (opts: { enabledOnly?: boolean }): Promise<void> => {
     await this.cronCommands.cronList(opts);
@@ -792,21 +765,21 @@ export class CliRuntime {
     await this.cronCommands.cronRun(jobId, opts);
   };
 
-  async status(opts: StatusCommandOptions = {}): Promise<void> {
+  status = async (opts: StatusCommandOptions = {}): Promise<void> => {
     await this.diagnosticsCommands.status(opts);
-  }
+  };
 
-  async doctor(opts: DoctorCommandOptions = {}): Promise<void> {
+  doctor = async (opts: DoctorCommandOptions = {}): Promise<void> => {
     await this.diagnosticsCommands.doctor(opts);
-  }
+  };
 
-  async skillsInstall(options: {
+  skillsInstall = async (options: {
     slug: string;
     workdir?: string;
     dir?: string;
     force?: boolean;
     apiBaseUrl?: string;
-  }): Promise<void> {
+  }): Promise<void> => {
     const config = loadConfig();
     const workdir = resolveSkillsInstallWorkdir({
       explicitWorkdir: options.workdir,
@@ -826,8 +799,8 @@ export class CliRuntime {
       console.log(`✓ Installed ${result.slug} (${result.source})`);
     }
     console.log(`  Path: ${result.destinationDir}`);
-  }
-  async skillsPublish(options: {
+  };
+  skillsPublish = async (options: {
     dir: string;
     meta?: string;
     slug?: string;
@@ -842,7 +815,7 @@ export class CliRuntime {
     updatedAt?: string;
     apiBaseUrl?: string;
     token?: string;
-  }): Promise<void> {
+  }): Promise<void> => {
     const result = await publishMarketplaceSkill({
       skillDir: expandHome(options.dir),
       metaFile: options.meta ? expandHome(options.meta) : undefined,
@@ -860,9 +833,9 @@ export class CliRuntime {
       token: options.token
     });
     console.log(`${result.created ? `✓ Published new skill: ${result.slug}` : `✓ Updated skill: ${result.slug}`}\n  Files: ${result.fileCount}`);
-  }
+  };
 
-  async skillsUpdate(options: {
+  skillsUpdate = async (options: {
     dir: string;
     meta?: string;
     slug?: string;
@@ -876,7 +849,7 @@ export class CliRuntime {
     updatedAt?: string;
     apiBaseUrl?: string;
     token?: string;
-  }): Promise<void> {
+  }): Promise<void> => {
     const result = await publishMarketplaceSkill({
       skillDir: expandHome(options.dir),
       metaFile: options.meta ? expandHome(options.meta) : undefined,
@@ -895,5 +868,5 @@ export class CliRuntime {
     });
     console.log(`✓ Updated skill: ${result.slug}`);
     console.log(`  Files: ${result.fileCount}`);
-  }
+  };
 }
