@@ -19,7 +19,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist && node scripts/copy-css.mjs",
+    "build": "tsdown src/index.ts --dts --clean --target es2022 --no-fixedExtension && node scripts/copy-css.mjs",
     "prepack": "pnpm run build",
     "lint": "cd ../../.. && pnpm exec eslint packages/ncp-packages/nextclaw-ncp-react-ui --config packages/ncp-packages/nextclaw-ncp-react-ui/eslint.config.mjs",
     "tsc": "tsc -p tsconfig.json",
@@ -36,7 +36,6 @@
     "@types/react": "^18.3.12",
     "eslint-plugin-unicorn": "^63.0.0",
     "prettier": "^3.3.3",
-    "tsup": "^8.3.5",
     "typescript": "^5.6.3"
   }
 }

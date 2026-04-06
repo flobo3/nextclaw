@@ -15,7 +15,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "build": "tsdown src/index.ts --dts --clean --target es2022 --no-fixedExtension",
     "prepack": "pnpm run build",
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
@@ -29,7 +29,6 @@
     "@nextclaw/ncp-agent-runtime": "workspace:*",
     "@types/node": "^20.17.6",
     "prettier": "^3.3.3",
-    "tsup": "^8.3.5",
     "typescript": "^5.6.3",
     "vitest": "^4.1.2"
   }

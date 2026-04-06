@@ -29,7 +29,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "build": "tsdown src/index.ts --dts --clean --target es2022 --no-fixedExtension",
     "prepack": "pnpm run build",
     "lint": "cd ../.. && eslint \"packages/nextclaw-agent-chat-ui/src/**/*.{ts,tsx}\" packages/nextclaw-agent-chat-ui/vite.config.ts",
     "test": "vitest run",
@@ -59,7 +59,6 @@
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^25.0.1",
     "prettier": "^3.3.3",
-    "tsup": "^8.3.5",
     "typescript": "^5.6.3",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"

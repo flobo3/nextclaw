@@ -1,199 +1,71 @@
-import { createHash } from "node:crypto";
-import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
-import { performance } from "node:perf_hooks";
+import { availableParallelism } from "node:os";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { relative } from "node:path";
 import {
   collectWorkspacePackages,
   readPendingChangesetPackages,
   resolveExplicitReleaseBatchPackages
 } from "./release-scope.mjs";
-import { resolveReleaseCheckpointPath } from "./release-checkpoints.mjs";
+import {
+  readLatestReleaseCheckpoint,
+  resolveCheckpointReleaseBatchPackages,
+  resolveReleaseCheckpointPath
+} from "./release-checkpoints.mjs";
+import { planReleaseCheckBatch } from "./release-check/batch-plan.mjs";
+import {
+  createPackageStates,
+  hydrateCachedSteps,
+  runTaskScheduler
+} from "./release-check/task-runner.mjs";
 
 const ROOT_DIR = process.cwd();
-const STEP_NAMES = ["build", "lint", "tsc"];
-const ROOT_INPUT_CANDIDATES = [
-  "package.json",
-  "pnpm-lock.yaml",
-  "tsconfig.json",
-  "tsconfig.base.json",
-  "eslint.config.js",
-  "eslint.config.mjs",
-  "eslint.config.cjs"
-];
-
-function formatDuration(ms) {
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function sha256(value) {
-  return createHash("sha256").update(value).digest("hex");
-}
+const DEFAULT_CONCURRENCY = Math.max(4, Math.min(availableParallelism(), 6));
+const DEFAULT_STEP_CONCURRENCY = {
+  build: Math.max(1, Math.min(3, Math.floor(availableParallelism() / 2) || 1)),
+  tsc: Math.max(1, Math.min(4, availableParallelism())),
+  lint: 1
+};
 
 function readCliFlag(flag) {
   return process.argv.includes(flag);
 }
 
+function readBooleanEnvFlag(name) {
+  return process.env[name] === "1";
+}
+
+function readNumericArg(flag, fallback) {
+  const entry = process.argv.find((value) => value.startsWith(`${flag}=`));
+  if (!entry) {
+    return fallback;
+  }
+  const [, rawValue] = entry.split("=");
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new Error(`Invalid ${flag}: ${rawValue}`);
+  }
+  return parsed;
+}
+
 function resolveBatchPackages() {
   const workspacePackages = collectWorkspacePackages();
   const pendingChangesetPackages = readPendingChangesetPackages();
-  return resolveExplicitReleaseBatchPackages(workspacePackages, pendingChangesetPackages);
-}
-
-function collectInternalDependencies(entry, batchPackageNames) {
-  const dependencyFields = [
-    entry.pkg.dependencies,
-    entry.pkg.devDependencies,
-    entry.pkg.optionalDependencies,
-    entry.pkg.peerDependencies
-  ];
-  const dependencies = new Set();
-  for (const field of dependencyFields) {
-    if (!field || typeof field !== "object") {
-      continue;
-    }
-    for (const packageName of Object.keys(field)) {
-      if (batchPackageNames.has(packageName)) {
-        dependencies.add(packageName);
-      }
-    }
-  }
-  return dependencies;
-}
-
-function sortBatchPackages(batchPackages) {
-  const batchPackageNames = new Set(batchPackages.map((entry) => entry.pkg.name));
-  const packageByName = new Map(batchPackages.map((entry) => [entry.pkg.name, entry]));
-  const dependencyMap = new Map(
-    batchPackages.map((entry) => [entry.pkg.name, collectInternalDependencies(entry, batchPackageNames)])
+  const explicitBatchPackages = resolveExplicitReleaseBatchPackages(
+    workspacePackages,
+    pendingChangesetPackages
   );
-  const pendingDependencyCount = new Map(
-    batchPackages.map((entry) => [entry.pkg.name, dependencyMap.get(entry.pkg.name)?.size ?? 0])
-  );
-  const dependentsMap = new Map(batchPackages.map((entry) => [entry.pkg.name, []]));
-
-  for (const [packageName, dependencies] of dependencyMap.entries()) {
-    for (const dependencyName of dependencies) {
-      dependentsMap.get(dependencyName)?.push(packageName);
-    }
+  if (explicitBatchPackages.length > 0) {
+    return explicitBatchPackages;
   }
 
-  const queue = batchPackages
-    .filter((entry) => (pendingDependencyCount.get(entry.pkg.name) ?? 0) === 0)
-    .map((entry) => entry.pkg.name)
-    .sort();
-  const ordered = [];
-
-  while (queue.length > 0) {
-    const packageName = queue.shift();
-    if (!packageName) {
-      continue;
-    }
-    ordered.push(packageByName.get(packageName));
-    for (const dependentName of dependentsMap.get(packageName) ?? []) {
-      const nextCount = (pendingDependencyCount.get(dependentName) ?? 0) - 1;
-      pendingDependencyCount.set(dependentName, nextCount);
-      if (nextCount === 0) {
-        queue.push(dependentName);
-        queue.sort();
-      }
-    }
+  if (
+    readCliFlag("--from-latest-checkpoint") ||
+    readBooleanEnvFlag("NEXTCLAW_RELEASE_CHECK_FROM_LATEST")
+  ) {
+    return resolveCheckpointReleaseBatchPackages(workspacePackages, readLatestReleaseCheckpoint());
   }
 
-  if (ordered.length !== batchPackages.length) {
-    throw new Error(
-      `release batch dependency graph contains a cycle: ${batchPackages.map((entry) => entry.pkg.name).join(", ")}`
-    );
-  }
-
-  return {
-    ordered,
-    dependencyMap
-  };
-}
-
-function listGitTrackedAndUntrackedFiles(relativePaths) {
-  const stdout = execFileSync(
-    "git",
-    ["ls-files", "-co", "--exclude-standard", "--deduplicate", "--", ...relativePaths],
-    {
-      cwd: ROOT_DIR,
-      encoding: "utf8"
-    }
-  );
-  return stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .sort();
-}
-
-function shouldHashFile(filePath) {
-  return !(
-    filePath.includes("/node_modules/") ||
-    filePath.includes("/dist/") ||
-    filePath.includes("/coverage/") ||
-    filePath.includes("/.turbo/") ||
-    filePath.includes("/.cache/")
-  );
-}
-
-function buildFilesFingerprint(relativePaths) {
-  const hash = createHash("sha256");
-  for (const relativePath of relativePaths.filter(shouldHashFile)) {
-    const absolutePath = join(ROOT_DIR, relativePath);
-    hash.update(relativePath);
-    hash.update("\0");
-    if (!existsSync(absolutePath)) {
-      hash.update("<missing>");
-      hash.update("\0");
-      continue;
-    }
-    hash.update(readFileSync(absolutePath));
-    hash.update("\0");
-  }
-  return hash.digest("hex");
-}
-
-function resolveRootInputFiles() {
-  return ROOT_INPUT_CANDIDATES.filter((relativePath) => existsSync(join(ROOT_DIR, relativePath)));
-}
-
-function buildPackageBaseFingerprint(entry, rootInputFiles) {
-  const packageFiles = listGitTrackedAndUntrackedFiles([entry.packageDir]);
-  return buildFilesFingerprint([...rootInputFiles, ...packageFiles]);
-}
-
-function buildPackageFingerprints(orderedBatchPackages, dependencyMap) {
-  const rootInputFiles = resolveRootInputFiles();
-  const baseFingerprints = new Map(
-    orderedBatchPackages.map((entry) => [entry.pkg.name, buildPackageBaseFingerprint(entry, rootInputFiles)])
-  );
-  const fingerprints = new Map();
-
-  for (const entry of orderedBatchPackages) {
-    const dependencyFingerprintEntries = [...(dependencyMap.get(entry.pkg.name) ?? [])]
-      .sort()
-      .map((dependencyName) => `${dependencyName}:${fingerprints.get(dependencyName) ?? ""}`);
-    fingerprints.set(
-      entry.pkg.name,
-      sha256([baseFingerprints.get(entry.pkg.name) ?? "", ...dependencyFingerprintEntries].join("\n"))
-    );
-  }
-
-  return fingerprints;
-}
-
-function buildBatchId(orderedBatchPackages) {
-  return sha256(
-    orderedBatchPackages
-      .map((entry) => `${entry.pkg.name}@${entry.pkg.version}`)
-      .join("\n")
-  ).slice(0, 16);
-}
-
-function resolveCheckpointPath(batchId) {
-  return resolveReleaseCheckpointPath(batchId);
+  return explicitBatchPackages;
 }
 
 function createEmptyCheckpoint(batchId, orderedBatchPackages) {
@@ -213,7 +85,7 @@ function createEmptyCheckpoint(batchId, orderedBatchPackages) {
 }
 
 function readCheckpoint(batchId, orderedBatchPackages, reset) {
-  const checkpointPath = resolveCheckpointPath(batchId);
+  const checkpointPath = resolveReleaseCheckpointPath(batchId);
   const emptyCheckpoint = createEmptyCheckpoint(batchId, orderedBatchPackages);
   if (reset || !existsSync(checkpointPath)) {
     return {
@@ -248,126 +120,86 @@ function saveCheckpoint(checkpointPath, checkpoint) {
   writeFileSync(checkpointPath, JSON.stringify(checkpoint, null, 2));
 }
 
-function readStepCommand(entry, stepName) {
-  return entry.pkg.scripts?.[stepName] ?? null;
-}
-
-function isStepCached(params) {
-  const packageState = params.checkpoint.packages[params.entry.pkg.name];
-  const stepState = packageState?.steps?.[params.stepName];
-  return (
-    stepState?.status === "passed" &&
-    stepState.fingerprint === params.fingerprint &&
-    stepState.command === params.command &&
-    packageState.version === params.entry.pkg.version
+async function main() {
+  const resetCheckpoint = readCliFlag("--reset") || readBooleanEnvFlag("NEXTCLAW_RELEASE_CHECK_RESET");
+  const includeLint =
+    readCliFlag("--include-lint") || readBooleanEnvFlag("NEXTCLAW_RELEASE_CHECK_INCLUDE_LINT");
+  const concurrency = readNumericArg(
+    "--concurrency",
+    Number(process.env.NEXTCLAW_RELEASE_CHECK_CONCURRENCY) || DEFAULT_CONCURRENCY
   );
-}
-
-function recordStepState(params) {
-  const packageState =
-    params.checkpoint.packages[params.entry.pkg.name] ??
-    (params.checkpoint.packages[params.entry.pkg.name] = {
-      version: params.entry.pkg.version,
-      packageDir: params.entry.packageDir,
-      steps: {}
-    });
-
-  packageState.version = params.entry.pkg.version;
-  packageState.packageDir = params.entry.packageDir;
-  packageState.steps[params.stepName] = {
-    status: params.status,
-    command: params.command,
-    fingerprint: params.fingerprint,
-    finishedAt: new Date().toISOString(),
-    durationMs: params.durationMs
+  const stepConcurrency = {
+    build: readNumericArg(
+      "--build-concurrency",
+      Number(process.env.NEXTCLAW_RELEASE_CHECK_BUILD_CONCURRENCY) || DEFAULT_STEP_CONCURRENCY.build
+    ),
+    tsc: readNumericArg(
+      "--typecheck-concurrency",
+      Number(process.env.NEXTCLAW_RELEASE_CHECK_TYPECHECK_CONCURRENCY) ||
+        DEFAULT_STEP_CONCURRENCY.tsc
+    ),
+    lint: readNumericArg(
+      "--lint-concurrency",
+      Number(process.env.NEXTCLAW_RELEASE_CHECK_LINT_CONCURRENCY) || DEFAULT_STEP_CONCURRENCY.lint
+    )
   };
-}
+  const batchPackages = resolveBatchPackages();
 
-function runStep(params) {
-  const command = readStepCommand(params.entry, params.stepName);
-  if (!command) {
-    console.log(
-      `[release:check] skip ${params.entry.pkg.name} ${params.stepName} (no ${params.stepName} script in ${params.entry.packageFile})`
-    );
-    return;
-  }
-
-  if (
-    isStepCached({
-      checkpoint: params.checkpoint,
-      entry: params.entry,
-      stepName: params.stepName,
-      fingerprint: params.fingerprint,
-      command
-    })
-  ) {
-    console.log(`[release:check] skip ${params.entry.pkg.name} ${params.stepName} (cached success)`);
-    return;
-  }
-
-  console.log(`[release:check] start ${params.entry.pkg.name} ${params.stepName}`);
-  const startedAt = performance.now();
-  const result = spawnSync("pnpm", ["-C", params.entry.packageDir, params.stepName], {
-    cwd: ROOT_DIR,
-    stdio: "inherit",
-    env: process.env
-  });
-  const duration = performance.now() - startedAt;
-
-  recordStepState({
-    checkpoint: params.checkpoint,
-    entry: params.entry,
-    stepName: params.stepName,
-    status: result.status === 0 ? "passed" : "failed",
-    command,
-    fingerprint: params.fingerprint,
-    durationMs: duration
-  });
-  saveCheckpoint(params.checkpointPath, params.checkpoint);
-
-  if (result.status !== 0) {
+  if (batchPackages.length === 0) {
     console.error(
-      `[release:check] failed ${params.entry.pkg.name} ${params.stepName} after ${formatDuration(duration)}`
+      "No release batch packages found. Create a changeset, run `pnpm release:version`, or use `--from-latest-checkpoint` before `pnpm release:check`."
     );
-    process.exit(result.status ?? 1);
+    process.exit(1);
   }
+
+  const {
+    batchId,
+    dependencyMap,
+    fingerprints,
+    orderedBatchPackages,
+    priorityScores
+  } = planReleaseCheckBatch(batchPackages);
+  const { checkpointPath, checkpoint } = readCheckpoint(batchId, orderedBatchPackages, resetCheckpoint);
+  const packageStates = createPackageStates({
+    checkpoint,
+    dependencyMap,
+    fingerprints,
+    includeLint,
+    orderedBatchPackages,
+    priorityScores
+  });
 
   console.log(
-    `[release:check] done ${params.entry.pkg.name} ${params.stepName} in ${formatDuration(duration)}`
+    `[release:check] batch packages: ${orderedBatchPackages.map((entry) => entry.pkg.name).join(", ")}`
   );
-}
-
-const resetCheckpoint = readCliFlag("--reset") || process.env.NEXTCLAW_RELEASE_CHECK_RESET === "1";
-const { ordered: orderedBatchPackages, dependencyMap } = sortBatchPackages(resolveBatchPackages());
-
-if (orderedBatchPackages.length === 0) {
-  console.error(
-    "No release batch packages found. Create a changeset or run `pnpm release:version` before `pnpm release:check`."
+  console.log(`[release:check] checkpoint: ${relative(ROOT_DIR, checkpointPath).replaceAll("\\", "/")}`);
+  console.log(`[release:check] concurrency: ${concurrency}`);
+  console.log(
+    `[release:check] step concurrency: build=${stepConcurrency.build}, tsc=${stepConcurrency.tsc}, lint=${stepConcurrency.lint}`
   );
-  process.exit(1);
-}
+  console.log(`[release:check] lint included: ${includeLint ? "yes" : "no"}`);
+  if (resetCheckpoint) {
+    console.log("[release:check] reset checkpoint requested");
+  }
 
-const batchId = buildBatchId(orderedBatchPackages);
-const fingerprints = buildPackageFingerprints(orderedBatchPackages, dependencyMap);
-const { checkpointPath, checkpoint } = readCheckpoint(batchId, orderedBatchPackages, resetCheckpoint);
+  hydrateCachedSteps({
+    checkpoint,
+    packageStates
+  });
+  saveCheckpoint(checkpointPath, checkpoint);
 
-console.log(
-  `[release:check] batch packages: ${orderedBatchPackages.map((entry) => entry.pkg.name).join(", ")}`
-);
-console.log(`[release:check] checkpoint: ${relative(ROOT_DIR, checkpointPath).replaceAll("\\", "/")}`);
-if (resetCheckpoint) {
-  console.log("[release:check] reset checkpoint requested");
-}
-
-for (const entry of orderedBatchPackages) {
-  const fingerprint = fingerprints.get(entry.pkg.name) ?? "";
-  for (const stepName of STEP_NAMES) {
-    runStep({
+  try {
+    await runTaskScheduler({
       checkpoint,
-      checkpointPath,
-      entry,
-      stepName,
-      fingerprint
+      concurrency,
+      packageStates,
+      saveCheckpoint: () => saveCheckpoint(checkpointPath, checkpoint),
+      stepConcurrency
     });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
   }
 }
+
+await main();

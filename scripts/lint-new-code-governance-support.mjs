@@ -58,7 +58,7 @@ export const isGovernedWorkspaceFile = (filePath) => {
   if (normalizedPath.endsWith(".d.ts")) {
     return false;
   }
-  if (normalizedPath.includes("/dist/")) {
+  if (normalizedPath.includes("/dist/") || normalizedPath.includes("/ui-dist/")) {
     return false;
   }
   return governedRoots.some((root) => normalizedPath === root || normalizedPath.startsWith(`${root}/`));

@@ -15,7 +15,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist && node scripts/copy-skills.mjs",
+    "build": "tsdown src/index.ts --dts --clean --target es2022 --no-fixedExtension && node scripts/copy-skills.mjs",
     "prepack": "pnpm run build",
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
@@ -38,7 +38,6 @@
   "devDependencies": {
     "@types/node": "^20.17.6",
     "prettier": "^3.3.3",
-    "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vitest": "^4.1.2"

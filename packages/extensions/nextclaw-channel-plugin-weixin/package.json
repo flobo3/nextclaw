@@ -21,7 +21,7 @@
     ]
   },
   "scripts": {
-    "build": "tsup --config tsup.config.ts",
+    "build": "tsdown src/index.ts --dts --clean --target es2022 --no-fixedExtension --deps.never-bundle @nextclaw/core",
     "prepack": "pnpm run build",
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
@@ -32,7 +32,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.17.6",
-    "tsup": "^8.3.5",
     "typescript": "^5.6.3"
   }
 }

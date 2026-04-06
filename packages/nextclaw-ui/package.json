@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "prepack": "node ../../scripts/verify-package-release-artifacts.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
