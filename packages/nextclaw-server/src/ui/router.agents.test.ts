@@ -51,13 +51,18 @@ describe("agents routes", () => {
       },
       body: JSON.stringify({
         id: "researcher",
-        displayName: "Researcher"
+        displayName: "Researcher",
+        description: "Handles research briefs and source synthesis."
       })
     });
 
     expect(createResponse.status).toBe(200);
-    const createPayload = await createResponse.json() as { ok: true; data: { id: string; avatarUrl?: string } };
+    const createPayload = await createResponse.json() as {
+      ok: true;
+      data: { id: string; avatarUrl?: string; description?: string };
+    };
     expect(createPayload.data.id).toBe("researcher");
+    expect(createPayload.data.description).toBe("Handles research briefs and source synthesis.");
     expect(createPayload.data.avatarUrl).toBe("/api/agents/researcher/avatar");
     expect(publish).toHaveBeenCalledWith({
       type: "config.updated",
@@ -66,6 +71,9 @@ describe("agents routes", () => {
 
     const saved = loadConfig(configPath);
     expect(saved.agents.list.some((entry) => entry.id === "researcher")).toBe(true);
+    expect(saved.agents.list.find((entry) => entry.id === "researcher")?.description).toBe(
+      "Handles research briefs and source synthesis."
+    );
 
     const avatarResponse = await app.request("http://localhost/api/agents/researcher/avatar");
     expect(avatarResponse.status).toBe(200);

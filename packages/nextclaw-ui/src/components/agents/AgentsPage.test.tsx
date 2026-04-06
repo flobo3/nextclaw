@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
         {
           id: 'main',
           displayName: 'Main',
+          description: '系统默认入口与总控协作者。',
           builtIn: true,
           workspace: '~/.nextclaw/workspace',
           avatarUrl: null
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
         {
           id: 'researcher',
           displayName: 'Researcher',
+          description: '负责调研、信息筛选与结论提炼。',
           builtIn: false,
           workspace: '~/.nextclaw/workspace/agents/researcher',
           avatarUrl: null
@@ -61,6 +63,8 @@ describe('AgentsPage', () => {
     expect(screen.getByText('全部 Agent')).toBeTruthy();
     expect(screen.getAllByText('主目录').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: '开始对话' })).toHaveLength(2);
+    expect(screen.getByText('负责调研、信息筛选与结论提炼。')).toBeTruthy();
+    expect(screen.queryByText('专属 Agent 身份，可沉淀自己的记忆、技能与角色风格。')).toBeNull();
     expect(screen.queryByText('Agent Gallery')).toBeNull();
   });
 });

@@ -169,6 +169,7 @@ export type AgentProfileView = {
   id: string;
   default?: boolean;
   displayName?: string;
+  description?: string;
   avatar?: string;
   avatarUrl?: string;
   workspace?: string;
@@ -183,6 +184,7 @@ export type AgentProfileView = {
 export type AgentCreateRequest = {
   id: string;
   displayName?: string;
+  description?: string;
   avatar?: string;
   home?: string;
 };

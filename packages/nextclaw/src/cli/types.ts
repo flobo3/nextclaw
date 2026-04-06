@@ -54,6 +54,7 @@ export type AgentsListCommandOptions = {
 
 export type AgentsNewCommandOptions = {
   name?: string;
+  description?: string;
   avatar?: string;
   home?: string;
   json?: boolean;

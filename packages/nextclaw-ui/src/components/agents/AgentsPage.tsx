@@ -22,6 +22,7 @@ import { Bot, House, MessageCircle, Plus, ShieldCheck, Sparkles, Trash2 } from '
 type CreateFormState = {
   id: string;
   displayName: string;
+  description: string;
   avatar: string;
   home: string;
 };
@@ -29,6 +30,7 @@ type CreateFormState = {
 const EMPTY_FORM: CreateFormState = {
   id: '',
   displayName: '',
+  description: '',
   avatar: '',
   home: ''
 };
@@ -83,6 +85,7 @@ export function AgentsPage() {
       data: {
         id: form.id,
         ...(form.displayName.trim() ? { displayName: form.displayName.trim() } : {}),
+        ...(form.description.trim() ? { description: form.description.trim() } : {}),
         ...(form.avatar.trim() ? { avatar: form.avatar.trim() } : {}),
         ...(form.home.trim() ? { home: form.home.trim() } : {})
       }
@@ -213,9 +216,10 @@ export function AgentsPage() {
                   </div>
 
                   <p className="text-sm leading-6 text-[#64748b]">
-                    {agent.builtIn
-                      ? t('agentsCardBuiltInSummary')
-                      : t('agentsCardCustomSummary')}
+                    {agent.description?.trim() ||
+                      (agent.builtIn
+                        ? t('agentsCardBuiltInSummary')
+                        : t('agentsCardCustomSummary'))}
                   </p>
 
                   <div className="mt-auto flex flex-col gap-4">
@@ -293,6 +297,16 @@ export function AgentsPage() {
                   }))
                 }
                 placeholder={t('agentsFormNamePlaceholder')}
+              />
+              <Input
+                value={form.description}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    description: event.target.value
+                  }))
+                }
+                placeholder={t('agentsFormDescriptionPlaceholder')}
               />
               <Input
                 value={form.avatar}

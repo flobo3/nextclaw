@@ -14,6 +14,7 @@ export function registerAgentsCommands(program: Command, runtime: CliRuntime): v
     .command("new <agentId>")
     .description("Create a new agent")
     .option("--name <name>", "Agent display name")
+    .option("--description <description>", "Agent description")
     .option("--avatar <avatar>", "Remote avatar URL or local image path")
     .option("--home <path>", "Agent home directory")
     .option("--json", "Output JSON", false)

@@ -26,6 +26,7 @@ export class AgentCommands {
       const head = agent.builtIn ? `${agent.id} (built-in)` : agent.id;
       console.log(head);
       console.log(`  name: ${agent.displayName ?? "-"}`);
+      console.log(`  description: ${agent.description ?? "-"}`);
       console.log(`  home: ${agent.workspace}`);
       console.log(`  avatar: ${agent.avatar ?? "-"}`);
     }
@@ -36,6 +37,7 @@ export class AgentCommands {
       {
         id: agentId,
         displayName: opts.name,
+        description: opts.description,
         avatar: opts.avatar,
         home: opts.home
       },
@@ -56,6 +58,7 @@ export class AgentCommands {
     });
     console.log(`✓ Created agent ${created.id}`);
     console.log(`  name: ${created.displayName ?? "-"}`);
+    console.log(`  description: ${created.description ?? "-"}`);
     console.log(`  home: ${created.workspace}`);
     console.log(`  avatar: ${created.avatar ?? "-"}`);
   };
@@ -87,6 +90,7 @@ export class AgentCommands {
     return {
       id: agent.id,
       displayName: agent.displayName ?? null,
+      description: agent.description ?? null,
       avatar: agent.avatar ?? null,
       workspace: agent.workspace,
       builtIn: agent.builtIn === true

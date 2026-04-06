@@ -30,6 +30,7 @@ export const AGENT_LABELS: Record<string, { zh: string; en: string }> = {
   },
   agentsFormIdPlaceholder: { zh: 'Agent ID，例如 engineer', en: 'Agent ID, for example engineer' },
   agentsFormNamePlaceholder: { zh: '显示名称，可选', en: 'Display name, optional' },
+  agentsFormDescriptionPlaceholder: { zh: '角色描述，可选', en: 'Role description, optional' },
   agentsFormAvatarPlaceholder: { zh: '头像 URL 或本地路径，可选', en: 'Avatar URL or local path, optional' },
   agentsFormHomePlaceholder: { zh: '主目录，可选', en: 'Home Directory, optional' },
   agentsCreateAction: { zh: '创建 Agent', en: 'Create Agent' },

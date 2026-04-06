@@ -221,6 +221,7 @@ export const AgentProfileSchema = z.object({
   id: z.string().default("main"),
   default: z.boolean().default(false),
   displayName: z.string().trim().max(80).optional(),
+  description: z.string().trim().max(160).optional(),
   avatar: z.string().trim().optional(),
   workspace: z.string().optional(),
   model: z.string().optional(),

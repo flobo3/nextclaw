@@ -58,6 +58,37 @@ describe("agent profiles", () => {
     expect(resolveEffectiveAgentProfiles(saved).map((agent) => agent.id)).toEqual(["main", "engineer"]);
   });
 
+  it("persists agent description when provided", () => {
+    const configPath = createTempConfigPath();
+    const workspace = join(dirname(configPath), "workspace");
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace
+          }
+        }
+      }),
+      configPath
+    );
+
+    const created = createAgentProfile(
+      {
+        id: "researcher",
+        description: "负责调研、信息筛选与结论提炼。"
+      },
+      {
+        configPath
+      }
+    );
+
+    expect(created.description).toBe("负责调研、信息筛选与结论提炼。");
+
+    const saved = loadConfig(configPath);
+    const researcher = resolveEffectiveAgentProfiles(saved).find((agent) => agent.id === "researcher");
+    expect(researcher?.description).toBe("负责调研、信息筛选与结论提炼。");
+  });
+
   it("rejects avatar refs that escape the agent home directory", () => {
     expect(() =>
       resolveAgentAvatarHomePath({

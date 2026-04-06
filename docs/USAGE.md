@@ -503,6 +503,7 @@ Agent management notes:
 
 - `nextclaw agents new <agent-id>` accepts:
   - `--name <display-name>`
+  - `--description <description>`
   - `--avatar <http-url-or-local-file>`
   - `--home <path>`
   - `--json`
@@ -523,7 +524,7 @@ When NextClaw AI is asked to create a new Agent, use this exact flow instead of 
 2. Create the new Agent through the dedicated command:
 
    ```bash
-   nextclaw agents new <agent-id> --json [--name <display-name>] [--avatar <url-or-local-file>] [--home <path>]
+   nextclaw agents new <agent-id> --json [--name <display-name>] [--description <description>] [--avatar <url-or-local-file>] [--home <path>]
    ```
 
 3. Treat the JSON output as the source of truth:

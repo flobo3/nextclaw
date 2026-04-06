@@ -6,6 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  createEmptyRuntimeAgent,
+  createEmptyRuntimeBinding,
+  hydrateRuntimeAgent,
+  hydrateRuntimeBinding,
+  parseOptionalInt,
+  toPersistedRuntimeAgent
+} from '@/components/config/runtime-config-agent.utils';
 import { hintForPath } from '@/lib/config-hints';
 import { t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
@@ -21,37 +29,6 @@ const DM_SCOPE_OPTIONS: Array<{ value: DmScope; label: string }> = [
   { value: 'per-channel-peer', label: 'per-channel-peer' },
   { value: 'per-account-channel-peer', label: 'per-account-channel-peer' }
 ];
-
-function createEmptyAgent(): AgentProfileView {
-  return {
-    id: '',
-    default: false,
-    workspace: '',
-    model: '',
-    engine: '',
-    contextTokens: undefined,
-    maxToolIterations: undefined
-  };
-}
-
-function createEmptyBinding(): AgentBindingView {
-  return {
-    agentId: '',
-    match: {
-      channel: '',
-      accountId: ''
-    }
-  };
-}
-
-function parseOptionalInt(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  const parsed = Number.parseInt(trimmed, 10);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
 
 export function RuntimeConfig() {
   const { data: config, isLoading } = useConfig();
@@ -69,32 +46,8 @@ export function RuntimeConfig() {
     if (!config) {
       return;
     }
-    setAgents(
-      (config.agents.list ?? []).map((agent) => ({
-        id: agent.id ?? '',
-        default: Boolean(agent.default),
-        workspace: agent.workspace ?? '',
-        model: agent.model ?? '',
-        engine: agent.engine ?? '',
-        contextTokens: agent.contextTokens,
-        maxToolIterations: agent.maxToolIterations
-      }))
-    );
-    setBindings(
-      (config.bindings ?? []).map((binding) => ({
-        agentId: binding.agentId ?? '',
-        match: {
-          channel: binding.match?.channel ?? '',
-          accountId: binding.match?.accountId ?? '',
-          peer: binding.match?.peer
-            ? {
-              kind: binding.match.peer.kind,
-              id: binding.match.peer.id
-            }
-            : undefined
-        }
-      }))
-    );
+    setAgents((config.agents.list ?? []).map(hydrateRuntimeAgent));
+    setBindings((config.bindings ?? []).map(hydrateRuntimeBinding));
     setDmScope((config.session?.dmScope as DmScope) ?? 'per-channel-peer');
     setMaxPingPongTurns(config.session?.agentToAgent?.maxPingPongTurns ?? 0);
     setDefaultContextTokens(config.agents.defaults.contextTokens ?? 200000);
@@ -137,26 +90,7 @@ export function RuntimeConfig() {
         if (!id) {
           throw new Error(t('agentIdRequiredError').replace('{index}', String(index)));
         }
-        const normalized: AgentProfileView = { id };
-        if (agent.default) {
-          normalized.default = true;
-        }
-        if (agent.workspace?.trim()) {
-          normalized.workspace = agent.workspace.trim();
-        }
-        if (agent.model?.trim()) {
-          normalized.model = agent.model.trim();
-        }
-        if (agent.engine?.trim()) {
-          normalized.engine = agent.engine.trim();
-        }
-        if (typeof agent.contextTokens === 'number') {
-          normalized.contextTokens = Math.max(1000, agent.contextTokens);
-        }
-        if (typeof agent.maxToolIterations === 'number') {
-          normalized.maxToolIterations = agent.maxToolIterations;
-        }
-        return normalized;
+        return toPersistedRuntimeAgent(agent);
       });
 
       const duplicates = normalizedAgents
@@ -389,7 +323,7 @@ export function RuntimeConfig() {
             </div>
           ))}
 
-          <Button type="button" variant="outline" onClick={() => setAgents((prev) => [...prev, createEmptyAgent()])}>
+          <Button type="button" variant="outline" onClick={() => setAgents((prev) => [...prev, createEmptyRuntimeAgent()])}>
             <Plus className="h-4 w-4 mr-2" />
             {t('addAgent')}
           </Button>
@@ -510,7 +444,7 @@ export function RuntimeConfig() {
             );
           })}
 
-          <Button type="button" variant="outline" onClick={() => setBindings((prev) => [...prev, createEmptyBinding()])}>
+          <Button type="button" variant="outline" onClick={() => setBindings((prev) => [...prev, createEmptyRuntimeBinding()])}>
             <Plus className="h-4 w-4 mr-2" />
             {t('addBinding')}
           </Button>

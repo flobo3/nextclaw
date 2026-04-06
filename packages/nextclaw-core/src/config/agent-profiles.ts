@@ -12,6 +12,7 @@ export type EffectiveAgentProfile = AgentProfile & {
   id: string;
   workspace: string;
   displayName?: string;
+  description?: string;
   avatar?: string;
   builtIn?: boolean;
 };
@@ -19,6 +20,7 @@ export type EffectiveAgentProfile = AgentProfile & {
 export type CreateAgentProfileInput = {
   id: string;
   displayName?: string;
+  description?: string;
   avatar?: string;
   home?: string;
 };
@@ -63,6 +65,9 @@ export function resolveEffectiveAgentProfiles(config: Config): EffectiveAgentPro
       default: true,
       workspace: mainOverride?.workspace?.trim() || config.agents.defaults.workspace,
       displayName: normalizeOptionalDisplayName(mainOverride?.displayName) ?? "Main",
+      ...(normalizeOptionalDescription(mainOverride?.description)
+        ? { description: normalizeOptionalDescription(mainOverride?.description) ?? undefined }
+        : {}),
       ...(normalizeOptionalRef(mainOverride?.avatar) ? { avatar: normalizeOptionalRef(mainOverride?.avatar) ?? undefined } : {}),
       model: mainOverride?.model,
       engine: mainOverride?.engine,
@@ -130,6 +135,7 @@ export function createAgentProfile(
   options.initializeHomeDirectory?.(homeDirectory);
 
   const displayName = normalizeOptionalDisplayName(input.displayName) ?? formatAgentDisplayName(agentId);
+  const description = normalizeOptionalDescription(input.description) ?? undefined;
   const avatar = materializeAgentAvatar({
     avatar: input.avatar,
     homeDirectory,
@@ -142,6 +148,7 @@ export function createAgentProfile(
     default: false,
     workspace: storedHome,
     displayName,
+    ...(description ? { description } : {}),
     avatar
   };
 
@@ -197,6 +204,7 @@ function toEffectiveAgentProfile(entry: AgentProfile, config: Config): Effective
     id,
     workspace: normalizeOptionalString(entry.workspace) ?? config.agents.defaults.workspace,
     ...(normalizeOptionalDisplayName(entry.displayName) ? { displayName: normalizeOptionalDisplayName(entry.displayName) ?? undefined } : {}),
+    ...(normalizeOptionalDescription(entry.description) ? { description: normalizeOptionalDescription(entry.description) ?? undefined } : {}),
     ...(normalizeOptionalRef(entry.avatar) ? { avatar: normalizeOptionalRef(entry.avatar) ?? undefined } : {})
   };
 }
@@ -210,6 +218,10 @@ function normalizeOptionalString(value: unknown): string | null {
 }
 
 function normalizeOptionalDisplayName(value: unknown): string | null {
+  return normalizeOptionalString(value);
+}
+
+function normalizeOptionalDescription(value: unknown): string | null {
   return normalizeOptionalString(value);
 }
 

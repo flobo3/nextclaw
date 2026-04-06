@@ -23,6 +23,7 @@ export function createAgent(
     {
       id: input.id,
       displayName: input.displayName,
+      description: input.description,
       avatar: input.avatar,
       home: input.home
     },
@@ -63,6 +64,7 @@ export function toAgentProfileView(config: Config, agentId: string): AgentProfil
     id: profile.id,
     default: profile.default,
     displayName: profile.displayName,
+    description: profile.description,
     avatar: profile.avatar,
     avatarUrl: buildAgentAvatarUrl(profile.id, profile.avatar),
     workspace: profile.workspace,
