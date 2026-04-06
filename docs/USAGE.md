@@ -8,7 +8,7 @@ This guide covers installation, configuration, channels, tools, automation, and 
 
 When NextClaw AI needs to operate the product itself (version/status/doctor/service/plugins/channels/config/agents/cron/remote/update), follow these rules:
 
-1. **Read this guide first** (`USAGE.md`) before executing management commands.
+1. **Read the built-in self-management guide first**. The packaged runtime copy lives at `packages/nextclaw/resources/USAGE.md`, and this repo page is kept aligned with it.
 2. **Use the exact command for the intent**: use `nextclaw --version` for version lookup; do not infer version from `status`.
 3. **Prefer machine-readable output** (`--json`) whenever available.
 4. **Close the loop after changes** with `nextclaw status --json` (and `nextclaw doctor --json` when needed).
@@ -425,11 +425,12 @@ Created under the workspace:
 | `USER.md`       | User profile hints                |
 | `IDENTITY.md`   | Identity context                  |
 | `TOOLS.md`      | Tool usage guidelines             |
-| `USAGE.md`      | CLI operation guide for users and AI |
 | `BOOT.md` / `BOOTSTRAP.md` | Boot context               |
 | `HEARTBEAT.md`  | Tasks checked periodically        |
 | `memory/MEMORY.md` | Long-term notes                |
 | `skills/`       | Custom skills                     |
+
+NextClaw's AI self-management guide is built into the app package and is not written into each workspace anymore.
 
 Skill loading contract:
 
@@ -547,6 +548,19 @@ Rules:
 - Do not try to create the built-in `main` agent.
 - Prefer `nextclaw agents new` over direct `config.json` edits for normal Agent creation.
 - If the user asked AI to create the Agent, AI should run the command, not only describe it.
+- Avatar guidance for AI-created agents:
+  - If the user did not explicitly provide an avatar, AI may prefer passing a remote avatar URL from a deterministic avatar service to improve the default UI experience.
+  - Default suggestion: if third-party avatar URLs are acceptable and the user did not express a preference, prefer a deterministic service such as DiceBear.
+  - When using DiceBear or a similar service, prefer a stable seed derived from `agent-id` (or display name) so repeated creation yields a predictable identity instead of a different avatar every time.
+  - Concrete example:
+
+    ```bash
+    nextclaw agents new researcher --json --name "Researcher" --avatar "https://api.dicebear.com/9.x/initials/svg?seed=researcher"
+    ```
+
+  - If you want a different stable avatar, keep the same URL pattern but replace the seed with the final `agent-id` or display name.
+  - Example providers may change over time; treat DiceBear as an explicit recommendation for now, but still as a replaceable suggestion rather than a built-in product dependency or a hardcoded runtime rule.
+  - If the user prefers local-only assets, offline behavior, or does not want third-party avatar URLs, omit `--avatar` and let NextClaw generate the local fallback `avatar.svg`.
 
 Gateway options (when running `nextclaw gateway` or `nextclaw start`):
 

@@ -14,7 +14,7 @@ Before doing anything else:
 2. Read `USER.md` (who you are helping)
 3. Read `memory/YYYY-MM-DD.md` for today and yesterday
 4. If in the main session with your human, also read `MEMORY.md`
-5. For NextClaw self-management tasks (version/status/doctor/service/plugins/channels/config/agents/cron/remote/update), read `USAGE.md` first
+5. For NextClaw self-management tasks (version/status/doctor/service/plugins/channels/config/agents/cron/remote/update), read the built-in NextClaw self-management guide path from the system prompt first
 
 ## Memory
 

@@ -33,12 +33,13 @@
     "dist",
     "bridge",
     "ui-dist",
-    "templates"
+    "templates",
+    "resources"
   ],
   "scripts": {
     "dev": "tsx watch --tsconfig tsconfig.json src/cli/index.ts",
     "dev:build": "tsx src/cli/index.ts",
-    "build": "node scripts/sync-usage-template.mjs && tsup src/index.ts src/cli/index.ts --format esm --dts --out-dir dist && node scripts/copy-ui-dist.mjs",
+    "build": "node scripts/sync-usage-resource.mjs && tsup src/index.ts src/cli/index.ts --format esm --dts --out-dir dist && node scripts/copy-ui-dist.mjs",
     "prepack": "node ../../scripts/verify-package-release-artifacts.mjs",
     "start": "node dist/cli.js",
     "lint": "eslint .",

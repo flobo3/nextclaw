@@ -48,7 +48,7 @@ export class AgentsRoutesController {
     }
   };
 
-  readonly getAgentAvatar = (c: Context) => {
+  readonly getAgentAvatar = (c: Context): Response => {
     const agentId = c.req.param("agentId");
     try {
       const avatar = readAgentAvatar(this.options.configPath, agentId);

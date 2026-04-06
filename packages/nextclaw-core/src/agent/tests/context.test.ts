@@ -91,8 +91,9 @@ describe("ContextBuilder tool catalog", () => {
 
     expect(prompt).toContain("self-management operations");
     expect(prompt).toContain("service/plugins/channels/config/agents/cron/remote/update");
-    expect(prompt).toContain(`${workspace}/USAGE.md`);
-    expect(prompt).toContain("Do not load unrelated generic skills before reading USAGE.md");
+    expect(prompt).toContain("resources/USAGE.md");
+    expect(prompt).not.toContain(`${workspace}/USAGE.md`);
+    expect(prompt).toContain("Do not load unrelated generic skills before reading the built-in self-management guide");
     expect(prompt).toContain("deprecated artifacts");
   });
 });

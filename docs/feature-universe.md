@@ -223,7 +223,7 @@ Agent 主循环中注册的默认工具（`nextclaw-core` `agent/loop.ts` + `age
 
 ## 12. 工作区与 Skills
 
-- **init 生成**：AGENTS.md、SOUL.md、USER.md、IDENTITY.md、TOOLS.md、USAGE.md、BOOT.md/BOOTSTRAP.md、HEARTBEAT.md、memory/MEMORY.md、skills/。
+- **init 生成**：AGENTS.md、SOUL.md、USER.md、IDENTITY.md、TOOLS.md、BOOT.md/BOOTSTRAP.md、HEARTBEAT.md、memory/MEMORY.md、skills/。
 - **Context**：bootstrap 文件、memory 片段、skills（always + 按需）注入系统提示。
 - **Skills**：从 marketplace 安装或工作区 `skills/` 放置，由 ContextBuilder 加载并参与提示。
 

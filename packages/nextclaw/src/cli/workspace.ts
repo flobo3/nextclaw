@@ -22,7 +22,6 @@ export class WorkspaceManager {
       { source: "USER.md", target: "USER.md" },
       { source: "IDENTITY.md", target: "IDENTITY.md" },
       { source: "TOOLS.md", target: "TOOLS.md" },
-      { source: "USAGE.md", target: "USAGE.md" },
       { source: "BOOT.md", target: "BOOT.md" },
       { source: "BOOTSTRAP.md", target: "BOOTSTRAP.md" },
       { source: "HEARTBEAT.md", target: "HEARTBEAT.md" },

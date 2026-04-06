@@ -1,10 +1,8 @@
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
 import { MemoryStore } from "./memory/memory-store.js";
-import {
-  buildWorkspaceProjectContextSection,
-  DEFAULT_BOOTSTRAP_CONTEXT_CONFIG,
-} from "../runtime-context/bootstrap-context.js";
+import { resolveNextclawSelfManageGuidePaths } from "./self-manage/guide-path.js";
+import { buildWorkspaceProjectContextSection, DEFAULT_BOOTSTRAP_CONTEXT_CONFIG } from "../runtime-context/bootstrap-context.js";
 import {
   buildActiveSkillsSystemSection,
   buildAvailableSkillsSystemSection,
@@ -23,7 +21,6 @@ import {
 } from "../session/session-project-context.js";
 
 export type Message = Record<string, unknown>;
-
 type ContextConfig = Config["agents"]["context"];
 type ContextBuilderOptions = {
   hostWorkspace?: string;
@@ -203,6 +200,7 @@ export class ContextBuilder {
       .filter(Boolean);
     const toolCatalog = availableTools ? normalizeToolCatalogEntries(availableTools) : [...DEFAULT_TOOL_CATALOG];
     const appLower = APP_NAME.toLowerCase();
+    const selfManageGuide = resolveNextclawSelfManageGuidePaths();
     const lines = [
       `You are a personal assistant running inside ${APP_NAME}.`,
       "",
@@ -309,11 +307,14 @@ export class ContextBuilder {
       "When a turn includes a time hint, treat it as context for relative-time interpretation in that turn.",
       "",
       `## ${APP_NAME} Self-Management Guide`,
-      `- For ${APP_NAME} self-management operations (version/status/doctor/service/plugins/channels/config/agents/cron/remote/update), read \`${this.workspace}/USAGE.md\` first.`,
+      `- For ${APP_NAME} self-management operations (version/status/doctor/service/plugins/channels/config/agents/cron/remote/update), read \`${selfManageGuide.primaryPath ?? "the built-in NextClaw self-management guide"}\` first.`,
       "- Treat these product-management intents as higher priority than generic skills with overlapping words such as create/install/publish.",
-      "- Do not load unrelated generic skills before reading USAGE.md for a self-management intent.",
-      "- If you notice historical copied built-in skills under the workspace skills directory, treat them as deprecated artifacts; the built-in package definition is the source of truth.",
-      `- If \`${this.workspace}/USAGE.md\` is missing, fall back to \`docs/USAGE.md\` in repo dev runs or command help output.`,
+      "- Do not load unrelated generic skills before reading the built-in self-management guide for a self-management intent.",
+      "- Workspace `USAGE.md` snapshots and copied built-in skills are deprecated artifacts; the built-in package guide is the source of truth.",
+      ...(selfManageGuide.repoDocsPath
+        ? [`- In repo source checkouts, the authoring copy is \`${selfManageGuide.repoDocsPath}\`; only use it when the packaged guide path above is unavailable.`]
+        : []),
+      "- If no guide file is available, fall back to command help output.",
       `- For version lookup, use \`${appLower} --version\` exactly; do not infer version from status output.`,
       `- After mutating operations, validate with \`${appLower} status --json\` (and \`${appLower} doctor --json\` when needed).`,
       ""

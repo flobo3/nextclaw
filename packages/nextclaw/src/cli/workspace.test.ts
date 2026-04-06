@@ -30,6 +30,7 @@ describe("WorkspaceManager", () => {
     manager.createWorkspaceTemplates(workspace);
 
     expect(existsSync(join(workspace, "skills"))).toBe(true);
+    expect(existsSync(join(workspace, "USAGE.md"))).toBe(false);
     expect(existsSync(join(workspace, "skills", "nextclaw-self-manage", "SKILL.md"))).toBe(false);
   });
 });
