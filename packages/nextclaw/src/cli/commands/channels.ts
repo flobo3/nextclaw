@@ -3,7 +3,7 @@ import { getWorkspacePath, loadConfig, saveConfig } from "@nextclaw/core";
 import { BUILTIN_CHANNEL_PLUGIN_IDS, builtinProviderIds } from "@nextclaw/runtime";
 import { buildPluginStatusReport, enablePluginInConfig, getPluginChannelBindings } from "@nextclaw/openclaw-compat";
 import { loadPluginRegistry, mergePluginConfigView, toPluginConfigView } from "./plugins.js";
-import { resolveChannelConfigView } from "./channel-config-view.js";
+import { resolveChannelConfigView } from "./channel/channel-config-view.js";
 import type { ChannelsAddOptions, ChannelsLoginOptions, RequestRestartParams } from "../types.js";
 
 const CHANNEL_LABELS: Record<string, string> = {

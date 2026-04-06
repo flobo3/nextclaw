@@ -10,9 +10,9 @@ import {
 } from "@nextclaw/core";
 import { McpRegistryService, McpServerLifecycleManager } from "@nextclaw/mcp";
 import { McpNcpToolRegistryAdapter } from "@nextclaw/ncp-mcp";
-import { NextclawNcpToolRegistry } from "./nextclaw-ncp-tool-registry.js";
-import { SessionCreationService } from "./session-request/session-creation.service.js";
-import type { SessionRequestBroker } from "./session-request/session-request-broker.js";
+import { NextclawNcpToolRegistry } from "../nextclaw-ncp-tool-registry.js";
+import { SessionCreationService } from "../session-request/session-creation.service.js";
+import type { SessionRequestBroker } from "../session-request/session-request-broker.js";
 
 const fixturePath = resolve(
   import.meta.dirname,

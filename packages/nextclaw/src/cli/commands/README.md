@@ -1,2 +1,3 @@
-## 目录预算豁免
-- 原因：CLI commands 目录按命令与启动装配边界组织，包含大量并列命令入口、辅助装配模块与命令级测试文件；该目录是框架化入口层，当前需要保留达到或超过 `12` 个直接代码文件的扁平集合。
+## 目录结构
+- 命令入口层只保留面向 CLI runtime 的顶层 command 文件。
+- 具体实现按职责拆到 `agent/`、`channel/`、`compat/`、`config/`、`diagnostics/`、`plugin/`、`remote/`、`service/` 与 `ncp/` 子树，避免入口层继续扁平膨胀。

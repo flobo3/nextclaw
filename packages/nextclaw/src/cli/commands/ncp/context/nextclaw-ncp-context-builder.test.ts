@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { afterEach, expect, it, vi } from "vitest";
 import { ConfigSchema, SessionManager } from "@nextclaw/core";
 import { LocalAssetStore } from "@nextclaw/ncp-agent-runtime";
-import { NextclawNcpContextBuilder } from "./nextclaw-ncp-context-builder.js";
+import { NextclawNcpContextBuilder } from "../nextclaw-ncp-context-builder.js";
 
 const tempWorkspaces: string[] = [];
 const originalNextclawHome = process.env.NEXTCLAW_HOME;

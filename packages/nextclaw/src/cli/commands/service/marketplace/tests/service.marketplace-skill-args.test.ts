@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMarketplaceSkillInstallArgs, resolveCliSubcommandEntry } from "./service.js";
+import { buildMarketplaceSkillInstallArgs, resolveCliSubcommandEntry } from "../../../service.js";
 
 describe("buildMarketplaceSkillInstallArgs", () => {
   it("always includes workspace and slug", () => {

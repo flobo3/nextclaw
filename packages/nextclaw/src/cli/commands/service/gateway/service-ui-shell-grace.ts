@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { measureStartupAsync } from "../startup-trace.js";
+import { measureStartupAsync } from "../../../startup-trace.js";
 import type { UiStartupHandle } from "./service-gateway-startup.js";
 
 const DEFAULT_UI_SHELL_GRACE_MS = 3_000;

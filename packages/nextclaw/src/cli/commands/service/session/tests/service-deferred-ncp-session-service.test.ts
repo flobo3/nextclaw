@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NcpSessionApi } from "@nextclaw/ncp";
-import { createDeferredUiNcpSessionService } from "./service-deferred-ncp-session-service.js";
+import { createDeferredUiNcpSessionService } from "../service-deferred-ncp-session-service.js";
 
 function createSessionApi(label: string): NcpSessionApi {
   return {

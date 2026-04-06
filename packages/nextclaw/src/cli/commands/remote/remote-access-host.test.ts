@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigSchema, saveConfig } from "@nextclaw/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as utils from "../utils.js";
+import * as utils from "../../utils.js";
 import { RemoteAccessHost } from "./remote-access-host.js";
 
 const originalNextclawHome = process.env.NEXTCLAW_HOME;

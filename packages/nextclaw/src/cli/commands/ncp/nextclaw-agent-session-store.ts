@@ -8,8 +8,8 @@ import {
 import {
   resolveLegacyEventType,
   toNcpMessages,
-} from "./nextclaw-agent-session-message-adapter.js";
-import { resolvePersistedSessionMetadata } from "./nextclaw-agent-session-metadata.utils.js";
+} from "./session/nextclaw-agent-session-message-adapter.js";
+import { resolvePersistedSessionMetadata } from "./session/nextclaw-agent-session-metadata.utils.js";
 
 function readAgentIdFromMetadata(metadata: Record<string, unknown> | undefined): string | undefined {
   return normalizeString(metadata?.agent_id)?.toLowerCase() ?? normalizeString(metadata?.agentId)?.toLowerCase() ?? undefined;

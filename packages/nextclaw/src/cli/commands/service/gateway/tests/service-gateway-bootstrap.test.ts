@@ -30,19 +30,19 @@ vi.mock("@nextclaw/openclaw-compat", async (importOriginal) => {
   };
 });
 
-vi.mock("./service-capability-hydration.js", () => ({
+vi.mock("../service-capability-hydration.js", () => ({
   hydrateServiceCapabilities: vi.fn()
 }));
 
-vi.mock("./service-plugin-reload.js", () => ({
+vi.mock("../service-plugin-reload.js", () => ({
   reloadServicePlugins: mocks.reloadServicePluginsMock
 }));
 
-vi.mock("./service-plugin-runtime-bridge.js", () => ({
+vi.mock("../service-plugin-runtime-bridge.js", () => ({
   installPluginRuntimeBridge: mocks.installPluginRuntimeBridgeMock
 }));
 
-vi.mock("./service-startup-support.js", () => ({
+vi.mock("../service-startup-support.js", () => ({
   logPluginGatewayDiagnostics: mocks.logPluginGatewayDiagnosticsMock,
   pluginGatewayLogger: {
     info: vi.fn(),
@@ -52,7 +52,7 @@ vi.mock("./service-startup-support.js", () => ({
   }
 }));
 
-import { configureGatewayPluginRuntime } from "./service-gateway-bootstrap.js";
+import { configureGatewayPluginRuntime } from "../service-gateway-bootstrap.js";
 
 describe("configureGatewayPluginRuntime", () => {
   beforeEach(() => {

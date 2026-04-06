@@ -2,16 +2,16 @@ import * as NextclawCore from "@nextclaw/core";
 import { getPluginChannelBindings, resolvePluginChannelMessageToolHints } from "@nextclaw/openclaw-compat";
 import type { RemoteServiceModule } from "@nextclaw/remote";
 import { join } from "node:path";
-import { GatewayControllerImpl } from "../gateway/controller.js";
-import { ConfigReloader } from "../config-reloader.js";
-import type { RequestRestartParams } from "../types.js";
-import { resolveUiConfig, resolveUiStaticDir } from "../utils.js";
-import { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
-import { resolveChannelConfigView } from "./channel-config-view.js";
-import { loadPluginRegistry, logPluginDiagnostics, toExtensionRegistry, type NextclawExtensionRegistry } from "./plugins.js";
+import { GatewayControllerImpl } from "../../../gateway/controller.js";
+import { ConfigReloader } from "../../../config-reloader.js";
+import type { RequestRestartParams } from "../../../types.js";
+import { resolveUiConfig, resolveUiStaticDir } from "../../../utils.js";
+import { GatewayAgentRuntimePool } from "../../agent/agent-runtime-pool.js";
+import { resolveChannelConfigView } from "../../channel/channel-config-view.js";
+import { loadPluginRegistry, logPluginDiagnostics, toExtensionRegistry, type NextclawExtensionRegistry } from "../../plugins.js";
 import { createCronJobHandler } from "./service-cron-job-handler.js";
-import { createManagedRemoteModuleForUi } from "./service-remote-runtime.js";
-import { measureStartupSync } from "../startup-trace.js";
+import { createManagedRemoteModuleForUi } from "../runtime/service-remote-runtime.js";
+import { measureStartupSync } from "../../../startup-trace.js";
 
 const {
   ChannelManager,

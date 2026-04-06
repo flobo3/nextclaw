@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ServiceBootstrapStatusStore } from "./service-bootstrap-status.js";
+import { ServiceBootstrapStatusStore } from "../service-bootstrap-status.js";
 
 describe("ServiceBootstrapStatusStore", () => {
   it("tracks shell readiness and capability hydration progress", () => {

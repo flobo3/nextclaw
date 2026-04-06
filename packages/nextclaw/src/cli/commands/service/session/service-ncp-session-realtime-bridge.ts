@@ -1,8 +1,8 @@
 import type { SessionManager } from "@nextclaw/core";
 import type { NcpSessionApi } from "@nextclaw/ncp";
 import type { UiServerEvent } from "@nextclaw/server";
-import { createNcpSessionRealtimeChangePublisher } from "./ncp/ncp-session-realtime-change.js";
-import { UiSessionService } from "./ncp/ui-session-service.js";
+import { createNcpSessionRealtimeChangePublisher } from "../../ncp/session/ncp-session-realtime-change.js";
+import { UiSessionService } from "../../ncp/ui-session-service.js";
 import {
   createDeferredUiNcpSessionService,
   type DeferredUiNcpSessionServiceController

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { wireSystemSessionUpdatedPublisher } from "./service-gateway-startup.js";
+import { wireSystemSessionUpdatedPublisher } from "../service-gateway-startup.js";
 
 describe("wireSystemSessionUpdatedPublisher", () => {
   it("publishes a UI session.updated event when the runtime pool reports a system session update", () => {

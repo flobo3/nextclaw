@@ -3,7 +3,7 @@ import { NcpEventType } from "@nextclaw/ncp";
 import {
   createClaudeSdkEventMapperState,
   mapClaudeMessageEvent,
-} from "../../../../../extensions/nextclaw-ncp-runtime-claude-code-sdk/src/claude-sdk-ncp-event-mapper.js";
+} from "../../../../../../extensions/nextclaw-ncp-runtime-claude-code-sdk/src/claude-sdk-ncp-event-mapper.js";
 
 async function collectEvents(messages: Record<string, unknown>[]) {
   const state = createClaudeSdkEventMapperState();

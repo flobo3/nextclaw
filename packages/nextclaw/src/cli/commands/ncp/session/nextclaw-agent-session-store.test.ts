@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionManager } from "@nextclaw/core";
 import type { AgentSessionRecord } from "@nextclaw/ncp-toolkit";
-import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
+import { NextclawAgentSessionStore } from "../nextclaw-agent-session-store.js";
 
 const tempDirs: string[] = [];
 const originalNextclawHome = process.env.NEXTCLAW_HOME;

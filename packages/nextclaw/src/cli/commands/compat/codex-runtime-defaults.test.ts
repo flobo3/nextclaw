@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CodexSdkNcpAgentRuntime } from "../../../../extensions/nextclaw-ncp-runtime-codex-sdk/src/index.js";
+import { CodexSdkNcpAgentRuntime } from "../../../../../extensions/nextclaw-ncp-runtime-codex-sdk/src/index.js";
 
 const setRuntimeGetCodex = (
   runtime: CodexSdkNcpAgentRuntime,

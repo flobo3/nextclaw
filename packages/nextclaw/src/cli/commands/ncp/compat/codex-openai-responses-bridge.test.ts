@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
-import { ensureCodexOpenAiResponsesBridge } from "../../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/codex-openai-responses-bridge.js";
+import { ensureCodexOpenAiResponsesBridge } from "../../../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/codex-openai-responses-bridge.js";
 
 type RecordedRequest = {
   method: string;

@@ -12,7 +12,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { expandHome, getWorkspacePath, loadConfig, saveConfig } from "@nextclaw/core";
 import { buildReservedPluginLoadOptions } from "./plugin-command-utils.js";
-import type { PluginsInstallOptions, PluginsUninstallOptions } from "../types.js";
+import type { PluginsInstallOptions, PluginsUninstallOptions } from "../../types.js";
 
 export type PluginMutationResult = {
   message: string;
@@ -20,6 +20,11 @@ export type PluginMutationResult = {
 
 export type PluginUninstallMutationResult = PluginMutationResult & {
   warnings: string[];
+};
+
+const pluginInstallLogger = {
+  info: (message: string) => console.log(message),
+  warn: (message: string) => console.warn(message)
 };
 
 function resolveFileNpmSpecToLocalPath(
@@ -67,6 +72,110 @@ function looksLikePath(raw: string): boolean {
 function isArchivePath(filePath: string): boolean {
   const lower = filePath.toLowerCase();
   return lower.endsWith(".zip") || lower.endsWith(".tgz") || lower.endsWith(".tar.gz") || lower.endsWith(".tar");
+}
+
+function saveLinkedPluginInstall(
+  config: ReturnType<typeof loadConfig>,
+  params: {
+    resolvedPath: string;
+    pluginId: string;
+    version?: string | null;
+  },
+): PluginMutationResult {
+  let next = addPluginLoadPath(config, params.resolvedPath);
+  next = enablePluginInConfig(next, params.pluginId);
+  next = recordPluginInstall(next, {
+    pluginId: params.pluginId,
+    source: "path",
+    sourcePath: params.resolvedPath,
+    installPath: params.resolvedPath,
+    version: params.version ?? undefined
+  });
+  saveConfig(next);
+  return {
+    message: `Linked plugin path: ${params.resolvedPath}`,
+  };
+}
+
+function saveInstalledPluginResult(
+  config: ReturnType<typeof loadConfig>,
+  params: {
+    pluginId: string;
+    installPath: string;
+    version?: string | null;
+    source: "archive" | "path" | "npm";
+    sourcePath?: string;
+    spec?: string;
+  },
+): PluginMutationResult {
+  let next = enablePluginInConfig(config, params.pluginId);
+  next = recordPluginInstall(next, {
+    pluginId: params.pluginId,
+    source: params.source,
+    sourcePath: params.sourcePath,
+    spec: params.spec,
+    installPath: params.installPath,
+    version: params.version ?? undefined
+  });
+  saveConfig(next);
+  return {
+    message: `Installed plugin: ${params.pluginId}`,
+  };
+}
+
+async function installPluginFromLocalPath(
+  config: ReturnType<typeof loadConfig>,
+  resolvedPath: string,
+  link: boolean,
+): Promise<PluginMutationResult> {
+  if (link) {
+    const probe = await installPluginFromPath({ path: resolvedPath, dryRun: true });
+    if (!probe.ok) {
+      throw new Error(probe.error);
+    }
+    return saveLinkedPluginInstall(config, {
+      resolvedPath,
+      pluginId: probe.pluginId,
+      version: probe.version
+    });
+  }
+
+  const result = await installPluginFromPath({
+    path: resolvedPath,
+    logger: pluginInstallLogger
+  });
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+
+  return saveInstalledPluginResult(config, {
+    pluginId: result.pluginId,
+    source: isArchivePath(resolvedPath) ? "archive" : "path",
+    sourcePath: resolvedPath,
+    installPath: result.targetDir,
+    version: result.version
+  });
+}
+
+async function installPluginFromRegistrySpec(
+  config: ReturnType<typeof loadConfig>,
+  spec: string,
+): Promise<PluginMutationResult> {
+  const result = await installPluginFromNpmSpec({
+    spec,
+    logger: pluginInstallLogger
+  });
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+
+  return saveInstalledPluginResult(config, {
+    pluginId: result.pluginId,
+    source: "npm",
+    spec,
+    installPath: result.targetDir,
+    version: result.version
+  });
 }
 
 export async function enablePluginMutation(id: string): Promise<PluginMutationResult> {
@@ -163,52 +272,7 @@ export async function installPluginMutation(
   const config = loadConfig();
 
   if (existsSync(resolved)) {
-    if (opts.link) {
-      const probe = await installPluginFromPath({ path: resolved, dryRun: true });
-      if (!probe.ok) {
-        throw new Error(probe.error);
-      }
-
-      let next = addPluginLoadPath(config, resolved);
-      next = enablePluginInConfig(next, probe.pluginId);
-      next = recordPluginInstall(next, {
-        pluginId: probe.pluginId,
-        source: "path",
-        sourcePath: resolved,
-        installPath: resolved,
-        version: probe.version
-      });
-
-      saveConfig(next);
-      return {
-        message: `Linked plugin path: ${resolved}`,
-      };
-    }
-
-    const result = await installPluginFromPath({
-      path: resolved,
-      logger: {
-        info: (message) => console.log(message),
-        warn: (message) => console.warn(message)
-      }
-    });
-
-    if (!result.ok) {
-      throw new Error(result.error);
-    }
-
-    let next = enablePluginInConfig(config, result.pluginId);
-    next = recordPluginInstall(next, {
-      pluginId: result.pluginId,
-      source: isArchivePath(resolved) ? "archive" : "path",
-      sourcePath: resolved,
-      installPath: result.targetDir,
-      version: result.version
-    });
-    saveConfig(next);
-    return {
-      message: `Installed plugin: ${result.pluginId}`,
-    };
+    return installPluginFromLocalPath(config, resolved, Boolean(opts.link));
   }
 
   if (opts.link) {
@@ -219,28 +283,5 @@ export async function installPluginMutation(
     throw new Error(`Path not found: ${resolved}`);
   }
 
-  const result = await installPluginFromNpmSpec({
-    spec: pathOrSpec,
-    logger: {
-      info: (message) => console.log(message),
-      warn: (message) => console.warn(message)
-    }
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  let next = enablePluginInConfig(config, result.pluginId);
-  next = recordPluginInstall(next, {
-    pluginId: result.pluginId,
-    source: "npm",
-    spec: pathOrSpec,
-    installPath: result.targetDir,
-    version: result.version
-  });
-  saveConfig(next);
-  return {
-    message: `Installed plugin: ${result.pluginId}`,
-  };
+  return installPluginFromRegistrySpec(config, pathOrSpec);
 }

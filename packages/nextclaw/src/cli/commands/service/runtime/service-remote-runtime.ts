@@ -12,13 +12,13 @@ import {
 } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getDataDir } from "@nextclaw/core";
-import { readServiceState, resolveUiApiBase, writeServiceState, type ServiceState } from "../utils.js";
+import { readServiceState, resolveUiApiBase, writeServiceState, type ServiceState } from "../../../utils.js";
 import {
   buildNextclawConfiguredRemoteState,
   createNextclawRemoteConnector,
   createNextclawRemoteStatusStore
-} from "./remote-runtime-support.js";
-import { isProcessRunning } from "../utils.js";
+} from "../../remote/remote-runtime-support.js";
+import { isProcessRunning } from "../../../utils.js";
 
 type ManagedServiceSnapshot = {
   pid: number;

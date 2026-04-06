@@ -1,7 +1,7 @@
 import { getConfigPath, loadConfig } from "@nextclaw/core";
 import type { RemoteServiceAction, RemoteServiceActionResult, RemoteServiceView } from "@nextclaw/server";
 import { spawn } from "node:child_process";
-import { isProcessRunning, readServiceState, resolveServiceStatePath, resolveUiApiBase, resolveUiConfig } from "../utils.js";
+import { isProcessRunning, readServiceState, resolveServiceStatePath, resolveUiApiBase, resolveUiConfig } from "../../utils.js";
 
 export type RemoteAccessHostServiceCommands = {
   startService: (options: { uiOverrides: Partial<ReturnType<typeof resolveUiConfig>>; open: boolean }) => Promise<void>;

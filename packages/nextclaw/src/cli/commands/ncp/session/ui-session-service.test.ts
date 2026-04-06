@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionManager } from "@nextclaw/core";
-import { UiSessionService } from "./ui-session-service.js";
+import { UiSessionService } from "../ui-session-service.js";
 
 const tempDirs: string[] = [];
 const originalNextclawHome = process.env.NEXTCLAW_HOME;

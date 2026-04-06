@@ -1,5 +1,5 @@
 import { APP_NAME } from "@nextclaw/core";
-import type { RuntimeStatusReport } from "../types.js";
+import type { RuntimeStatusReport } from "../../types.js";
 
 export type DoctorCheck = {
   name: string;

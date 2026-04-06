@@ -12,7 +12,7 @@ import {
   enablePluginMutation,
   installPluginMutation,
   uninstallPluginMutation
-} from "./plugin-mutation-actions.js";
+} from "../../plugin/plugin-mutation-actions.js";
 import { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-marketplace-helpers.js";
 import { ServiceMcpMarketplaceOps } from "./service-mcp-marketplace-ops.js";
 

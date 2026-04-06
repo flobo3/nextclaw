@@ -25,16 +25,16 @@ vi.mock("@nextclaw/openclaw-compat", () => ({
   getPluginChannelBindings: mocks.getPluginChannelBindingsMock,
 }));
 
-vi.mock("./plugins.js", () => ({
+vi.mock("../plugins.js", () => ({
   loadPluginRegistry: mocks.loadPluginRegistryMock,
   mergePluginConfigView: mocks.mergePluginConfigViewMock,
 }));
 
-vi.mock("./channel-config-view.js", () => ({
+vi.mock("../channel/channel-config-view.js", () => ({
   resolveChannelConfigView: mocks.resolveChannelConfigViewMock,
 }));
 
-import { ConfigCommands } from "./config.js";
+import { ConfigCommands } from "../config.js";
 
 const BASE_CONFIG = {
   agents: {

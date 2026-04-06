@@ -3,10 +3,10 @@ import { createPluginRuntime } from "@nextclaw/openclaw-compat";
 import { ConfigSchema, type Config } from "@nextclaw/core";
 import type { RuntimeFactoryParams } from "@nextclaw/ncp-toolkit";
 import type { NcpAgentRuntime } from "@nextclaw/ncp";
-import codexRuntimePlugin from "../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/index.js";
+import codexRuntimePlugin from "../../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/index.js";
 
 vi.mock(
-  "../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/codex-responses-capability.js",
+  "../../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/codex-responses-capability.js",
   () => ({
     resolveCodexResponsesApiSupport: vi.fn(async () => true),
   }),

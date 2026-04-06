@@ -3,11 +3,11 @@ import { type DefaultNcpAgentBackend, createAgentClientFromServer } from "@nextc
 import type { LocalAssetStore } from "@nextclaw/ncp-agent-runtime";
 import type { NcpSessionApi } from "@nextclaw/ncp";
 import type { UiNcpAgent } from "@nextclaw/server";
-import type { NextclawExtensionRegistry } from "../plugins.js";
+import type { NextclawExtensionRegistry } from "../../plugins.js";
 import type {
   UiNcpRuntimeRegistry,
   UiNcpSessionTypeDescribeParams,
-} from "./ui-ncp-runtime-registry.js";
+} from "../ui-ncp-runtime-registry.js";
 
 export type UiNcpAgentHandle = UiNcpAgent & {
   sessionApi: NcpSessionApi;

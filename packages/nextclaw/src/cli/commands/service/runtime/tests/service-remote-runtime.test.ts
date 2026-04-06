@@ -2,11 +2,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ServiceState } from "../utils.js";
+import type { ServiceState } from "../../../../utils.js";
 import {
   claimManagedRemoteRuntimeOwnership,
   createManagedRemoteModuleForUi
-} from "./service-remote-runtime.js";
+} from "../service-remote-runtime.js";
 
 describe("claimManagedRemoteRuntimeOwnership", () => {
   afterEach(() => {

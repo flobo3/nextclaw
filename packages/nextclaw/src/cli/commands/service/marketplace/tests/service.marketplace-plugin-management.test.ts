@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as pluginMutations from "./plugin-mutation-actions.js";
-import { ServiceCommands } from "./service.js";
+import * as pluginMutations from "../../../plugin/plugin-mutation-actions.js";
+import { ServiceCommands } from "../../../service.js";
 
 const getServiceMethod = <T extends (...args: never[]) => unknown>(service: ServiceCommands, key: string): T => {
   const method = Reflect.get(service as object, key);

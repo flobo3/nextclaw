@@ -30,7 +30,7 @@ import {
   waitForExit
 } from "../utils.js";
 import type { RequestRestartParams } from "../types.js";
-import { ServiceMarketplaceInstaller } from "./service-marketplace-installer.js";
+import { ServiceMarketplaceInstaller } from "./service/marketplace/service-marketplace-installer.js";
 import {
   type ManagedServiceState,
   reportManagedServiceStart,
@@ -38,32 +38,32 @@ import {
   resolveSessionRouteCandidate,
   spawnManagedService,
   waitForManagedServiceReadiness
-} from "./service-managed-startup.js";
-import { startGatewaySupportServices, watchCronStoreFile } from "./service-startup-support.js";
+} from "./service/runtime/service-managed-startup.js";
+import { startGatewaySupportServices, watchCronStoreFile } from "./service/gateway/service-startup-support.js";
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
-import { resolveCliSubcommandEntry } from "./cli-subcommand-launch.js";
-import { writeReadyManagedServiceState } from "./service-remote-runtime.js";
-import { createRemoteAccessHost } from "./service-remote-access.js";
+import { resolveCliSubcommandEntry } from "./service/marketplace/cli-subcommand-launch.js";
+import { writeReadyManagedServiceState } from "./service/runtime/service-remote-runtime.js";
+import { createRemoteAccessHost } from "./service/runtime/service-remote-access.js";
 import { type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
-import { createGatewayShellContext, createGatewayStartupContext } from "./service-gateway-context.js";
+import { createGatewayShellContext, createGatewayStartupContext } from "./service/gateway/service-gateway-context.js";
 import {
   runGatewayRuntimeLoop,
   startDeferredGatewayStartup,
   startUiShell,
   wireSystemSessionUpdatedPublisher
-} from "./service-gateway-startup.js";
-import { createServiceNcpSessionRealtimeBridge } from "./service-ncp-session-realtime-bridge.js";
-import { createEmptyPluginRegistry } from "./plugin-registry-loader.js";
+} from "./service/gateway/service-gateway-startup.js";
+import { createServiceNcpSessionRealtimeBridge } from "./service/session/service-ncp-session-realtime-bridge.js";
+import { createEmptyPluginRegistry } from "./plugin/plugin-registry-loader.js";
 import {
   configureGatewayPluginRuntime,
   createBootstrapStatus,
   createDeferredGatewayStartupHooks,
   createGatewayRuntimeState,
   type GatewayRuntimeState
-} from "./service-gateway-bootstrap.js";
+} from "./service/gateway/service-gateway-bootstrap.js";
 import { logStartupTrace, measureStartupAsync, measureStartupSync } from "../startup-trace.js";
 
-export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-marketplace-helpers.js";
+export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service/marketplace/service-marketplace-helpers.js";
 export { resolveCliSubcommandEntry };
 
 const {

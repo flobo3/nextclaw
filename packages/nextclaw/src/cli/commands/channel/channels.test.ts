@@ -40,17 +40,17 @@ vi.mock("@nextclaw/openclaw-compat", () => ({
   getPluginChannelBindings: mocks.getPluginChannelBindingsMock,
 }));
 
-vi.mock("./plugins.js", () => ({
+vi.mock("../plugins.js", () => ({
   loadPluginRegistry: mocks.loadPluginRegistryMock,
   mergePluginConfigView: vi.fn(),
   toPluginConfigView: vi.fn()
 }));
 
-vi.mock("./channel-config-view.js", () => ({
+vi.mock("../channel/channel-config-view.js", () => ({
   resolveChannelConfigView: mocks.resolveChannelConfigViewMock,
 }));
 
-import { ChannelCommands } from "./channels.js";
+import { ChannelCommands } from "../channels.js";
 
 describe("ChannelCommands.channelsStatus", () => {
   beforeEach(() => {

@@ -6,15 +6,15 @@ import {
   type PluginRegistry,
   type PluginUiMetadata,
 } from "@nextclaw/openclaw-compat";
-import type { UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
+import type { UiNcpAgentHandle } from "../../ncp/create-ui-ncp-agent.js";
 import { applyGatewayCapabilityState, type GatewayStartupContext } from "./service-gateway-context.js";
-import { shouldRestartChannelsForPluginReload } from "./plugin-reload.js";
+import { shouldRestartChannelsForPluginReload } from "../../plugin/plugin-reload.js";
 import {
   logPluginDiagnostics,
   toExtensionRegistry,
   type NextclawExtensionRegistry,
-} from "./plugins.js";
-import { discoverPluginRegistryStatus, loadPluginRegistryProgressively } from "./plugin-registry-loader.js";
+} from "../../plugins.js";
+import { discoverPluginRegistryStatus, loadPluginRegistryProgressively } from "../../plugin/plugin-registry-loader.js";
 import type { ServiceBootstrapStatusStore } from "./service-bootstrap-status.js";
 import { waitForUiShellGraceWindow } from "./service-ui-shell-grace.js";
 import type { UiStartupHandle } from "./service-gateway-startup.js";

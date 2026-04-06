@@ -7,7 +7,7 @@ import {
   setAtConfigPath,
   unsetAtConfigPath
 } from "../config-path.js";
-import { resolveChannelConfigView } from "./channel-config-view.js";
+import { resolveChannelConfigView } from "./channel/channel-config-view.js";
 import { loadPluginRegistry, mergePluginConfigView } from "./plugins.js";
 import type { ConfigGetOptions, ConfigSetOptions, RequestRestartParams } from "../types.js";
 

@@ -1,8 +1,8 @@
 import { loadConfig, resolveConfigSecrets, saveConfig, type InboundAttachment } from "@nextclaw/core";
 import { setPluginRuntimeBridge } from "@nextclaw/openclaw-compat";
 import type { getPluginChannelBindings } from "@nextclaw/openclaw-compat";
-import type { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
-import { mergePluginConfigView, toPluginConfigView } from "./plugins.js";
+import type { GatewayAgentRuntimePool } from "../../agent/agent-runtime-pool.js";
+import { mergePluginConfigView, toPluginConfigView } from "../../plugins.js";
 
 type InstallPluginRuntimeBridgeParams = {
   runtimePool: GatewayAgentRuntimePool;

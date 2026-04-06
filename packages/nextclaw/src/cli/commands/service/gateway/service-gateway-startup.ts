@@ -8,14 +8,14 @@ import {
   type UiServerEvent,
   type UiRemoteAccessHost
 } from "@nextclaw/server";
-import { openBrowser } from "../utils.js";
-import type { GatewayControllerImpl } from "../gateway/controller.js";
-import type { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
-import { createUiNcpAgent, type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
-import type { NextclawExtensionRegistry } from "./plugins.js";
-import { createDeferredUiNcpAgent, type DeferredUiNcpAgentController } from "./service-deferred-ncp-agent.js";
-import type { DeferredUiNcpSessionServiceController } from "./service-deferred-ncp-session-service.js";
-import { logStartupTrace, measureStartupAsync } from "../startup-trace.js";
+import { openBrowser } from "../../../utils.js";
+import type { GatewayControllerImpl } from "../../../gateway/controller.js";
+import type { GatewayAgentRuntimePool } from "../../agent/agent-runtime-pool.js";
+import { createUiNcpAgent, type UiNcpAgentHandle } from "../../ncp/create-ui-ncp-agent.js";
+import type { NextclawExtensionRegistry } from "../../plugins.js";
+import { createDeferredUiNcpAgent, type DeferredUiNcpAgentController } from "../session/service-deferred-ncp-agent.js";
+import type { DeferredUiNcpSessionServiceController } from "../session/service-deferred-ncp-session-service.js";
+import { logStartupTrace, measureStartupAsync } from "../../../startup-trace.js";
 
 type Config = NextclawCore.Config;
 type MessageBus = NextclawCore.MessageBus;

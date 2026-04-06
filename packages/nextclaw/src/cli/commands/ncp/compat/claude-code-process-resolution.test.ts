@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveBundledClaudeAgentSdkCliPath } from "../../../../../extensions/nextclaw-ncp-runtime-claude-code-sdk/src/claude-code-process-resolution.js";
+import { resolveBundledClaudeAgentSdkCliPath } from "../../../../../../extensions/nextclaw-ncp-runtime-claude-code-sdk/src/claude-code-process-resolution.js";
 
 const tempDirs: string[] = [];
 

@@ -20,11 +20,11 @@ import {
 } from "@nextclaw/ncp";
 import { DefaultNcpAgentBackend, type RuntimeFactoryParams } from "@nextclaw/ncp-toolkit";
 import type { NextclawExtensionRegistry } from "../plugins.js";
-import { createAssetTools } from "./ncp-asset-tools.js";
+import { createAssetTools } from "./runtime/ncp-asset-tools.js";
 import { NextclawNcpContextBuilder } from "./nextclaw-ncp-context-builder.js";
 import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
 import { NextclawNcpToolRegistry } from "./nextclaw-ncp-tool-registry.js";
-import { ProviderManagerNcpLLMApi } from "./provider-manager-ncp-llm-api.js";
+import { ProviderManagerNcpLLMApi } from "./provider/provider-manager-ncp-llm-api.js";
 import { SessionCreationService } from "./session-request/session-creation.service.js";
 import { SessionRequestBroker } from "./session-request/session-request-broker.js";
 import { SessionRequestDeliveryService } from "./session-request/session-request-delivery.service.js";
@@ -32,12 +32,12 @@ import { UiNcpRuntimeRegistry } from "./ui-ncp-runtime-registry.js";
 import {
   createUiNcpAgentHandle,
   type UiNcpAgentHandle,
-} from "./ui-ncp-agent-handle.js";
+} from "./runtime/ui-ncp-agent-handle.js";
 import { join } from "node:path";
 
 const CODEX_RUNTIME_KIND = "codex";
 const CODEX_DIRECT_RUNTIME_BACKEND = "codex-sdk";
-export type { UiNcpAgentHandle } from "./ui-ncp-agent-handle.js";
+export type { UiNcpAgentHandle } from "./runtime/ui-ncp-agent-handle.js";
 type MessageToolHintsResolver = (params: {
   sessionKey: string;
   channel: string;

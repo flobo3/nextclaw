@@ -35,25 +35,25 @@ vi.mock("@nextclaw/openclaw-compat", async (importOriginal) => {
   };
 });
 
-vi.mock("./plugin-registry-loader.js", () => ({
+vi.mock("../../../plugin/plugin-registry-loader.js", () => ({
   discoverPluginRegistryStatus: mocks.discoverPluginRegistryStatusMock,
   loadPluginRegistryProgressively: mocks.loadPluginRegistryProgressivelyMock
 }));
 
-vi.mock("./plugin-reload.js", () => ({
+vi.mock("../../../plugin/plugin-reload.js", () => ({
   shouldRestartChannelsForPluginReload: mocks.shouldRestartChannelsForPluginReloadMock
 }));
 
-vi.mock("./plugins.js", () => ({
+vi.mock("../../../plugins.js", () => ({
   logPluginDiagnostics: mocks.logPluginDiagnosticsMock,
   toExtensionRegistry: mocks.toExtensionRegistryMock
 }));
 
-vi.mock("./service-ui-shell-grace.js", () => ({
+vi.mock("../service-ui-shell-grace.js", () => ({
   waitForUiShellGraceWindow: mocks.waitForUiShellGraceWindowMock
 }));
 
-import { hydrateServiceCapabilities } from "./service-capability-hydration.js";
+import { hydrateServiceCapabilities } from "../service-capability-hydration.js";
 
 describe("hydrateServiceCapabilities", () => {
   beforeEach(() => {

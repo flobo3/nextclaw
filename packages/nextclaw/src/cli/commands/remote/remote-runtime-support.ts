@@ -9,7 +9,7 @@ import {
   type RemoteRuntimeState,
   type RemoteStatusSnapshot
 } from "@nextclaw/remote";
-import { getPackageVersion, isProcessRunning, readServiceState, updateServiceState } from "../utils.js";
+import { getPackageVersion, isProcessRunning, readServiceState, updateServiceState } from "../../utils.js";
 import { resolvePlatformApiBase } from "./platform-api-base.js";
 
 let currentProcessRemoteRuntimeState: RemoteRuntimeState | null = null;

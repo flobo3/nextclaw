@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import * as utils from "../utils.js";
+import * as utils from "../../utils.js";
 import { readCurrentNextclawRemoteRuntimeState } from "./remote-runtime-support.js";
 
 describe("readCurrentNextclawRemoteRuntimeState", () => {

@@ -12,14 +12,14 @@ import {
 } from "@nextclaw/core";
 import { NcpEventType, type NcpEndpointEvent, type NcpRequestEnvelope } from "@nextclaw/ncp";
 import { createPluginRuntime } from "@nextclaw/openclaw-compat";
-import { loadPluginRegistry, toExtensionRegistry, type NextclawExtensionRegistry } from "../plugins.js";
-import codexRuntimePlugin from "../../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/index.js";
-import { createUiNcpAgent } from "./create-ui-ncp-agent.js";
+import { loadPluginRegistry, toExtensionRegistry, type NextclawExtensionRegistry } from "../../plugins.js";
+import codexRuntimePlugin from "../../../../../../extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/index.js";
+import { createUiNcpAgent } from "../create-ui-ncp-agent.js";
 
 const tempDirs: string[] = [];
 const mcpFixturePath = resolve(
   import.meta.dirname,
-  "../../../../../nextclaw-mcp/tests/fixtures/mock-mcp-server.mjs",
+  "../../../../../../../nextclaw-mcp/tests/fixtures/mock-mcp-server.mjs",
 );
 
 function createTempWorkspace(): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NcpEventType } from "@nextclaw/ncp";
-import { mapCodexItemEvent } from "../../../../../extensions/nextclaw-ncp-runtime-codex-sdk/src/codex-sdk-ncp-event-mapper.js";
+import { mapCodexItemEvent } from "../../../../../../extensions/nextclaw-ncp-runtime-codex-sdk/src/codex-sdk-ncp-event-mapper.js";
 
 describe("mapCodexItemEvent", () => {
   it("does not surface non-fatal codex error items as user-visible tool calls", async () => {

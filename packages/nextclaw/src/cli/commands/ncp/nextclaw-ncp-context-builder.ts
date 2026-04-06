@@ -30,8 +30,8 @@ import {
   resolveEffectiveModel,
   resolveSessionChannelContext,
   syncSessionThinkingPreference,
-} from "./nextclaw-ncp-session-preferences.js";
-import { buildCurrentTurnState } from "./nextclaw-ncp-current-turn.js";
+} from "./context/nextclaw-ncp-session-preferences.js";
+import { buildCurrentTurnState } from "./context/nextclaw-ncp-current-turn.js";
 import {
   readAccountIdForHints,
   resolveAgentHandoffDepth,

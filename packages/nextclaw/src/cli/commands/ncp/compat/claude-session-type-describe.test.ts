@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ConfigSchema } from "@nextclaw/core";
 import {
   createDescribeClaudeSessionType,
-} from "../../../../../extensions/nextclaw-ncp-runtime-plugin-claude-code-sdk/src/index.js";
+} from "../../../../../../extensions/nextclaw-ncp-runtime-plugin-claude-code-sdk/src/index.js";
 
 describe("Claude session type describe", () => {
   it("keeps observation mode side-effect-free and only probes in explicit probe mode", async () => {

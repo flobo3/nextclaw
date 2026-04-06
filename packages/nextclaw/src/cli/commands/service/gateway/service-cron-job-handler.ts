@@ -1,5 +1,5 @@
 import type { MessageBus } from "@nextclaw/core";
-import type { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
+import type { GatewayAgentRuntimePool } from "../../agent/agent-runtime-pool.js";
 
 type CronJobLike = {
   id: string;

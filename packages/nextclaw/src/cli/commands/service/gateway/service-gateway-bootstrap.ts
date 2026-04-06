@@ -6,7 +6,7 @@ import {
   type PluginRegistry,
   type PluginUiMetadata,
 } from "@nextclaw/openclaw-compat";
-import type { UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
+import type { UiNcpAgentHandle } from "../../ncp/create-ui-ncp-agent.js";
 import {
   applyGatewayCapabilityState,
   type GatewayCapabilityState,
@@ -15,10 +15,10 @@ import {
 import type { UiStartupHandle } from "./service-gateway-startup.js";
 import { ServiceBootstrapStatusStore } from "./service-bootstrap-status.js";
 import { hydrateServiceCapabilities } from "./service-capability-hydration.js";
-import { installPluginRuntimeBridge } from "./service-plugin-runtime-bridge.js";
-import { reloadServicePlugins } from "./service-plugin-reload.js";
+import { installPluginRuntimeBridge } from "../plugin/service-plugin-runtime-bridge.js";
+import { reloadServicePlugins } from "../plugin/service-plugin-reload.js";
 import { logPluginGatewayDiagnostics, pluginGatewayLogger } from "./service-startup-support.js";
-import type { NextclawExtensionRegistry } from "./plugins.js";
+import type { NextclawExtensionRegistry } from "../../plugins.js";
 
 const { loadConfig, resolveConfigSecrets } = NextclawCore;
 

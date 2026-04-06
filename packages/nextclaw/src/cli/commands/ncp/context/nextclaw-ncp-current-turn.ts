@@ -4,7 +4,7 @@ import {
   buildLegacyUserContent,
   ensureIsoTimestamp,
   extractTextFromNcpMessage,
-} from "./nextclaw-ncp-message-bridge.js";
+} from "../nextclaw-ncp-message-bridge.js";
 
 function isTextLikePart(part: NcpMessagePart): part is Extract<NcpMessagePart, { type: "text" | "rich-text" }> {
   return part.type === "text" || part.type === "rich-text";

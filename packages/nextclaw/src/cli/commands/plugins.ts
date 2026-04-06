@@ -7,12 +7,12 @@ import {
 import {
   appendPluginCapabilityLines,
   buildReservedPluginLoadOptions,
-} from "./plugin-command-utils.js";
+} from "./plugin/plugin-command-utils.js";
 import {
   applyDevFirstPartyPluginLoadPaths,
   resolveDevFirstPartyPluginDir,
   resolveDevFirstPartyPluginInstallRoots,
-} from "./dev-first-party-plugin-load-paths.js";
+} from "./plugin/dev-first-party-plugin-load-paths.js";
 import {
   loadConfig,
   type Config,
@@ -33,8 +33,8 @@ import {
   type PluginMutationResult,
   type PluginUninstallMutationResult,
   uninstallPluginMutation,
-} from "./plugin-mutation-actions.js";
-export { type NextclawExtensionRegistry, toExtensionRegistry } from "./plugin-extension-registry.js";
+} from "./plugin/plugin-mutation-actions.js";
+export { type NextclawExtensionRegistry, toExtensionRegistry } from "./plugin/plugin-extension-registry.js";
 export { mergePluginConfigView, toPluginConfigView } from "@nextclaw/openclaw-compat";
 
 export function loadPluginRegistry(config: Config, workspaceDir: string): PluginRegistry {

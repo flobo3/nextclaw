@@ -8,7 +8,7 @@ import type {
   NcpSessionSummary
 } from "@nextclaw/ncp";
 import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
-import { createNcpSessionSummary } from "./ncp-session-summary.js";
+import { createNcpSessionSummary } from "./session/ncp-session-summary.js";
 
 function applyLimit<T>(items: T[], limit?: number): T[] {
   if (!Number.isFinite(limit) || typeof limit !== "number" || limit <= 0) {
