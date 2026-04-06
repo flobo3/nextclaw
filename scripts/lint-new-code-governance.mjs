@@ -23,6 +23,11 @@ const checks = [
     args: [path.join(scriptDir, "lint-new-code-closure-objects.mjs")],
   },
   {
+    name: "context-destructuring",
+    command: "node",
+    args: [path.join(scriptDir, "lint-new-code-context-destructuring.mjs")],
+  },
+  {
     name: "flat-directories-subtree",
     command: "node",
     args: [path.join(scriptDir, "lint-new-code-flat-directories.mjs")],
