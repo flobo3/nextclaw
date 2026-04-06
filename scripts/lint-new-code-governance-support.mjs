@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 
 export const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const workspaceRoots = ["apps", "packages", "workers"];
-const supportedExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
+const governedRoots = ["apps", "packages", "workers", "scripts"];
+const supportedSourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
 
 export const parseDiffCheckArgs = (argv, usage) => {
   const options = {
@@ -49,10 +49,10 @@ export const parseDiffCheckArgs = (argv, usage) => {
 
 export const toPosixPath = (input) => input.split(sep).join("/");
 
-export const isWorkspaceTsFile = (filePath) => {
+export const isGovernedWorkspaceFile = (filePath) => {
   const normalizedPath = toPosixPath(filePath);
   const extension = normalizedPath.slice(normalizedPath.lastIndexOf("."));
-  if (!supportedExtensions.has(extension)) {
+  if (!supportedSourceExtensions.has(extension)) {
     return false;
   }
   if (normalizedPath.endsWith(".d.ts")) {
@@ -61,7 +61,7 @@ export const isWorkspaceTsFile = (filePath) => {
   if (normalizedPath.includes("/dist/")) {
     return false;
   }
-  return workspaceRoots.some((root) => normalizedPath === root || normalizedPath.startsWith(`${root}/`));
+  return governedRoots.some((root) => normalizedPath === root || normalizedPath.startsWith(`${root}/`));
 };
 
 export const runGit = (args, { allowFailure = false } = {}) => {
@@ -92,7 +92,7 @@ const collectUntrackedFiles = (pathArgs, options) => {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .filter(isWorkspaceTsFile);
+    .filter(isGovernedWorkspaceFile);
 };
 
 const getDiffCommandArgs = (mode, pathArgs, options) => {
@@ -115,13 +115,13 @@ const getDiffCommandArgs = (mode, pathArgs, options) => {
   return ["diff", "--no-color", "--unified=0", "--diff-filter=AM", "HEAD", "--", ...pathArgs];
 };
 
-export const collectChangedWorkspaceFiles = (options, defaultPaths = ["apps", "packages", "workers"]) => {
+export const collectChangedWorkspaceFiles = (options, defaultPaths = ["apps", "packages", "workers", "scripts"]) => {
   const pathArgs = options.paths.length > 0 ? options.paths : defaultPaths;
   const changedTrackedFiles = runGit(getDiffCommandArgs("names", pathArgs, options), { allowFailure: true })
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .filter(isWorkspaceTsFile);
+    .filter(isGovernedWorkspaceFile);
   const untrackedFiles = collectUntrackedFiles(pathArgs, options);
   const changedFiles = Array.from(new Set([...changedTrackedFiles, ...untrackedFiles]))
     .sort((left, right) => left.localeCompare(right));
@@ -153,7 +153,7 @@ export const collectAddedLinesByFile = (pathArgs, untrackedFiles, options) => {
   for (const line of patchLines) {
     if (line.startsWith("+++ b/")) {
       const nextFile = line.slice("+++ b/".length).trim();
-      currentFile = isWorkspaceTsFile(nextFile) ? nextFile : null;
+      currentFile = isGovernedWorkspaceFile(nextFile) ? nextFile : null;
       continue;
     }
 

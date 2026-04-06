@@ -296,7 +296,7 @@ export const runFlatDirectoryCheck = (options) => {
 
 export const printViolations = ({ changedFiles, violations }) => {
   if (changedFiles.length === 0) {
-    console.log("No changed TypeScript workspace files to check.");
+    console.log("No changed workspace source files to check.");
     return 0;
   }
   if (violations.length === 0) {

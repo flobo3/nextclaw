@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const forwardedArgs = process.argv.slice(2);
 
 const checks = [
   {
@@ -28,6 +29,11 @@ const checks = [
     args: [path.join(scriptDir, "lint-new-code-context-destructuring.mjs")],
   },
   {
+    name: "file-directory-collisions",
+    command: "node",
+    args: [path.join(scriptDir, "lint-new-code-file-directory-collisions.mjs")],
+  },
+  {
     name: "flat-directories-subtree",
     command: "node",
     args: [path.join(scriptDir, "lint-new-code-flat-directories.mjs")],
@@ -46,7 +52,7 @@ const checks = [
 
 for (const check of checks) {
   process.stdout.write(`\n[governance] running ${check.name}\n`);
-  const result = spawnSync(check.command, check.args, {
+  const result = spawnSync(check.command, [...check.args, ...forwardedArgs], {
     cwd: process.cwd(),
     stdio: "inherit",
     env: process.env,

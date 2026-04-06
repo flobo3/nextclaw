@@ -4,12 +4,20 @@ import tsEslintPlugin from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import prettier from "eslint-config-prettier";
 import reactHooks from "eslint-plugin-react-hooks";
+import { FILE_DIRECTORY_BASENAME_COLLISION_ALLOWLIST } from "./scripts/file-directory-basename-collision-shared.mjs";
+import noFileDirectoryBasenameCollisionRule from "./scripts/eslint-rules/no-file-directory-basename-collision-rule.mjs";
 import preferTopLevelContextDestructuringRule from "./scripts/eslint-rules/prefer-top-level-context-destructuring-rule.mjs";
 import reactComponentPropsDestructuringRule from "./scripts/eslint-rules/react-component-props-destructuring-rule.mjs";
 
-const jsWorkspaceFiles = ["apps/**/*.{js,jsx,mjs}", "packages/**/*.{js,jsx,mjs}", "workers/**/*.{js,jsx,mjs}"];
-const commonJsWorkspaceFiles = ["apps/**/*.cjs", "packages/**/*.cjs", "workers/**/*.cjs"];
+const jsWorkspaceFiles = [
+  "apps/**/*.{js,jsx,mjs}",
+  "packages/**/*.{js,jsx,mjs}",
+  "workers/**/*.{js,jsx,mjs}",
+  "scripts/**/*.{js,jsx,mjs}"
+];
+const commonJsWorkspaceFiles = ["apps/**/*.cjs", "packages/**/*.cjs", "workers/**/*.cjs", "scripts/**/*.cjs"];
 const nodeRuntimeJsFiles = [
+  "scripts/**/*.{js,mjs,cjs}",
   "apps/**/scripts/**/*.{js,mjs,cjs}",
   "packages/**/scripts/**/*.{js,mjs,cjs}",
   "workers/**/scripts/**/*.{js,mjs,cjs}",
@@ -25,7 +33,13 @@ const mixedModuleConfigFiles = [
   "workers/**/tailwind.config.js",
   "workers/**/postcss.config.js"
 ];
-const tsWorkspaceFiles = ["apps/**/*.{ts,tsx,mts,cts}", "packages/**/*.{ts,tsx,mts,cts}", "workers/**/*.{ts,tsx,mts,cts}"];
+const tsWorkspaceFiles = [
+  "apps/**/*.{ts,tsx,mts,cts}",
+  "packages/**/*.{ts,tsx,mts,cts}",
+  "workers/**/*.{ts,tsx,mts,cts}",
+  "scripts/**/*.{ts,tsx,mts,cts}"
+];
+const workspaceCodeFiles = [...jsWorkspaceFiles, ...commonJsWorkspaceFiles, ...tsWorkspaceFiles];
 const testFiles = [
   "apps/**/*.test.{ts,tsx,mts,cts}",
   "apps/**/*.spec.{ts,tsx,mts,cts}",
@@ -121,6 +135,7 @@ const baseRules = {
 
 const nextclawPlugin = {
   rules: {
+    "no-file-directory-basename-collision": noFileDirectoryBasenameCollisionRule,
     "prefer-top-level-context-destructuring": preferTopLevelContextDestructuringRule,
     "react-component-props-destructuring": reactComponentPropsDestructuringRule
   }
@@ -149,6 +164,20 @@ export default [
   {
     linterOptions: {
       reportUnusedDisableDirectives: "off"
+    }
+  },
+  {
+    files: workspaceCodeFiles,
+    plugins: {
+      nextclaw: nextclawPlugin
+    },
+    rules: {
+      "nextclaw/no-file-directory-basename-collision": [
+        "error",
+        {
+          allowFilePaths: FILE_DIRECTORY_BASENAME_COLLISION_ALLOWLIST
+        }
+      ]
     }
   },
   {
