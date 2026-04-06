@@ -63,7 +63,7 @@
   - `/check-meta`：检查 AGENTS.md 机制问题（自相矛盾/未遵循规范等）
   - `/new-rule`：创建新规则条目（按 Rulebook 模板）。执行时必须先判断应写入 Rulebook 还是 Project Rulebook；若规则本质是在约束系统行为原则，应优先固化“行为明确、清晰、可预测，不依赖隐藏兜底或环境状态制造 surprise success / surprise failure”这类可复用高层约束，而不是只记录单次问题的表层补丁。
   - `/commit`：进行提交操作（提交信息需使用英文）
-  - `/maintainability-review`：对本次改动执行一轮独立于实现阶段的可维护性复核，重点检查“能否删减/简化、是否让代码继续膨胀、抽象与职责边界是否更清晰、非功能改动的增长是否最小必要、是否只是把复杂度换个位置保留”；默认使用 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 执行
+  - `/maintainability-review`：对本次改动执行一轮独立于实现阶段的可维护性复核，重点检查“能否删减/简化、是否让代码继续膨胀、抽象与职责边界是否更清晰、非功能改动的增长是否最小必要、是否只是把复杂度换个位置保留”；默认使用 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 执行。复核输出除结论与总结外，必须同时包含 `代码增减报告` 与 `非测试代码增减报告`；若总代码或非测试代码净增长，必须明确说明是否已做到最佳删减、已经删掉或收敛了什么、以及剩余增长为何仍属最小必要。
   - `/validate`：运行项目验证，按改动影响范围执行最小充分验证；仅当改动触达构建/类型/运行链路时，执行 `build`、`lint`、`tsc` 的相关项，必要时补冒烟测试。代码改动在动手前，默认先按 Rulebook 的 `business-logic-class-first`、`stateless-utility-first`、`class-arrow-methods-by-default` 做一次结构自检：先判断业务逻辑是否应落到 class、普通函数是否只剩纯工具/纯无状态/纯业务无关辅助能力、若采用 class 则实例方法是否从第一版起就使用箭头函数。代码改动收尾默认包含 `pnpm lint:maintainability:guard`，其内统一调用 `pnpm lint:new-code:governance`（当前含 class 方法箭头函数检查，可扩展），并在守卫后再执行一次 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 定义的主观可维护性复核
   - `/release-frontend`：前端一键发布（仅 UI 变更场景）
 
@@ -371,9 +371,9 @@
   - 维护责任人：当前助手。
 - **post-edit-maintainability-review-required**：
   - 约束/适用范围：凡本次任务触达项目源码、脚本、测试或影响运行链路的配置，在 `post-edit-maintainability-guard` 之后、最终回复或提交之前，必须再执行一轮独立于实现阶段的主观可维护性复核；纯文档、措辞或元信息微调不适用，但必须明确说明“不适用”。
-  - 示例：修完 `packages/nextclaw-core/src/agent/loop.ts` 后，不只看 guard 是否通过，还要再用 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 的问题集复核：`这段代码还能删什么？`、`是否只是把复杂度换个位置？`、`这次增长是否属于最小必要？`、`抽象边界是否更清晰？`，并在最终回复中明确写出 `可维护性复核结论：通过/需继续修改/保留债务经说明接受`、`本次顺手减债：是/否`，以及一段简短的 `可维护性总结`。
-  - 反例：代码通过了 lint 和 maintainability guard，就直接结束任务；或只是重复“guard 无报错”，却不判断是否仍然留了重复分支、多余 helper、补丁式抽象、伪简化或非功能改动导致的无谓膨胀。
-  - 执行方式：默认使用 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md)，并采用 `code-review` 的 findings-first 视角专门检查非指标型可维护性问题。复核时至少必须回答以下问题：`还能删什么？`、`删不掉的部分还能如何简化？`、`这次是否让总代码量/分支/函数/文件继续膨胀？`、`如果是非新增用户能力，增长是否属于最小必要？`、`抽象、模块边界、class/helper/service/store 的职责划分是否更清晰？`、`是否只是把复杂度换个名字或换个位置继续保留？`。若答案显示存在更优的删减/简化方案，默认应继续修改；若因风险、时效或联动成本保留债务，必须明确原因、风险与下一步拆分缝。代码任务最终回复默认还必须包含一段简短的 `可维护性总结`，用 1-3 句概括：这次是否让代码更少/更清晰、是否存在保留债务、以及下一步拆分缝或观察点。
+  - 示例：修完 `packages/nextclaw-core/src/agent/loop.ts` 后，不只看 guard 是否通过，还要再用 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 的问题集复核：`这段代码还能删什么？`、`是否只是把复杂度换个位置？`、`这次增长是否属于最小必要？`、`抽象边界是否更清晰？`，并在最终回复中明确写出 `可维护性复核结论：通过/需继续修改/保留债务经说明接受`、`本次顺手减债：是/否`、`代码增减报告`、`非测试代码增减报告`，以及一段简短的 `可维护性总结`。
+  - 反例：代码通过了 lint 和 maintainability guard，就直接结束任务；或只是重复“guard 无报错”，却不判断是否仍然留了重复分支、多余 helper、补丁式抽象、伪简化或非功能改动导致的无谓膨胀；或只报总代码 diff，不区分测试代码与非测试代码。
+  - 执行方式：默认使用 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md)，并采用 `code-review` 的 findings-first 视角专门检查非指标型可维护性问题。复核时至少必须回答以下问题：`还能删什么？`、`删不掉的部分还能如何简化？`、`总代码新增/删除/净增分别是多少？`、`排除测试后的新增/删除/净增分别是多少？`、`这次是否让总代码量/分支/函数/文件继续膨胀？`、`如果总代码或非测试代码净增长，是否已做到最佳删减，且增长是否属于最小必要？`、`抽象、模块边界、class/helper/service/store 的职责划分是否更清晰？`、`是否只是把复杂度换个名字或换个位置继续保留？`。若答案显示存在更优的删减/简化方案，默认应继续修改；若因风险、时效或联动成本保留债务，必须明确原因、风险与下一步拆分缝。代码任务最终回复默认还必须包含一段简短的 `可维护性总结`，用 1-3 句概括：这次是否让代码更少/更清晰、若净增长是否已最小化、是否存在保留债务、以及下一步拆分缝或观察点。
   - 维护责任人：当前助手。
 - **hotspot-touch-must-record-debt-status**：
   - 约束/适用范围：凡触达仓库红区文件（以 [`scripts/maintainability-hotspots.mjs`](scripts/maintainability-hotspots.mjs) 为准），本次 `docs/logs/v<semver>-<slug>/README.md` 必须新增 `## 红区触达与减债记录`，并为每个红区文件单独记录“本次是否减债 / 说明 / 下一步拆分缝”。

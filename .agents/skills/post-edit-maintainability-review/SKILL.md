@@ -26,11 +26,15 @@ Answer these in order:
 
 1. What can still be deleted?
 2. What cannot be deleted but can still be simplified?
-3. Did this change reduce or at least avoid worsening total code, branches, functions, files, and directory sprawl?
-4. If this is not a new user-facing capability, why did the code grow, and is that growth the minimum necessary?
-5. Are class / helper / service / store / controller boundaries clearer now, or did the change add another layer without reducing real complexity?
-6. Did the change truly simplify the system, or did it just move complexity to another file, helper, or abstraction?
-7. Did the change duplicate existing logic or an existing component surface that should have been reused or factored into a stable shared core?
+3. What is the diff-level line-change report for this change:
+   - total added lines / deleted lines / net lines,
+   - non-test added lines / deleted lines / net lines after excluding tests?
+4. Did this change reduce or at least avoid worsening total code, branches, functions, files, and directory sprawl?
+5. If total or non-test code grew, has the implementation already reached the best practical reduction point, or can more code still be deleted, merged, or collapsed?
+6. If this is not a new user-facing capability, why did the code grow, and is that growth the minimum necessary?
+7. Are class / helper / service / store / controller boundaries clearer now, or did the change add another layer without reducing real complexity?
+8. Did the change truly simplify the system, or did it just move complexity to another file, helper, or abstraction?
+9. Did the change duplicate existing logic or an existing component surface that should have been reused or factored into a stable shared core?
 
 ## Output
 
@@ -38,7 +42,28 @@ Use a findings-first format focused on maintainability only.
 
 - `可维护性复核结论：通过 / 需继续修改 / 保留债务经说明接受`
 - `本次顺手减债：是/否`
+- `代码增减报告：`
+- `非测试代码增减报告：`
 - `可维护性总结：...`
+
+For the two line-change reports, always include:
+
+- `新增：<N> 行`
+- `删除：<N> 行`
+- `净增：<+/-N> 行`
+
+`非测试代码增减报告` must exclude typical test files and test-only directories, including patterns such as:
+
+- `*.test.*`
+- `*.spec.*`
+- `__tests__/`
+- `tests/`
+
+If total or non-test code is net positive, you must explicitly explain:
+
+- whether the change has already reached the best practical minimum,
+- what was deleted or simplified before accepting the growth,
+- and why the remaining growth is still the minimum necessary.
 
 If issues exist, list:
 
@@ -54,11 +79,13 @@ Then add a short maintainability summary in 1-3 sentences covering:
 
 - whether the change made the code smaller, simpler, or clearer,
 - whether any debt was intentionally kept,
+- whether net code growth was truly minimized,
 - and the next seam or watchpoint if debt remains.
 
 ## Common Mistakes
 
 - Repeating guard output instead of doing an actual second-pass review
+- Omitting the line-change report or only reporting total diff without separating non-test code
 - Treating `lint passed` as proof that the structure is already good enough
 - Accepting code growth in a non-feature change without explaining why deletion or simplification was insufficient
 - Calling something “refactored” when complexity was only renamed or moved
