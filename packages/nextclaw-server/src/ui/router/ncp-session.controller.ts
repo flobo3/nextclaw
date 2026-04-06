@@ -147,6 +147,7 @@ export class NcpSessionRoutesController {
     });
     const payload: UiNcpSessionMessagesView = {
       sessionId,
+      status: session.status ?? "idle",
       messages,
       total: messages.length,
     };

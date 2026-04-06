@@ -4,18 +4,11 @@ import {
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
 } from "react";
-import { NcpHttpAgentClientEndpoint } from "@nextclaw/ncp-http-agent-client";
 import {
   buildNcpRequestEnvelope,
-  useHydratedNcpAgent,
-  type NcpConversationSeed,
-  type NcpConversationSeedLoader,
 } from "@nextclaw/ncp-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { API_BASE } from "@/api/api-base";
-import { fetchNcpSessionMessages } from "@/api/ncp-session";
 import {
   ChatPageLayout,
   type ChatPageProps,
@@ -26,13 +19,13 @@ import {
   buildInlineSkillTokensFromComposer,
   CHAT_UI_INLINE_TOKENS_METADATA_KEY,
 } from "@/components/chat/chat-inline-token.utils";
-import { createNcpAppClientFetch } from "@/components/chat/ncp/ncp-app-client-fetch";
 import {
   parseSessionKeyFromRoute,
 } from "@/components/chat/chat-session-route";
 import { useNcpChatPageData } from "@/components/chat/ncp/ncp-chat-page-data";
 import { NcpChatPresenter } from "@/components/chat/ncp/ncp-chat.presenter";
 import { createNcpSessionId } from "@/components/chat/ncp/ncp-session-adapter";
+import { useNcpSessionConversation } from "@/components/chat/ncp/session-conversation/use-ncp-session-conversation";
 import { useNcpChatDerivedState, useNcpChatSnapshotSync } from "@/components/chat/ncp/page/ncp-chat-derived-state";
 import { ChatPresenterProvider } from "@/components/chat/presenter/chat-presenter-context";
 import type { ResumeRunParams } from "@/components/chat/chat-stream/types";
@@ -85,51 +78,6 @@ export function buildNcpSendMetadata(payload: {
     metadata[CHAT_UI_INLINE_TOKENS_METADATA_KEY] = inlineSkillTokens;
   }
   return metadata;
-}
-
-function isMissingNcpSessionError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-  return error.message.includes("ncp session not found:");
-}
-
-type NcpSeedSessionSummary = {
-  sessionId: string;
-  status?: string;
-};
-
-function useNcpConversationSeedLoader<T extends NcpSeedSessionSummary>(
-  sessionSummariesRef: MutableRefObject<readonly T[]>,
-): NcpConversationSeedLoader {
-  return useCallback(
-    async (
-      sessionId: string,
-      signal: AbortSignal,
-    ): Promise<NcpConversationSeed> => {
-      signal.throwIfAborted();
-      let history: Awaited<ReturnType<typeof fetchNcpSessionMessages>> | null =
-        null;
-      try {
-        history = await fetchNcpSessionMessages(sessionId, 300);
-      } catch (error) {
-        if (!isMissingNcpSessionError(error)) {
-          throw error;
-        }
-      }
-      signal.throwIfAborted();
-
-      const sessionSummary =
-        sessionSummariesRef.current.find(
-          (item) => item.sessionId === sessionId,
-        ) ?? null;
-      return {
-        messages: history?.messages ?? [],
-        status: sessionSummary?.status === "running" ? "running" : "idle",
-      };
-    },
-    [sessionSummariesRef],
-  );
 }
 
 export function NcpChatPage({ view }: ChatPageProps) {
@@ -200,27 +148,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
       presenter.chatInputManager.setSelectedThinkingLevel,
   });
 
-  const sessionSummariesRef = useRef(sessionSummaries);
-  useEffect(() => {
-    sessionSummariesRef.current = sessionSummaries;
-  }, [sessionSummaries]);
-
-  const [ncpClient] = useState(
-    () =>
-      new NcpHttpAgentClientEndpoint({
-        baseUrl: API_BASE,
-        basePath: "/api/ncp/agent",
-        fetchImpl: createNcpAppClientFetch(),
-      }),
-  );
-
-  const loadSeed = useNcpConversationSeedLoader(sessionSummariesRef);
-
-  const agent = useHydratedNcpAgent({
-    sessionId: sessionKey,
-    client: ncpClient,
-    loadSeed,
-  });
+  const agent = useNcpSessionConversation(sessionKey);
 
   useEffect(() => {
     presenter.setDraftSessionId(draftSessionId);

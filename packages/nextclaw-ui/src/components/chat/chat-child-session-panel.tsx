@@ -1,8 +1,6 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, X } from 'lucide-react';
-import { fetchNcpSessionMessages } from '@/api/ncp-session';
 import { ChatMessageListContainer } from '@/components/chat/containers/chat-message-list.container';
+import { useNcpSessionConversation } from '@/components/chat/ncp/session-conversation/use-ncp-session-conversation';
 import { useChatThreadStore } from '@/components/chat/stores/chat-thread.store';
 import { cn } from '@/lib/utils';
 import type { ChatToolActionViewModel } from '@nextclaw/agent-chat-ui';
@@ -25,14 +23,9 @@ export function ChatChildSessionPanel({
   const detailParentSessionKey = useChatThreadStore(
     (state) => state.snapshot.childSessionDetailParentSessionKey,
   );
-  const query = useQuery({
-    queryKey: ['ncp-session-messages', sessionKey, 'child-panel'],
-    queryFn: () => fetchNcpSessionMessages(sessionKey, 300),
-    staleTime: 5_000,
-  });
-
-  const messages = query.data?.messages ?? [];
-  const headerTitle = useMemo(() => title?.trim() || sessionKey, [sessionKey, title]);
+  const agent = useNcpSessionConversation(sessionKey);
+  const messages = agent.visibleMessages;
+  const headerTitle = title?.trim() || sessionKey;
 
   return (
     <aside className="hidden md:flex md:w-[24rem] lg:w-[28rem] shrink-0 border-l border-gray-200/70 bg-white/90 backdrop-blur-sm">
@@ -71,16 +64,16 @@ export function ChatChildSessionPanel({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-          {query.isLoading ? (
+          {agent.isHydrating ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Loading child session
             </div>
-          ) : query.isError ? (
+          ) : agent.hydrateError ? (
             <div className="px-4 py-5 text-sm text-rose-600">
-              {(query.error as Error).message}
+              {agent.hydrateError.message}
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !agent.isRunning ? (
             <div className="px-4 py-5 text-sm text-gray-500">
               No child session messages yet.
             </div>
@@ -88,7 +81,7 @@ export function ChatChildSessionPanel({
             <div className="px-4 py-5">
               <ChatMessageListContainer
                 messages={messages}
-                isSending={false}
+                isSending={agent.isRunning}
                 onToolAction={onToolAction}
               />
             </div>

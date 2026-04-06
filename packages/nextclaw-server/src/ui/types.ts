@@ -1,6 +1,6 @@
 import type { CronService, ThinkingLevel } from "@nextclaw/core";
 import type { PluginChannelBinding, PluginUiMetadata } from "@nextclaw/openclaw-compat";
-import type { NcpAgentClientEndpoint, NcpMessage, NcpSessionApi, NcpSessionSummary } from "@nextclaw/ncp";
+import type { NcpAgentClientEndpoint, NcpMessage, NcpSessionApi, NcpSessionStatus, NcpSessionSummary } from "@nextclaw/ncp";
 import type { NcpHttpAgentStreamProvider } from "@nextclaw/ncp-http-agent-server";
 import type { UiNcpStoredAssetRecord } from "./ncp-attachment.types.js";
 import type { MarketplaceApiConfig } from "./marketplace.types.js";
@@ -614,6 +614,7 @@ export type UiNcpSessionListView = {
 
 export type UiNcpSessionMessagesView = {
   sessionId: string;
+  status: NcpSessionStatus;
   messages: NcpMessage[];
   total: number;
 };

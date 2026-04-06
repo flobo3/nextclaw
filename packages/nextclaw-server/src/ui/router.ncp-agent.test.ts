@@ -288,11 +288,13 @@ it("mounts parallel ncp agent and session routes", async () => {
   const messagesPayload = await messagesResponse.json() as {
     ok: boolean;
     data: {
+      status: string;
       total: number;
       messages: Array<{ id: string }>;
     };
   };
   expect(messagesPayload.ok).toBe(true);
+  expect(messagesPayload.data.status).toBe("idle");
   expect(messagesPayload.data.total).toBe(1);
   expect(messagesPayload.data.messages[0]?.id).toBe("msg-1");
 

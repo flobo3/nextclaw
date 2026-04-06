@@ -266,6 +266,7 @@ export type NcpMessageView = NcpMessage;
 
 export type NcpSessionMessagesView = {
   sessionId: string;
+  status: NcpSessionStatus;
   messages: NcpMessageView[];
   total: number;
 };
