@@ -25,8 +25,12 @@ NEXTCLAW_HOME="$NEXTCLAW_HOME" node packages/nextclaw/dist/cli/index.js stop
 
 ## 发布/部署方式
 
-- 不适用。本次未执行 npm 发布、远程部署或 migration。
-- 若后续发布 `nextclaw` 包，需按既有发布流程完成 `release:check`、version、publish，并确保本修复包含在发布产物中。
+- 已完成 npm 发布闭环：
+  - `pnpm release:version`
+  - `pnpm release:publish`
+  - registry 核验通过：`nextclaw@0.17.1`
+  - git tag 已生成：`nextclaw@0.17.1`
+- 本次不涉及远程部署或 migration。
 
 ## 用户/产品视角的验收步骤
 
