@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import type {
   ChatMessageTexts,
   ChatToolActionViewModel,
@@ -16,10 +16,11 @@ type ChatMessageProps = {
   message: ChatMessageViewModel;
   texts: Pick<ChatMessageTexts, "copyCodeLabel" | "copiedCodeLabel">;
   onToolAction?: (action: ChatToolActionViewModel) => void;
+  renderToolAgent?: (agentId: string) => ReactNode;
 };
 
 export const ChatMessage = memo(function ChatMessage(props: ChatMessageProps) {
-  const { message, texts, onToolAction } = props;
+  const { message, texts, onToolAction, renderToolAgent } = props;
   const { role } = message;
   const isUser = role === "user";
   const isMessageInProgress =
@@ -76,7 +77,11 @@ export const ChatMessage = memo(function ChatMessage(props: ChatMessageProps) {
           if (type === "tool-card") {
             return (
               <div key={`tool-${index}`} className="mt-0.5">
-                <ChatToolCard card={part.card} onToolAction={onToolAction} />
+                <ChatToolCard
+                  card={part.card}
+                  onToolAction={onToolAction}
+                  renderToolAgent={renderToolAgent}
+                />
               </div>
             );
           }

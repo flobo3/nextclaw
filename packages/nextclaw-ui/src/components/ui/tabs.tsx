@@ -61,6 +61,8 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
     <button
       type="button"
       onClick={() => context.onValueChange(value)}
+      aria-pressed={isActive}
+      data-state={isActive ? 'active' : 'inactive'}
       className={cn(
         'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-[13px] font-medium ring-offset-white transition-all duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
         isActive

@@ -227,6 +227,46 @@ it("renders running tool cards with live status feedback", () => {
   expect(screen.queryByText("View Output")).toBeNull();
 });
 
+it("renders injected agent identity content for tool cards with agentId", () => {
+  render(
+    <ChatMessageList
+      messages={[
+        {
+          id: "assistant-tool-agent",
+          role: "assistant",
+          roleLabel: "Assistant",
+          timestampLabel: "10:10",
+          parts: [
+            {
+              type: "tool-card",
+              card: {
+                kind: "call",
+                toolName: "spawn",
+                agentId: "planner-agent",
+                summary: "task: Plan the rollout",
+                hasResult: false,
+                statusTone: "running",
+                statusLabel: "Running",
+                titleLabel: "Tool Call",
+                outputLabel: "View Output",
+                emptyLabel: "No output",
+              },
+            },
+          ],
+        },
+      ]}
+      isSending={false}
+      hasAssistantDraft={false}
+      texts={defaultTexts}
+      renderToolAgent={(agentId) => (
+        <div data-testid="tool-agent-identity">{agentId}</div>
+      )}
+    />,
+  );
+
+  expect(screen.getByTestId("tool-agent-identity").textContent).toBe("planner-agent");
+});
+
 it("reveals long-running tool card output only after a short delay", () => {
   vi.useFakeTimers();
 

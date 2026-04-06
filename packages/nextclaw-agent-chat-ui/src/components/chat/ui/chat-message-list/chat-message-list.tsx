@@ -58,6 +58,7 @@ export function ChatMessageList(props: ChatMessageListProps) {
                 message={message}
                 texts={props.texts}
                 onToolAction={props.onToolAction}
+                renderToolAgent={props.renderToolAgent}
               />
               <div className={cn('flex items-center gap-2', isUser && 'justify-end')}>
                 {isGenerating ? (

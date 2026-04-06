@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export type ChatTexts = {
   slashLoadingLabel: string;
   slashSectionLabel: string;
@@ -203,6 +205,7 @@ export type ChatToolActionViewModel = {
   kind: "open-session";
   sessionId: string;
   sessionKind: "child" | "session";
+  agentId?: string;
   label?: string;
   parentSessionId?: string;
 };
@@ -210,6 +213,7 @@ export type ChatToolActionViewModel = {
 export type ChatToolPartViewModel = {
   kind: "call" | "result";
   toolName: string;
+  agentId?: string;
   summary?: string;
   inputLabel?: string;
   input?: string;
@@ -303,4 +307,5 @@ export type ChatMessageListProps = {
   texts: ChatMessageTexts;
   className?: string;
   onToolAction?: (action: ChatToolActionViewModel) => void;
+  renderToolAgent?: (agentId: string) => ReactNode;
 };

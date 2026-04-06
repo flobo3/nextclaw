@@ -12,6 +12,7 @@ import {
 } from "@/components/chat/adapters/chat-message.adapter";
 import { readInlineTokensFromMetadata } from "@/components/chat/chat-inline-token.utils";
 import { adaptNcpMessageToUiMessage } from "@/components/chat/ncp/ncp-session-adapter";
+import { AgentIdentityAvatar } from "@/components/common/agent-identity";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { formatDateTime, t } from "@/lib/i18n";
 
@@ -129,6 +130,12 @@ export function ChatMessageListContainer({
       className={className}
       texts={messageTexts}
       onToolAction={onToolAction}
+      renderToolAgent={(agentId) => (
+        <AgentIdentityAvatar
+          agentId={agentId}
+          className="h-4 w-4 shrink-0"
+        />
+      )}
     />
   );
 }

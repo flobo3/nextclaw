@@ -52,6 +52,7 @@ export type SessionRequestToolResult = {
   kind: "nextclaw.session_request";
   requestId: string;
   sessionId: string;
+  agentId?: string;
   targetKind: "child" | "session";
   parentSessionId?: string;
   spawnedByRequestId?: string;

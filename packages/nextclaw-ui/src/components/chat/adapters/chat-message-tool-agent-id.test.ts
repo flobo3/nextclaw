@@ -1,0 +1,102 @@
+import { ToolInvocationStatus } from "@nextclaw/agent-chat";
+import { adaptChatMessages, type ChatMessageSource } from "@/components/chat/adapters/chat-message.adapter";
+
+const defaultTexts = {
+  roleLabels: {
+    user: "You",
+    assistant: "Assistant",
+    tool: "Tool",
+    system: "System",
+    fallback: "Message",
+  },
+  reasoningLabel: "Reasoning",
+  toolCallLabel: "Tool Call",
+  toolResultLabel: "Tool Result",
+  toolInputLabel: "Input",
+  toolNoOutputLabel: "No output",
+  toolOutputLabel: "Output",
+  toolStatusPreparingLabel: "Preparing",
+  toolStatusRunningLabel: "Running",
+  toolStatusCompletedLabel: "Completed",
+  toolStatusFailedLabel: "Failed",
+  toolStatusCancelledLabel: "Cancelled",
+  imageAttachmentLabel: "Image attachment",
+  fileAttachmentLabel: "File attachment",
+  unknownPartLabel: "Unknown Part",
+};
+
+function adapt(uiMessages: ChatMessageSource[]) {
+  return adaptChatMessages({
+    uiMessages,
+    formatTimestamp: (value) => `formatted:${value}`,
+    texts: defaultTexts,
+  });
+}
+
+it("exposes agentId on spawn call cards when the invocation args include it", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-spawn-call",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-invocation",
+          toolInvocation: {
+            status: ToolInvocationStatus.PARTIAL_CALL,
+            toolCallId: "spawn-call-args-1",
+            toolName: "spawn",
+            args: '{"agentId":"planner-agent","label":"Planner","task":"Plan the rollout"}',
+            result: {
+              kind: "nextclaw.session_request",
+              requestId: "request-3",
+              sessionId: "child-session-3",
+              isChildSession: true,
+              title: "Planner",
+              task: "Plan the rollout",
+              status: "running",
+            },
+          },
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toMatchObject({
+    type: "tool-card",
+    card: {
+      toolName: "spawn",
+      agentId: "planner-agent",
+      statusTone: "running",
+    },
+  });
+});
+
+it("exposes agentId on running tool call cards even before a session-request result exists", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-spawn-call-running",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-invocation",
+          toolInvocation: {
+            status: ToolInvocationStatus.PARTIAL_CALL,
+            toolCallId: "spawn-call-running-1",
+            toolName: "spawn",
+            args: '{"agentId":"planner-agent","task":"Plan the rollout"}',
+          },
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toMatchObject({
+    type: "tool-card",
+    card: {
+      toolName: "spawn",
+      agentId: "planner-agent",
+      statusTone: "running",
+      titleLabel: "Tool Call",
+    },
+  });
+});

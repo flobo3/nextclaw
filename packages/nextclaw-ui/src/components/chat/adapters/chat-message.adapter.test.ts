@@ -240,6 +240,7 @@ it("renders session request tool cards from structured child-session status upda
               kind: "nextclaw.session_request",
               requestId: "request-1",
               sessionId: "child-session-1",
+              agentId: "verifier-agent",
               isChildSession: true,
               title: "Verifier",
               task: "Verify 1+1=2",
@@ -257,6 +258,7 @@ it("renders session request tool cards from structured child-session status upda
     type: "tool-card",
     card: {
       toolName: "spawn",
+      agentId: "verifier-agent",
       summary: "title: Verifier · session: child-session-1 · task: Verify 1+1=2",
       output: [
         "Request ID: request-1",
@@ -280,6 +282,7 @@ it("renders session request tool cards from structured child-session status upda
         kind: "open-session",
         sessionId: "child-session-1",
         sessionKind: "child",
+        agentId: "verifier-agent",
         label: "Verifier",
         parentSessionId: "parent-session-1",
       },
@@ -304,6 +307,7 @@ it("renders regular session request tool cards with session navigation instead o
               kind: "nextclaw.session_request",
               requestId: "request-2",
               sessionId: "session-2",
+              agentId: "research-agent",
               isChildSession: false,
               title: "Research thread",
               task: "Summarize the latest findings",
@@ -320,6 +324,7 @@ it("renders regular session request tool cards with session navigation instead o
     type: "tool-card",
     card: {
       toolName: "sessions_request",
+      agentId: "research-agent",
       summary: "title: Research thread · session: session-2 · task: Summarize the latest findings",
       output: [
         "Request ID: request-2",
@@ -341,6 +346,7 @@ it("renders regular session request tool cards with session navigation instead o
         kind: "open-session",
         sessionId: "session-2",
         sessionKind: "session",
+        agentId: "research-agent",
         label: "Research thread",
       },
     },

@@ -4,6 +4,13 @@ import type { NcpMessage } from '@nextclaw/ncp';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
 import type { AgentProfileView } from '@/api/types';
 
+export type ChatChildSessionTab = {
+  sessionKey: string;
+  parentSessionKey: string | null;
+  label?: string | null;
+  agentId?: string | null;
+};
+
 export type ChatThreadSnapshot = {
   isProviderStateResolved: boolean;
   modelOptions: ChatModelOption[];
@@ -27,9 +34,8 @@ export type ChatThreadSnapshot = {
   isAwaitingAssistantOutput: boolean;
   parentSessionKey?: string | null;
   parentSessionLabel?: string | null;
-  childSessionDetailSessionKey?: string | null;
-  childSessionDetailParentSessionKey?: string | null;
-  childSessionDetailLabel?: string | null;
+  childSessionTabs: ChatChildSessionTab[];
+  activeChildSessionKey?: string | null;
 };
 
 type ChatThreadStore = {
@@ -60,9 +66,8 @@ const initialSnapshot: ChatThreadSnapshot = {
   isAwaitingAssistantOutput: false,
   parentSessionKey: null,
   parentSessionLabel: null,
-  childSessionDetailSessionKey: null,
-  childSessionDetailParentSessionKey: null,
-  childSessionDetailLabel: null,
+  childSessionTabs: [],
+  activeChildSessionKey: null,
 };
 
 export const useChatThreadStore = create<ChatThreadStore>((set) => ({

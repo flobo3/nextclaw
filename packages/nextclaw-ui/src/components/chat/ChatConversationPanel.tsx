@@ -48,10 +48,14 @@ export function ChatConversationPanel() {
   const snapshot = useChatThreadStore((state) => state.snapshot);
   const fallbackThreadRef = useRef<HTMLDivElement | null>(null);
   const threadRef = snapshot.threadRef ?? fallbackThreadRef;
-  const detailSessionKey =
-    snapshot.childSessionDetailParentSessionKey === snapshot.sessionKey
-      ? snapshot.childSessionDetailSessionKey
-      : null;
+  const childSessionTabs = snapshot.childSessionTabs.filter(
+    (tab) => tab.parentSessionKey === snapshot.sessionKey,
+  );
+  const detailSessionKey = childSessionTabs.some(
+    (tab) => tab.sessionKey === snapshot.activeChildSessionKey,
+  )
+    ? snapshot.activeChildSessionKey
+    : (childSessionTabs[childSessionTabs.length - 1]?.sessionKey ?? null);
   const shouldShowSessionHeader = Boolean(
     snapshot.sessionKey || snapshot.sessionTypeLabel,
   );
@@ -97,7 +101,7 @@ export function ChatConversationPanel() {
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>
-                Back to parent
+                {t("chatBackToParent")}
                 {snapshot.parentSessionLabel?.trim()
                   ? ` · ${snapshot.parentSessionLabel.trim()}`
                   : ""}
@@ -217,8 +221,9 @@ export function ChatConversationPanel() {
 
       {detailSessionKey ? (
         <ChatChildSessionPanel
-          sessionKey={detailSessionKey}
-          title={snapshot.childSessionDetailLabel}
+          tabs={childSessionTabs}
+          activeSessionKey={detailSessionKey}
+          onSelectSession={presenter.chatThreadManager.selectChildSessionDetail}
           onClose={presenter.chatThreadManager.closeChildSessionDetail}
           onBackToParent={presenter.chatThreadManager.goToParentSession}
           onToolAction={presenter.chatThreadManager.openSessionFromToolAction}

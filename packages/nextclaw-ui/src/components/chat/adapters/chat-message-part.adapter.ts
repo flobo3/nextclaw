@@ -8,6 +8,7 @@ import {
   buildRenderableText,
   buildTextPart,
 } from "@/components/chat/adapters/chat-message-inline-content.adapter";
+import { resolveToolInvocationAgentId } from "@/components/chat/adapters/chat-message-tool-agent-id";
 import { buildFileOperationCardData } from "@/components/chat/adapters/file-operation/card";
 import { buildSessionRequestToolCard } from "@/components/chat/adapters/chat-message.session-request-tool-card";
 import type {
@@ -77,6 +78,7 @@ export type ChatMessagePartSource =
 type ToolCardViewSource = ToolCard & {
   statusTone: ChatToolPartViewModel["statusTone"];
   statusLabel: string;
+  agentId?: string;
   action?: ChatToolPartViewModel["action"];
   fileOperation?: ChatToolPartViewModel["fileOperation"];
   outputData?: unknown;
@@ -180,6 +182,7 @@ function buildToolCard(
   return {
     kind: toolCard.kind,
     toolName: toolCard.name,
+    ...('agentId' in toolCard && toolCard.agentId ? { agentId: toolCard.agentId } : {}),
     summary: toolCard.detail,
     inputLabel: texts.toolInputLabel,
     input:
@@ -381,9 +384,11 @@ function buildToolInvocationPart(
   const shouldShowRawResult =
     (!fileOperationCardData?.fileOperation || Boolean(invocation.error)) &&
     !shouldHideStructuredTerminalJson;
+  const agentId = resolveToolInvocationAgentId(invocation);
   const card: ToolCardViewSource = {
     kind: statusView.kind,
     name: invocation.toolName,
+    ...(agentId ? { agentId } : {}),
     detail,
     ...(input ? { input } : {}),
     text: shouldShowRawResult && rawResult ? rawResult : undefined,

@@ -1,7 +1,42 @@
-import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react';
+import type { MouseEvent, ReactNode } from 'react';
 import { cn } from '../../../internal/cn';
 import { ToolStatusLabel } from './tool-card-status';
-import type { ChatToolPartViewModel } from '../../../view-models/chat-ui.types';
+import type {
+  ChatToolActionViewModel,
+  ChatToolPartViewModel,
+} from '../../../view-models/chat-ui.types';
+
+function ToolCardSessionActionButton({
+  action,
+  onAction,
+}: {
+  action: ChatToolActionViewModel;
+  onAction: (action: ChatToolActionViewModel) => void;
+}) {
+  const isChildSession = action.sessionKind === 'child';
+  const label = isChildSession ? 'Open child session' : 'Open session';
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onAction(action);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors',
+        'border-amber-200/80 bg-white/80 text-amber-800 hover:bg-amber-50',
+      )}
+      aria-label={label}
+      title={label}
+    >
+      <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
+    </button>
+  );
+}
 
 export function ToolCardHeader({ 
   card, 
@@ -9,6 +44,7 @@ export function ToolCardHeader({
   expanded, 
   canExpand,
   hideSummary = false,
+  actionSlot,
   onToggle 
 }: { 
   card: ChatToolPartViewModel; 
@@ -16,6 +52,7 @@ export function ToolCardHeader({
   expanded: boolean; 
   canExpand: boolean;
   hideSummary?: boolean;
+  actionSlot?: ReactNode;
   onToggle: () => void; 
 }) {
   const summaryPart = hideSummary
@@ -46,6 +83,7 @@ export function ToolCardHeader({
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
+        {actionSlot}
         <ToolStatusLabel card={card} />
         {canExpand && (
           expanded ? (
@@ -57,4 +95,14 @@ export function ToolCardHeader({
       </div>
     </div>
   );
+}
+
+export function ToolCardHeaderSessionAction({
+  action,
+  onAction,
+}: {
+  action: ChatToolActionViewModel;
+  onAction: (action: ChatToolActionViewModel) => void;
+}) {
+  return <ToolCardSessionActionButton action={action} onAction={onAction} />;
 }

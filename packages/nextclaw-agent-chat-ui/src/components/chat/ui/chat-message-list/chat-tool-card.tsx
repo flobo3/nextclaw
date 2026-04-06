@@ -2,6 +2,7 @@ import type {
   ChatToolActionViewModel,
   ChatToolPartViewModel,
 } from '../../view-models/chat-ui.types';
+import type { ReactNode } from 'react';
 import { TerminalExecutionView, FileOperationView, SearchSnippetView, GenericToolCard } from './chat-tool-specialized';
 
 function isTerminalTool(name: string) {
@@ -22,9 +23,11 @@ function isSearchTool(name: string) {
 export function ChatToolCard({
   card,
   onToolAction,
+  renderToolAgent,
 }: {
   card: ChatToolPartViewModel;
   onToolAction?: (action: ChatToolActionViewModel) => void;
+  renderToolAgent?: (agentId: string) => ReactNode;
 }) {
   if (isTerminalTool(card.toolName)) {
     return <TerminalExecutionView card={card} />;
@@ -37,5 +40,11 @@ export function ChatToolCard({
   }
 
   // Fallback minimalist card for read_url_content, multi_replace, etc.
-  return <GenericToolCard card={card} onToolAction={onToolAction} />;
+  return (
+    <GenericToolCard
+      card={card}
+      onToolAction={onToolAction}
+      renderToolAgent={renderToolAgent}
+    />
+  );
 }

@@ -6,7 +6,10 @@ import type { ChatSessionListManager } from '@/components/chat/managers/chat-ses
 import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
 import type { ChatUiManager } from '@/components/chat/managers/chat-ui.manager';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
-import type { ChatThreadSnapshot } from '@/components/chat/stores/chat-thread.store';
+import type {
+  ChatChildSessionTab,
+  ChatThreadSnapshot,
+} from '@/components/chat/stores/chat-thread.store';
 import { useChatThreadStore } from '@/components/chat/stores/chat-thread.store';
 import { t } from '@/lib/i18n';
 
@@ -46,6 +49,23 @@ export class NcpChatThreadManager {
     this.uiManager.goToProviders();
   };
 
+  private upsertChildSessionTab = (tab: ChatChildSessionTab) => {
+    const { snapshot } = useChatThreadStore.getState();
+    const existingIndex = snapshot.childSessionTabs.findIndex(
+      (item) => item.sessionKey === tab.sessionKey,
+    );
+    const nextTabs =
+      existingIndex >= 0
+        ? snapshot.childSessionTabs.map((item, index) =>
+            index === existingIndex ? { ...item, ...tab } : item,
+          )
+        : [...snapshot.childSessionTabs, tab];
+    useChatThreadStore.getState().setSnapshot({
+      childSessionTabs: nextTabs,
+      activeChildSessionKey: tab.sessionKey,
+    });
+  };
+
   openSessionFromToolAction = (action: ChatToolActionViewModel) => {
     if (action.kind !== 'open-session') {
       return;
@@ -55,31 +75,67 @@ export class NcpChatThreadManager {
         action.parentSessionId?.trim() ||
         useChatSessionListStore.getState().snapshot.selectedSessionKey ||
         null;
-      useChatThreadStore.getState().setSnapshot({
-        childSessionDetailSessionKey: action.sessionId,
-        childSessionDetailParentSessionKey: parentSessionKey,
-        childSessionDetailLabel: action.label?.trim() || null,
+      this.upsertChildSessionTab({
+        sessionKey: action.sessionId,
+        parentSessionKey,
+        label: action.label?.trim() || null,
+        agentId: action.agentId?.trim() || null,
       });
       return;
     }
     this.uiManager.goToSession(action.sessionId);
   };
 
-  closeChildSessionDetail = () => {
+  selectChildSessionDetail = (sessionKey: string) => {
+    const normalizedSessionKey = sessionKey.trim();
+    if (!normalizedSessionKey) {
+      return;
+    }
+    const { childSessionTabs } = useChatThreadStore.getState().snapshot;
+    if (!childSessionTabs.some((tab) => tab.sessionKey === normalizedSessionKey)) {
+      return;
+    }
     useChatThreadStore.getState().setSnapshot({
-      childSessionDetailSessionKey: null,
-      childSessionDetailParentSessionKey: null,
-      childSessionDetailLabel: null,
+      activeChildSessionKey: normalizedSessionKey,
+    });
+  };
+
+  closeChildSessionDetail = () => {
+    const {
+      sessionKey,
+      childSessionTabs,
+      activeChildSessionKey,
+    } = useChatThreadStore.getState().snapshot;
+    if (!sessionKey) {
+      useChatThreadStore.getState().setSnapshot({
+        childSessionTabs: [],
+        activeChildSessionKey: null,
+      });
+      return;
+    }
+    const nextTabs = childSessionTabs.filter(
+      (tab) => tab.parentSessionKey !== sessionKey,
+    );
+    const nextActiveKey = nextTabs.some((tab) => tab.sessionKey === activeChildSessionKey)
+      ? activeChildSessionKey
+      : null;
+    useChatThreadStore.getState().setSnapshot({
+      childSessionTabs: nextTabs,
+      activeChildSessionKey: nextActiveKey,
     });
   };
 
   goToParentSession = () => {
     const {
       parentSessionKey,
-      childSessionDetailParentSessionKey,
+      childSessionTabs,
+      activeChildSessionKey,
     } = useChatThreadStore.getState().snapshot;
+    const activeChildParentSessionKey =
+      childSessionTabs.find((tab) => tab.sessionKey === activeChildSessionKey)
+        ?.parentSessionKey ?? null;
     const resolvedParentSessionKey =
-      parentSessionKey ?? childSessionDetailParentSessionKey;
+      parentSessionKey ?? activeChildParentSessionKey;
     if (!resolvedParentSessionKey) {
       return;
     }

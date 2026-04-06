@@ -3,6 +3,7 @@ import {
   summarizeToolArgs,
   type ToolCard,
 } from "@/lib/chat-message";
+import { resolveToolInvocationAgentId } from "@/components/chat/adapters/chat-message-tool-agent-id";
 import type { ChatToolPartViewModel } from "@nextclaw/agent-chat-ui";
 
 type ToolCardViewSource = ToolCard & {
@@ -28,6 +29,7 @@ type SessionRequestResult = {
   kind: string;
   requestId?: string;
   sessionId?: string;
+  agentId?: string;
   isChildSession?: boolean;
   title?: string;
   task?: string;
@@ -118,28 +120,32 @@ export function buildSessionRequestToolCard(params: {
   invocation: SessionRequestInvocation;
   texts: SessionRequestToolCardTexts;
 }): ToolCardViewSource | null {
-  if (
-    params.invocation.toolName !== "spawn" &&
-    params.invocation.toolName !== "sessions_request"
-  ) {
+  const { invocation, texts } = params;
+  const { toolName, toolCallId, args, result } = invocation;
+
+  if (toolName !== "spawn" && toolName !== "sessions_request") {
     return null;
   }
 
-  const sessionRequest = readSessionRequestResult(params.invocation.result);
+  const sessionRequest = readSessionRequestResult(result);
   if (!sessionRequest) {
     return null;
   }
 
   const normalizedStatus = readOptionalString(sessionRequest.status)?.toLowerCase();
-  const detail = buildSessionRequestDetail(sessionRequest, params.invocation.args);
+  const detail = buildSessionRequestDetail(sessionRequest, args);
   const output = buildSessionRequestOutput(sessionRequest);
   const targetSessionId = readOptionalString(sessionRequest.sessionId);
+  const agentId = resolveToolInvocationAgentId({ args, result: sessionRequest });
   const action =
     targetSessionId
       ? {
           kind: "open-session" as const,
           sessionId: targetSessionId,
           sessionKind: sessionRequest.isChildSession === true ? ("child" as const) : ("session" as const),
+          ...(agentId
+            ? { agentId }
+            : {}),
           ...(readOptionalString(sessionRequest.title)
             ? { label: sessionRequest.title!.trim() }
             : {}),
@@ -152,13 +158,14 @@ export function buildSessionRequestToolCard(params: {
   if (normalizedStatus === "failed") {
     return {
       kind: "result",
-      name: params.invocation.toolName,
+      name: toolName,
       detail,
       text: output,
-      callId: params.invocation.toolCallId || undefined,
+      callId: toolCallId || undefined,
       hasResult: Boolean(output),
       statusTone: "error",
-      statusLabel: params.texts.toolStatusFailedLabel,
+      statusLabel: texts.toolStatusFailedLabel,
+      ...(agentId ? { agentId } : {}),
       ...(action ? { action } : {}),
     };
   }
@@ -166,26 +173,28 @@ export function buildSessionRequestToolCard(params: {
   if (normalizedStatus === "completed") {
     return {
       kind: "result",
-      name: params.invocation.toolName,
+      name: toolName,
       detail,
       text: output,
-      callId: params.invocation.toolCallId || undefined,
+      callId: toolCallId || undefined,
       hasResult: Boolean(output),
       statusTone: "success",
-      statusLabel: params.texts.toolStatusCompletedLabel,
+      statusLabel: texts.toolStatusCompletedLabel,
+      ...(agentId ? { agentId } : {}),
       ...(action ? { action } : {}),
     };
   }
 
   return {
     kind: "result",
-    name: params.invocation.toolName,
+    name: toolName,
     detail,
     text: output,
-    callId: params.invocation.toolCallId || undefined,
+    callId: toolCallId || undefined,
     hasResult: Boolean(output),
     statusTone: "running",
-    statusLabel: params.texts.toolStatusRunningLabel,
+    statusLabel: texts.toolStatusRunningLabel,
+    ...(agentId ? { agentId } : {}),
     ...(action ? { action } : {}),
   };
 }

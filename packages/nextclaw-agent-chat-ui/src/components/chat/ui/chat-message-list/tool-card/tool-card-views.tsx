@@ -5,7 +5,7 @@ import type {
   ChatToolPartViewModel,
 } from '../../../view-models/chat-ui.types';
 import { ToolCardRoot, ToolCardContent } from './tool-card-root';
-import { ToolCardHeader } from './tool-card-header';
+import { ToolCardHeader, ToolCardHeaderSessionAction } from './tool-card-header';
 import { ToolCardFileOperationContent } from './tool-card-file-operation';
 import { cn } from '../../../internal/cn';
 
@@ -383,9 +383,11 @@ export function SearchSnippetView({ card }: { card: ChatToolPartViewModel }) {
 export function GenericToolCard({
   card,
   onToolAction,
+  renderToolAgent,
 }: {
   card: ChatToolPartViewModel;
   onToolAction?: (action: ChatToolActionViewModel) => void;
+  renderToolAgent?: (agentId: string) => ReactNode;
 }) {
   const input = card.input?.trim() ?? '';
   const output = card.output?.trim() ?? '';
@@ -408,6 +410,19 @@ export function GenericToolCard({
         icon={Globe} 
         expanded={expanded} 
         canExpand={hasContent || isRunning} 
+        actionSlot={
+          card.agentId || (card.action && onToolAction) ? (
+            <>
+              {card.agentId && renderToolAgent ? renderToolAgent(card.agentId) : null}
+              {card.action && onToolAction ? (
+                <ToolCardHeaderSessionAction
+                  action={card.action}
+                  onAction={onToolAction}
+                />
+              ) : null}
+            </>
+          ) : undefined
+        }
         onToggle={onToggle} 
       />
       {expanded && hasContent && (
@@ -428,17 +443,6 @@ export function GenericToolCard({
               {output}
             </GenericToolSection>
           )}
-          {card.action && onToolAction ? (
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => onToolAction(card.action!)}
-                className="rounded-md border border-amber-300/70 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-amber-900 transition-colors hover:bg-amber-100/70"
-              >
-                {card.action.sessionKind === 'child' ? 'Open child session' : 'Open session'}
-              </button>
-            </div>
-          ) : null}
         </ToolCardContent>
       )}
     </ToolCardRoot>
