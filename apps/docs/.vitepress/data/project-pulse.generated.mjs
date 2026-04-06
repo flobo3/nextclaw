@@ -1,17 +1,17 @@
 export default {
-  "generatedAt": "2026-04-05T03:20:51.295Z",
+  "generatedAt": "2026-04-06T03:21:03.557Z",
   "hero": {
-    "currentLoc": 161121,
-    "trackedFiles": 1156,
-    "recentCommitCount": 580,
-    "activeDays30": 29,
+    "currentLoc": 163027,
+    "trackedFiles": 1175,
+    "recentCommitCount": 572,
+    "activeDays30": 30,
     "recentReleaseCount": 44,
     "latestReleaseDate": "2026-03-31",
     "latestNoteDate": "2026-04-03",
     "benchmarkName": "openclaw",
-    "benchmarkCodeLines": 1563319,
-    "basePercentOfBenchmark": 10.31,
-    "lighterByPercent": 89.69
+    "benchmarkCodeLines": 1623329,
+    "basePercentOfBenchmark": 10.04,
+    "lighterByPercent": 89.96
   },
   "trends": {
     "locDaily": [
@@ -244,14 +244,14 @@ export default {
         "key": "2026-04-05",
         "label": "04-05",
         "value": 161121
+      },
+      {
+        "key": "2026-04-06",
+        "label": "04-06",
+        "value": 163027
       }
     ],
     "commitDaily": [
-      {
-        "key": "2026-03-07",
-        "label": "03-07",
-        "value": 12
-      },
       {
         "key": "2026-03-08",
         "label": "03-08",
@@ -390,20 +390,20 @@ export default {
       {
         "key": "2026-04-04",
         "label": "04-04",
-        "value": 11
+        "value": 12
       },
       {
         "key": "2026-04-05",
         "label": "04-05",
-        "value": 0
+        "value": 1
+      },
+      {
+        "key": "2026-04-06",
+        "label": "04-06",
+        "value": 2
       }
     ],
     "commitWeekly": [
-      {
-        "key": "2026-01-12",
-        "label": "01-12",
-        "value": 0
-      },
       {
         "key": "2026-01-19",
         "label": "01-19",
@@ -457,7 +457,12 @@ export default {
       {
         "key": "2026-03-30",
         "label": "03-30",
-        "value": 117
+        "value": 119
+      },
+      {
+        "key": "2026-04-06",
+        "label": "04-06",
+        "value": 2
       }
     ],
     "releaseMonthly": [
@@ -527,58 +532,58 @@ export default {
     "topScopes": [
       {
         "name": "packages/nextclaw-ui",
-        "codeLines": 28934,
-        "files": 240,
-        "sharePercent": 18
+        "codeLines": 29755,
+        "files": 248,
+        "sharePercent": 18.3
       },
       {
         "name": "packages/extensions/nextclaw-channel-plugin-feishu",
         "codeLines": 24011,
         "files": 143,
-        "sharePercent": 14.9
+        "sharePercent": 14.7
       },
       {
         "name": "packages/nextclaw",
-        "codeLines": 22159,
-        "files": 140,
+        "codeLines": 22465,
+        "files": 145,
         "sharePercent": 13.8
       },
       {
         "name": "packages/nextclaw-core",
-        "codeLines": 14309,
-        "files": 104,
-        "sharePercent": 8.9
+        "codeLines": 14827,
+        "files": 107,
+        "sharePercent": 9.1
       },
       {
         "name": "packages/nextclaw-server",
-        "codeLines": 11194,
-        "files": 55,
-        "sharePercent": 6.9
+        "codeLines": 11455,
+        "files": 58,
+        "sharePercent": 7
       },
       {
         "name": "workers/nextclaw-provider-gateway-api",
         "codeLines": 9477,
         "files": 43,
-        "sharePercent": 5.9
+        "sharePercent": 5.8
       },
       {
         "name": "packages/nextclaw-agent-chat-ui",
         "codeLines": 7188,
         "files": 63,
-        "sharePercent": 4.5
+        "sharePercent": 4.4
       },
       {
         "name": "packages/nextclaw-openclaw-compat",
         "codeLines": 6885,
         "files": 38,
-        "sharePercent": 4.3
+        "sharePercent": 4.2
       }
     ],
     "benchmark": {
       "name": "openclaw",
-      "benchmarkCodeLines": 1563319,
-      "basePercentOfBenchmark": 10.31,
-      "lighterByPercent": 89.69
+      "benchmarkCodeLines": 1623329,
+      "basePercentOfBenchmark": 10.04,
+      "lighterByPercent": 89.96
     },
     "recentReleaseBatches": [
       {
@@ -778,7 +783,7 @@ export default {
   },
   "meta": {
     "locProfile": "source",
-    "locGeneratedAt": "2026-04-05T03:20:50.610Z",
+    "locGeneratedAt": "2026-04-06T03:21:02.865Z",
     "sourceCount": {
       "notes": 3,
       "scopes": 8
