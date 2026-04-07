@@ -6,6 +6,7 @@ import {
   resolveSelectedModelValue,
   resolveSelectedThinkingLevelValue
 } from '@/components/chat/chat-session-preference-governance';
+import { shouldRefreshDraftSessionId } from '@/components/chat/ncp/NcpChatPage';
 
 const modelOptions = [
   {
@@ -151,6 +152,35 @@ describe('resolveSelectedModelValue', () => {
         defaultModel: 'missing/model'
       })
     ).toBe('anthropic/claude-sonnet-4');
+  });
+});
+
+describe('shouldRefreshDraftSessionId', () => {
+  it('does not replace the initial draft session id on first mount', () => {
+    expect(
+      shouldRefreshDraftSessionId({
+        previousSelectedSessionKey: undefined,
+        nextSelectedSessionKey: null
+      })
+    ).toBe(false);
+  });
+
+  it('replaces the draft session id after leaving an existing session', () => {
+    expect(
+      shouldRefreshDraftSessionId({
+        previousSelectedSessionKey: 'session-1',
+        nextSelectedSessionKey: null
+      })
+    ).toBe(true);
+  });
+
+  it('does not replace the draft session id while staying on the same session', () => {
+    expect(
+      shouldRefreshDraftSessionId({
+        previousSelectedSessionKey: 'session-1',
+        nextSelectedSessionKey: 'session-1'
+      })
+    ).toBe(false);
   });
 });
 

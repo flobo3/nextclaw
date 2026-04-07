@@ -1,6 +1,7 @@
 import type {
   NcpAgentRunStreamOptions,
   NcpEndpointEvent,
+  NcpEndpointSubscriber,
   NcpMessage,
   NcpSessionSummary,
   NcpStreamRequestPayload,
@@ -22,9 +23,20 @@ type AgentBackendSessionRealtimeParams = {
   sessionRegistry: AgentLiveSessionRegistry;
   sessionStore: AgentSessionStore;
   publishEndpointEvent: (event: NcpEndpointEvent) => void;
+  subscribeEndpointEvent: (listener: NcpEndpointSubscriber) => () => void;
   persistSession: (sessionId: string) => Promise<void>;
   getSessionSummary: (sessionId: string) => Promise<NcpSessionSummary | null>;
 };
+
+function readEventSessionId(event: NcpEndpointEvent): string | null {
+  const payload = "payload" in event ? event.payload : null;
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  return "sessionId" in payload && typeof payload.sessionId === "string"
+    ? payload.sessionId
+    : null;
+}
 
 export class AgentBackendSessionRealtime {
   constructor(private readonly params: AgentBackendSessionRealtimeParams) {}
@@ -61,24 +73,25 @@ export class AgentBackendSessionRealtime {
         "payload" in payloadOrParams && "signal" in payloadOrParams
           ? payloadOrParams.signal
           : (opts?.signal ?? new AbortController().signal);
-
-      const session = await self.params.sessionRegistry.ensureSession(
-        payload.sessionId,
-      );
       const queue = createAsyncQueue<NcpEndpointEvent>();
-      const unsubscribe = session.publisher.subscribe((event) => {
+      const unsubscribe = self.params.subscribeEndpointEvent((event) => {
+        if (readEventSessionId(event) !== payload.sessionId) {
+          return;
+        }
         queue.push(event);
-      });
-      const unsubscribeClose = session.publisher.onClose(() => {
-        queue.close();
       });
       const stop = () => {
         unsubscribe();
-        unsubscribeClose();
         queue.close();
         signal.removeEventListener("abort", stop);
       };
 
+      const liveSession = self.params.sessionRegistry.getSession(payload.sessionId);
+      const unsubscribeClose = liveSession
+        ? liveSession.publisher.onClose(() => {
+            queue.close();
+          })
+        : () => undefined;
       signal.addEventListener("abort", stop, { once: true });
 
       try {
@@ -89,6 +102,7 @@ export class AgentBackendSessionRealtime {
           yield event;
         }
       } finally {
+        unsubscribeClose();
         stop();
       }
     })(this);

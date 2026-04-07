@@ -100,7 +100,8 @@ export class DefaultNcpAgentBackend
     this.sessionRealtime = new AgentBackendSessionRealtime({
       sessionRegistry: this.sessionRegistry,
       sessionStore: this.sessionStore,
-      publishEndpointEvent: (event) => this.publishEndpointEvent(event),
+      publishEndpointEvent: (event) => this.publisher.publish(event),
+      subscribeEndpointEvent: (listener) => this.publisher.subscribe(listener),
       persistSession: (sessionId) => this.persistSession(sessionId),
       getSessionSummary: (sessionId) => this.getSession(sessionId),
     });
@@ -354,10 +355,6 @@ export class DefaultNcpAgentBackend
       execution,
       onStatusChanged: this.onSessionRunStatusChanged,
     });
-
-  private publishEndpointEvent = (event: NcpEndpointEvent): void => {
-    this.publisher.publish(event);
-  };
 
   private handleAbort = async (
     payload: NcpMessageAbortPayload,

@@ -78,6 +78,17 @@ export function buildNcpSendMetadata(payload: {
   return metadata;
 }
 
+export function shouldRefreshDraftSessionId(params: {
+  previousSelectedSessionKey: string | null | undefined;
+  nextSelectedSessionKey: string | null;
+}): boolean {
+  return (
+    params.nextSelectedSessionKey === null &&
+    params.previousSelectedSessionKey !== undefined &&
+    params.previousSelectedSessionKey !== null
+  );
+}
+
 export function NcpChatPage({ view }: ChatPageProps) {
   const [presenter] = useState(() => new NcpChatPresenter());
   const [draftSessionId, setDraftSessionId] = useState(() =>
@@ -111,6 +122,9 @@ export function NcpChatPage({ view }: ChatPageProps) {
   }>();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
+  const previousSelectedSessionKeyRef = useRef<string | null | undefined>(
+    undefined,
+  );
   const routeSessionKey = useMemo(
     () => parseSessionKeyFromRoute(routeSessionIdParam),
     [routeSessionIdParam],
@@ -153,11 +167,18 @@ export function NcpChatPage({ view }: ChatPageProps) {
   }, [draftSessionId, presenter]);
 
   useEffect(() => {
-    if (selectedSessionKey === null) {
+    if (
+      shouldRefreshDraftSessionId({
+        previousSelectedSessionKey:
+          previousSelectedSessionKeyRef.current,
+        nextSelectedSessionKey: selectedSessionKey,
+      })
+    ) {
       const nextDraftSessionId = createNcpSessionId();
       setDraftSessionId(nextDraftSessionId);
       presenter.setDraftSessionId(nextDraftSessionId);
     }
+    previousSelectedSessionKeyRef.current = selectedSessionKey;
   }, [presenter, selectedSessionKey]);
 
   const effectiveSessionProjectRoot = hasSessionProjectRootOverride

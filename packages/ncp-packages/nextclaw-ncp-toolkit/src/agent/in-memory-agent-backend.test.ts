@@ -184,7 +184,7 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
     expect(streamed).toContain(NcpEventType.RunFinished);
   });
 
-  it("keeps an idle session stream open for the next run", async () => {
+  it("keeps an idle session stream open for the next run without materializing an empty session", async () => {
     const backend = createBackend(new SlowEchoNcpLLMApi());
     const streamed: string[] = [];
     const controller = new AbortController();
@@ -199,7 +199,9 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
         }
       }
     })();
-    await waitFor(async () => (await backend.getSession("session-1")) !== null);
+
+    expect(await backend.getSession("session-1")).toBeNull();
+    expect(await backend.listSessions()).toEqual([]);
 
     await backend.emit({
       type: NcpEventType.MessageRequest,
