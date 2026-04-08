@@ -23,6 +23,11 @@
   - 修复本地 dev 场景下，选择图片后回车发送时访问 `/api/ncp/assets/content` 被 Vite 代理报 `Duplicate Content-Length` 的问题。
   - 从 [ncp-attachment.controller.ts](/Users/peiwang/Projects/nextbot/packages/nextclaw-server/src/ui/ui-routes/ncp-attachment.controller.ts) 与 [index.ts](/Users/peiwang/Projects/nextbot/apps/ncp-demo/backend/src/index.ts) 的资源内容响应中删除手写 `content-length`，避免 Node/Hono 适配层再自动补一次长度头。
   - 在 [router.ncp-agent.test.ts](/Users/peiwang/Projects/nextbot/packages/nextclaw-server/src/ui/router.ncp-agent.test.ts) 新增真实 Node HTTP 层回归测试，直接校验资源内容响应只发出一次 `Content-Length`。
+- 同批次续改补丁：
+  - 修复 Codex 规划 / Codex 会话里“粘贴或选择图片后发送，AI 感知不到附件存在”的问题。
+  - 根因是 [codex-input-builder.ts](/Users/peiwang/Projects/nextbot/packages/extensions/nextclaw-ncp-runtime-plugin-codex-sdk/src/codex-input-builder.ts) 之前只读取最后一条用户消息里的纯文本 part，直接忽略 file part，导致图片虽然上传成功，但拼给 Codex runtime 的最终 prompt 里没有任何附件信息。
+  - 现在改为把当前用户消息里的图片/文件 part 一并转成统一的资产引用块，再交给 Codex runtime prompt builder；这样 Codex 至少能明确感知“这里有一个图片资产”，并按现有 `asset_export` 路径继续检查，而不是静默丢失。
+  - 在 [codex-input-builder.test.ts](/Users/peiwang/Projects/nextbot/packages/nextclaw/src/cli/commands/compat/codex-input-builder.test.ts) 补了定向回归测试，覆盖纯文本消息不变、文件 part 会进入 Codex prompt 这两条关键路径。
 
 ## 测试 / 验证 / 验收方式
 
@@ -49,6 +54,16 @@
     - `pnpm lint:maintainability:guard` 通过。
     - `packages/nextclaw-server lint` 失败来自仓库既有未使用变量 / 超长文件等历史问题，不是本次资源头修复引入。
     - `apps/ncp-demo/backend tsc` 失败来自现有 `AgentSessionStore.replaceSession` 接口缺口，不是本次资源头修复引入。
+- 本轮续改补丁验证：
+  - `pnpm -C packages/nextclaw test -- --run src/cli/commands/compat/codex-input-builder.test.ts`
+  - `pnpm -C packages/extensions/nextclaw-ncp-runtime-plugin-codex-sdk tsc`
+  - `pnpm -C packages/extensions/nextclaw-ncp-runtime-plugin-codex-sdk build`
+  - `pnpm lint:maintainability:guard`
+  - 结果：
+    - Codex 输入构造定向单测通过，确认 file part 会进入最终 prompt。
+    - `packages/extensions/nextclaw-ncp-runtime-plugin-codex-sdk tsc` 通过。
+    - `packages/extensions/nextclaw-ncp-runtime-plugin-codex-sdk build` 通过。
+    - `pnpm lint:maintainability:guard` 通过；仅剩扩展目录既有平铺 warning，没有新增错误。
 
 ## 发布 / 部署方式
 
@@ -68,6 +83,9 @@
 7. 在本地 dev 环境中，从输入面板选择一张图片后直接回车发送。
 8. 确认 dev 终端不再出现 `http proxy error: /api/ncp/assets/content ... Duplicate Content-Length`。
 9. 确认图片消息可以正常发送，且消息里的图片仍能正常预览。
+10. 切到 `codex` 会话类型，粘贴一张截图或通过附件按钮选择一张图片后发送。
+11. 确认 Codex 不再像之前那样完全忽略附件，而会在回复里体现出它知道当前消息带了一个图片/资产。
+12. 若让 Codex 进一步检查图片内容，确认它会沿现有资产工作流提示或调用 `asset_export`，而不是表现得像这条消息只有纯文本。
 
 ## 可维护性总结汇总
 
@@ -115,3 +133,19 @@
     - 这次补丁是典型的非功能修复，真正落到运行链路的改动只有删除两处重复 `content-length`，让系统更简单也更可预测。
     - 代码净增主要来自 Node HTTP 回归测试，不是把复杂度搬进生产代码；生产代码本身反而更少了。
     - 后续观察点是如果还有其它二进制内容接口手写 `content-length`，应统一复查，避免在 Node 适配层重复踩同类坑。
+- 本轮续改补丁的独立可维护性复核：
+  - 可维护性复核结论：通过
+  - 本次顺手减债：是
+  - 代码增减报告：
+    - 新增：129 行
+    - 删除：2 行
+    - 净增：+127 行
+  - 非测试代码增减报告：
+    - 新增：58 行
+    - 删除：2 行
+    - 净增：+56 行
+  - no maintainability findings
+  - 可维护性总结：
+    - 这次修复把“Codex 输入只看文本、静默丢附件”这个隐藏行为改成了显式、可预测的资产引用输入，方向上更符合统一入口产品应替用户吸收复杂度的目标。
+    - 生产代码净增来自把 file part 正式纳入 Codex prompt 构造，已经是最小必要补齐；没有新增新模块、新状态层或补丁式分叉。
+    - 后续更好的升级缝是把这套附件到 prompt 的归一化能力继续抽成跨 runtime 共享层，但在当前范围内，先消除“附件完全不可见”的行为错误优先级更高。
