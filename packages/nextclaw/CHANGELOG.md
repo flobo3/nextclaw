@@ -1,5 +1,49 @@
 # nextclaw
 
+## 0.17.3
+
+### Patch Changes
+
+- Auto-generated patch release for packages with meaningful drift after their latest version commit.
+
+  Packages:
+  - @nextclaw/agent-chat
+  - @nextclaw/channel-plugin-dingtalk
+  - @nextclaw/channel-plugin-discord
+  - @nextclaw/channel-plugin-email
+  - @nextclaw/channel-plugin-mochat
+  - @nextclaw/channel-plugin-qq
+  - @nextclaw/channel-plugin-slack
+  - @nextclaw/channel-plugin-telegram
+  - @nextclaw/channel-plugin-wecom
+  - @nextclaw/channel-plugin-weixin
+  - @nextclaw/channel-plugin-whatsapp
+  - @nextclaw/channel-runtime
+  - @nextclaw/core
+  - @nextclaw/feishu-core
+  - @nextclaw/mcp
+  - @nextclaw/ncp-mcp
+  - @nextclaw/ncp-react
+  - @nextclaw/ncp-toolkit
+  - @nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk
+  - @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
+  - @nextclaw/openclaw-compat
+  - @nextclaw/remote
+  - @nextclaw/runtime
+  - @nextclaw/server
+  - @nextclaw/ui
+  - nextclaw
+
+- Updated dependencies
+  - @nextclaw/core@0.12.2
+  - @nextclaw/mcp@0.1.67
+  - @nextclaw/ncp-mcp@0.1.69
+  - @nextclaw/ncp-toolkit@0.5.2
+  - @nextclaw/openclaw-compat@1.0.2
+  - @nextclaw/remote@0.1.79
+  - @nextclaw/runtime@0.2.34
+  - @nextclaw/server@0.12.2
+
 ## 0.17.2
 
 ### Patch Changes
