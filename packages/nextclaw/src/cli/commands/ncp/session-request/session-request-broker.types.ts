@@ -12,6 +12,7 @@ export type SpawnChildSessionAndRequestParams = {
   task: string;
   title?: string;
   model?: string;
+  runtime?: string;
   handoffDepth?: number;
   sessionType?: string;
   thinkingLevel?: string;

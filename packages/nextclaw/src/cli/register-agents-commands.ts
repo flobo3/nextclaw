@@ -11,12 +11,20 @@ export function registerAgentsCommands(program: Command, runtime: CliRuntime): v
     .action((opts) => runtime.agentsList(opts));
 
   agents
+    .command("runtimes")
+    .description("List available agent runtimes")
+    .option("--probe", "Actively probe runtime readiness", false)
+    .option("--json", "Output JSON", false)
+    .action(async (opts) => runtime.agentsRuntimes(opts));
+
+  agents
     .command("new <agentId>")
     .description("Create a new agent")
     .option("--name <name>", "Agent display name")
     .option("--description <description>", "Agent description")
     .option("--avatar <avatar>", "Remote avatar URL or local image path")
     .option("--home <path>", "Agent home directory")
+    .option("--runtime <runtime>", "Agent runtime kind, for example native or codex")
     .option("--json", "Output JSON", false)
     .action(async (agentId, opts) => runtime.agentsNew(agentId, opts));
 
@@ -26,6 +34,7 @@ export function registerAgentsCommands(program: Command, runtime: CliRuntime): v
     .option("--name <name>", "Agent display name")
     .option("--description <description>", "Agent description")
     .option("--avatar <avatar>", "Remote avatar URL or local image path")
+    .option("--runtime <runtime>", "Agent runtime kind, for example native or codex")
     .option("--json", "Output JSON", false)
     .action(async (agentId, opts) => runtime.agentsUpdate(agentId, opts));
 

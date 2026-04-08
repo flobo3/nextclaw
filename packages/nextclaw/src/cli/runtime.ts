@@ -42,8 +42,9 @@ import type {
   AgentCommandOptions,
   AgentsListCommandOptions,
   AgentsNewCommandOptions,
-  AgentsUpdateCommandOptions,
   AgentsRemoveCommandOptions,
+  AgentsRuntimesCommandOptions,
+  AgentsUpdateCommandOptions,
   ChannelsAddOptions,
   ChannelsLoginOptions,
   ConfigGetOptions,
@@ -692,17 +693,13 @@ export class CliRuntime {
   };
 
   agentsList = (opts: AgentsListCommandOptions = {}): void => { this.agentCommands.agentsList(opts); };
+  agentsRuntimes = async (opts: AgentsRuntimesCommandOptions = {}): Promise<void> => { await this.agentCommands.agentsRuntimes(opts); };
   agentsNew = async (agentId: string, opts: AgentsNewCommandOptions = {}): Promise<void> => { await this.agentCommands.agentsNew(agentId, opts); };
   agentsUpdate = async (agentId: string, opts: AgentsUpdateCommandOptions = {}): Promise<void> => { await this.agentCommands.agentsUpdate(agentId, opts); };
   agentsRemove = async (agentId: string, opts: AgentsRemoveCommandOptions = {}): Promise<void> => { await this.agentCommands.agentsRemove(agentId, opts); };
 
-  pluginsList = (opts: PluginsListOptions = {}): void => {
-    this.pluginCommands.pluginsList(opts);
-  };
-
-  pluginsInfo = (id: string, opts: PluginsInfoOptions = {}): void => {
-    this.pluginCommands.pluginsInfo(id, opts);
-  };
+  pluginsList = (opts: PluginsListOptions = {}): void => { this.pluginCommands.pluginsList(opts); };
+  pluginsInfo = (id: string, opts: PluginsInfoOptions = {}): void => { this.pluginCommands.pluginsInfo(id, opts); };
 
   pluginsEnable = async (id: string): Promise<void> => {
     await this.pluginCommands.pluginsEnable(id);

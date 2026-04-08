@@ -52,6 +52,10 @@ export class SpawnChildSessionTool extends Tool {
           type: "string",
           description: "Optional model override used only for the child session.",
         },
+        runtime: {
+          type: "string",
+          description: "Optional runtime override used only for the child session, for example native or codex.",
+        },
         agentId: {
           type: "string",
           description: "Optional target agent id for the child session. Omit to use the default agent for that child.",
@@ -83,6 +87,7 @@ export class SpawnChildSessionTool extends Tool {
       task,
       title: readOptionalString(params, "label"),
       model: readOptionalString(params, "model"),
+      runtime: readOptionalString(params, "runtime"),
       handoffDepth: this.handoffDepth,
       agentId: readOptionalString(params, "agentId"),
     });

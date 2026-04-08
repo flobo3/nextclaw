@@ -3,17 +3,11 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableModelInput } from '@/components/common/SearchableModelInput';
+import { ProviderScopedModelInput } from '@/components/common/ProviderScopedModelInput';
 import { useConfig, useConfigMeta, useConfigSchema, useUpdateModel } from '@/hooks/useConfig';
 import { hintForPath } from '@/lib/config-hints';
 import { t } from '@/lib/i18n';
-import {
-  buildProviderModelCatalog,
-  composeProviderModel,
-  findProviderByModel,
-  toProviderLocalModel
-} from '@/lib/provider-models';
+import { buildProviderModelCatalog } from '@/lib/provider-models';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { DOCS_DEFAULT_BASE_URL } from '@/components/doc-browser/DocBrowserContext';
 import { BookOpen, Folder, Loader2, Sparkles } from 'lucide-react';
@@ -25,8 +19,7 @@ export function ModelConfig() {
   const { data: schema } = useConfigSchema();
   const updateModel = useUpdateModel();
 
-  const [providerName, setProviderName] = useState('');
-  const [modelId, setModelId] = useState('');
+  const [model, setModel] = useState('');
   const [workspace, setWorkspace] = useState('');
   const uiHints = schema?.uiHints;
   const modelHint = hintForPath('agents.defaults.model', uiHints);
@@ -37,66 +30,20 @@ export function ModelConfig() {
     [config, meta]
   );
 
-  const providerMap = useMemo(() => new Map(providerCatalog.map((provider) => [provider.name, provider])), [providerCatalog]);
-  const selectedProvider = providerMap.get(providerName);
-  const selectedProviderName = selectedProvider?.name ?? '';
-  const selectedProviderAliases = useMemo(() => selectedProvider?.aliases ?? [], [selectedProvider]);
-  const selectedProviderModels = useMemo(() => selectedProvider?.models ?? [], [selectedProvider]);
-
   useEffect(() => {
     if (!config?.agents?.defaults) {
       return;
     }
-    const currentModel = (config.agents.defaults.model || '').trim();
-    const matchedProvider = findProviderByModel(currentModel, providerCatalog);
-    const effectiveProvider = matchedProvider ?? '';
-    const aliases = providerMap.get(effectiveProvider)?.aliases ?? [];
-    setProviderName(effectiveProvider);
-    setModelId(effectiveProvider ? toProviderLocalModel(currentModel, aliases) : '');
+    setModel((config.agents.defaults.model || '').trim());
     setWorkspace(config.agents.defaults.workspace || '');
-  }, [config, providerCatalog, providerMap]);
-
-  const modelOptions = useMemo(() => {
-    const deduped = new Set<string>();
-    for (const modelName of selectedProviderModels) {
-      const trimmed = modelName.trim();
-      if (trimmed) {
-        deduped.add(trimmed);
-      }
-    }
-    return [...deduped];
-  }, [selectedProviderModels]);
-
-  const composedModel = useMemo(() => {
-    if (!selectedProvider) {
-      return '';
-    }
-    const normalizedModelId = toProviderLocalModel(modelId, selectedProviderAliases);
-    if (!normalizedModelId) {
-      return '';
-    }
-    return composeProviderModel(selectedProvider.prefix, normalizedModelId);
-  }, [modelId, selectedProvider, selectedProviderAliases]);
+  }, [config]);
 
   const modelHelpText = t('modelIdentifierHelp') || modelHint?.help || '';
-
-  const handleProviderChange = (nextProvider: string) => {
-    setProviderName(nextProvider);
-    setModelId('');
-  };
-
-  const handleModelChange = (nextModelId: string) => {
-    if (!selectedProvider) {
-      setModelId('');
-      return;
-    }
-    setModelId(toProviderLocalModel(nextModelId, selectedProviderAliases));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateModel.mutate({
-      model: composedModel,
+      model,
       workspace
     });
   };
@@ -146,38 +93,14 @@ export function ModelConfig() {
               <Label htmlFor="model" className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {modelHint?.label ?? 'Model Name'}
               </Label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <div className="sm:w-[38%] sm:min-w-[170px]">
-                  <Select value={selectedProviderName} onValueChange={handleProviderChange}>
-                    <SelectTrigger className="h-10 w-full rounded-xl">
-                      <SelectValue placeholder={t('providersSelectPlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providerCatalog.map((provider) => (
-                        <SelectItem key={provider.name} value={provider.name}>
-                          {provider.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <span className="hidden h-10 items-center justify-center leading-none text-lg font-semibold text-gray-300 sm:inline-flex">/</span>
-                <SearchableModelInput
-                  key={selectedProviderName}
-                  id="model"
-                  value={modelId}
-                  onChange={handleModelChange}
-                  options={modelOptions}
-                  disabled={!selectedProviderName}
-                  placeholder={modelHint?.placeholder ?? 'gpt-5.1'}
-                  className="sm:flex-1"
-                  inputClassName="h-10 rounded-xl"
-                  emptyText={t('modelPickerNoOptions')}
-                  createText={t('modelPickerUseCustom')}
-                />
-              </div>
+              <ProviderScopedModelInput
+                id="model"
+                value={model}
+                onChange={setModel}
+                providerCatalog={providerCatalog}
+                modelPlaceholder={modelHint?.placeholder ?? 'gpt-5.1'}
+              />
               <p className="text-xs text-gray-400">{modelHelpText}</p>
-              <p className="text-xs text-gray-500">{t('modelInputCustomHint')}</p>
               <a
                 href={`${DOCS_DEFAULT_BASE_URL}/guide/model-selection`}
                 className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary-hover transition-colors"

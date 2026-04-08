@@ -350,6 +350,8 @@ export type AgentProfileView = {
   avatarUrl?: string;
   workspace?: string;
   model?: string;
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
   engine?: string;
   engineConfig?: Record<string, unknown>;
   contextTokens?: number;
@@ -358,11 +360,38 @@ export type AgentProfileView = {
 };
 
 export type AgentCreateRequest = {
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
   id: string;
   displayName?: string;
   description?: string;
   avatar?: string;
   home?: string;
+  model?: string;
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
+};
+
+export type AgentUpdateRequest = {
+  displayName?: string;
+  description?: string;
+  avatar?: string;
+  model?: string;
+  model?: string;
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
+};
+
+export type AgentUpdateRequest = {
+  displayName?: string;
+  description?: string;
+  avatar?: string;
+  model?: string;
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
+};
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
 };
 
 export type AgentDeleteResult = {

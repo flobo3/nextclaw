@@ -52,11 +52,17 @@ export type AgentsListCommandOptions = {
   json?: boolean;
 };
 
+export type AgentsRuntimesCommandOptions = {
+  json?: boolean;
+  probe?: boolean;
+};
+
 export type AgentsNewCommandOptions = {
   name?: string;
   description?: string;
   avatar?: string;
   home?: string;
+  runtime?: string;
   json?: boolean;
 };
 
@@ -64,6 +70,7 @@ export type AgentsUpdateCommandOptions = {
   name?: string;
   description?: string;
   avatar?: string;
+  runtime?: string;
   json?: boolean;
 };
 

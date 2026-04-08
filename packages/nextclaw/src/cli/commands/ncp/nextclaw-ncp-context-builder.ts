@@ -193,6 +193,7 @@ function prependRequestedSkills(content: string, requestedSkillNames: string[]):
 function buildSessionOrchestrationSection(): string {
   return [
     "## Session Orchestration",
+    "- Before passing a non-default `runtime` to `spawn`, `sessions_spawn`, or agent creation/update flows, inspect the installed runtime kinds with `nextclaw agents runtimes --json`.",
     "- `spawn` creates a child session, starts the delegated task there immediately, and returns a running child-session handle right away instead of waiting for the child to finish.",
     "- When that child reaches its final reply, `spawn` writes the completed result back into the original tool call and resumes the current session with the child's result.",
     "- Use `spawn` when the work is a subtask of the current flow and the user expects this session to pause now and then continue after that child finishes.",

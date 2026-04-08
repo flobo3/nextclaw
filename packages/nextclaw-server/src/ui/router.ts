@@ -33,6 +33,7 @@ function registerAuthRoutes(app: Hono, authController: AuthRoutesController): vo
 function registerAgentRoutes(app: Hono, agentsController: AgentsRoutesController): void {
   app.get("/api/agents", agentsController.listAgents);
   app.post("/api/agents", agentsController.createAgent);
+  app.put("/api/agents/:agentId", agentsController.updateAgent);
   app.delete("/api/agents/:agentId", agentsController.deleteAgent);
   app.get("/api/agents/:agentId/avatar", agentsController.getAgentAvatar);
 }

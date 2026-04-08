@@ -461,6 +461,7 @@ Skill loading contract:
 | `nextclaw init` | Initialize workspace and template files |
 | `nextclaw init --force` | Re-run init and overwrite templates |
 | `nextclaw agents list` | List built-in and created agents |
+| `nextclaw agents runtimes` | List installed agent runtimes (`--json`, `--probe`) |
 | `nextclaw agents new <agent-id>` | Create a new agent with default home/template/avatar |
 | `nextclaw agents update <agent-id>` | Update an existing agent's display metadata |
 | `nextclaw agents remove <agent-id>` | Remove an extra agent (built-in `main` cannot be removed) |
@@ -497,17 +498,25 @@ Skill loading contract:
 
 Agent management notes:
 
+- `nextclaw agents runtimes` accepts:
+  - `--json`
+  - `--probe` to actively check runtime readiness instead of only reporting lightweight observations
 - `nextclaw agents new <agent-id>` accepts:
   - `--name <display-name>`
   - `--description <description>`
   - `--avatar <http-url-or-local-file>`
   - `--home <path>`
+  - `--runtime <runtime-kind>`
   - `--json`
 - `nextclaw agents update <agent-id>` accepts:
   - `--name <display-name>`
   - `--description <description>`
   - `--avatar <http-url-or-local-file>`
+  - `--runtime <runtime-kind>`
   - `--json`
+- `runtime` defaults to `native`.
+- Use `nextclaw agents runtimes --json` before setting a non-default `runtime`; it returns the actual installed runtime kinds instead of requiring guesswork.
+- The same runtime kinds are also what NCP `spawn` / `sessions_spawn` expect in their optional `runtime` field.
 - `nextclaw agents update` allows updating the built-in `main` agent.
 - For `nextclaw agents update`, passing an empty string to `--name`, `--description`, or `--avatar` clears the stored override for that field.
 - If `--avatar` is a local file path, NextClaw copies it into the Agent Home Directory and stores it as `home://avatar.<ext>`.
@@ -524,25 +533,31 @@ When NextClaw AI is asked to create, update, or remove an Agent, use this exact 
    nextclaw agents list --json
    ```
 
-2. Execute the dedicated command instead of editing config directly:
+2. If you plan to set a non-default runtime, inspect installed runtime kinds first:
 
    ```bash
-   nextclaw agents new <agent-id> --json [--name <display-name>] [--description <description>] [--avatar <url-or-local-file>] [--home <path>]
-   nextclaw agents update <agent-id> --json [--name <display-name>] [--description <description>] [--avatar <url-or-local-file>]
+   nextclaw agents runtimes --json
+   ```
+
+3. Execute the dedicated command instead of editing config directly:
+
+   ```bash
+   nextclaw agents new <agent-id> --json [--name <display-name>] [--description <description>] [--avatar <url-or-local-file>] [--home <path>] [--runtime <runtime-kind>]
+   nextclaw agents update <agent-id> --json [--name <display-name>] [--description <description>] [--avatar <url-or-local-file>] [--runtime <runtime-kind>]
    nextclaw agents remove <agent-id> --json
    ```
 
-3. Treat the JSON output as the source of truth:
+4. Treat the JSON output as the source of truth:
    - `agent`: created or updated Agent profile
    - `restartRequired: true`: runtime changes still need a restart to apply
 
-4. If the service is currently running, restart explicitly after creation:
+5. If the service is currently running, restart explicitly after creation:
 
    ```bash
    nextclaw restart
    ```
 
-5. Close the loop:
+6. Close the loop:
 
    ```bash
    nextclaw agents list --json
@@ -553,6 +568,7 @@ Rules:
 
 - Do not try to create or remove the built-in `main` agent. `nextclaw agents update main` is allowed.
 - For normal Agent management, prefer `nextclaw agents list|new|update|remove --json` over direct `config.json` or `agents.list` edits.
+- For runtime discovery, prefer `nextclaw agents runtimes --json` over guessing enum values from memory or stale examples.
 - Direct `config.json` / `agents.list` edits are recovery-only: use them only for explicit operator-led disaster recovery, or when a documented CLI path still cannot express the requested change.
 - Humans should use the `Agents` page or the CLI for Agent identities. `Routing & Runtime` is not the identity-management entry point.
 - If the user asked AI to perform Agent CRUD, AI should run the command, not only describe it.
@@ -923,14 +939,15 @@ After changing channel config, NextClaw hot-reloads channel runtime automaticall
 
 ## Tools
 
-### Web search (Bocha default, Brave optional)
+### Web search (Bocha default, Tavily and Brave optional)
 
-Configure the active search provider under `search`. Bocha is the default and is recommended for mainland China users:
+Configure the active search provider under `search`. Bocha is the default and is recommended for mainland China users. Tavily is a good fit for research-heavy tasks when you want configurable retrieval depth and optional synthesized answers:
 
 ```json
 {
   "search": {
-    "provider": "bocha",
+    "provider": "tavily",
+    "enabledProviders": ["bocha", "tavily"],
     "defaults": {
       "maxResults": 10
     },
@@ -939,6 +956,11 @@ Configure the active search provider under `search`. Bocha is the default and is
         "apiKey": "YOUR_BOCHA_KEY",
         "summary": true,
         "freshness": "noLimit"
+      },
+      "tavily": {
+        "apiKey": "YOUR_TAVILY_KEY",
+        "searchDepth": "advanced",
+        "includeAnswer": true
       },
       "brave": {
         "apiKey": "YOUR_BRAVE_KEY"

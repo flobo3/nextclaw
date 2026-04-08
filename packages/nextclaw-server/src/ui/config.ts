@@ -1110,6 +1110,7 @@ function createSessionManager(config: Config): SessionManager {
 
 export const DEFAULT_SESSION_TYPE = "native";
 const SESSION_TYPE_METADATA_KEY = "session_type";
+const RUNTIME_METADATA_KEY = "runtime";
 
 type SessionLike = {
   messages: Array<{ role?: unknown }>;
@@ -1125,7 +1126,7 @@ function normalizeSessionType(value: unknown): string | null {
 }
 
 function readSessionType(session: SessionLike): string {
-  const normalized = normalizeSessionType(session.metadata[SESSION_TYPE_METADATA_KEY]);
+  const normalized = normalizeSessionType(session.metadata[RUNTIME_METADATA_KEY]) ?? normalizeSessionType(session.metadata[SESSION_TYPE_METADATA_KEY]);
   return normalized ?? DEFAULT_SESSION_TYPE;
 }
 
@@ -1354,6 +1355,7 @@ export function patchSession(
     }
 
     session.metadata[SESSION_TYPE_METADATA_KEY] = normalizedSessionType;
+    session.metadata[RUNTIME_METADATA_KEY] = normalizedSessionType;
   }
 
   session.updatedAt = new Date();

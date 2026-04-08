@@ -52,17 +52,19 @@ describe("agents routes", () => {
       body: JSON.stringify({
         id: "researcher",
         displayName: "Researcher",
-        description: "Handles research briefs and source synthesis."
+        description: "Handles research briefs and source synthesis.",
+        model: "openai/gpt-5.2"
       })
     });
 
     expect(createResponse.status).toBe(200);
     const createPayload = await createResponse.json() as {
       ok: true;
-      data: { id: string; avatarUrl?: string; description?: string };
+      data: { id: string; avatarUrl?: string; description?: string; model?: string };
     };
     expect(createPayload.data.id).toBe("researcher");
     expect(createPayload.data.description).toBe("Handles research briefs and source synthesis.");
+    expect(createPayload.data.model).toBe("openai/gpt-5.2");
     expect(createPayload.data.avatarUrl).toBe("/api/agents/researcher/avatar");
     expect(publish).toHaveBeenCalledWith({
       type: "config.updated",
@@ -74,6 +76,7 @@ describe("agents routes", () => {
     expect(saved.agents.list.find((entry) => entry.id === "researcher")?.description).toBe(
       "Handles research briefs and source synthesis."
     );
+    expect(saved.agents.list.find((entry) => entry.id === "researcher")?.model).toBe("openai/gpt-5.2");
 
     const avatarResponse = await app.request("http://localhost/api/agents/researcher/avatar");
     expect(avatarResponse.status).toBe(200);
@@ -94,6 +97,108 @@ describe("agents routes", () => {
     });
 
     expect(response.status).toBe(400);
+  });
+
+  it("updates an existing custom agent profile", async () => {
+    const configPath = createTempConfigPath();
+    const homeDir = join(dirname(configPath), "workspace");
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace: homeDir
+          },
+          list: [
+            {
+              id: "researcher",
+              displayName: "Researcher",
+              description: "Old description",
+              avatar: "https://example.com/old.png"
+            }
+          ]
+        }
+      }),
+      configPath
+    );
+    const publish = vi.fn();
+    const app = createUiRouter({
+      configPath,
+      publish
+    });
+
+    const response = await app.request("http://localhost/api/agents/researcher", {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        displayName: "Deep Researcher",
+        description: "Handles deep research briefs.",
+        avatar: "",
+        model: "anthropic/claude-sonnet-4.5",
+        runtime: "codex"
+      })
+    });
+
+    expect(response.status).toBe(200);
+    const payload = await response.json() as {
+      ok: true;
+      data: { id: string; displayName?: string; description?: string; avatar?: string; avatarUrl?: string; model?: string; runtime?: string };
+    };
+    expect(payload.data).toMatchObject({
+      id: "researcher",
+      displayName: "Deep Researcher",
+      description: "Handles deep research briefs.",
+      model: "anthropic/claude-sonnet-4.5",
+      runtime: "codex"
+    });
+    expect(payload.data.avatar).toBeUndefined();
+    expect(payload.data.avatarUrl).toBeUndefined();
+    expect(publish).toHaveBeenCalledWith({
+      type: "config.updated",
+      payload: { path: "agents.list" }
+    });
+
+    const saved = loadConfig(configPath);
+    const researcher = saved.agents.list.find((entry) => entry.id === "researcher");
+    expect(researcher?.displayName).toBe("Deep Researcher");
+    expect(researcher?.description).toBe("Handles deep research briefs.");
+    expect(researcher?.avatar).toBeUndefined();
+    expect(researcher?.model).toBe("anthropic/claude-sonnet-4.5");
+    expect(researcher?.engine).toBe("codex");
+  });
+
+  it("updates the built-in main agent through a config override", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(ConfigSchema.parse({}), configPath);
+    const app = createUiRouter({
+      configPath,
+      publish: vi.fn()
+    });
+
+    const response = await app.request("http://localhost/api/agents/main", {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        description: "负责全局统筹与默认处理。"
+      })
+    });
+
+    expect(response.status).toBe(200);
+    const payload = await response.json() as {
+      ok: true;
+      data: { id: string; description?: string; builtIn?: boolean };
+    };
+    expect(payload.data).toMatchObject({
+      id: "main",
+      description: "负责全局统筹与默认处理。",
+      builtIn: true
+    });
+    expect(loadConfig(configPath).agents.list.find((entry) => entry.id === "main")?.description).toBe(
+      "负责全局统筹与默认处理。"
+    );
   });
 
   it("lists the inferred nested home for extra agents without explicit workspace", async () => {

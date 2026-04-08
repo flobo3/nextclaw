@@ -44,9 +44,11 @@ function applySessionTypePatch(
   const sessionType = typeof patch.sessionType === "string" ? patch.sessionType.trim() : "";
   if (sessionType) {
     metadata.session_type = sessionType;
+    metadata.runtime = sessionType;
     delete metadata.sessionType;
     return;
   }
+  delete metadata.runtime;
   delete metadata.session_type;
   delete metadata.sessionType;
 }

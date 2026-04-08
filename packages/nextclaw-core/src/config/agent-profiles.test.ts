@@ -28,7 +28,7 @@ afterEach(() => {
   }
 });
 
-describe("agent profiles", () => {
+describe("createAgentProfile", () => {
   it("creates a new agent with default home and generated avatar", () => {
     const configPath = createTempConfigPath();
     const workspace = join(dirname(configPath), "workspace");
@@ -94,6 +94,77 @@ describe("agent profiles", () => {
     expect(researcher?.description).toBe("负责调研、信息筛选与结论提炼。");
   });
 
+  it("persists agent model when provided", () => {
+    const configPath = createTempConfigPath();
+    const workspace = join(dirname(configPath), "workspace");
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace
+          }
+        }
+      }),
+      configPath
+    );
+
+    const created = createAgentProfile(
+      {
+        id: "researcher",
+        model: "openai/gpt-5.2"
+      },
+      {
+        configPath
+      }
+    );
+
+    expect(created.model).toBe("openai/gpt-5.2");
+
+    const saved = loadConfig(configPath);
+    const researcher = resolveEffectiveAgentProfiles(saved).find((agent) => agent.id === "researcher");
+    expect(researcher?.model).toBe("openai/gpt-5.2");
+  });
+
+  it("maps public runtime fields onto the stored engine fields", () => {
+    const configPath = createTempConfigPath();
+    const workspace = join(dirname(configPath), "workspace");
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace
+          }
+        }
+      }),
+      configPath
+    );
+
+    const created = createAgentProfile(
+      {
+        id: "coder",
+        runtime: "codex",
+        runtimeConfig: {
+          profile: "high"
+        }
+      },
+      {
+        configPath
+      }
+    );
+
+    expect(created.runtime).toBe("codex");
+    expect(created.runtimeConfig).toEqual({ profile: "high" });
+
+    const saved = loadConfig(configPath);
+    const coder = resolveEffectiveAgentProfiles(saved).find((agent) => agent.id === "coder");
+    expect(coder).toMatchObject({
+      runtime: "codex",
+      engine: "codex",
+      runtimeConfig: { profile: "high" },
+      engineConfig: { profile: "high" }
+    });
+  });
+
   it("infers nested agent home when an extra agent has no explicit workspace", () => {
     const configPath = createTempConfigPath();
     const workspace = join(dirname(configPath), "workspace");
@@ -145,7 +216,9 @@ describe("agent profiles", () => {
 
     expect(researcher?.workspace).toBe(legacyWorkspace);
   });
+});
 
+describe("updateAgentProfile", () => {
   it("updates an existing extra agent profile", () => {
     const configPath = createTempConfigPath();
     const workspace = join(dirname(configPath), "workspace");
@@ -195,6 +268,84 @@ describe("agent profiles", () => {
     expect(researcher?.avatar).toBeUndefined();
   });
 
+  it("updates an existing agent model", () => {
+    const configPath = createTempConfigPath();
+    const workspace = join(dirname(configPath), "workspace");
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace
+          },
+          list: [
+            {
+              id: "researcher",
+              workspace: `${workspace}-researcher`,
+              model: "openai/gpt-5.1"
+            }
+          ]
+        }
+      }),
+      configPath
+    );
+
+    const updated = updateAgentProfile(
+      {
+        id: "researcher",
+        model: "anthropic/claude-sonnet-4.5"
+      },
+      {
+        configPath
+      }
+    );
+
+    expect(updated.model).toBe("anthropic/claude-sonnet-4.5");
+
+    const saved = loadConfig(configPath);
+    const researcher = resolveEffectiveAgentProfiles(saved).find((agent) => agent.id === "researcher");
+    expect(researcher?.model).toBe("anthropic/claude-sonnet-4.5");
+  });
+
+  it("updates agent runtime through the public runtime field", () => {
+    const configPath = createTempConfigPath();
+    const workspace = join(dirname(configPath), "workspace");
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace
+          },
+          list: [
+            {
+              id: "researcher",
+              workspace: `${workspace}-researcher`,
+              engine: "native"
+            }
+          ]
+        }
+      }),
+      configPath
+    );
+
+    const updated = updateAgentProfile(
+      {
+        id: "researcher",
+        runtime: "codex"
+      },
+      {
+        configPath
+      }
+    );
+
+    expect(updated.runtime).toBe("codex");
+    expect(updated.engine).toBe("codex");
+
+    const saved = loadConfig(configPath);
+    const researcher = resolveEffectiveAgentProfiles(saved).find((agent) => agent.id === "researcher");
+    expect(researcher?.runtime).toBe("codex");
+    expect(researcher?.engine).toBe("codex");
+  });
+
   it("creates a main override when updating the built-in main agent", () => {
     const configPath = createTempConfigPath();
     const workspace = join(dirname(configPath), "workspace");
@@ -226,7 +377,9 @@ describe("agent profiles", () => {
     const mainEntry = saved.agents.list.find((agent) => agent.id === "main");
     expect(mainEntry?.description).toBe("负责全局统筹与默认处理。");
   });
+});
 
+describe("path safety", () => {
   it("rejects avatar refs that escape the agent home directory", () => {
     expect(() =>
       resolveAgentAvatarHomePath({

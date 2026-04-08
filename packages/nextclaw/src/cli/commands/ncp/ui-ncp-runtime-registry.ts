@@ -47,6 +47,7 @@ function normalizeRuntimeKind(value: unknown): string | null {
 
 function readRequestedRuntimeKind(sessionMetadata: Record<string, unknown>): string | null {
   return (
+    normalizeRuntimeKind(sessionMetadata.runtime) ??
     normalizeRuntimeKind(sessionMetadata.session_type) ??
     normalizeRuntimeKind(sessionMetadata.sessionType) ??
     null

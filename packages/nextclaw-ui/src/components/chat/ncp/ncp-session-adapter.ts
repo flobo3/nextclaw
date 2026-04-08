@@ -85,7 +85,12 @@ function readNcpSessionType(summary: NcpSessionSummaryView): string {
   if (!metadata) {
     return 'native';
   }
-  return readOptionalString(metadata.session_type) ?? readOptionalString(metadata.sessionType) ?? 'native';
+  return (
+    readOptionalString(metadata.runtime) ??
+    readOptionalString(metadata.session_type) ??
+    readOptionalString(metadata.sessionType) ??
+    'native'
+  );
 }
 
 function readNcpParentSessionId(summary: NcpSessionSummaryView): string | null {

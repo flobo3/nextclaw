@@ -7,10 +7,12 @@ import {
   updateAgentProfile,
   type EffectiveAgentProfile
 } from "@nextclaw/core";
+import { listAvailableAgentRuntimes } from "./agent/agent-runtime.js";
 import type {
   AgentsListCommandOptions,
   AgentsNewCommandOptions,
   AgentsRemoveCommandOptions,
+  AgentsRuntimesCommandOptions,
   AgentsUpdateCommandOptions,
   RequestRestartParams
 } from "../types.js";
@@ -36,6 +38,35 @@ export class AgentCommands {
       console.log(`  description: ${agent.description ?? "-"}`);
       console.log(`  home: ${agent.workspace}`);
       console.log(`  avatar: ${agent.avatar ?? "-"}`);
+      console.log(`  runtime: ${agent.runtime ?? "-"}`);
+    }
+  };
+
+  agentsRuntimes = async (opts: AgentsRuntimesCommandOptions = {}): Promise<void> => {
+    const describeMode = opts.probe ? "probe" : "observation";
+    const listed = await listAvailableAgentRuntimes({ describeMode });
+    if (opts.json) {
+      console.log(JSON.stringify({
+        defaultRuntime: listed.defaultRuntime,
+        describeMode,
+        runtimes: listed.runtimes,
+      }, null, 2));
+      return;
+    }
+
+    for (const runtime of listed.runtimes) {
+      const head = runtime.default ? `${runtime.value} (default)` : runtime.value;
+      console.log(head);
+      console.log(`  label: ${runtime.label}`);
+      console.log(`  source: ${runtime.source}`);
+      if (runtime.pluginId) {
+        console.log(`  pluginId: ${runtime.pluginId}`);
+      }
+      console.log(`  ready: ${runtime.ready === false ? "no" : "yes"}`);
+      console.log(`  reason: ${runtime.reason ?? "-"}`);
+      console.log(`  reasonMessage: ${runtime.reasonMessage ?? "-"}`);
+      console.log(`  recommendedModel: ${runtime.recommendedModel ?? "-"}`);
+      console.log(`  supportedModels: ${runtime.supportedModels?.join(", ") ?? "-"}`);
     }
   };
 
@@ -46,7 +77,8 @@ export class AgentCommands {
         displayName: opts.name,
         description: opts.description,
         avatar: opts.avatar,
-        home: opts.home
+        home: opts.home,
+        runtime: opts.runtime
       },
       {
         initializeHomeDirectory: this.deps.initializeAgentHomeDirectory
@@ -68,6 +100,7 @@ export class AgentCommands {
     console.log(`  description: ${created.description ?? "-"}`);
     console.log(`  home: ${created.workspace}`);
     console.log(`  avatar: ${created.avatar ?? "-"}`);
+    console.log(`  runtime: ${created.runtime ?? created.engine ?? "-"}`);
   };
 
   agentsUpdate = async (agentId: string, opts: AgentsUpdateCommandOptions = {}): Promise<void> => {
@@ -75,7 +108,8 @@ export class AgentCommands {
       id: agentId,
       displayName: opts.name,
       description: opts.description,
-      avatar: opts.avatar
+      avatar: opts.avatar,
+      runtime: opts.runtime
     });
     if (opts.json) {
       console.log(JSON.stringify({
@@ -93,6 +127,7 @@ export class AgentCommands {
     console.log(`  description: ${updated.description ?? "-"}`);
     console.log(`  home: ${updated.workspace}`);
     console.log(`  avatar: ${updated.avatar ?? "-"}`);
+    console.log(`  runtime: ${updated.runtime ?? updated.engine ?? "-"}`);
   };
 
   agentsRemove = async (agentId: string, opts: AgentsRemoveCommandOptions = {}): Promise<void> => {
@@ -125,6 +160,7 @@ export class AgentCommands {
       description: agent.description ?? null,
       avatar: agent.avatar ?? null,
       workspace: agent.workspace,
+      runtime: agent.runtime ?? agent.engine ?? null,
       builtIn: agent.builtIn === true
     };
   };

@@ -35,6 +35,7 @@ function cloneInheritedMetadata(
 ): Record<string, unknown> {
   const nextMetadata: Record<string, unknown> = {};
   const inheritedKeys = [
+    "runtime",
     "session_type",
     "preferred_model",
     "preferred_thinking",
@@ -69,10 +70,13 @@ function resolveSessionTitle(params: { title?: string; task: string }): string {
 }
 
 function resolveSessionType(params: {
+  runtime?: string;
   sessionType?: string;
   metadata: Record<string, unknown>;
 }): string {
   return (
+    readOptionalString(params.runtime) ??
+    readOptionalString(params.metadata.runtime) ??
     readOptionalString(params.sessionType) ??
     readOptionalString(params.metadata.session_type) ??
     DEFAULT_SESSION_TYPE
@@ -91,6 +95,7 @@ function applySessionOverrides(params: {
   projectRoot?: string | null;
 }): void {
   params.metadata.session_type = params.sessionType;
+  params.metadata.runtime = params.sessionType;
   params.metadata[SESSION_METADATA_LABEL_KEY] = params.title;
   params.metadata[CHILD_SESSION_LIFECYCLE_METADATA_KEY] = params.lifecycle;
   if (params.parentSessionId) {
@@ -126,6 +131,7 @@ export class SessionCreationService {
     sourceSessionMetadata: Record<string, unknown>;
     agentId?: string;
     model?: string;
+    runtime?: string;
     thinkingLevel?: string;
     sessionType?: string;
     projectRoot?: string | null;
@@ -147,6 +153,7 @@ export class SessionCreationService {
     const parentSessionId = readOptionalString(params.parentSessionId);
     const requestId = readOptionalString(params.requestId);
     const sessionType = resolveSessionType({
+      runtime: params.runtime,
       sessionType: params.sessionType,
       metadata,
     });
@@ -172,7 +179,7 @@ export class SessionCreationService {
       sessionId,
       agentId: resolvedAgentId,
       sessionType,
-      runtimeFamily: "native",
+      runtimeFamily: sessionType === DEFAULT_SESSION_TYPE ? "native" : "external",
       ...(parentSessionId ? { parentSessionId } : {}),
       ...(requestId ? { spawnedByRequestId: requestId } : {}),
       lifecycle: DEFAULT_LIFECYCLE,
@@ -190,6 +197,7 @@ export class SessionCreationService {
     sourceSessionMetadata: Record<string, unknown>;
     agentId?: string;
     model?: string;
+    runtime?: string;
     thinkingLevel?: string;
     sessionType?: string;
     projectRoot?: string | null;

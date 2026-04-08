@@ -245,8 +245,8 @@ export function RuntimeConfig() {
                   placeholder={t('modelOverridePlaceholder')}
                 />
                 <Input
-                  value={agent.engine ?? ''}
-                  onChange={(event) => updateAgent(index, { engine: event.target.value })}
+                  value={agent.runtime ?? agent.engine ?? ''}
+                  onChange={(event) => updateAgent(index, { runtime: event.target.value })}
                   placeholder={agentEngineHint?.label ?? t('engineOverridePlaceholder')}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

@@ -1,6 +1,6 @@
 import type { Context } from "hono";
-import { createAgent, deleteAgent, listAgents, readAgentAvatar } from "../agents.js";
-import type { AgentCreateRequest } from "../types.js";
+import { createAgent, deleteAgent, listAgents, readAgentAvatar, updateAgent } from "../agents.js";
+import type { AgentCreateRequest, AgentUpdateRequest } from "../types.js";
 import { err, ok, readJson } from "./response.js";
 import type { UiRouterOptions } from "./types.js";
 
@@ -31,6 +31,23 @@ export class AgentsRoutesController {
       return c.json(ok(agent));
     } catch (error) {
       return c.json(err("AGENT_CREATE_FAILED", error instanceof Error ? error.message : String(error)), 400);
+    }
+  };
+
+  readonly updateAgent = async (c: Context) => {
+    const agentId = c.req.param("agentId");
+    const body = await readJson<AgentUpdateRequest>(c.req.raw);
+    if (!body.ok) {
+      return c.json(err("INVALID_BODY", "invalid json body"), 400);
+    }
+    try {
+      const agent = updateAgent(this.options.configPath, agentId, body.data);
+      await this.publishAgentUpdates(["agents.list"]);
+      return c.json(ok(agent));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const status = message.includes("not found") ? 404 : 400;
+      return c.json(err("AGENT_UPDATE_FAILED", message), status);
     }
   };
 

@@ -1,39 +1,23 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCreateAgent, useDeleteAgent, useAgents } from '@/hooks/agents/useAgents';
+import { useCreateAgent, useDeleteAgent, useAgents, useUpdateAgent } from '@/hooks/agents/useAgents';
+import { useConfig, useConfigMeta } from '@/hooks/useConfig';
+import type { AgentProfileView } from '@/api/types';
+import {
+  AgentCreateDialog,
+  AgentEditDialog,
+  type AgentCreateFormState,
+  type AgentEditFormState
+} from '@/components/agents/AgentDialogs';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 import { AgentAvatar } from '@/components/common/AgentAvatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { PageLayout } from '@/components/layout/page-layout';
 import { t } from '@/lib/i18n';
+import { buildProviderModelCatalog } from '@/lib/provider-models';
 import { cn } from '@/lib/utils';
-import { Bot, House, MessageCircle, Plus, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
-
-type CreateFormState = {
-  id: string;
-  displayName: string;
-  description: string;
-  avatar: string;
-  home: string;
-};
-
-const EMPTY_FORM: CreateFormState = {
-  id: '',
-  displayName: '',
-  description: '',
-  avatar: '',
-  home: ''
-};
+import { Bot, House, MessageCircle, Pencil, Plus, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 
 const CARD_TONES = [
   {
@@ -63,10 +47,13 @@ function resolveAgentTone(index: number, builtIn: boolean) {
 export function AgentsPage() {
   const navigate = useNavigate();
   const agentsQuery = useAgents();
+  const configQuery = useConfig();
+  const configMetaQuery = useConfigMeta();
   const createAgent = useCreateAgent();
+  const updateAgent = useUpdateAgent();
   const deleteAgent = useDeleteAgent();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [form, setForm] = useState<CreateFormState>(EMPTY_FORM);
+  const [editingAgent, setEditingAgent] = useState<AgentProfileView | null>(null);
   const setSessionListSnapshot = useChatSessionListStore((state) => state.setSnapshot);
 
   const agents = useMemo(() => agentsQuery.data?.agents ?? [], [agentsQuery.data?.agents]);
@@ -79,19 +66,42 @@ export function AgentsPage() {
       ),
     [agents]
   );
+  const providerCatalog = useMemo(
+    () => buildProviderModelCatalog({ config: configQuery.data, meta: configMetaQuery.data, onlyConfigured: true }),
+    [configMetaQuery.data, configQuery.data]
+  );
 
-  const handleCreate = async () => {
+  const handleCreate = async (form: AgentCreateFormState) => {
     await createAgent.mutateAsync({
       data: {
         id: form.id,
         ...(form.displayName.trim() ? { displayName: form.displayName.trim() } : {}),
         ...(form.description.trim() ? { description: form.description.trim() } : {}),
         ...(form.avatar.trim() ? { avatar: form.avatar.trim() } : {}),
-        ...(form.home.trim() ? { home: form.home.trim() } : {})
+        ...(form.home.trim() ? { home: form.home.trim() } : {}),
+        ...(form.model.trim() ? { model: form.model.trim() } : {}),
+        ...(form.runtime.trim() ? { runtime: form.runtime.trim() } : {})
       }
     });
-    setForm(EMPTY_FORM);
     setIsCreateDialogOpen(false);
+  };
+
+  const handleStartEdit = (agent: AgentProfileView) => {
+    setEditingAgent(agent);
+  };
+
+  const handleUpdate = async (agentId: string, form: AgentEditFormState) => {
+    await updateAgent.mutateAsync({
+      agentId,
+      data: {
+        displayName: form.displayName,
+        description: form.description,
+        avatar: form.avatar,
+        model: form.model,
+        ...(form.runtime.trim() ? { runtime: form.runtime.trim() } : { runtime: "" })
+      }
+    });
+    setEditingAgent(null);
   };
 
   const startChatWithAgent = (agentId: string) => {
@@ -223,6 +233,16 @@ export function AgentsPage() {
                   </p>
 
                   <div className="mt-auto flex flex-col gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#94a3b8]">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {t('agentsCardRuntimeLabel')}
+                      </div>
+                      <div className="mt-1.5 text-sm leading-6 text-[#475569]">
+                        {agent.runtime?.trim() || agent.engine?.trim() || 'native'}
+                      </div>
+                    </div>
+
                     <div className="border-t border-gray-100 pt-3">
                       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#94a3b8]">
                         <House className="h-3.5 w-3.5" />
@@ -241,6 +261,16 @@ export function AgentsPage() {
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
                         {t('agentsCardStartChat')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-8 rounded-xl px-3 text-xs text-[#7b8794] hover:bg-[#f3f4f6] hover:text-[#475569]"
+                        onClick={() => handleStartEdit(agent)}
+                        disabled={updateAgent.isPending}
+                      >
+                        <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                        {t('agentsEditAction')}
                       </Button>
                       {!agent.builtIn ? (
                         <Button
@@ -263,91 +293,25 @@ export function AgentsPage() {
         )}
       </div>
 
-      <Dialog
+      <AgentCreateDialog
         open={isCreateDialogOpen}
+        pending={createAgent.isPending}
+        providerCatalog={providerCatalog}
+        onOpenChange={setIsCreateDialogOpen}
+        onSubmit={handleCreate}
+      />
+
+      <AgentEditDialog
+        agent={editingAgent}
+        pending={updateAgent.isPending}
+        providerCatalog={providerCatalog}
         onOpenChange={(open) => {
-          setIsCreateDialogOpen(open);
-          if (!open && !createAgent.isPending) {
-            setForm(EMPTY_FORM);
+          if (!open && !updateAgent.isPending) {
+            setEditingAgent(null);
           }
         }}
-      >
-        <DialogContent className="overflow-hidden border-none bg-[linear-gradient(180deg,#fff9f1_0%,#ffffff_24%)] p-0 sm:max-w-xl">
-          <div className="border-b border-[#f0e2c8] px-6 py-6">
-            <DialogHeader className="text-left">
-              <DialogTitle>{t('agentsCreateDialogTitle')}</DialogTitle>
-              <DialogDescription>{t('agentsCreateDialogDescription')}</DialogDescription>
-            </DialogHeader>
-          </div>
-          <div className="space-y-4 px-6 py-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input
-                value={form.id}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, id: event.target.value }))
-                }
-                placeholder={t('agentsFormIdPlaceholder')}
-              />
-              <Input
-                value={form.displayName}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    displayName: event.target.value
-                  }))
-                }
-                placeholder={t('agentsFormNamePlaceholder')}
-              />
-              <Input
-                value={form.description}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    description: event.target.value
-                  }))
-                }
-                placeholder={t('agentsFormDescriptionPlaceholder')}
-              />
-              <Input
-                value={form.avatar}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, avatar: event.target.value }))
-                }
-                placeholder={t('agentsFormAvatarPlaceholder')}
-              />
-              <Input
-                value={form.home}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, home: event.target.value }))
-                }
-                placeholder={t('agentsFormHomePlaceholder')}
-              />
-            </div>
-            <div className="rounded-2xl border border-[#efe3ca] bg-[#fff9ef] px-4 py-3 text-xs leading-6 text-[#7a6246]">
-              {t('agentsCreateDialogHint')}
-            </div>
-          </div>
-          <DialogFooter className="border-t border-[#f1e7d4] px-6 py-5">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setIsCreateDialogOpen(false)}
-              disabled={createAgent.isPending}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              type="button"
-              className="rounded-2xl bg-[#1f5c4d] px-5 text-white hover:bg-[#184d40]"
-              onClick={() => void handleCreate()}
-              disabled={createAgent.isPending || form.id.trim().length === 0}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {t('agentsCreateAction')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onSubmit={handleUpdate}
+      />
     </PageLayout>
   );
 }

@@ -5,9 +5,10 @@ import {
   readAgentAvatarContent,
   removeAgentProfile,
   resolveEffectiveAgentProfiles,
+  updateAgentProfile,
   type Config
 } from "@nextclaw/core";
-import type { AgentCreateRequest, AgentDeleteResult, AgentProfileView } from "./types.js";
+import type { AgentCreateRequest, AgentDeleteResult, AgentProfileView, AgentUpdateRequest } from "./types.js";
 
 export function listAgents(configPath: string): AgentProfileView[] {
   const config = loadConfig(configPath);
@@ -25,7 +26,10 @@ export function createAgent(
       displayName: input.displayName,
       description: input.description,
       avatar: input.avatar,
-      home: input.home
+      home: input.home,
+      model: input.model,
+      runtime: input.runtime,
+      runtimeConfig: input.runtimeConfig
     },
     {
       configPath,
@@ -45,6 +49,23 @@ export function deleteAgent(configPath: string, agentId: string): AgentDeleteRes
     deleted: true,
     agentId: agentId.trim().toLowerCase()
   };
+}
+
+export function updateAgent(configPath: string, agentId: string, input: AgentUpdateRequest): AgentProfileView {
+  const updated = updateAgentProfile(
+    {
+      id: agentId,
+      displayName: input.displayName,
+      description: input.description,
+      avatar: input.avatar,
+      model: input.model,
+      runtime: input.runtime,
+      runtimeConfig: input.runtimeConfig
+    },
+    { configPath }
+  );
+  const config = loadConfig(configPath);
+  return toAgentProfileView(config, updated.id);
 }
 
 export function readAgentAvatar(
@@ -69,6 +90,8 @@ export function toAgentProfileView(config: Config, agentId: string): AgentProfil
     avatarUrl: buildAgentAvatarUrl(profile.id, profile.avatar),
     workspace: profile.workspace,
     model: profile.model,
+    runtime: profile.runtime,
+    runtimeConfig: profile.runtimeConfig,
     engine: profile.engine,
     engineConfig: profile.engineConfig,
     contextTokens: profile.contextTokens,

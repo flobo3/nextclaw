@@ -5,6 +5,14 @@ import {
   readAgentAvatarContent as readAgentAvatarAssetContent,
   resolveAgentAvatarHomePath
 } from "./agent-avatar.js";
+import {
+  applyAgentProfileModelUpdate,
+  applyAgentProfileRuntimeUpdate,
+  buildAgentModelPatch,
+  buildAgentRuntimePatch,
+  normalizeOptionalString,
+  toRecord
+} from "./agent-profile-runtime-fields.js";
 import { loadConfig, saveConfig } from "./loader.js";
 import type { Config } from "./schema.js";
 import { expandHome } from "../utils/helpers.js";
@@ -21,6 +29,8 @@ export type EffectiveAgentProfile = AgentProfile & {
   displayName?: string;
   description?: string;
   avatar?: string;
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
   builtIn?: boolean;
 };
 
@@ -30,6 +40,11 @@ export type CreateAgentProfileInput = {
   description?: string;
   avatar?: string;
   home?: string;
+  model?: string;
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
+  engine?: string;
+  engineConfig?: Record<string, unknown>;
 };
 
 export type CreateAgentProfileOptions = {
@@ -42,6 +57,11 @@ export type UpdateAgentProfileInput = {
   displayName?: string;
   description?: string;
   avatar?: string;
+  model?: string;
+  runtime?: string;
+  runtimeConfig?: Record<string, unknown>;
+  engine?: string;
+  engineConfig?: Record<string, unknown>;
 };
 
 export type UpdateAgentProfileOptions = {
@@ -88,8 +108,10 @@ export function resolveEffectiveAgentProfiles(config: Config): EffectiveAgentPro
         : {}),
       ...(normalizeOptionalString(mainOverride?.avatar) ? { avatar: normalizeOptionalString(mainOverride?.avatar) ?? undefined } : {}),
       model: mainOverride?.model,
-      engine: mainOverride?.engine,
-      engineConfig: mainOverride?.engineConfig,
+      engine: normalizeOptionalString(mainOverride?.engine) ?? normalizeOptionalString(config.agents.defaults.engine) ?? undefined,
+      engineConfig: toRecord(mainOverride?.engineConfig) ?? toRecord(config.agents.defaults.engineConfig),
+      runtime: normalizeOptionalString(mainOverride?.engine) ?? normalizeOptionalString(config.agents.defaults.engine) ?? undefined,
+      runtimeConfig: toRecord(mainOverride?.engineConfig) ?? toRecord(config.agents.defaults.engineConfig),
       thinkingDefault: mainOverride?.thinkingDefault,
       models: mainOverride?.models,
       contextTokens: mainOverride?.contextTokens,
@@ -167,7 +189,9 @@ export function createAgentProfile(
     workspace: storedHome,
     displayName,
     ...(description ? { description } : {}),
-    avatar
+    avatar,
+    ...buildAgentModelPatch(input.model),
+    ...buildAgentRuntimePatch(input)
   };
 
   config.agents.list = [...config.agents.list, profile];
@@ -190,6 +214,8 @@ export function updateAgentProfile(
   applyAgentProfileTextUpdate(profile, "displayName", input.displayName);
   applyAgentProfileTextUpdate(profile, "description", input.description);
   applyAgentProfileAvatarUpdate(profile, input.avatar, existingEffective, agentId);
+  applyAgentProfileModelUpdate(profile, input.model);
+  applyAgentProfileRuntimeUpdate(profile, input);
   persistUpdatedAgentProfile(config, profileIndex, profile, options.configPath);
   return findEffectiveAgentProfile(config, agentId) as EffectiveAgentProfile;
 }
@@ -245,7 +271,9 @@ function toEffectiveAgentProfile(entry: AgentProfile, config: Config): Effective
     workspace: normalizeOptionalString(entry.workspace) ?? resolveImplicitAgentHomePath(config, id),
     ...(normalizeOptionalString(entry.displayName) ? { displayName: normalizeOptionalString(entry.displayName) ?? undefined } : {}),
     ...(normalizeOptionalString(entry.description) ? { description: normalizeOptionalString(entry.description) ?? undefined } : {}),
-    ...(normalizeOptionalString(entry.avatar) ? { avatar: normalizeOptionalString(entry.avatar) ?? undefined } : {})
+    ...(normalizeOptionalString(entry.avatar) ? { avatar: normalizeOptionalString(entry.avatar) ?? undefined } : {}),
+    ...(normalizeOptionalString(entry.engine) ? { runtime: normalizeOptionalString(entry.engine) ?? undefined } : {}),
+    ...(toRecord(entry.engineConfig) ? { runtimeConfig: toRecord(entry.engineConfig) } : {})
   };
 }
 
@@ -256,14 +284,6 @@ function buildLegacyAgentHomePath(config: Config, agentId: string): string {
 
 function pathExists(path: string): boolean {
   return existsSync(resolve(expandHome(path)));
-}
-
-function normalizeOptionalString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
 }
 
 function ensureCreatableHomeDirectory(homeDirectory: string): void {
@@ -313,7 +333,16 @@ function resolveAgentProfileUpdateContext(agentIdInput: string, configPath?: str
 }
 
 function ensureAgentProfileUpdateInput(input: UpdateAgentProfileInput): void {
-  if (input.displayName !== undefined || input.description !== undefined || input.avatar !== undefined) {
+  if (
+    input.displayName !== undefined ||
+    input.description !== undefined ||
+    input.avatar !== undefined ||
+    input.model !== undefined ||
+    input.runtime !== undefined ||
+    input.runtimeConfig !== undefined ||
+    input.engine !== undefined ||
+    input.engineConfig !== undefined
+  ) {
     return;
   }
   throw new Error("at least one field must be provided");

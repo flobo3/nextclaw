@@ -6,7 +6,7 @@ export function createEmptyRuntimeAgent(): AgentProfileView {
     default: false,
     workspace: '',
     model: '',
-    engine: '',
+    runtime: '',
     contextTokens: undefined,
     maxToolIterations: undefined
   };
@@ -31,7 +31,7 @@ export function hydrateRuntimeAgent(agent: AgentProfileView): AgentProfileView {
     avatar: agent.avatar ?? '',
     workspace: agent.workspace ?? '',
     model: agent.model ?? '',
-    engine: agent.engine ?? '',
+    runtime: agent.runtime ?? agent.engine ?? '',
     contextTokens: agent.contextTokens,
     maxToolIterations: agent.maxToolIterations
   };
@@ -82,8 +82,9 @@ export function toPersistedRuntimeAgent(agent: AgentProfileView): AgentProfileVi
   if (agent.model?.trim()) {
     normalized.model = agent.model.trim();
   }
-  if (agent.engine?.trim()) {
-    normalized.engine = agent.engine.trim();
+  const runtime = agent.runtime?.trim() ?? agent.engine?.trim();
+  if (runtime) {
+    normalized.engine = runtime;
   }
   if (typeof agent.contextTokens === 'number') {
     normalized.contextTokens = Math.max(1000, agent.contextTokens);

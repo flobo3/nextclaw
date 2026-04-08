@@ -57,6 +57,7 @@ export function buildNcpSendMetadata(payload: {
   }
   if (payload.sessionType?.trim()) {
     metadata.session_type = payload.sessionType.trim();
+    metadata.runtime = payload.sessionType.trim();
   }
   if (payload.agentId?.trim()) {
     metadata.agent_id = payload.agentId.trim();

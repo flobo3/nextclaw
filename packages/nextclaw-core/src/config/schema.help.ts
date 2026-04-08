@@ -2,8 +2,8 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.defaults.workspace": "Workspace directory for agent context files and memory.",
   "agents.defaults.model":
     "Default model identifier used by the agent. Use provider-prefixed format. Examples: openai/gpt-5.1 · anthropic/claude-opus-4-1 · deepseek/deepseek-chat · minimax/MiniMax-M2.5 · openrouter/openai/gpt-5.3-codex.",
-  "agents.defaults.engine": "Default agent engine kind. Built-in: native. Plugin engines can register additional kinds.",
-  "agents.defaults.engineConfig": "Default engine config payload passed to the selected agent engine.",
+  "agents.defaults.engine": "Default agent runtime kind. Built-in: native. Plugin runtimes can register additional kinds.",
+  "agents.defaults.engineConfig": "Default runtime config payload passed to the selected agent runtime.",
   "agents.defaults.thinkingDefault":
     "Default thinking effort when no session override exists. Allowed: off|minimal|low|medium|high|adaptive|xhigh.",
   "agents.defaults.models":
@@ -15,8 +15,8 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.list.*.default": "Mark this agent as the default routing target.",
   "agents.list.*.workspace": "Optional per-agent workspace override.",
   "agents.list.*.model": "Optional per-agent model override.",
-  "agents.list.*.engine": "Optional per-agent engine override.",
-  "agents.list.*.engineConfig": "Optional per-agent engine config override.",
+  "agents.list.*.engine": "Optional per-agent runtime override.",
+  "agents.list.*.engineConfig": "Optional per-agent runtime config override.",
   "agents.list.*.thinkingDefault":
     "Optional per-agent default thinking effort. Takes precedence over agents.defaults.thinkingDefault.",
   "agents.list.*.models":
@@ -58,6 +58,10 @@ export const FIELD_HELP: Record<string, string> = {
   "search.providers.bocha.docsUrl": "Documentation page for obtaining a Bocha API key.",
   "search.providers.brave.apiKey": "API key for Brave Search.",
   "search.providers.brave.baseUrl": "Brave Search endpoint.",
+  "search.providers.tavily.apiKey": "API key for Tavily Search.",
+  "search.providers.tavily.baseUrl": "Tavily Search endpoint.",
+  "search.providers.tavily.searchDepth": "Tavily search depth. Use advanced only when you need deeper retrieval.",
+  "search.providers.tavily.includeAnswer": "Ask Tavily to include a synthesized answer in the search response when supported.",
   "gateway.host": "Bind address for the gateway server.",
   "gateway.port": "Port for the gateway server.",
   "ui.enabled": "Enable the built-in UI server.",

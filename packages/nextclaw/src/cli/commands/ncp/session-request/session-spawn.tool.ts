@@ -48,6 +48,10 @@ export class SessionSpawnTool extends Tool {
           type: "string",
           description: "Optional model override for the new session.",
         },
+        runtime: {
+          type: "string",
+          description: "Optional runtime override for the new session, for example native or codex.",
+        },
         agentId: {
           type: "string",
           description: "Optional target agent id for the new session. Omit to use the default agent.",
@@ -73,6 +77,7 @@ export class SessionSpawnTool extends Tool {
       sourceSessionMetadata: this.sourceSessionMetadata,
       agentId: readOptionalString(params.agentId),
       model: readOptionalString(params.model),
+      runtime: readOptionalString(params.runtime),
     });
 
     return {
