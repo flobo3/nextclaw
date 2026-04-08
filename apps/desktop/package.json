@@ -84,6 +84,7 @@
       ]
     },
     "linux": {
+      "artifactName": "nextclaw-desktop-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "AppImage",
