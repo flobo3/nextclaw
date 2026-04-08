@@ -19,6 +19,11 @@ const checks = [
     args: [path.join(scriptDir, "lint-new-code-object-methods.mjs")],
   },
   {
+    name: "param-mutations-owner-boundary",
+    command: "node",
+    args: [path.join(scriptDir, "lint-new-code-param-mutations.mjs")],
+  },
+  {
     name: "closure-objects-owner",
     command: "node",
     args: [path.join(scriptDir, "lint-new-code-closure-objects.mjs")],

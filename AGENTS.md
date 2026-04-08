@@ -64,7 +64,7 @@
   - `/new-rule`：创建新规则条目（按 Rulebook 模板）。执行时必须先判断应写入 Rulebook 还是 Project Rulebook；若规则本质是在约束系统行为原则，应优先固化“行为明确、清晰、可预测，不依赖隐藏兜底或环境状态制造 surprise success / surprise failure”这类可复用高层约束，而不是只记录单次问题的表层补丁。
   - `/commit`：进行提交操作（提交信息需使用英文）
   - `/maintainability-review`：对本次改动执行一轮独立于实现阶段的可维护性复核，重点检查“能否删减/简化、是否让代码继续膨胀、抽象与职责边界是否更清晰、非功能改动的增长是否最小必要、是否只是把复杂度换个位置保留”；默认使用 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 执行。复核输出除结论与总结外，必须同时包含固定模块 `长期目标对齐 / 可维护性推进`、`代码增减报告` 与 `非测试代码增减报告`；其中 `长期目标对齐 / 可维护性推进` 至少必须说明：本次是否顺着“代码更少、架构更简单、边界更清晰、复用更通用、复杂点更少”的长期方向推进了一小步；若没有，阻碍是什么、下一步准备从哪里推进。若总代码或非测试代码净增长，必须明确说明是否已做到最佳删减、已经删掉或收敛了什么、以及剩余增长为何仍属最小必要。
-  - `/validate`：运行项目验证，按改动影响范围执行最小充分验证；仅当改动触达构建/类型/运行链路时，执行 `build`、`lint`、`tsc` 的相关项，必要时补冒烟测试。代码改动在动手前，默认先按 Rulebook 的 `business-logic-class-first`、`stateless-utility-first`、`class-arrow-methods-by-default` 做一次结构自检：先判断业务逻辑是否应落到 class、普通函数是否只剩纯工具/纯无状态/纯业务无关辅助能力、若采用 class 则实例方法是否从第一版起就使用箭头函数。代码改动收尾默认包含 `pnpm lint:maintainability:guard`，其内统一调用 `pnpm lint:new-code:governance`（当前含 class 方法箭头函数检查，可扩展），并在守卫后再执行一次 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 定义的主观可维护性复核
+  - `/validate`：运行项目验证，按改动影响范围执行最小充分验证；仅当改动触达构建/类型/运行链路时，执行 `build`、`lint`、`tsc` 的相关项，必要时补冒烟测试。代码改动在动手前，默认先按 Rulebook 的 `business-logic-class-first`、`stateless-utility-first`、`ordinary-function-no-input-mutation`、`class-arrow-methods-by-default` 做一次结构自检：先判断业务逻辑是否应落到 class、普通函数是否只剩纯工具/纯无状态/纯业务无关辅助能力、是否存在普通函数原地改入参、若采用 class 则实例方法是否从第一版起就使用箭头函数。代码改动收尾默认包含 `pnpm lint:maintainability:guard`，其内统一调用 `pnpm lint:new-code:governance`（当前含 class 方法箭头函数检查、普通函数入参 mutation 阻断，可扩展），并在守卫后再执行一次 skill [`.agents/skills/post-edit-maintainability-review/SKILL.md`](.agents/skills/post-edit-maintainability-review/SKILL.md) 定义的主观可维护性复核
   - `/release-frontend`：前端一键发布（仅 UI 变更场景）
 
 ## 规则/Rule 机制
@@ -294,6 +294,12 @@
   - 示例：`normalizeProviderConfig(rawConfig)` 只依赖输入并返回新结果，不读写外部可变状态，也不要求回调入参；`pickVisibleTabs(allTabs, role)` 仅做纯展示辅助判断，不承载业务状态迁移。
   - 反例：`processConfig(input, onSuccess, onError)` 通过回调驱动分支且隐式依赖外部状态，导致行为难追踪与复用困难；把带有重试、缓存、副作用编排、状态迁移的业务逻辑继续塞进 `utils.ts` 里的普通函数。
   - 执行方式：拆分工具函数时先检查“是否无状态 + 是否可纯数据调用 + 是否纯业务无关”；若任何一项不满足，默认回到 `business-logic-class-first` 重新评估 class 边界。若必须传入函数参数，需在变更说明中写明必要性、边界与替代方案为何不可行。
+  - 维护责任人：当前助手。
+- **ordinary-function-no-input-mutation**：
+  - 约束/适用范围：普通函数、对象字面量函数、顶层 helper 与其它非 class owner 的函数默认不得原地修改入参对象、入参数组、入参映射或其属性。若逻辑需要落地状态变更，默认只能走两条路：要么保持 `input -> output` / `input -> patch` 形式返回新结果，要么把这段变更逻辑收敛到职责明确的 class owner 中。该规则默认用于新改动治理，不要求一次性清扫所有历史代码。
+  - 示例：`buildProfilePatch(input, existing)` 返回 `{ avatar, displayName }` 或 `{ clearAvatar: true }` 之类 patch，由外层统一写回；或把配置树物化与写回职责收敛到 `AgentProfileUpdater` / `ConfigEditor` 之类 class，由 owner 明确持有并修改内部状态。
+  - 反例：`applyAgentProfileAvatarUpdate(profile, avatar, ...)` 这类普通函数直接执行 `profile.avatar = ...`、`delete profile.avatar`、`Object.assign(profile, patch)`、`items.push(x)`；或通过 `map.set()` / `set.add()` / `array.splice()` 等方式在 helper 内偷偷改掉调用方传入的对象树。
+  - 执行方式：写普通函数前必须先回答三个问题：`这段逻辑能否改成纯返回新值/patch？`、`如果需要持有状态或顺序性，是否应该改成明确 owner class？`、`如果仍保留普通函数，是否保证对入参零 mutation？`。收尾阶段通过 `pnpm lint:new-code:governance` 中的 `param-mutations-owner-boundary` 增量检查阻断新增普通函数入参 mutation；命中后默认修法是“改成 pure return/patch”优先，其次才是“提升为 class owner”，而不是保留 helper + 原地写入。
   - 维护责任人：当前助手。
 - **root-cause-fix-over-band-aid**：
   - 约束/适用范围：修复缺陷时必须先定位深层根因；若问题反映架构边界不清、职责耦合、模型设计缺陷，或本质属于发布/构建/部署/配置事故，必须优先给出源头修正，禁止仅做表层补丁即结束。禁止向用户提供“临时绕过 / 先这样用 / 先顶住 / fallback 一下 / 打补丁过渡”这类方案选项。禁止把一次性事故知识、当前坏版本特征、stderr 文案匹配、外部故障签名等硬编码进运行时代码，伪装成“更友好提示”或“兼容修复”。同样禁止为了通过某个边界校验、接口限制或上游约束，直接篡改领域语义、数据语义或角色语义来“绕过去”。

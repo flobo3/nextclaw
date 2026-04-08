@@ -110,12 +110,18 @@ node scripts/code-volume-metrics.mjs --scope-profile repo-volume --no-write --pr
 - `max-depth`
 - `sonarjs/cognitive-complexity`
 
-同时要注意与增量治理脚本的联动：`pnpm lint:new-code:governance` 当前除了 touched class / touched object 的箭头函数治理外，还会开始检查“闭包多方法对象是否该升成 class/owner”“扁平混杂目录是否该长子树”“共享状态的顶层编排是否缺 owner”。其中 class 方法箭头函数这条虽然不由本 skill 直接计算阈值，但收尾时若命中该问题，默认修复策略应是：
+同时要注意与增量治理脚本的联动：`pnpm lint:new-code:governance` 当前除了 touched class / touched object 的箭头函数治理外，还会开始检查“普通函数是否偷偷修改入参”“闭包多方法对象是否该升成 class/owner”“扁平混杂目录是否该长子树”“共享状态的顶层编排是否缺 owner”。其中 class 方法箭头函数这条虽然不由本 skill 直接计算阈值，但收尾时若命中该问题，默认修复策略应是：
 
 - 以当前触达的 class 为边界，统一检查该 class 内所有可治理的实例方法
 - 优先一次性把同类普通实例方法一起改成 `methodName = () => {}`
 - 不要只修当前报错的那一个方法，避免同一个 class 在后续改动里重复触发同类治理噪音
 - `constructor`、`get/set`、`static`、`abstract`、`override`、带 decorator 的方法仍按既有豁免处理
+
+若命中“普通函数修改入参”这条治理，默认修复策略应是：
+
+- 优先改成 `input -> output` 或 `input -> patch` 的纯返回形式
+- 若逻辑本质是状态 owner / 生命周期 owner，则提升为明确 class 边界
+- 不要继续保留“helper 名字 + 原地改入参”的中间形态
 
 ### 4. 命名职责一致性
 
