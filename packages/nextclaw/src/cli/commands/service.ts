@@ -7,9 +7,6 @@ import {
 import { appendFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { request as httpRequest } from "node:http";
-import { request as httpsRequest } from "node:https";
-import { createServer as createNetServer } from "node:net";
 import { setImmediate as waitForNextTick } from "node:timers/promises";
 import { MissingProvider } from "../missing-provider.js";
 import {
@@ -65,6 +62,7 @@ import {
   createGatewayRuntimeState,
   type GatewayRuntimeState
 } from "./service-support/gateway/service-gateway-bootstrap.js";
+import { checkPortAvailability, probeHealthEndpoint } from "./service-support/runtime/service-port-probe.js";
 import { logStartupTrace, measureStartupAsync, measureStartupSync } from "../startup-trace.js";
 
 export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-support/marketplace/service-marketplace-helpers.js";
@@ -575,20 +573,21 @@ export class ServiceCommands {
     healthUrl: string;
     timeoutMs: number;
   }): Promise<{ ready: boolean; lastProbeError: string | null }> => {
+    const { pid, healthUrl, timeoutMs } = params;
     const startedAt = Date.now();
     let lastProbeError: string | null = null;
-    while (Date.now() - startedAt < params.timeoutMs) {
-      if (!isProcessRunning(params.pid)) {
+    while (Date.now() - startedAt < timeoutMs) {
+      if (!isProcessRunning(pid)) {
         return { ready: false, lastProbeError };
       }
-      const probe = await this.probeHealthEndpoint(params.healthUrl);
+      const probe = await probeHealthEndpoint(healthUrl);
       if (!probe.healthy) {
         lastProbeError = probe.error;
         await new Promise((resolve) => setTimeout(resolve, 200));
         continue;
       }
       await new Promise((resolve) => setTimeout(resolve, 300));
-      if (isProcessRunning(params.pid)) {
+      if (isProcessRunning(pid)) {
         return { ready: true, lastProbeError: null };
       }
       await new Promise((resolve) => setTimeout(resolve, 200));
@@ -644,21 +643,25 @@ export class ServiceCommands {
     port: number;
     healthUrl: string;
   }): Promise<{ ok: true } | { ok: false; message: string }> => {
-    const availability = await this.checkPortAvailability({
-      host: params.host,
-      port: params.port
+    const { healthUrl, host, port } = params;
+    const availability = await checkPortAvailability({
+      host,
+      port
     });
     if (availability.available) {
       return { ok: true };
     }
 
-    const probe = await this.probeHealthEndpoint(params.healthUrl);
+    const probe = await probeHealthEndpoint(healthUrl);
     const lines = [
       `Port probe: ${availability.detail}`
     ];
     if (probe.healthy) {
       lines.push(
-        `Health probe: ${params.healthUrl} is already healthy. Another process is already serving this UI/API port.`
+        `Health probe: ${healthUrl} is already healthy. Another process is already serving this UI/API port.`
+      );
+      lines.push(
+        `This usually means a healthy ${APP_NAME} instance is already serving the port, but it is not tracked by the current managed service state, so restart cannot stop it automatically.`
       );
     } else if (probe.error) {
       lines.push(`Health probe: ${probe.error}`);
@@ -667,144 +670,15 @@ export class ServiceCommands {
       );
     }
     lines.push(
-      `Fix: free port ${params.port} or start NextClaw with another port via --ui-port <port>.`
+      `Fix: free port ${port} or start NextClaw with another port via --ui-port <port>.`
     );
     lines.push(
-      `Inspect locally with: ss -ltnp | grep ${params.port} || lsof -iTCP:${params.port} -sTCP:LISTEN -n -P`
+      `Inspect locally with: ss -ltnp | grep ${port} || lsof -iTCP:${port} -sTCP:LISTEN -n -P`
     );
     return {
       ok: false,
       message: lines.join("\n")
     };
-  };
-
-  private checkPortAvailability = async (params: {
-    host: string;
-    port: number;
-  }): Promise<{ available: boolean; detail: string }> => {
-    return await new Promise((resolve) => {
-      const server = createNetServer();
-      server.once("error", (error) => {
-        resolve({
-          available: false,
-          detail: `bind failed on ${params.host}:${params.port} (${String(error)})`
-        });
-      });
-      server.listen(params.port, params.host, () => {
-        server.close(() => {
-          resolve({
-            available: true,
-            detail: `bind ok on ${params.host}:${params.port}`
-          });
-        });
-      });
-    });
-  };
-
-  private getHeaderValue = (headers: Record<string, string | string[] | undefined>, key: string): string | null => {
-    const value = headers[key];
-    if (typeof value === "string") {
-      const normalized = value.trim();
-      return normalized.length > 0 ? normalized : null;
-    }
-    if (Array.isArray(value)) {
-      const joined = value.map((item) => item.trim()).filter(Boolean).join(", ");
-      return joined.length > 0 ? joined : null;
-    }
-    return null;
-  };
-
-  private formatProbeBodySnippet = (raw: string, maxLength = 180): string | null => {
-    const normalized = raw.replace(/\s+/g, " ").trim();
-    if (!normalized) {
-      return null;
-    }
-    const clipped = normalized.length > maxLength
-      ? `${normalized.slice(0, maxLength)}...`
-      : normalized;
-    return JSON.stringify(clipped);
-  };
-
-  private probeHealthEndpoint = async (healthUrl: string): Promise<{ healthy: boolean; error: string | null }> => {
-    let parsed: URL;
-    try {
-      parsed = new URL(healthUrl);
-    } catch {
-      return { healthy: false, error: "invalid health URL" };
-    }
-
-    const requestImpl = parsed.protocol === "https:" ? httpsRequest : httpRequest;
-
-    return new Promise((resolve) => {
-      const req = requestImpl(
-        {
-          protocol: parsed.protocol,
-          hostname: parsed.hostname,
-          port: parsed.port
-            ? Number(parsed.port)
-            : parsed.protocol === "https:"
-              ? 443
-              : 80,
-          method: "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          timeout: 1000,
-          headers: { Accept: "application/json" }
-        },
-        (res) => {
-          const chunks: Buffer[] = [];
-          res.on("data", (chunk) => {
-            if (typeof chunk === "string") {
-              chunks.push(Buffer.from(chunk));
-              return;
-            }
-            chunks.push(chunk);
-          });
-          res.on("end", () => {
-            const responseText = Buffer.concat(chunks).toString("utf-8");
-            if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300) {
-              const serverHeader = this.getHeaderValue(res.headers, "server");
-              const contentType = this.getHeaderValue(res.headers, "content-type");
-              const bodySnippet = this.formatProbeBodySnippet(responseText);
-              const details = [`http ${res.statusCode ?? "unknown"}`];
-              if (serverHeader) {
-                details.push(`server=${serverHeader}`);
-              }
-              if (contentType) {
-                details.push(`content-type=${contentType}`);
-              }
-              if (bodySnippet) {
-                details.push(`body=${bodySnippet}`);
-              }
-              resolve({ healthy: false, error: details.join("; ") });
-              return;
-            }
-
-            try {
-              const payload = JSON.parse(responseText) as {
-                ok?: boolean;
-                data?: { status?: string };
-              };
-              const healthy = payload?.ok === true && payload?.data?.status === "ok";
-              if (!healthy) {
-                resolve({ healthy: false, error: "health payload not ok" });
-                return;
-              }
-              resolve({ healthy: true, error: null });
-            } catch {
-              resolve({ healthy: false, error: "invalid health JSON response" });
-            }
-          });
-        }
-      );
-
-      req.on("timeout", () => {
-        req.destroy(new Error("probe timeout"));
-      });
-      req.on("error", (error) => {
-        resolve({ healthy: false, error: error.message || String(error) });
-      });
-      req.end();
-    });
   };
 
   createMissingProvider = (config: ReturnType<typeof loadConfig>): LLMProvider => {

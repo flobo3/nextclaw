@@ -13,7 +13,7 @@ import { spawn } from "node:child_process";
 import { RestartCoordinator, type RestartStrategy } from "./restart-coordinator.js";
 import { initializeConfigIfMissing } from "./runtime-config-init.js";
 import { writeRestartSentinel } from "./restart-sentinel.js";
-import { parseStartTimeoutMs, resolveSkillsInstallWorkdir } from "./runtime-helpers.js";
+import { parseStartTimeoutMs, resolveManagedServiceUiOverrides, resolveSkillsInstallWorkdir } from "./runtime-helpers.js";
 import { logStartupTrace, measureStartupSync } from "./startup-trace.js";
 import { installMarketplaceSkill, publishMarketplaceSkill } from "./skills/marketplace.js";
 import { runSelfUpdate } from "./update/runner.js";
@@ -36,6 +36,7 @@ import { PlatformAuthCommands } from "./commands/platform-auth.js";
 import { RemoteCommands } from "./commands/remote.js";
 import { DiagnosticsCommands } from "./commands/diagnostics.js";
 import { hasRunningNextclawManagedService } from "./commands/remote-support/remote-runtime-support.js";
+import { describeUnmanagedHealthyTargetMessage } from "./commands/service-support/runtime/service-port-probe.js";
 import { ServiceCommands } from "./commands/service.js";
 import { WorkspaceManager } from "./workspace.js";
 import type {
@@ -453,14 +454,7 @@ export class CliRuntime {
   start = async (opts: StartCommandOptions): Promise<void> => {
     const startupTimeoutMs = parseStartTimeoutMs(opts.startTimeout);
     await this.init({ source: "start", auto: true });
-    const uiOverrides: Partial<Config["ui"]> = {
-      enabled: true,
-      host: FORCED_PUBLIC_UI_HOST,
-      open: false,
-    };
-    if (opts.uiPort) {
-      uiOverrides.port = Number(opts.uiPort);
-    }
+    const uiOverrides = resolveManagedServiceUiOverrides({ uiPort: opts.uiPort, forcedPublicHost: FORCED_PUBLIC_UI_HOST });
 
     await this.serviceCommands.startService({
       uiOverrides,
@@ -471,30 +465,34 @@ export class CliRuntime {
 
   restart = async (opts: StartCommandOptions): Promise<void> => {
     await this.writeRestartSentinelFromExecContext("cli.restart");
+    const uiOverrides = resolveManagedServiceUiOverrides({ uiPort: opts.uiPort, forcedPublicHost: FORCED_PUBLIC_UI_HOST });
 
     const state = readServiceState();
     if (state && isProcessRunning(state.pid)) {
       console.log(`Restarting ${APP_NAME}...`);
       await this.serviceCommands.stopService();
-    } else if (state) {
-      clearServiceState();
-      console.log("Service state was stale and has been cleaned up.");
     } else {
-      console.log("No running service found. Starting a new service.");
+      if (state) {
+        clearServiceState();
+        console.log("Service state was stale and has been cleaned up.");
+      }
+
+      const unmanagedHealthyServiceMessage = await describeUnmanagedHealthyTargetMessage({ uiOverrides });
+      if (unmanagedHealthyServiceMessage) {
+        console.error(`Error: Cannot restart ${APP_NAME} because the target UI/API port is already served by a healthy unmanaged instance.`);
+        console.error(unmanagedHealthyServiceMessage);
+        return;
+      }
+      if (!state) {
+        console.log("No running service found. Starting a new service.");
+      }
     }
 
     await this.start(opts);
   };
 
   serve = async (opts: StartCommandOptions): Promise<void> => {
-    const uiOverrides: Partial<Config["ui"]> = {
-      enabled: true,
-      host: FORCED_PUBLIC_UI_HOST,
-      open: false,
-    };
-    if (opts.uiPort) {
-      uiOverrides.port = Number(opts.uiPort);
-    }
+    const uiOverrides = resolveManagedServiceUiOverrides({ uiPort: opts.uiPort, forcedPublicHost: FORCED_PUBLIC_UI_HOST });
 
     await this.serviceCommands.runForeground({
       uiOverrides,

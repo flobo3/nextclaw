@@ -1,4 +1,4 @@
-import { expandHome, getWorkspacePath } from "@nextclaw/core";
+import { expandHome, getWorkspacePath, type Config } from "@nextclaw/core";
 
 export function resolveSkillsInstallWorkdir(params: {
   explicitWorkdir?: string;
@@ -20,4 +20,19 @@ export function parseStartTimeoutMs(value: string | number | undefined): number 
     process.exit(1);
   }
   return Math.floor(parsed);
+}
+
+export function resolveManagedServiceUiOverrides(params: {
+  uiPort: string | number | undefined;
+  forcedPublicHost: string;
+}): Partial<Config["ui"]> {
+  const uiOverrides: Partial<Config["ui"]> = {
+    enabled: true,
+    host: params.forcedPublicHost,
+    open: false,
+  };
+  if (params.uiPort) {
+    uiOverrides.port = Number(params.uiPort);
+  }
+  return uiOverrides;
 }
