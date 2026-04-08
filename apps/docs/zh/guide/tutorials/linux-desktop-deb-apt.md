@@ -10,14 +10,14 @@
 
 ```bash
 sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://peiiii.github.io/nextbot/apt/nextclaw-archive-keyring.gpg \
+curl -fsSL https://peiiii.github.io/nextclaw/apt/nextclaw-archive-keyring.gpg \
   | sudo tee /etc/apt/keyrings/nextclaw-archive-keyring.gpg >/dev/null
 ```
 
 然后添加软件源：
 
 ```bash
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/nextclaw-archive-keyring.gpg] https://peiiii.github.io/nextbot/apt stable main" \
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/nextclaw-archive-keyring.gpg] https://peiiii.github.io/nextclaw/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/nextclaw.list >/dev/null
 ```
 
