@@ -40,4 +40,36 @@ describe("loadConfig nextclaw built-in provider bootstrap", () => {
     expect(config.search.defaults.maxResults).toBe(7);
     expect(config.search.providers.brave.apiKey).toBe("brave_legacy_key");
   });
+
+  it("preserves tavily as an enabled provider when loading persisted config", () => {
+    const dir = mkdtempSync(join(tmpdir(), "nextclaw-config-tavily-"));
+    const configPath = join(dir, "config.json");
+
+    writeFileSync(configPath, JSON.stringify({
+      search: {
+        provider: "tavily",
+        enabledProviders: ["tavily"],
+        defaults: {
+          maxResults: 6
+        },
+        providers: {
+          tavily: {
+            apiKey: "tvly_test_key",
+            baseUrl: "https://api.tavily.com/search",
+            searchDepth: "advanced",
+            includeAnswer: true
+          }
+        }
+      }
+    }, null, 2));
+
+    const config = loadConfig(configPath);
+
+    expect(config.search.provider).toBe("tavily");
+    expect(config.search.enabledProviders).toEqual(["tavily"]);
+    expect(config.search.defaults.maxResults).toBe(6);
+    expect(config.search.providers.tavily.apiKey).toBe("tvly_test_key");
+    expect(config.search.providers.tavily.searchDepth).toBe("advanced");
+    expect(config.search.providers.tavily.includeAnswer).toBe(true);
+  });
 });

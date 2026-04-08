@@ -449,8 +449,9 @@ export const WebSearchConfigSchema = z.object({
   maxResults: z.number().int().default(5)
 });
 
-export const SearchProviderNameSchema = z.enum(["bocha", "brave"]);
+export const SearchProviderNameSchema = z.enum(["bocha", "tavily", "brave"]);
 export const BochaSearchFreshnessSchema = z.enum(["noLimit", "oneDay", "oneWeek", "oneMonth", "oneYear"]);
+export const TavilySearchDepthSchema = z.enum(["basic", "advanced"]);
 
 export const SearchDefaultsConfigSchema = z.object({
   maxResults: z.number().int().min(1).max(50).default(5)
@@ -469,6 +470,13 @@ export const BraveSearchProviderConfigSchema = z.object({
   baseUrl: z.string().default("https://api.search.brave.com/res/v1/web/search")
 });
 
+export const TavilySearchProviderConfigSchema = z.object({
+  apiKey: z.string().default(""),
+  baseUrl: z.string().default("https://api.tavily.com/search"),
+  searchDepth: TavilySearchDepthSchema.default("basic"),
+  includeAnswer: z.boolean().default(false)
+});
+
 export const SearchConfigSchema = z.object({
   provider: SearchProviderNameSchema.default("bocha"),
   enabledProviders: z.array(SearchProviderNameSchema).default(["bocha"]),
@@ -476,6 +484,7 @@ export const SearchConfigSchema = z.object({
   providers: z
     .object({
       bocha: BochaSearchProviderConfigSchema.default({}),
+      tavily: TavilySearchProviderConfigSchema.default({}),
       brave: BraveSearchProviderConfigSchema.default({})
     })
     .default({})

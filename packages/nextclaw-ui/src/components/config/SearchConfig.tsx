@@ -9,7 +9,7 @@ import { useConfig, useConfigMeta, useUpdateSearch } from '@/hooks/useConfig';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { CONFIG_DETAIL_CARD_CLASS, CONFIG_SIDEBAR_CARD_CLASS, CONFIG_SPLIT_GRID_CLASS } from './config-layout';
-import type { SearchConfigUpdate, SearchProviderName } from '@/api/types';
+import type { SearchConfigUpdate, SearchProviderName, TavilySearchDepthValue } from '@/api/types';
 
 const FRESHNESS_OPTIONS = [
   { value: 'noLimit', label: 'searchFreshnessNoLimit' },
@@ -19,11 +19,219 @@ const FRESHNESS_OPTIONS = [
   { value: 'oneYear', label: 'searchFreshnessOneYear' }
 ] as const;
 
+const SEARCH_DEPTH_OPTIONS = [
+  { value: 'basic', label: 'searchDepthBasic' },
+  { value: 'advanced', label: 'searchDepthAdvanced' }
+] as const;
+
+const SEARCH_PROVIDER_DESCRIPTION_KEYS: Record<SearchProviderName, string> = {
+  bocha: 'searchProviderBochaDescription',
+  tavily: 'searchProviderTavilyDescription',
+  brave: 'searchProviderBraveDescription'
+};
+
+type BochaProviderFieldsProps = {
+  apiKey: string;
+  apiKeyMasked?: string;
+  baseUrl: string;
+  summary: boolean;
+  freshness: string;
+  docsUrl?: string;
+  onApiKeyChange: (value: string) => void;
+  onBaseUrlChange: (value: string) => void;
+  onSummaryChange: (value: boolean) => void;
+  onFreshnessChange: (value: string) => void;
+};
+
+function BochaProviderFields({
+  apiKey,
+  apiKeyMasked,
+  baseUrl,
+  summary,
+  freshness,
+  docsUrl,
+  onApiKeyChange,
+  onBaseUrlChange,
+  onSummaryChange,
+  onFreshnessChange
+}: BochaProviderFieldsProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>{t('apiKey')}</Label>
+        <Input
+          type="password"
+          value={apiKey}
+          onChange={(event) => onApiKeyChange(event.target.value)}
+          placeholder={apiKeyMasked || t('enterApiKey')}
+          className="rounded-xl"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('searchProviderBaseUrl')}</Label>
+        <Input value={baseUrl} onChange={(event) => onBaseUrlChange(event.target.value)} className="rounded-xl" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label>{t('searchProviderSummary')}</Label>
+          <Select value={summary ? 'true' : 'false'} onValueChange={(value) => onSummaryChange(value === 'true')}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">{t('enabled')}</SelectItem>
+              <SelectItem value="false">{t('disabled')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>{t('searchProviderFreshness')}</Label>
+          <Select value={freshness} onValueChange={onFreshnessChange}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FRESHNESS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{t(option.label)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <a href={docsUrl ?? 'https://open.bocha.cn'} target="_blank" rel="noreferrer">
+          <Button type="button" variant="outline" className="rounded-xl">
+            <ExternalLink className="mr-2 h-4 w-4" />
+            {t('searchProviderOpenDocs')}
+          </Button>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+type TavilyProviderFieldsProps = {
+  apiKey: string;
+  apiKeyMasked?: string;
+  baseUrl: string;
+  searchDepth: TavilySearchDepthValue;
+  includeAnswer: boolean;
+  docsUrl?: string;
+  onApiKeyChange: (value: string) => void;
+  onBaseUrlChange: (value: string) => void;
+  onSearchDepthChange: (value: TavilySearchDepthValue) => void;
+  onIncludeAnswerChange: (value: boolean) => void;
+};
+
+function TavilyProviderFields({
+  apiKey,
+  apiKeyMasked,
+  baseUrl,
+  searchDepth,
+  includeAnswer,
+  docsUrl,
+  onApiKeyChange,
+  onBaseUrlChange,
+  onSearchDepthChange,
+  onIncludeAnswerChange
+}: TavilyProviderFieldsProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>{t('apiKey')}</Label>
+        <Input
+          type="password"
+          value={apiKey}
+          onChange={(event) => onApiKeyChange(event.target.value)}
+          placeholder={apiKeyMasked || t('enterApiKey')}
+          className="rounded-xl"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('searchProviderBaseUrl')}</Label>
+        <Input value={baseUrl} onChange={(event) => onBaseUrlChange(event.target.value)} className="rounded-xl" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label>{t('searchProviderSearchDepth')}</Label>
+          <Select value={searchDepth} onValueChange={(value) => onSearchDepthChange(value as TavilySearchDepthValue)}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SEARCH_DEPTH_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{t(option.label)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>{t('searchProviderIncludeAnswer')}</Label>
+          <Select value={includeAnswer ? 'true' : 'false'} onValueChange={(value) => onIncludeAnswerChange(value === 'true')}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">{t('enabled')}</SelectItem>
+              <SelectItem value="false">{t('disabled')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {docsUrl ? (
+        <div className="space-y-2">
+          <a href={docsUrl} target="_blank" rel="noreferrer">
+            <Button type="button" variant="outline" className="rounded-xl">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {t('searchProviderOpenDocs')}
+            </Button>
+          </a>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type BraveProviderFieldsProps = {
+  apiKey: string;
+  apiKeyMasked?: string;
+  baseUrl: string;
+  onApiKeyChange: (value: string) => void;
+  onBaseUrlChange: (value: string) => void;
+};
+
+function BraveProviderFields({
+  apiKey,
+  apiKeyMasked,
+  baseUrl,
+  onApiKeyChange,
+  onBaseUrlChange
+}: BraveProviderFieldsProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>{t('apiKey')}</Label>
+        <Input
+          type="password"
+          value={apiKey}
+          onChange={(event) => onApiKeyChange(event.target.value)}
+          placeholder={apiKeyMasked || t('enterApiKey')}
+          className="rounded-xl"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('searchProviderBaseUrl')}</Label>
+        <Input value={baseUrl} onChange={(event) => onBaseUrlChange(event.target.value)} className="rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
 export function SearchConfig() {
   const { data: config } = useConfig();
   const { data: meta } = useConfigMeta();
   const updateSearch = useUpdateSearch();
-  const providers = meta?.search ?? [];
+  const providers = useMemo(() => meta?.search ?? [], [meta]);
   const search = config?.search;
 
   const [selectedProvider, setSelectedProvider] = useState<SearchProviderName>('bocha');
@@ -34,6 +242,10 @@ export function SearchConfig() {
   const [bochaBaseUrl, setBochaBaseUrl] = useState('https://api.bocha.cn/v1/web-search');
   const [bochaSummary, setBochaSummary] = useState(true);
   const [bochaFreshness, setBochaFreshness] = useState('noLimit');
+  const [tavilyApiKey, setTavilyApiKey] = useState('');
+  const [tavilyBaseUrl, setTavilyBaseUrl] = useState('https://api.tavily.com/search');
+  const [tavilySearchDepth, setTavilySearchDepth] = useState<TavilySearchDepthValue>('basic');
+  const [tavilyIncludeAnswer, setTavilyIncludeAnswer] = useState(false);
   const [braveApiKey, setBraveApiKey] = useState('');
   const [braveBaseUrl, setBraveBaseUrl] = useState('https://api.search.brave.com/res/v1/web/search');
 
@@ -48,6 +260,9 @@ export function SearchConfig() {
     setBochaBaseUrl(search.providers.bocha.baseUrl);
     setBochaSummary(Boolean(search.providers.bocha.summary));
     setBochaFreshness(search.providers.bocha.freshness ?? 'noLimit');
+    setTavilyBaseUrl(search.providers.tavily.baseUrl);
+    setTavilySearchDepth(search.providers.tavily.searchDepth ?? 'basic');
+    setTavilyIncludeAnswer(Boolean(search.providers.tavily.includeAnswer));
     setBraveBaseUrl(search.providers.brave.baseUrl);
   }, [search]);
 
@@ -57,7 +272,7 @@ export function SearchConfig() {
   );
   const selectedView = search?.providers[selectedProvider];
   const selectedEnabled = enabledProviders.includes(selectedProvider);
-  const bochaDocsUrl = search?.providers.bocha.docsUrl ?? meta?.search.find((provider) => provider.name === 'bocha')?.docsUrl ?? 'https://open.bocha.cn';
+  const selectedDocsUrl = selectedView?.docsUrl ?? selectedMeta?.docsUrl;
   const activationButtonLabel = selectedEnabled
     ? t('searchProviderDeactivate')
     : t('searchProviderActivate');
@@ -77,6 +292,12 @@ export function SearchConfig() {
         baseUrl: bochaBaseUrl,
         summary: bochaSummary,
         freshness: bochaFreshness
+      },
+      tavily: {
+        apiKey: tavilyApiKey || undefined,
+        baseUrl: tavilyBaseUrl,
+        searchDepth: tavilySearchDepth,
+        includeAnswer: tavilyIncludeAnswer
       },
       brave: {
         apiKey: braveApiKey || undefined,
@@ -140,7 +361,7 @@ export function SearchConfig() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-gray-900">{provider.displayName}</p>
                       <p className="line-clamp-2 text-[11px] text-gray-500">
-                        {provider.name === 'bocha' ? t('searchProviderBochaDescription') : t('searchProviderBraveDescription')}
+                        {t(SEARCH_PROVIDER_DESCRIPTION_KEYS[provider.name])}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -212,74 +433,39 @@ export function SearchConfig() {
               </div>
 
               {selectedProvider === 'bocha' ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>{t('apiKey')}</Label>
-                    <Input
-                      type="password"
-                      value={bochaApiKey}
-                      onChange={(event) => setBochaApiKey(event.target.value)}
-                      placeholder={search.providers.bocha.apiKeyMasked || t('enterApiKey')}
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t('searchProviderBaseUrl')}</Label>
-                    <Input value={bochaBaseUrl} onChange={(event) => setBochaBaseUrl(event.target.value)} className="rounded-xl" />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>{t('searchProviderSummary')}</Label>
-                      <Select value={bochaSummary ? 'true' : 'false'} onValueChange={(value) => setBochaSummary(value === 'true')}>
-                        <SelectTrigger className="rounded-xl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">{t('enabled')}</SelectItem>
-                          <SelectItem value="false">{t('disabled')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t('searchProviderFreshness')}</Label>
-                      <Select value={bochaFreshness} onValueChange={setBochaFreshness}>
-                        <SelectTrigger className="rounded-xl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {FRESHNESS_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>{t(option.label)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <a href={bochaDocsUrl} target="_blank" rel="noreferrer">
-                      <Button type="button" variant="outline" className="rounded-xl">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        {t('searchProviderOpenDocs')}
-                      </Button>
-                    </a>
-                  </div>
-                </div>
+                <BochaProviderFields
+                  apiKey={bochaApiKey}
+                  apiKeyMasked={search.providers.bocha.apiKeyMasked}
+                  baseUrl={bochaBaseUrl}
+                  summary={bochaSummary}
+                  freshness={bochaFreshness}
+                  docsUrl={selectedDocsUrl}
+                  onApiKeyChange={setBochaApiKey}
+                  onBaseUrlChange={setBochaBaseUrl}
+                  onSummaryChange={setBochaSummary}
+                  onFreshnessChange={setBochaFreshness}
+                />
+              ) : selectedProvider === 'tavily' ? (
+                <TavilyProviderFields
+                  apiKey={tavilyApiKey}
+                  apiKeyMasked={search.providers.tavily.apiKeyMasked}
+                  baseUrl={tavilyBaseUrl}
+                  searchDepth={tavilySearchDepth}
+                  includeAnswer={tavilyIncludeAnswer}
+                  docsUrl={selectedDocsUrl}
+                  onApiKeyChange={setTavilyApiKey}
+                  onBaseUrlChange={setTavilyBaseUrl}
+                  onSearchDepthChange={setTavilySearchDepth}
+                  onIncludeAnswerChange={setTavilyIncludeAnswer}
+                />
               ) : (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>{t('apiKey')}</Label>
-                    <Input
-                      type="password"
-                      value={braveApiKey}
-                      onChange={(event) => setBraveApiKey(event.target.value)}
-                      placeholder={search.providers.brave.apiKeyMasked || t('enterApiKey')}
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t('searchProviderBaseUrl')}</Label>
-                    <Input value={braveBaseUrl} onChange={(event) => setBraveBaseUrl(event.target.value)} className="rounded-xl" />
-                  </div>
-                </div>
+                <BraveProviderFields
+                  apiKey={braveApiKey}
+                  apiKeyMasked={search.providers.brave.apiKeyMasked}
+                  baseUrl={braveBaseUrl}
+                  onApiKeyChange={setBraveApiKey}
+                  onBaseUrlChange={setBraveBaseUrl}
+                />
               )}
 
               <div className="flex justify-end">

@@ -103,8 +103,9 @@ export type ProviderConnectionTestResult = {
   message: string;
 };
 
-export type SearchProviderName = "bocha" | "brave";
+export type SearchProviderName = "bocha" | "tavily" | "brave";
 export type BochaFreshnessValue = "noLimit" | "oneDay" | "oneWeek" | "oneMonth" | "oneYear" | string;
+export type TavilySearchDepthValue = "basic" | "advanced";
 
 export type SearchProviderConfigView = {
   enabled: boolean;
@@ -114,6 +115,8 @@ export type SearchProviderConfigView = {
   docsUrl?: string;
   summary?: boolean;
   freshness?: BochaFreshnessValue;
+  searchDepth?: TavilySearchDepthValue;
+  includeAnswer?: boolean;
 };
 
 export type SearchConfigView = {
@@ -124,6 +127,7 @@ export type SearchConfigView = {
   };
   providers: {
     bocha: SearchProviderConfigView;
+    tavily: SearchProviderConfigView;
     brave: SearchProviderConfigView;
   };
 };
@@ -141,6 +145,12 @@ export type SearchConfigUpdate = {
       docsUrl?: string | null;
       summary?: boolean;
       freshness?: BochaFreshnessValue | null;
+    };
+    tavily?: {
+      apiKey?: string | null;
+      baseUrl?: string | null;
+      searchDepth?: TavilySearchDepthValue | null;
+      includeAnswer?: boolean;
     };
     brave?: {
       apiKey?: string | null;

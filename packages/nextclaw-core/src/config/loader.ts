@@ -53,27 +53,23 @@ export function saveConfig(config: Config, configPath?: string): void {
   writeFileSync(path, JSON.stringify(config, null, 2));
 }
 
-function migrateConfig(data: Record<string, unknown>): { config: Record<string, unknown>; changed: boolean } {
+function collectStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function migrateSearchConfig(params: {
+  legacyWebSearchConfig: Record<string, unknown>;
+  rawSearch: Record<string, unknown>;
+  rawSearchProviders: Record<string, unknown>;
+}): {
+  search: Record<string, unknown>;
+  changed: boolean;
+} {
   let changed = false;
-  const tools = (data.tools ?? {}) as Record<string, unknown>;
-  const execConfig = (tools.exec ?? {}) as Record<string, unknown>;
-  if (execConfig.restrictToWorkspace !== undefined && tools.restrictToWorkspace === undefined) {
-    tools.restrictToWorkspace = execConfig.restrictToWorkspace;
-    changed = true;
-  }
-  const providers = (data.providers ?? {}) as Record<string, unknown>;
-  const nextclawProvider = (providers.nextclaw ?? {}) as Record<string, unknown>;
-  const nextclawApiBase = typeof nextclawProvider.apiBase === "string" ? nextclawProvider.apiBase.trim() : "";
-  if (nextclawApiBase === "https://api.nextclaw.io/v1") {
-    nextclawProvider.apiBase = "https://ai-gateway-api.nextclaw.io/v1";
-    changed = true;
-  }
-  const legacyWebSearch = (tools.web ?? {}) as Record<string, unknown>;
-  const legacyWebSearchConfig = (legacyWebSearch.search ?? {}) as Record<string, unknown>;
-  const rawSearch = (data.search ?? {}) as Record<string, unknown>;
-  const rawSearchProviders = (rawSearch.providers ?? {}) as Record<string, unknown>;
+  const { legacyWebSearchConfig, rawSearch, rawSearchProviders } = params;
   const braveSearch = (rawSearchProviders.brave ?? {}) as Record<string, unknown>;
   const bochaSearch = (rawSearchProviders.bocha ?? {}) as Record<string, unknown>;
+  const tavilySearch = (rawSearchProviders.tavily ?? {}) as Record<string, unknown>;
 
   if (
     typeof legacyWebSearchConfig.apiKey === "string" &&
@@ -97,34 +93,63 @@ function migrateConfig(data: Record<string, unknown>): { config: Record<string, 
     rawSearch.provider = "bocha";
     changed = true;
   }
-  const rawEnabledProviders = Array.isArray(rawSearch.enabledProviders)
-    ? rawSearch.enabledProviders.filter((value): value is string => typeof value === "string")
-    : [];
-  const currentEnabledProviders = Array.isArray(rawSearch.enabledProviders)
-    ? rawSearch.enabledProviders.filter((value): value is string => typeof value === "string")
-    : [];
+
+  const currentEnabledProviders = collectStringArray(rawSearch.enabledProviders);
   const normalizedEnabledProviders = Array.from(new Set(
-    rawEnabledProviders.filter((value) => value === "bocha" || value === "brave")
+    currentEnabledProviders.filter((value) => value === "bocha" || value === "tavily" || value === "brave")
   ));
   if (
-    currentEnabledProviders.length !== normalizedEnabledProviders.length
-    || normalizedEnabledProviders.some((value, index) => currentEnabledProviders[index] !== value)
+    currentEnabledProviders.length !== normalizedEnabledProviders.length ||
+    normalizedEnabledProviders.some((value, index) => currentEnabledProviders[index] !== value)
   ) {
     rawSearch.enabledProviders = normalizedEnabledProviders;
     changed = true;
   }
 
-  const normalized = normalizeInlineSecretRefs({
-    ...data,
-    tools,
+  return {
     search: {
       ...rawSearch,
       providers: {
         ...rawSearchProviders,
         bocha: bochaSearch,
+        tavily: tavilySearch,
         brave: braveSearch
       }
     },
+    changed
+  };
+}
+
+function migrateConfig(data: Record<string, unknown>): { config: Record<string, unknown>; changed: boolean } {
+  let changed = false;
+  const tools = (data.tools ?? {}) as Record<string, unknown>;
+  const execConfig = (tools.exec ?? {}) as Record<string, unknown>;
+  if (execConfig.restrictToWorkspace !== undefined && tools.restrictToWorkspace === undefined) {
+    tools.restrictToWorkspace = execConfig.restrictToWorkspace;
+    changed = true;
+  }
+  const providers = (data.providers ?? {}) as Record<string, unknown>;
+  const nextclawProvider = (providers.nextclaw ?? {}) as Record<string, unknown>;
+  const nextclawApiBase = typeof nextclawProvider.apiBase === "string" ? nextclawProvider.apiBase.trim() : "";
+  if (nextclawApiBase === "https://api.nextclaw.io/v1") {
+    nextclawProvider.apiBase = "https://ai-gateway-api.nextclaw.io/v1";
+    changed = true;
+  }
+  const legacyWebSearch = (tools.web ?? {}) as Record<string, unknown>;
+  const legacyWebSearchConfig = (legacyWebSearch.search ?? {}) as Record<string, unknown>;
+  const rawSearch = (data.search ?? {}) as Record<string, unknown>;
+  const rawSearchProviders = (rawSearch.providers ?? {}) as Record<string, unknown>;
+  const migratedSearch = migrateSearchConfig({
+    legacyWebSearchConfig,
+    rawSearch,
+    rawSearchProviders
+  });
+  changed = changed || migratedSearch.changed;
+
+  const normalized = normalizeInlineSecretRefs({
+    ...data,
+    tools,
+    search: migratedSearch.search,
     providers: {
       ...providers,
       ...(providers.nextclaw ? { nextclaw: nextclawProvider } : {})

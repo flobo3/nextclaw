@@ -11,6 +11,11 @@ type SearchResultItem = {
   publishedAt?: string;
 };
 
+type SearchResultSet = {
+  answer?: string;
+  results: SearchResultItem[];
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -42,9 +47,9 @@ function getStringByKeys(source: Record<string, unknown>, keys: string[]): strin
   return null;
 }
 
-function normalizeBraveResults(payload: unknown): SearchResultItem[] {
+function normalizeBraveResults(payload: unknown): SearchResultSet {
   if (!isRecord(payload) || !isRecord(payload.web) || !Array.isArray(payload.web.results)) {
-    return [];
+    return { results: [] };
   }
   const results: SearchResultItem[] = [];
   for (const entry of payload.web.results) {
@@ -71,7 +76,7 @@ function normalizeBraveResults(payload: unknown): SearchResultItem[] {
     }
     results.push(item);
   }
-  return results;
+  return { results };
 }
 
 function extractBochaItems(payload: unknown): unknown[] {
@@ -96,7 +101,7 @@ function extractBochaItems(payload: unknown): unknown[] {
   return [];
 }
 
-function normalizeBochaResults(payload: unknown): SearchResultItem[] {
+function normalizeBochaResults(payload: unknown): SearchResultSet {
   const results: SearchResultItem[] = [];
   for (const entry of extractBochaItems(payload)) {
     if (!isRecord(entry)) {
@@ -122,23 +127,91 @@ function normalizeBochaResults(payload: unknown): SearchResultItem[] {
     }
     results.push(item);
   }
-  return results;
+  return { results };
 }
 
-function formatResults(results: SearchResultItem[]): string {
-  return results
-    .map((item) => {
-      const meta = [item.siteName, item.publishedAt].filter(Boolean).join(" | ");
-      const lines = [`- ${item.title}`, `  ${item.url}`];
-      if (meta) {
-        lines.push(`  ${meta}`);
-      }
-      if (item.summary) {
-        lines.push(`  ${item.summary}`);
-      }
-      return lines.join("\n");
-    })
-    .join("\n\n");
+function normalizeTavilyResults(payload: unknown): SearchResultSet {
+  if (!isRecord(payload) || !Array.isArray(payload.results)) {
+    return { results: [] };
+  }
+  const results: SearchResultItem[] = [];
+  for (const entry of payload.results) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const title = getStringByKeys(entry, ["title"]);
+    const url = getStringByKeys(entry, ["url"]);
+    if (!title || !url) {
+      continue;
+    }
+    const item: SearchResultItem = {
+      title,
+      url,
+      summary: getStringByKeys(entry, ["content", "snippet"]) ?? ""
+    };
+    const siteName = getStringByKeys(entry, ["source", "domain"]);
+    const publishedAt = getStringByKeys(entry, ["published_date"]);
+    if (siteName) {
+      item.siteName = siteName;
+    }
+    if (publishedAt) {
+      item.publishedAt = publishedAt;
+    }
+    results.push(item);
+  }
+  return {
+    answer: getStringByKeys(payload, ["answer"]) ?? undefined,
+    results
+  };
+}
+
+function formatResults(resultSet: SearchResultSet): string {
+  const sections: string[] = [];
+  if (resultSet.answer) {
+    sections.push(`Answer: ${resultSet.answer}`);
+  }
+  if (resultSet.results.length > 0) {
+    sections.push(
+      resultSet.results
+        .map((item) => {
+          const meta = [item.siteName, item.publishedAt].filter(Boolean).join(" | ");
+          const lines = [`- ${item.title}`, `  ${item.url}`];
+          if (meta) {
+            lines.push(`  ${meta}`);
+          }
+          if (item.summary) {
+            lines.push(`  ${item.summary}`);
+          }
+          return lines.join("\n");
+        })
+        .join("\n\n")
+    );
+  }
+  return sections.join("\n\n");
+}
+
+function normalizeSearchResults(provider: SearchProviderName, payload: unknown): SearchResultSet {
+  if (provider === "bocha") {
+    return normalizeBochaResults(payload);
+  }
+  if (provider === "tavily") {
+    return normalizeTavilyResults(payload);
+  }
+  return normalizeBraveResults(payload);
+}
+
+async function readSearchErrorDetails(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as Record<string, unknown>;
+    const message = typeof payload.message === "string"
+      ? payload.message
+      : typeof payload.msg === "string"
+        ? payload.msg
+        : "";
+    return message ? `: ${message}` : "";
+  } catch {
+    return "";
+  }
 }
 
 export class WebSearchTool extends Tool {
@@ -165,7 +238,7 @@ export class WebSearchTool extends Tool {
     };
   }
 
-  async execute(params: Record<string, unknown>): Promise<string> {
+  execute = async (params: Record<string, unknown>): Promise<string> => {
     const query = String(params.query ?? "");
     const provider = this.config?.provider ?? "bocha";
     const enabledProviders = this.config?.enabledProviders ?? [];
@@ -180,35 +253,22 @@ export class WebSearchTool extends Tool {
       return error instanceof Error ? `Error: ${error.message}` : `Error: ${String(error)}`;
     }
     if (!response.ok) {
-      let details = "";
-      try {
-        const payload = await response.json() as Record<string, unknown>;
-        const message = typeof payload.message === "string"
-          ? payload.message
-          : typeof payload.msg === "string"
-            ? payload.msg
-            : "";
-        if (message) {
-          details = `: ${message}`;
-        }
-      } catch {
-        // ignore non-json error body
-      }
+      const details = await readSearchErrorDetails(response);
       return `Error: ${provider} search request failed (${response.status})${details}`;
     }
     const payload = (await response.json()) as unknown;
-    const results = provider === "bocha" ? normalizeBochaResults(payload) : normalizeBraveResults(payload);
-    if (!results.length) {
+    const resultSet = normalizeSearchResults(provider, payload);
+    if (!resultSet.answer && resultSet.results.length === 0) {
       return "No results found.";
     }
-    return formatResults(results);
-  }
+    return formatResults(resultSet);
+  };
 
-  private async executeByProvider(
+  private executeByProvider = async (
     provider: SearchProviderName,
     query: string,
     maxResults: number
-  ): Promise<Response> {
+  ): Promise<Response> => {
     if (provider === "bocha") {
       const bocha = this.config?.providers.bocha;
       if (!bocha?.apiKey) {
@@ -229,6 +289,26 @@ export class WebSearchTool extends Tool {
         })
       });
     }
+    if (provider === "tavily") {
+      const tavily = this.config?.providers.tavily;
+      if (!tavily?.apiKey) {
+        throw new Error("Tavily API key not configured");
+      }
+      return fetch(tavily.baseUrl, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${tavily.apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          query,
+          max_results: maxResults,
+          search_depth: tavily.searchDepth,
+          include_answer: tavily.includeAnswer
+        })
+      });
+    }
     const brave = this.config?.providers.brave;
     if (!brave?.apiKey) {
       throw new Error("Brave API key not configured");
@@ -242,7 +322,7 @@ export class WebSearchTool extends Tool {
         "X-Subscription-Token": brave.apiKey
       }
     });
-  }
+  };
 }
 
 export class WebFetchTool extends Tool {
