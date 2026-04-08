@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfig, useConfigMeta, useConfigSchema, useUpdateChannel, useExecuteConfigAction } from '@/hooks/useConfig';
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/status-dot';
@@ -19,6 +19,9 @@ import { WeixinChannelAuthSection } from './weixin-channel-auth-section';
 type ChannelFormProps = {
   channelName?: string;
 };
+
+const EMPTY_CHANNEL_FIELDS: ChannelField[] = [];
+const DEFAULT_CHANNEL_LAYOUT_BLOCKS: ChannelFormBlock[] = [{ type: 'fields', section: 'all' }];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -60,6 +63,31 @@ function resolveFieldsForSection(fields: ChannelField[], section: ChannelFormFie
   return fields.filter((field) => field.section !== 'primary');
 }
 
+function buildJsonDrafts(channelConfig: Record<string, unknown>, fields: ChannelField[]): Record<string, string> {
+  const nextDrafts: Record<string, string> = {};
+  fields
+    .filter((field) => field.type === 'json')
+    .forEach((field) => {
+      nextDrafts[field.name] = JSON.stringify(channelConfig[field.name] ?? {}, null, 2);
+    });
+  return nextDrafts;
+}
+
+function buildChannelFormHydrationKey(
+  channelName: string | undefined,
+  channelConfig: Record<string, unknown> | null | undefined,
+  fields: ChannelField[]
+): string {
+  if (!channelName || !channelConfig) {
+    return `empty:${channelName ?? ''}`;
+  }
+  return JSON.stringify({
+    channelName,
+    channelConfig,
+    jsonFields: fields.filter((field) => field.type === 'json').map((field) => field.name)
+  });
+}
+
 export function ChannelForm({ channelName }: ChannelFormProps) {
   const { data: config } = useConfig();
   const { data: meta } = useConfigMeta();
@@ -70,12 +98,13 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({});
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
+  const lastHydrationKeyRef = useRef<string | null>(null);
 
   const channelConfig = channelName ? config?.channels[channelName] : null;
   const channelDefinitions = useMemo(() => buildChannelFormDefinitions(), []);
   const channelDefinition = channelName ? channelDefinitions[channelName] : undefined;
-  const fields = channelDefinition?.fields ?? [];
-  const layoutBlocks = channelDefinition?.layout ?? [{ type: 'fields', section: 'all' } satisfies ChannelFormBlock];
+  const fields = channelDefinition?.fields ?? EMPTY_CHANNEL_FIELDS;
+  const layoutBlocks = channelDefinition?.layout ?? DEFAULT_CHANNEL_LAYOUT_BLOCKS;
   const uiHints = schema?.uiHints;
   const scope = channelName ? `channels.${channelName}` : null;
   const actions = schema?.actions?.filter((action) => action.scope === scope) ?? [];
@@ -84,23 +113,22 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
     : channelName;
   const channelMeta = meta?.channels.find((item) => item.name === channelName);
   const tutorialUrl = channelMeta ? resolveChannelTutorialUrl(channelMeta) : undefined;
+  const hydrationKey = buildChannelFormHydrationKey(channelName, channelConfig, fields);
 
   useEffect(() => {
+    if (lastHydrationKeyRef.current === hydrationKey) {
+      return;
+    }
+    lastHydrationKeyRef.current = hydrationKey;
+
     if (channelConfig) {
       setFormData({ ...channelConfig });
-      const nextDrafts: Record<string, string> = {};
-      fields
-        .filter((field) => field.type === 'json')
-        .forEach((field) => {
-          const value = channelConfig[field.name];
-          nextDrafts[field.name] = JSON.stringify(value ?? {}, null, 2);
-        });
-      setJsonDrafts(nextDrafts);
+      setJsonDrafts(buildJsonDrafts(channelConfig, fields));
     } else {
       setFormData({});
       setJsonDrafts({});
     }
-  }, [channelConfig, fields]);
+  }, [channelConfig, fields, hydrationKey]);
 
   const updateField = (name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -150,6 +178,18 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
       return;
     }
     setFormData((prev) => deepMergeRecords(prev, channelPatch));
+    setJsonDrafts((prev) => {
+      let changed = false;
+      const nextDrafts = { ...prev };
+      for (const field of fields) {
+        if (field.type !== 'json' || !Object.prototype.hasOwnProperty.call(channelPatch, field.name)) {
+          continue;
+        }
+        nextDrafts[field.name] = JSON.stringify(channelPatch[field.name] ?? {}, null, 2);
+        changed = true;
+      }
+      return changed ? nextDrafts : prev;
+    });
   };
 
   const handleManualAction = async (action: ConfigActionManifest) => {
