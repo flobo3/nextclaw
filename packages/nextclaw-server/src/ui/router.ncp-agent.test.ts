@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import http from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, expect, it } from "vitest";
+import { serve } from "@hono/node-server";
 import { ConfigSchema, saveConfig } from "@nextclaw/core";
 import {
   NcpEventType,
@@ -267,6 +269,49 @@ function createTestApp(): { app: ReturnType<typeof createUiRouter>; agent: StubN
   };
 }
 
+async function requestNodeRawHeaders(app: ReturnType<typeof createUiRouter>, path: string): Promise<string[]> {
+  const server = serve({
+    fetch: app.fetch,
+    port: 0,
+    hostname: "127.0.0.1",
+  });
+
+  try {
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Expected an ephemeral TCP address for test server.");
+    }
+
+    return await new Promise<string[]>((resolve, reject) => {
+      const request = http.request(
+        {
+          host: "127.0.0.1",
+          port: address.port,
+          path,
+        },
+        (response) => {
+          response.resume();
+          response.once("end", () => resolve(response.rawHeaders));
+        },
+      );
+
+      request.once("error", reject);
+      request.end();
+    });
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+}
+
 it("mounts parallel ncp agent and session routes", async () => {
   const { app, agent } = createTestApp();
 
@@ -387,6 +432,35 @@ it("stores uploaded ncp assets and serves their content back", async () => {
   );
   expect(contentResponse.status).toBe(200);
   expect(await contentResponse.text()).toBe('{"hello":"world"}');
+});
+
+it("serves uploaded ncp assets through node http without duplicate content-length headers", async () => {
+  const { app } = createTestApp();
+
+  const formData = new FormData();
+  formData.append("files", new File(['{"hello":"world"}'], "config.json", { type: "application/json" }));
+  const uploadResponse = await app.request("http://localhost/api/ncp/assets", {
+    method: "POST",
+    body: formData,
+  });
+  const uploadPayload = await uploadResponse.json() as {
+    ok: boolean;
+    data: {
+      assets: Array<{
+        url: string;
+      }>;
+    };
+  };
+
+  const rawHeaders = await requestNodeRawHeaders(app, uploadPayload.data.assets[0]!.url);
+  const contentLengthHeaderCount = rawHeaders.reduce((count, entry, index) => {
+    if (index % 2 === 0 && entry.toLowerCase() === "content-length") {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+
+  expect(contentLengthHeaderCount).toBe(1);
 });
 
 it("proxies ncp send, patch, and abort flows", async () => {

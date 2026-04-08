@@ -131,8 +131,13 @@ export function NcpChatPage({ view }: ChatPageProps) {
     [routeSessionIdParam],
   );
   const sessionKey = selectedSessionKey ?? draftSessionId;
+  const hasDraftProjectRootOverride =
+    pendingProjectRoot !== null &&
+    pendingProjectRootSessionKey === null &&
+    selectedSessionKey === null;
   const hasSessionProjectRootOverride =
-    pendingProjectRootSessionKey === sessionKey;
+    pendingProjectRoot !== null &&
+    (pendingProjectRootSessionKey === sessionKey || hasDraftProjectRootOverride);
   const sessionProjectRootOverride = hasSessionProjectRootOverride
     ? pendingProjectRoot
     : undefined;
@@ -210,7 +215,10 @@ export function NcpChatPage({ view }: ChatPageProps) {
           thinkingLevel: payload.thinkingLevel,
           sessionType: payload.sessionType,
           projectRoot:
-            payload.sessionKey === pendingProjectRootSessionKey
+            payload.sessionKey === pendingProjectRootSessionKey ||
+            (pendingProjectRoot !== null &&
+              pendingProjectRootSessionKey === null &&
+              selectedSessionKey === null)
               ? pendingProjectRoot
               : (selectedSession?.projectRoot ?? null),
           requestedSkills: payload.requestedSkills,
@@ -265,14 +273,20 @@ export function NcpChatPage({ view }: ChatPageProps) {
     pendingProjectRoot,
     pendingProjectRootSessionKey,
     presenter,
+    selectedSessionKey,
     selectedSession?.projectRoot,
     sessionKey,
   ]);
 
   useEffect(() => {
+    const matchesPendingProjectSession =
+      pendingProjectRootSessionKey === null
+        ? selectedSessionKey !== null
+        : pendingProjectRootSessionKey === selectedSession?.key;
     if (
       !selectedSession ||
-      pendingProjectRootSessionKey !== selectedSession.key ||
+      pendingProjectRoot === null ||
+      !matchesPendingProjectSession ||
       (selectedSession.projectRoot ?? null) !== pendingProjectRoot
     ) {
       return;
@@ -281,7 +295,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
       pendingProjectRoot: null,
       pendingProjectRootSessionKey: null,
     });
-  }, [pendingProjectRoot, pendingProjectRootSessionKey, selectedSession]);
+  }, [pendingProjectRoot, pendingProjectRootSessionKey, selectedSession, selectedSessionKey]);
 
   useChatSessionSync({
     view,

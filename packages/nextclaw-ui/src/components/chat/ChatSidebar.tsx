@@ -7,6 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SelectItem } from '@/components/ui/select';
 import { ChatSidebarSessionItem } from '@/components/chat/chat-sidebar-session-item';
+import { ChatSidebarListModeSwitch } from '@/components/chat/chat-sidebar-list-mode-switch';
+import {
+  ChatSidebarProjectGroups,
+  type ChatSidebarProjectGroup
+} from '@/components/chat/chat-sidebar-project-groups';
 import { resolveSessionContextView } from '@/lib/session-context.utils';
 import { useChatSessionLabel } from '@/components/chat/hooks/use-chat-session-label';
 import { useNcpSessionListView, type NcpSessionListItemView } from '@/components/chat/ncp/use-ncp-session-list-view';
@@ -14,6 +19,7 @@ import { usePresenter } from '@/components/chat/presenter/chat-presenter-context
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 import { useAgents } from '@/hooks/agents/useAgents';
+import { getSessionProjectName } from '@/lib/session-project/session-project.utils';
 import { cn } from '@/lib/utils';
 import { LANGUAGE_OPTIONS, t, type I18nLanguage } from '@/lib/i18n';
 import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
@@ -40,6 +46,14 @@ type DateGroup = {
   label: string;
   items: NcpSessionListItemView[];
 };
+
+function getSessionUpdatedAtTimestamp(item: NcpSessionListItemView): number {
+  return new Date(item.session.updatedAt).getTime();
+}
+
+function sortSessionItemsByUpdatedAtDesc(items: NcpSessionListItemView[]): NcpSessionListItemView[] {
+  return [...items].sort((left, right) => getSessionUpdatedAtTimestamp(right) - getSessionUpdatedAtTimestamp(left));
+}
 
 function groupSessionsByDate(items: NcpSessionListItemView[]): DateGroup[] {
   const now = new Date();
@@ -72,6 +86,37 @@ function groupSessionsByDate(items: NcpSessionListItemView[]): DateGroup[] {
   if (previous7.length > 0) groups.push({ label: t('chatSidebarPrevious7Days'), items: previous7 });
   if (older.length > 0) groups.push({ label: t('chatSidebarOlder'), items: older });
   return groups;
+}
+
+function groupSessionsByProject(items: NcpSessionListItemView[]): ChatSidebarProjectGroup[] {
+  const grouped = new Map<string, ChatSidebarProjectGroup>();
+
+  for (const item of items) {
+    const projectRoot = item.session.projectRoot?.trim();
+    if (!projectRoot) {
+      continue;
+    }
+    const existingGroup = grouped.get(projectRoot);
+    const updatedAt = getSessionUpdatedAtTimestamp(item);
+    if (existingGroup) {
+      existingGroup.items.push(item);
+      existingGroup.latestUpdatedAt = Math.max(existingGroup.latestUpdatedAt, updatedAt);
+      continue;
+    }
+    grouped.set(projectRoot, {
+      projectRoot,
+      projectName: item.session.projectName?.trim() || getSessionProjectName(projectRoot) || projectRoot,
+      items: [item],
+      latestUpdatedAt: updatedAt
+    });
+  }
+
+  return [...grouped.values()]
+    .map((group) => ({
+      ...group,
+      items: sortSessionItemsByUpdatedAtDesc(group.items)
+    }))
+    .sort((left, right) => right.latestUpdatedAt - left.latestUpdatedAt);
 }
 
 function sessionTitle(session: SessionEntryView): string {
@@ -120,12 +165,15 @@ export function ChatSidebar() {
     [agentsQuery.data?.agents]
   );
 
-  const groups = useMemo(() => groupSessionsByDate(items), [items]);
+  const sortedItems = useMemo(() => sortSessionItemsByUpdatedAtDesc(items), [items]);
+  const groups = useMemo(() => groupSessionsByDate(sortedItems), [sortedItems]);
+  const projectGroups = useMemo(() => groupSessionsByProject(sortedItems), [sortedItems]);
   const defaultSessionType = inputSnapshot.defaultSessionType || 'native';
   const nonDefaultSessionTypeOptions = useMemo(
     () => inputSnapshot.sessionTypeOptions.filter((option) => option.value !== defaultSessionType),
     [defaultSessionType, inputSnapshot.sessionTypeOptions]
   );
+  const isProjectFirstView = listSnapshot.listMode === 'project-first';
 
   const handleLanguageSwitch = (nextLang: I18nLanguage) => {
     if (language === nextLang) return;
@@ -162,6 +210,34 @@ export function ChatSidebar() {
     } catch {
       setSavingSessionKey(null);
     }
+  };
+
+  const renderSessionItem = ({ session, runStatus }: NcpSessionListItemView) => {
+    const active = listSnapshot.selectedSessionKey === session.key;
+    const context = resolveSessionContextView(session, inputSnapshot.sessionTypeOptions);
+    const isEditing = editingSessionKey === session.key;
+    const isSaving = savingSessionKey === session.key;
+    return (
+      <ChatSidebarSessionItem
+        key={session.key}
+        session={session}
+        active={active}
+        runStatus={runStatus}
+        context={context}
+        title={sessionTitle(session)}
+        agentId={session.agentId ?? null}
+        agentLabel={session.agentId ? (agentsById.get(session.agentId)?.displayName ?? session.agentId) : null}
+        agentAvatarUrl={session.agentId ? (agentsById.get(session.agentId)?.avatarUrl ?? null) : null}
+        isEditing={isEditing}
+        draftLabel={draftLabel}
+        isSaving={isSaving}
+        onSelect={() => presenter.chatSessionListManager.selectSession(session.key)}
+        onStartEditing={() => startEditingSessionLabel(session)}
+        onDraftLabelChange={setDraftLabel}
+        onSave={() => saveSessionLabel(session)}
+        onCancel={cancelEditingSessionLabel}
+      />
+    );
   };
 
   return (
@@ -272,9 +348,34 @@ export function ChatSidebar() {
 
       <div className="mx-4 border-t border-gray-200/60" />
 
+      <div className="flex items-center justify-between px-5 pb-2 pt-3">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-gray-400">
+          {t('chatSidebarTaskRecords')}
+        </div>
+        <ChatSidebarListModeSwitch
+          isProjectFirstView={isProjectFirstView}
+          onSelectMode={presenter.chatSessionListManager.setListMode}
+        />
+      </div>
+
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 py-2">
         {isLoading ? (
           <div className="text-xs text-gray-500 p-3">{t('sessionsLoading')}</div>
+        ) : isProjectFirstView ? (
+          projectGroups.length === 0 ? (
+            <div className="p-4 text-center">
+              <MessageSquareText className="h-6 w-6 mx-auto mb-2 text-gray-300" />
+              <div className="text-xs text-gray-500">{t('chatSidebarProjectViewEmpty')}</div>
+            </div>
+          ) : (
+            <ChatSidebarProjectGroups
+              groups={projectGroups}
+              defaultSessionType={defaultSessionType}
+              sessionTypeOptions={inputSnapshot.sessionTypeOptions}
+              renderSessionItem={renderSessionItem}
+              onCreateSession={presenter.chatSessionListManager.createSession}
+            />
+          )
         ) : groups.length === 0 ? (
           <div className="p-4 text-center">
             <MessageSquareText className="h-6 w-6 mx-auto mb-2 text-gray-300" />
@@ -288,33 +389,7 @@ export function ChatSidebar() {
                   {group.label}
                 </div>
                 <div className="space-y-0.5">
-                  {group.items.map(({ session, runStatus }) => {
-                    const active = listSnapshot.selectedSessionKey === session.key;
-                    const context = resolveSessionContextView(session, inputSnapshot.sessionTypeOptions);
-                    const isEditing = editingSessionKey === session.key;
-                    const isSaving = savingSessionKey === session.key;
-                    return (
-                      <ChatSidebarSessionItem
-                        key={session.key}
-                        session={session}
-                        active={active}
-                        runStatus={runStatus}
-                        context={context}
-                        title={sessionTitle(session)}
-                        agentId={session.agentId ?? null}
-                        agentLabel={session.agentId ? (agentsById.get(session.agentId)?.displayName ?? session.agentId) : null}
-                        agentAvatarUrl={session.agentId ? (agentsById.get(session.agentId)?.avatarUrl ?? null) : null}
-                        isEditing={isEditing}
-                        draftLabel={draftLabel}
-                        isSaving={isSaving}
-                        onSelect={() => presenter.chatSessionListManager.selectSession(session.key)}
-                        onStartEditing={() => startEditingSessionLabel(session)}
-                        onDraftLabelChange={setDraftLabel}
-                        onSave={() => saveSessionLabel(session)}
-                        onCancel={cancelEditingSessionLabel}
-                      />
-                    );
-                  })}
+                  {group.items.map(renderSessionItem)}
                 </div>
               </div>
             ))}

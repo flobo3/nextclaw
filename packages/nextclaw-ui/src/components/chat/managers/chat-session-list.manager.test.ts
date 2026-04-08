@@ -9,13 +9,16 @@ describe('ChatSessionListManager', () => {
       snapshot: {
         ...useChatInputStore.getState().snapshot,
         defaultSessionType: 'native',
-        pendingSessionType: 'native'
+        pendingSessionType: 'native',
+        pendingProjectRoot: null,
+        pendingProjectRootSessionKey: null
       }
     });
     useChatSessionListStore.setState({
       snapshot: {
         ...useChatSessionListStore.getState().snapshot,
-        selectedSessionKey: 'session-1'
+        selectedSessionKey: 'session-1',
+        listMode: 'time-first'
       }
     });
   });
@@ -33,8 +36,25 @@ describe('ChatSessionListManager', () => {
 
     expect(streamActionsManager.resetStreamState).toHaveBeenCalledTimes(1);
     expect(uiManager.goToChatRoot).toHaveBeenCalledTimes(1);
-    expect(useChatSessionListStore.getState().snapshot.selectedSessionKey).toBe('session-1');
+    expect(useChatSessionListStore.getState().snapshot.selectedSessionKey).toBeNull();
     expect(useChatInputStore.getState().snapshot.pendingSessionType).toBe('codex');
+    expect(useChatInputStore.getState().snapshot.pendingProjectRoot).toBeNull();
+    expect(useChatInputStore.getState().snapshot.pendingProjectRootSessionKey).toBeNull();
+  });
+
+  it('hydrates the draft project root when creating a session inside a project group', () => {
+    const uiManager = {
+      goToChatRoot: vi.fn()
+    } as unknown as ConstructorParameters<typeof ChatSessionListManager>[0];
+    const streamActionsManager = {
+      resetStreamState: vi.fn()
+    } as unknown as ConstructorParameters<typeof ChatSessionListManager>[1];
+
+    const manager = new ChatSessionListManager(uiManager, streamActionsManager);
+    manager.createSession('native', '/tmp/project-alpha');
+
+    expect(useChatInputStore.getState().snapshot.pendingProjectRoot).toBe('/tmp/project-alpha');
+    expect(useChatInputStore.getState().snapshot.pendingProjectRootSessionKey).toBeNull();
   });
 
   it('delegates existing-session selection to routing without eagerly mutating the selected session state', () => {
@@ -49,6 +69,17 @@ describe('ChatSessionListManager', () => {
     manager.selectSession('session-2');
 
     expect(uiManager.goToSession).toHaveBeenCalledWith('session-2');
+    expect(useChatSessionListStore.getState().snapshot.selectedSessionKey).toBe('session-1');
+  });
+
+  it('updates the sidebar list mode without touching other session list state', () => {
+    const uiManager = {} as ConstructorParameters<typeof ChatSessionListManager>[0];
+    const streamActionsManager = {} as ConstructorParameters<typeof ChatSessionListManager>[1];
+
+    const manager = new ChatSessionListManager(uiManager, streamActionsManager);
+    manager.setListMode('project-first');
+
+    expect(useChatSessionListStore.getState().snapshot.listMode).toBe('project-first');
     expect(useChatSessionListStore.getState().snapshot.selectedSessionKey).toBe('session-1');
   });
 });

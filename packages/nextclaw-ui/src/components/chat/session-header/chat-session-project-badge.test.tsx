@@ -40,6 +40,22 @@ describe('ChatSessionProjectBadge', () => {
     expect(screen.getByText('/tmp/project-alpha')).toBeTruthy();
   });
 
+  it('uses the neutral header tag styling instead of a highlighted accent color', () => {
+    render(
+      <ChatSessionProjectBadge
+        sessionKey="session-1"
+        projectName="project-alpha"
+        projectRoot="/tmp/project-alpha"
+        persistToServer
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Set Project Directory' });
+    expect(trigger.className).toContain('border-gray-200');
+    expect(trigger.className).toContain('text-gray-600');
+    expect(trigger.className).not.toContain('emerald');
+  });
+
   it('clears the current project from the badge popover', async () => {
     const user = userEvent.setup();
 

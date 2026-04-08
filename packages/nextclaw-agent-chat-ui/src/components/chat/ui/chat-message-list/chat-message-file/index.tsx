@@ -3,6 +3,7 @@ import {
   buildChatMessageFileMeta,
   FILE_CATEGORY_LABELS,
   FILE_CATEGORY_TILE_CLASSES,
+  isImageFileLike,
   type ChatMessageFileView,
 } from "./meta";
 
@@ -69,9 +70,10 @@ export function ChatMessageFile({
 }: ChatMessageFileProps) {
   const { category, extension, metaBadges, sizeLabel } =
     buildChatMessageFileMeta(file);
+  const renderAsImage = isImageFileLike(file) && Boolean(file.dataUrl);
   const isInteractive = Boolean(file.dataUrl);
   const actionLabel = isInteractive
-    ? file.isImage
+    ? renderAsImage
       ? "Open preview"
       : "Open file"
     : "Attached";
@@ -87,68 +89,49 @@ export function ChatMessageFile({
         : "hover:border-slate-300 hover:bg-white hover:shadow-[0_24px_50px_-30px_rgba(15,23,42,0.3)]"),
   );
 
-  if (file.isImage && file.dataUrl) {
+  if (renderAsImage && file.dataUrl) {
     return (
       <a
         href={file.dataUrl}
         target="_blank"
         rel="noreferrer"
         aria-label={`Open preview: ${file.label}`}
-        className={cn(shellClasses, "group")}
+        className="group block"
       >
-        <figure>
-          <div
-            className={cn(
-              "relative overflow-hidden p-2",
-              isUser
-                ? "bg-white/[0.04]"
-                : "bg-gradient-to-br from-slate-100 via-white to-slate-100",
-            )}
-          >
-            <img
-              src={file.dataUrl}
-              alt={file.label}
-              className="block max-h-[22rem] w-full rounded-[1rem] object-cover shadow-[0_18px_40px_-26px_rgba(15,23,42,0.55)] transition duration-300 group-hover:scale-[1.01]"
-            />
-            <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-between">
-              {sizeLabel ? renderMetaBadge(sizeLabel, isUser) : <span />}
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.22em]",
-                  isUser
-                    ? "border-white/12 bg-slate-950/20 text-white"
-                    : FILE_CATEGORY_TILE_CLASSES[category],
-                )}
-              >
-                {tileLabel}
-              </span>
-            </div>
-          </div>
-          <figcaption className="flex items-start gap-3 p-4">
-            <div
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-[1rem]",
+            isUser
+              ? "ring-1 ring-white/10"
+              : "bg-slate-100/80 ring-1 ring-slate-200/80",
+          )}
+        >
+          <img
+            src={file.dataUrl}
+            alt={file.label}
+            className="block h-auto max-h-[26rem] w-full rounded-[1rem] bg-transparent object-contain transition duration-300 group-hover:scale-[1.01]"
+          />
+          <div className="pointer-events-none absolute right-3 top-3 flex items-center gap-2">
+            <span
               className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] border text-[11px] font-semibold tracking-[0.22em]",
-                isUser
-                  ? "border-white/12 bg-white/10 text-white"
-                  : FILE_CATEGORY_TILE_CLASSES[category],
+                "inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold tracking-[0.18em] text-white backdrop-blur-sm",
+                isUser ? "bg-slate-950/36" : "bg-slate-950/58",
               )}
             >
               {tileLabel}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold leading-5">
-                {file.label}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {metaBadges.map((label) => renderMetaBadge(label, isUser))}
-              </div>
-              <div className="mt-2">
-                {renderMimeType(file.mimeType, isUser)}
-              </div>
-            </div>
-            {renderActionPill(actionLabel, isUser, true)}
-          </figcaption>
-        </figure>
+            </span>
+            {sizeLabel ? (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium text-white/92 backdrop-blur-sm",
+                  isUser ? "bg-slate-950/28" : "bg-slate-950/46",
+                )}
+              >
+                {sizeLabel}
+              </span>
+            ) : null}
+          </div>
+        </div>
       </a>
     );
   }

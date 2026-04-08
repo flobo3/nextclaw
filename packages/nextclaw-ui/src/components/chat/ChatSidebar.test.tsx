@@ -9,6 +9,7 @@ import { useChatSessionListStore } from '@/components/chat/stores/chat-session-l
 const mocks = vi.hoisted(() => ({
   createSession: vi.fn(),
   setQuery: vi.fn(),
+  setListMode: vi.fn(),
   selectSession: vi.fn(),
   docOpen: vi.fn(),
   updateNcpSession: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('@/components/chat/presenter/chat-presenter-context', () => ({
     chatSessionListManager: {
       createSession: mocks.createSession,
       setQuery: mocks.setQuery,
+      setListMode: mocks.setListMode,
       selectSession: mocks.selectSession
     }
   })
@@ -99,35 +101,39 @@ vi.mock('@/stores/ui.store', () => ({
     selector({ connectionStatus: 'connected' })
 }));
 
-describe('ChatSidebar', () => {
-  beforeEach(() => {
-    mocks.createSession.mockReset();
-    mocks.setQuery.mockReset();
-    mocks.selectSession.mockReset();
-    mocks.docOpen.mockReset();
-    mocks.updateNcpSession.mockReset();
-    mocks.updateNcpSession.mockResolvedValue({});
-    mocks.agents = [];
-    mocks.sessionItems = [];
-    mocks.isLoading = false;
+function resetSidebarTestState() {
+  mocks.createSession.mockReset();
+  mocks.setQuery.mockReset();
+  mocks.setListMode.mockReset();
+  mocks.selectSession.mockReset();
+  mocks.docOpen.mockReset();
+  mocks.updateNcpSession.mockReset();
+  mocks.updateNcpSession.mockResolvedValue({});
+  mocks.agents = [];
+  mocks.sessionItems = [];
+  mocks.isLoading = false;
 
-    useChatInputStore.setState({
-      snapshot: {
-        ...useChatInputStore.getState().snapshot,
-        defaultSessionType: 'native',
-        sessionTypeOptions: [
-          { value: 'native', label: 'Native', ready: true },
-          { value: 'codex', label: 'Codex', ready: true }
-        ]
-      }
-    });
-    useChatSessionListStore.setState({
-      snapshot: {
-        ...useChatSessionListStore.getState().snapshot,
-        query: ''
-      }
-    });
+  useChatInputStore.setState({
+    snapshot: {
+      ...useChatInputStore.getState().snapshot,
+      defaultSessionType: 'native',
+      sessionTypeOptions: [
+        { value: 'native', label: 'Native', ready: true },
+        { value: 'codex', label: 'Codex', ready: true }
+      ]
+    }
   });
+  useChatSessionListStore.setState({
+    snapshot: {
+      ...useChatSessionListStore.getState().snapshot,
+      query: '',
+      listMode: 'time-first'
+    }
+  });
+}
+
+describe('ChatSidebar create and list basics', () => {
+  beforeEach(resetSidebarTestState);
 
   it('closes the create-session menu after choosing a non-default session type', async () => {
     render(
@@ -172,6 +178,19 @@ describe('ChatSidebar', () => {
     expect(screen.getByText('Claude')).not.toBeNull();
     expect(screen.getByText('Setup')).not.toBeNull();
     expect(screen.getByText('Configure a provider API key first.')).not.toBeNull();
+  });
+
+  it('renders the lightweight list mode switch in the session header row and toggles to project view', () => {
+    render(
+      <MemoryRouter>
+        <ChatSidebar />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Sessions')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Project' }));
+
+    expect(mocks.setListMode).toHaveBeenCalledWith('project-first');
   });
 
   it('shows a session type badge for non-native sessions in the list', () => {
@@ -255,6 +274,127 @@ describe('ChatSidebar', () => {
     expect(screen.getByText('Native Task')).not.toBeNull();
     expect(screen.queryByText('Native')).toBeNull();
   });
+});
+
+describe('ChatSidebar project-first mode', () => {
+  beforeEach(resetSidebarTestState);
+
+  it('shows project groups only in project-first mode and hides sessions without a project', () => {
+    useChatSessionListStore.setState({
+      snapshot: {
+        ...useChatSessionListStore.getState().snapshot,
+        listMode: 'project-first'
+      }
+    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:project-1',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T11:05:00.000Z',
+        label: 'Project Alpha Task',
+        projectRoot: '/tmp/project-alpha',
+        projectName: 'project-alpha',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 2
+      }),
+      createSessionItem({
+        key: 'session:plain-1',
+        createdAt: '2026-03-19T08:00:00.000Z',
+        updatedAt: '2026-03-19T08:05:00.000Z',
+        label: 'Loose Task',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 1
+      })
+    ];
+
+    render(
+      <MemoryRouter>
+        <ChatSidebar />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('project-alpha')).not.toBeNull();
+    expect(screen.getByText('Project Alpha Task')).not.toBeNull();
+    expect(screen.queryByText('Loose Task')).toBeNull();
+  });
+
+  it('lets the user choose a runtime type when creating a project-bound draft', () => {
+    useChatSessionListStore.setState({
+      snapshot: {
+        ...useChatSessionListStore.getState().snapshot,
+        listMode: 'project-first'
+      }
+    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:project-2',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T11:05:00.000Z',
+        label: 'Grouped Task',
+        projectRoot: '/tmp/project-beta',
+        projectName: 'project-beta',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 2
+      })
+    ];
+
+    render(
+      <MemoryRouter>
+        <ChatSidebar />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Task · project-beta' }));
+    fireEvent.click(screen.getByText('Codex'));
+
+    expect(mocks.createSession).toHaveBeenCalledWith('codex', '/tmp/project-beta');
+  });
+
+  it('creates immediately when there is only one available runtime type', () => {
+    useChatInputStore.setState({
+      snapshot: {
+        ...useChatInputStore.getState().snapshot,
+        defaultSessionType: 'native',
+        sessionTypeOptions: [{ value: 'native', label: 'Native', ready: true }]
+      }
+    });
+    useChatSessionListStore.setState({
+      snapshot: {
+        ...useChatSessionListStore.getState().snapshot,
+        listMode: 'project-first'
+      }
+    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:project-3',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T11:05:00.000Z',
+        label: 'Single Runtime Task',
+        projectRoot: '/tmp/project-gamma',
+        projectName: 'project-gamma',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 2
+      })
+    ];
+
+    render(
+      <MemoryRouter>
+        <ChatSidebar />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Task · project-gamma' }));
+
+    expect(mocks.createSession).toHaveBeenCalledWith('native', '/tmp/project-gamma');
+  });
+});
+
+describe('ChatSidebar session item interactions', () => {
+  beforeEach(resetSidebarTestState);
 
   it('hides the sidebar agent avatar for the main agent but keeps specialist avatars', () => {
     mocks.agents = [

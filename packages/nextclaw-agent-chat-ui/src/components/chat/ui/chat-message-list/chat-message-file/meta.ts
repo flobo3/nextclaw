@@ -72,6 +72,21 @@ const DATA_EXTENSIONS = new Set([
   "yaml",
   "yml",
 ]);
+const IMAGE_EXTENSIONS = new Set([
+  "avif",
+  "bmp",
+  "gif",
+  "heic",
+  "heif",
+  "ico",
+  "jpeg",
+  "jpg",
+  "png",
+  "svg",
+  "tif",
+  "tiff",
+  "webp",
+]);
 const DOCUMENT_EXTENSIONS = new Set([
   "doc",
   "docx",
@@ -117,9 +132,9 @@ function formatFileSize(sizeBytes?: number): string | null {
 }
 
 function getFileExtension(label: string, mimeType: string): string {
-  const match = /\.([a-z0-9]{1,12})$/i.exec(label.trim());
-  if (match?.[1]) {
-    return match[1].toUpperCase();
+  const extension = readFileExtension(label);
+  if (extension) {
+    return extension.toUpperCase();
   }
   const subtype = mimeType.split("/")[1] ?? "";
   const cleaned = subtype.split(/[+.;-]/)[0]?.trim();
@@ -129,12 +144,30 @@ function getFileExtension(label: string, mimeType: string): string {
   return cleaned.slice(0, 6).toUpperCase();
 }
 
+function readFileExtension(label: string): string {
+  return /\.([a-z0-9]{1,12})$/i.exec(label.trim())?.[1]?.toLowerCase() ?? "";
+}
+
+function isImageDataUrl(dataUrl?: string): boolean {
+  return typeof dataUrl === "string" && /^data:image\//i.test(dataUrl.trim());
+}
+
+export function isImageFileLike(file: ChatMessageFileView): boolean {
+  const normalizedMimeType = file.mimeType.trim().toLowerCase();
+  const extension = readFileExtension(file.label);
+  return (
+    file.isImage ||
+    normalizedMimeType.startsWith("image/") ||
+    IMAGE_EXTENSIONS.has(extension) ||
+    isImageDataUrl(file.dataUrl)
+  );
+}
+
 function resolveFileCategory(label: string, mimeType: string): FileCategory {
-  const extension =
-    /\.([a-z0-9]{1,12})$/i.exec(label.trim())?.[1]?.toLowerCase() ?? "";
+  const extension = readFileExtension(label);
   const normalizedMimeType = mimeType.toLowerCase();
 
-  if (normalizedMimeType.startsWith("image/")) {
+  if (normalizedMimeType.startsWith("image/") || IMAGE_EXTENSIONS.has(extension)) {
     return "image";
   }
   if (normalizedMimeType.startsWith("audio/")) {

@@ -109,7 +109,6 @@ app.get("/api/ncp/assets/content", async (c) => {
   const body = await readFile(contentPath);
   return new Response(body, {
     headers: {
-      "content-length": String(body.byteLength),
       "content-type": record.mimeType,
       "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(record.fileName)}`,
     },

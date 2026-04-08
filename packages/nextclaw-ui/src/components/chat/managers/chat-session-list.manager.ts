@@ -3,6 +3,7 @@ import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import type { ChatUiManager } from '@/components/chat/managers/chat-ui.manager';
 import type { SetStateAction } from 'react';
 import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
+import { normalizeSessionProjectRootValue } from '@/lib/session-project/session-project.utils';
 
 export class ChatSessionListManager {
   constructor(
@@ -35,7 +36,16 @@ export class ChatSessionListManager {
     useChatSessionListStore.getState().setSnapshot({ selectedSessionKey: value });
   };
 
-  createSession = (sessionType?: string) => {
+  setListMode = (next: SetStateAction<'time-first' | 'project-first'>) => {
+    const prev = useChatSessionListStore.getState().snapshot.listMode;
+    const value = this.resolveUpdateValue(prev, next);
+    if (value === prev) {
+      return;
+    }
+    useChatSessionListStore.getState().setSnapshot({ listMode: value });
+  };
+
+  createSession = (sessionType?: string, projectRoot?: string | null) => {
     const { snapshot } = useChatInputStore.getState();
     const { defaultSessionType: configuredDefaultSessionType } = snapshot;
     const defaultSessionType = configuredDefaultSessionType || 'native';
@@ -43,10 +53,12 @@ export class ChatSessionListManager {
       typeof sessionType === 'string' && sessionType.trim().length > 0
         ? sessionType.trim()
         : defaultSessionType;
+    const normalizedProjectRoot = normalizeSessionProjectRootValue(projectRoot);
     this.streamActionsManager.resetStreamState();
+    useChatSessionListStore.getState().setSnapshot({ selectedSessionKey: null });
     useChatInputStore.getState().setSnapshot({
       pendingSessionType: nextSessionType,
-      pendingProjectRoot: null,
+      pendingProjectRoot: normalizedProjectRoot,
       pendingProjectRootSessionKey: null
     });
     this.uiManager.goToChatRoot();

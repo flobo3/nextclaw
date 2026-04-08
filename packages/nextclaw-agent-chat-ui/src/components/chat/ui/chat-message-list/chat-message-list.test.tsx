@@ -76,13 +76,7 @@ it("renders user, assistant, and tool content and supports code copy", async () 
       ]}
       isSending
       hasAssistantDraft={false}
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
@@ -128,13 +122,7 @@ it("renders unknown parts with fallback label", () => {
       ]}
       isSending={false}
       hasAssistantDraft={false}
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
@@ -210,13 +198,7 @@ it("renders running tool cards with live status feedback", () => {
       ]}
       isSending={false}
       hasAssistantDraft={false}
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
@@ -425,13 +407,7 @@ it("renders completed terminal tool cards collapsed by default on initial mount"
       ]}
       isSending={false}
       hasAssistantDraft={false}
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
@@ -715,13 +691,7 @@ it("does not render the typing placeholder after assistant output has started bu
       ]}
       isSending
       hasAssistantDraft
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
@@ -744,13 +714,7 @@ it("uses the typing placeholder instead of rendering an empty assistant draft bu
       ]}
       isSending
       hasAssistantDraft
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
@@ -758,7 +722,7 @@ it("uses the typing placeholder instead of rendering an empty assistant draft bu
   expect(screen.getByText("Typing...")).toBeTruthy();
 });
 
-it("renders image attachments as rich preview cards", () => {
+it("renders image attachments as lightweight image-first previews", () => {
   const { container } = render(
     <ChatMessageList
       messages={[
@@ -783,23 +747,52 @@ it("renders image attachments as rich preview cards", () => {
       ]}
       isSending={false}
       hasAssistantDraft={false}
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
   expect(
     screen.getByRole("img", { name: "Image attachment" }).className,
   ).toContain("rounded-[1rem]");
-  expect(container.querySelector("figure")).toBeTruthy();
-  expect(container.querySelector("figcaption")).toBeTruthy();
-  expect(screen.getAllByText("4 KB").length).toBeGreaterThan(0);
-  expect(screen.getByText("image/png")).toBeTruthy();
+  expect(container.querySelector("figure")).toBeNull();
+  expect(container.querySelector("figcaption")).toBeNull();
+  expect(screen.getByText("PNG")).toBeTruthy();
+  expect(screen.getByText("4 KB")).toBeTruthy();
+  expect(screen.queryByText("image/png")).toBeNull();
+});
+
+it("renders image-looking files as images even when the image flag is missing", () => {
+  render(
+    <ChatMessageList
+      messages={[
+        {
+          id: "assistant-image-by-extension",
+          role: "assistant",
+          roleLabel: "Assistant",
+          timestampLabel: "10:09",
+          parts: [
+            {
+              type: "file",
+              file: {
+                label: "draft.webp",
+                mimeType: "application/octet-stream",
+                dataUrl: "data:image/webp;base64,UklGRg==",
+                sizeBytes: 1024,
+                isImage: false,
+              },
+            },
+          ],
+        },
+      ]}
+      isSending={false}
+      hasAssistantDraft={false}
+      texts={defaultTexts}
+    />,
+  );
+
+  expect(screen.getByRole("img", { name: "draft.webp" })).toBeTruthy();
+  expect(screen.queryByText("application/octet-stream")).toBeNull();
+  expect(screen.getByText("WEBP")).toBeTruthy();
 });
 
 it("renders non-image attachments as polished file cards", () => {
@@ -827,13 +820,7 @@ it("renders non-image attachments as polished file cards", () => {
       ]}
       isSending={false}
       hasAssistantDraft={false}
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 
@@ -859,13 +846,7 @@ it("treats whitespace-only and zero-width markdown drafts as loading instead of 
       ]}
       isSending
       hasAssistantDraft
-      texts={{
-        copyCodeLabel: "Copy",
-        copiedCodeLabel: "Copied",
-        copyMessageLabel: "Copy",
-        copiedMessageLabel: "Copied",
-        typingLabel: "Typing...",
-      }}
+      texts={defaultTexts}
     />,
   );
 

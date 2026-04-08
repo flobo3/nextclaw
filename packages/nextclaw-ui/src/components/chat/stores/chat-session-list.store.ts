@@ -1,8 +1,12 @@
 import { create } from 'zustand';
+
+export type ChatSessionListMode = 'time-first' | 'project-first';
+
 export type ChatSessionListSnapshot = {
   selectedSessionKey: string | null;
   selectedAgentId: string;
   query: string;
+  listMode: ChatSessionListMode;
 };
 
 type ChatSessionListStore = {
@@ -13,7 +17,8 @@ type ChatSessionListStore = {
 const initialSnapshot: ChatSessionListSnapshot = {
   selectedSessionKey: null,
   selectedAgentId: 'main',
-  query: ''
+  query: '',
+  listMode: 'time-first'
 };
 
 export const useChatSessionListStore = create<ChatSessionListStore>((set) => ({

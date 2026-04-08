@@ -102,7 +102,6 @@ export class NcpAssetRoutesController {
     const body = await readFile(contentPath);
     return new Response(body, {
       headers: {
-        "content-length": String(body.byteLength),
         "content-type": record.mimeType || "application/octet-stream",
         "content-disposition": `inline; filename*=UTF-8''${encodeContentDispositionFileName(record.fileName)}`,
       },

@@ -1,5 +1,13 @@
 # @nextclaw/ui
 
+## 0.12.4
+
+### Patch Changes
+
+- Release image preview simplification and project-first chat sidebar improvements.
+- Updated dependencies
+  - @nextclaw/agent-chat-ui@0.3.1
+
 ## 0.12.3
 
 ### Patch Changes

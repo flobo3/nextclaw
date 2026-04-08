@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.17.5
+
+### Patch Changes
+
+- Release image preview simplification and project-first chat sidebar improvements.
+
 ## 0.17.4
 
 ### Patch Changes
