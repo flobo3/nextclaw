@@ -20,7 +20,10 @@ export function getDataDir(): string {
 
 export function loadConfig(configPath?: string): Config {
   const path = configPath ?? getConfigPath();
-  if (existsSync(path)) {
+  const fileExists = existsSync(path);
+  let encounteredLoadError = false;
+
+  if (fileExists) {
     try {
       const raw = readFileSync(path, "utf-8");
       const data = JSON.parse(raw);
@@ -35,13 +38,14 @@ export function loadConfig(configPath?: string): Config {
       }
       return config;
     } catch (err) {
+      encounteredLoadError = true;
       const message = err instanceof z.ZodError ? err.message : String(err);
       // eslint-disable-next-line no-console
       console.warn(`Warning: Failed to load config from ${path}: ${message}`);
     }
   }
   const config = ConfigSchema.parse({});
-  if (ensureBuiltinNextclawKey(config)) {
+  if (ensureBuiltinNextclawKey(config) && !encounteredLoadError) {
     persistConfigSafely(config, path);
   }
   return config;

@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -71,5 +71,23 @@ describe("loadConfig nextclaw built-in provider bootstrap", () => {
     expect(config.search.providers.tavily.apiKey).toBe("tvly_test_key");
     expect(config.search.providers.tavily.searchDepth).toBe("advanced");
     expect(config.search.providers.tavily.includeAnswer).toBe(true);
+  });
+
+  it("does not overwrite an existing invalid config file with defaults", () => {
+    const dir = mkdtempSync(join(tmpdir(), "nextclaw-config-invalid-"));
+    const configPath = join(dir, "config.json");
+    const invalidConfig = {
+      search: {
+        provider: "invalid-provider"
+      }
+    };
+
+    writeFileSync(configPath, JSON.stringify(invalidConfig, null, 2));
+
+    const config = loadConfig(configPath);
+    const rawAfterLoad = readFileSync(configPath, "utf-8");
+
+    expect(config.search.provider).toBe("bocha");
+    expect(JSON.parse(rawAfterLoad)).toEqual(invalidConfig);
   });
 });
