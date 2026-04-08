@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableModelInput } from '@/components/common/SearchableModelInput';
+import { Input } from '@/components/ui/input';
 import type { ProviderModelCatalogItem } from '@/lib/provider-models';
 import { composeProviderModel, findProviderByModel, toProviderLocalModel } from '@/lib/provider-models';
 import { t } from '@/lib/i18n';
@@ -39,6 +40,7 @@ export function ProviderScopedModelInput({
 }: ProviderScopedModelInputProps) {
   const [providerName, setProviderName] = useState('');
   const [modelId, setModelId] = useState('');
+  const hasProviders = providerCatalog.length > 0;
 
   const providerMap = useMemo(
     () => new Map(providerCatalog.map((provider) => [provider.name, provider])),
@@ -54,12 +56,17 @@ export function ProviderScopedModelInput({
 
   useEffect(() => {
     const currentModel = value.trim();
+    if (!hasProviders) {
+      setProviderName('');
+      setModelId(currentModel);
+      return;
+    }
     const matchedProvider = findProviderByModel(currentModel, providerCatalog);
     const effectiveProvider = matchedProvider ?? '';
     const aliases = providerMap.get(effectiveProvider)?.aliases ?? [];
     setProviderName(effectiveProvider);
     setModelId(effectiveProvider ? toProviderLocalModel(currentModel, aliases) : currentModel);
-  }, [providerCatalog, providerMap, value]);
+  }, [hasProviders, providerCatalog, providerMap, value]);
 
   const handleProviderChange = (nextProvider: string) => {
     setProviderName(nextProvider);
@@ -78,6 +85,26 @@ export function ProviderScopedModelInput({
     setModelId(normalizedLocalModel);
     onChange(normalizedLocalModel ? composeProviderModel(selectedProvider.prefix, normalizedLocalModel) : '');
   };
+
+  if (!hasProviders) {
+    return (
+      <div className={className}>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-950">{t('providersEmptyTitle')}</p>
+          <p className="mt-1 text-xs leading-5 text-amber-900">{t('providersEmptyDescription')}</p>
+        </div>
+        <Input
+          id={id}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="openai/gpt-5.1"
+          className="mt-3 h-10 rounded-xl"
+        />
+        <p className="mt-2 text-xs text-gray-500">{t('modelInputCustomHint')}</p>
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
