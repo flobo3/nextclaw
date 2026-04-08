@@ -1,0 +1,20 @@
+Package: nextclaw-desktop
+Version: 0.0.130
+Architecture: amd64
+Maintainer: NextClaw Team
+Installed-Size: 378284
+Depends: libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0
+Recommends: libappindicator3-1
+Filename: pool/main/n/nextclaw-desktop/nextclaw-desktop_0.0.130_amd64.deb
+Size: 85294712
+MD5sum: 3b11ed8e3d96fbf203e5fd14f6612af7
+SHA1: d37e7770fe64d5e49321c16417f673a3434e50e3
+SHA256: 3e4b7fba347e835da52b4ad42669b290f739077edf091b22ed285bdb8fdaa9e4
+Section: utility
+Priority: optional
+Homepage: https://github.com/Peiiii/nextclaw
+Description: NextClaw Desktop
+  NextClaw desktop shell powered by Electron.
+License: MIT
+Vendor: NextClaw Team
+
