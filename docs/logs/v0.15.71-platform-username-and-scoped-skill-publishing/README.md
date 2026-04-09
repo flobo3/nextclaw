@@ -13,6 +13,7 @@
   - 普通用户必须登录且必须已有 username
   - 普通用户发布默认进入 `pending`
 - CLI `skills publish` / `skills install` 已支持 scoped selector、scoped package name、用户名前置校验与更清晰的参数拆分。
+- 新增官方 marketplace skill [publish-to-nextclaw-marketplace](../../../skills/publish-to-nextclaw-marketplace/SKILL.md)，把“发布到 NextClaw marketplace”沉淀为可安装的产品能力，并在 skill 内明确要求 `nextclaw >= v0.17.6`。
 - marketplace 数据访问层完成一次收敛式重构：
   - skill datasource 从大文件拆到独立 data source / file store / payload parser
   - runtime 内 publish/update 参数翻译外提，减少主运行时继续膨胀
@@ -30,6 +31,12 @@ PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw build
 PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-ui tsc
 PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw-ui build
 PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw exec vitest run src/cli/skills/marketplace.publish.test.ts
+python3 .agents/skills/marketplace-skill-publisher/scripts/validate_marketplace_skill.py --skill-dir skills/publish-to-nextclaw-marketplace
+PATH=/opt/homebrew/bin:$PATH pnpm -C workers/marketplace-api exec wrangler secret list --config wrangler.toml
+NEXTCLAW_MARKETPLACE_ADMIN_TOKEN=*** PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw exec tsx src/cli/index.ts skills publish /Users/peiwang/Projects/nextbot/skills/publish-to-nextclaw-marketplace --meta /Users/peiwang/Projects/nextbot/skills/publish-to-nextclaw-marketplace/marketplace.json --scope nextclaw --api-base https://marketplace-api.nextclaw.io
+curl -sS https://marketplace-api.nextclaw.io/api/v1/skills/items/%40nextclaw%2Fpublish-to-nextclaw-marketplace
+tmp_dir=$(mktemp -d /tmp/nextclaw-marketplace-publish-skill.XXXXXX)
+PATH=/opt/homebrew/bin:$PATH pnpm -C packages/nextclaw exec tsx src/cli/index.ts skills install @nextclaw/publish-to-nextclaw-marketplace --api-base https://marketplace-api.nextclaw.io --workdir "$tmp_dir"
 PATH=/opt/homebrew/bin:$PATH node .agents/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs
 PATH=/opt/homebrew/bin:$PATH node scripts/lint-new-code-governance.mjs
 ```
@@ -38,6 +45,11 @@ PATH=/opt/homebrew/bin:$PATH node scripts/lint-new-code-governance.mjs
 
 - `marketplace-api` / `nextclaw-provider-gateway-api` / `nextclaw` / `nextclaw-ui` 相关构建与类型检查通过。
 - `marketplace.publish.test.ts` 精确执行通过，`2` 个测试全部通过。
+- 新增 marketplace skill `publish-to-nextclaw-marketplace` 的本地元数据校验通过。
+- `workers/marketplace-api` 的 secret list 已确认存在 `MARKETPLACE_ADMIN_TOKEN`。
+- 官方 skill `@nextclaw/publish-to-nextclaw-marketplace` 已成功 publish，返回 `Files: 2`。
+- 远端 item 校验通过：`GET /api/v1/skills/items/publish-to-nextclaw-marketplace` 与 `GET /api/v1/skills/items/%40nextclaw%2Fpublish-to-nextclaw-marketplace` 均返回 `200`，`publishStatus=published`、`publishedByType=admin`、`install.kind=marketplace`。
+- 安装冒烟通过：CLI 已在临时目录真实安装 `@nextclaw/publish-to-nextclaw-marketplace`，并确认装下来的 `SKILL.md` 中包含 `v0.17.6` 版本门槛说明。
 - maintainability guard 与 new-code governance 通过；仅保留仓库既有 warning，无新增 hard error。
 - 线上自动 smoke 结果：
   - `GET https://ai-gateway-api.nextclaw.io/health` 返回 `200`
@@ -48,7 +60,7 @@ PATH=/opt/homebrew/bin:$PATH node scripts/lint-new-code-governance.mjs
 未纳入本次通过结论：
 
 - `pnpm -C packages/nextclaw test -- --run marketplace.publish.test.ts` 曾误触发更大范围 vitest 套件，命中仓库内其他既有失败，不作为本次功能回归失败判定。
-- 本机没有可复用的有效平台登录 token，也没有本地可读取的 `MARKETPLACE_ADMIN_TOKEN`，因此未能自动完成“带有效身份的 profile 写入 smoke”和“admin review 正向 smoke”。
+- 本机仍没有可复用的有效平台登录 token，因此没有补做“基于平台账号登录态”的正向 profile 写接口 smoke；但本次已通过新增的 `MARKETPLACE_ADMIN_TOKEN` 完成官方 skill publish 正向闭环。
 
 ## 发布/部署方式
 
@@ -86,12 +98,11 @@ PATH=/opt/homebrew/bin:$PATH pnpm -C workers/marketplace-api run deploy
 
 - `audit_logs` 当前仅剩 `328` 行，库大小稳定在 `868,352` 字节量级。
 - `users` 表远端 schema 已包含 `username TEXT` 列。
-
-后续恢复发布的最小步骤：
-
-1. 用有效平台账号重新登录本机或提供 smoke 账号。
-2. 补做带有效身份的 `GET /platform/auth/me` 与 `PATCH /platform/auth/profile` 正向 smoke。
-3. 用有效平台 bearer token 或 admin token 补做 `POST /api/v1/skills/publish` 与 `POST /api/v1/admin/skills/review` 正向 smoke。
+- 2026-04-10 补充收尾：
+  - `workers/marketplace-api` 远端 secret 初始为空数组 `[]`，说明此前确实未配置 `MARKETPLACE_ADMIN_TOKEN`。
+  - 已新增远端 secret `MARKETPLACE_ADMIN_TOKEN`。
+  - 已通过 admin token 正式发布官方 skill `@nextclaw/publish-to-nextclaw-marketplace`。
+  - 发布后远端 item 校验和安装冒烟均已完成。
 
 ## 用户/产品视角的验收步骤
 
@@ -103,6 +114,7 @@ PATH=/opt/homebrew/bin:$PATH pnpm -C workers/marketplace-api run deploy
 4. 使用普通用户发布 skill，确认返回结果为成功入库且状态为 `pending`。
 5. 使用 admin 身份发布或审核 skill，确认 `@nextclaw/<skill-name>` 可直接发布，普通用户 skill 可从 `pending` 转为 `published`。
 6. 使用 CLI install scoped selector，确认 `@nextclaw/<skill-name>` 与 `@alice/<skill-name>` 都能按 canonical package name 安装。
+7. 在 marketplace 中搜索或直接安装 `@nextclaw/publish-to-nextclaw-marketplace`，确认 skill 文案里明确写出 `nextclaw >= v0.17.6` 才支持该发布流程。
 
 ## 可维护性总结汇总
 
