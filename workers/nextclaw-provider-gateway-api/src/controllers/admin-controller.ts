@@ -312,8 +312,8 @@ export async function adminUsersHandler(c: Context<{ Bindings: Env }>): Promise<
   const conditions: string[] = [];
   const binds: unknown[] = [];
   if (query) {
-    conditions.push("email LIKE ?");
-    binds.push(`%${query}%`);
+    conditions.push("(email LIKE ? OR username LIKE ?)");
+    binds.push(`%${query}%`, `%${query}%`);
   }
   if (cursor) {
     conditions.push("(created_at < ? OR (created_at = ? AND id < ?))");
@@ -321,7 +321,7 @@ export async function adminUsersHandler(c: Context<{ Bindings: Env }>): Promise<
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const sql = `SELECT id, email, password_hash, password_salt, role,
+  const sql = `SELECT id, email, username, password_hash, password_salt, role,
                       free_limit_usd, free_used_usd, paid_balance_usd,
                       created_at, updated_at
                  FROM users

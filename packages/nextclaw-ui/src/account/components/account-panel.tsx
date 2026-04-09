@@ -1,17 +1,19 @@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useRemoteStatus } from '@/hooks/useRemoteAccess';
 import { formatDateTime, t } from '@/lib/i18n';
 import { useAccountStore } from '@/account/stores/account.store';
 import { useAppPresenter } from '@/presenter/app-presenter-context';
 import { KeyRound, LogOut, SquareArrowOutUpRight } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-function AccountValueRow(props: { label: string; value?: string | null }) {
+function AccountValueRow({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2 text-sm">
-      <span className="text-gray-500">{props.label}</span>
-      <span className="text-right text-gray-900">{props.value?.trim() || '-'}</span>
+      <span className="text-gray-500">{label}</span>
+      <span className="text-right text-gray-900">{value?.trim() || '-'}</span>
     </div>
   );
 }
@@ -25,10 +27,14 @@ export function AccountPanel() {
   const authExpiresAt = useAccountStore((state) => state.authExpiresAt);
   const authStatusMessage = useAccountStore((state) => state.authStatusMessage);
   const status = remoteStatus.data;
+  const [usernameDraft, setUsernameDraft] = useState('');
+  const [savingUsername, setSavingUsername] = useState(false);
 
   useEffect(() => {
     presenter.accountManager.syncRemoteStatus(status);
   }, [presenter, status]);
+
+  const canSubmitUsername = !savingUsername && usernameDraft.trim().length > 0 && !status?.account.username;
 
   return (
     <Dialog open={panelOpen} onOpenChange={(open) => (open ? presenter.accountManager.openAccountPanel() : presenter.accountManager.closeAccountPanel())}>
@@ -49,8 +55,44 @@ export function AccountPanel() {
             </div>
             <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
               <AccountValueRow label={t('remoteAccountEmail')} value={status.account.email} />
+              <AccountValueRow label={t('remoteAccountUsername')} value={status.account.username} />
               <AccountValueRow label={t('remoteAccountRole')} value={status.account.role} />
             </div>
+            {status.account.username ? (
+              <p className="text-xs text-gray-500">{t('remoteAccountUsernameLockedHelp')}</p>
+            ) : (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                <p className="text-sm font-medium text-amber-900">{t('remoteAccountUsernameRequiredTitle')}</p>
+                <p className="mt-1 text-sm text-amber-800">{t('remoteAccountUsernameRequiredDescription')}</p>
+                <div className="mt-4 space-y-2">
+                  <Label htmlFor="account-panel-username">{t('remoteAccountUsername')}</Label>
+                  <Input
+                    id="account-panel-username"
+                    value={usernameDraft}
+                    onChange={(event) => setUsernameDraft(event.target.value)}
+                    placeholder={t('remoteAccountUsernamePlaceholder')}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button
+                    disabled={!canSubmitUsername}
+                    onClick={async () => {
+                      setSavingUsername(true);
+                      try {
+                        await presenter.accountManager.updateUsername(usernameDraft);
+                      } finally {
+                        setSavingUsername(false);
+                      }
+                    }}
+                  >
+                    {savingUsername ? t('remoteAccountUsernameSaving') : t('remoteAccountUsernameSave')}
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => void presenter.accountManager.openNextClawWeb()}>
                 <SquareArrowOutUpRight className="mr-2 h-4 w-4" />

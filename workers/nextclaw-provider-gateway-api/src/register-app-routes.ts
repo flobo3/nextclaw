@@ -32,7 +32,7 @@ import {
   confirmRechargeIntentHandler,
   rejectRechargeIntentHandler,
 } from "./controllers/admin-recharge-controller";
-import { loginHandler, meHandler } from "./controllers/auth-controller";
+import { loginHandler, meHandler, patchProfileHandler } from "./controllers/auth-controller";
 import {
   billingLedgerHandler,
   billingOverviewHandler,
@@ -71,6 +71,7 @@ function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
   app.post("/platform/auth/password/reset/send-code", sendPasswordResetCodeHandler);
   app.post("/platform/auth/password/reset/complete", completePasswordResetHandler);
   app.get("/platform/auth/me", meHandler);
+  app.patch("/platform/auth/profile", patchProfileHandler);
   app.post("/platform/auth/browser/start", startBrowserAuthHandler);
   app.post("/platform/auth/browser/poll", pollBrowserAuthHandler);
   app.get("/platform/auth/browser", browserAuthPageHandler);

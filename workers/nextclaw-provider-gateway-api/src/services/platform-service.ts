@@ -312,6 +312,7 @@ function buildEmptyBillingSnapshot(userId: string): BillingSnapshot {
     user: {
       id: userId,
       email: "",
+      username: null,
       password_hash: "",
       password_salt: "",
       role: "user",

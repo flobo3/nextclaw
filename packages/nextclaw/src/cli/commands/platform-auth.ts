@@ -1,6 +1,14 @@
 import { getConfigPath, loadConfig, saveConfig } from "@nextclaw/core";
 import { createInterface } from "node:readline";
 import { buildPlatformApiBaseErrorMessage, resolvePlatformApiBase } from "./remote-support/platform-api-base.js";
+import {
+  readBrowserAuthPollPayload,
+  readBrowserAuthStartPayload,
+  readLoginPayload,
+  readPlatformAuthResultPayload,
+  readPlatformErrorMessage,
+  readPlatformUserPayload
+} from "./platform-auth-support/payload.js";
 import type { LoginCommandOptions } from "../types.js";
 import { prompt } from "../utils.js";
 
@@ -17,6 +25,20 @@ export type PlatformLoginResult = {
   token: string;
   role: string;
   email: string;
+  platformBase: string;
+  v1Base: string;
+};
+
+export type PlatformUserView = {
+  id: string;
+  email: string;
+  username: string | null;
+  role: string;
+};
+
+export type PlatformMeResult = {
+  user: PlatformUserView;
+  token: string;
   platformBase: string;
   v1Base: string;
 };
@@ -119,33 +141,6 @@ async function resolveCredentials(opts: LoginCommandOptions): Promise<{ email: s
   return { email, password };
 }
 
-function readLoginPayload(raw: string): { token: string; role: string } {
-  let parsed: unknown = null;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    parsed = null;
-  }
-  const token =
-    typeof parsed === "object" &&
-    parsed &&
-    "data" in parsed &&
-    typeof (parsed as { data?: { token?: unknown } }).data?.token === "string"
-      ? (parsed as { data: { token: string } }).data.token
-      : "";
-  const role =
-    typeof parsed === "object" &&
-    parsed &&
-    "data" in parsed &&
-    typeof (parsed as { data?: { user?: { role?: unknown } } }).data?.user?.role === "string"
-      ? (parsed as { data: { user: { role: string } } }).data.user.role
-      : "user";
-  if (!token) {
-    throw new Error("Login succeeded but token is missing.");
-  }
-  return { token, role };
-}
-
 function persistPlatformToken(params: {
   configPath: string;
   config: ReturnType<typeof loadConfig>;
@@ -154,106 +149,36 @@ function persistPlatformToken(params: {
   v1Base: string;
   token: string;
 }): void {
-  params.nextclawProvider.apiBase = params.v1Base;
-  params.nextclawProvider.apiKey = params.token;
-  params.providers.nextclaw = params.nextclawProvider;
-  saveConfig(params.config, params.configPath);
-}
-
-function parseJsonText(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function readPlatformErrorMessage(raw: string, fallbackStatus: number): string {
-  const parsed = parseJsonText(raw);
-  return typeof parsed === "object" &&
-    parsed &&
-    "error" in parsed &&
-    typeof (parsed as { error?: { message?: unknown } }).error?.message === "string"
-    ? (parsed as { error: { message: string } }).error.message
-    : raw || `Request failed (${fallbackStatus})`;
-}
-
-function readBrowserAuthStartPayload(raw: string): {
-  sessionId: string;
-  verificationUri: string;
-  expiresAt: string;
-  intervalMs: number;
-} {
-  const parsed = parseJsonText(raw);
-  const data = typeof parsed === "object" && parsed && "data" in parsed
-    ? (parsed as { data?: Record<string, unknown> }).data
-    : null;
-  const sessionId = typeof data?.sessionId === "string" ? data.sessionId.trim() : "";
-  const verificationUri = typeof data?.verificationUri === "string" ? data.verificationUri.trim() : "";
-  const expiresAt = typeof data?.expiresAt === "string" ? data.expiresAt.trim() : "";
-  const intervalMs = typeof data?.intervalMs === "number" && Number.isFinite(data.intervalMs)
-    ? Math.max(1000, Math.trunc(data.intervalMs))
-    : 1500;
-  if (!sessionId || !verificationUri || !expiresAt) {
-    throw new Error("Browser authorization session payload is incomplete.");
-  }
-  return {
-    sessionId,
-    verificationUri,
-    expiresAt,
-    intervalMs
-  };
-}
-
-function readBrowserAuthPollPayload(raw: string): {
-  status: "pending" | "authorized" | "expired";
-  nextPollMs?: number;
-  token?: string;
-  role?: string;
-  email?: string;
-  message?: string;
-} {
-  const parsed = parseJsonText(raw);
-  const data = typeof parsed === "object" && parsed && "data" in parsed
-    ? (parsed as { data?: Record<string, unknown> }).data
-    : null;
-  const status = typeof data?.status === "string" ? data.status.trim() : "";
-  if (status === "pending") {
-    return {
-      status,
-      nextPollMs: typeof data?.nextPollMs === "number" && Number.isFinite(data.nextPollMs)
-        ? Math.max(1000, Math.trunc(data.nextPollMs))
-        : 1500
-    };
-  }
-  if (status === "expired") {
-    return {
-      status,
-      message: typeof data?.message === "string" && data.message.trim()
-        ? data.message.trim()
-        : "Authorization session expired."
-    };
-  }
-  if (status !== "authorized") {
-    throw new Error("Unexpected browser authorization status.");
-  }
-  const token = typeof data?.token === "string" ? data.token.trim() : "";
-  const user = typeof data?.user === "object" && data.user ? data.user as Record<string, unknown> : null;
-  const role = typeof user?.role === "string" ? user.role.trim() : "user";
-  const email = typeof user?.email === "string" ? user.email.trim() : "";
-  if (!token || !email) {
-    throw new Error("Authorized browser login payload is incomplete.");
-  }
-  return {
-    status,
-    token,
-    role,
-    email
-  };
+  const { configPath, config, providers, nextclawProvider, v1Base, token } = params;
+  nextclawProvider.apiBase = v1Base;
+  nextclawProvider.apiKey = token;
+  providers.nextclaw = nextclawProvider;
+  saveConfig(config, configPath);
 }
 
 export class PlatformAuthCommands {
-  async loginResult(opts: LoginCommandOptions = {}): Promise<PlatformLoginResult> {
+  private readStoredToken = (params: { apiBase?: string } = {}): {
+    configPath: string;
+    config: ReturnType<typeof loadConfig>;
+    providers: Record<string, NextclawProviderConfig>;
+    nextclawProvider: NextclawProviderConfig;
+    platformBase: string;
+    v1Base: string;
+    inputApiBase: string;
+    token: string;
+  } => {
+    const resolved = resolveProviderConfig({ apiBase: params.apiBase });
+    const token = resolved.nextclawProvider.apiKey?.trim() ?? "";
+    if (!token) {
+      throw new Error("Not logged in. Run `nextclaw login` first.");
+    }
+    return {
+      ...resolved,
+      token
+    };
+  };
+
+  loginResult = async (opts: LoginCommandOptions = {}): Promise<PlatformLoginResult> => {
     const { configPath, config, providers, nextclawProvider, platformBase, v1Base, inputApiBase } = resolveProviderConfig(opts);
     const { email, password } = await resolveCredentials(opts);
     const response = await fetch(`${platformBase}/platform/auth/login`, {
@@ -286,9 +211,9 @@ export class PlatformAuthCommands {
       platformBase,
       v1Base
     };
-  }
+  };
 
-  async startBrowserAuth(opts: Pick<LoginCommandOptions, "apiBase"> = {}): Promise<PlatformBrowserAuthStartResult> {
+  startBrowserAuth = async (opts: Pick<LoginCommandOptions, "apiBase"> = {}): Promise<PlatformBrowserAuthStartResult> => {
     const { platformBase, v1Base, inputApiBase } = resolveProviderConfig(opts);
     const response = await fetch(`${platformBase}/platform/auth/browser/start`, {
       method: "POST",
@@ -307,12 +232,12 @@ export class PlatformAuthCommands {
       platformBase,
       v1Base
     };
-  }
+  };
 
-  async pollBrowserAuth(params: {
+  pollBrowserAuth = async (params: {
     apiBase?: string;
     sessionId: string;
-  }): Promise<PlatformBrowserAuthPollResult> {
+  }): Promise<PlatformBrowserAuthPollResult> => {
     const { configPath, config, providers, nextclawProvider, platformBase, v1Base, inputApiBase } = resolveProviderConfig({
       apiBase: params.apiBase
     });
@@ -359,22 +284,83 @@ export class PlatformAuthCommands {
       platformBase,
       v1Base
     };
-  }
+  };
 
-  async login(opts: LoginCommandOptions = {}): Promise<void> {
+  login = async (opts: LoginCommandOptions = {}): Promise<void> => {
     const result = await this.loginResult(opts);
 
     console.log(`✓ Logged in to NextClaw platform (${result.platformBase})`);
     console.log(`✓ Account: ${result.email} (${result.role})`);
     console.log(`✓ Token saved into providers.nextclaw.apiKey`);
-  }
+  };
 
-  logout(): { cleared: boolean } {
+  me = async (params: { apiBase?: string } = {}): Promise<PlatformMeResult> => {
+    const { platformBase, v1Base, inputApiBase, token } = this.readStoredToken(params);
+    const response = await fetch(`${platformBase}/platform/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    const raw = await response.text();
+    if (!response.ok) {
+      throw new Error(buildPlatformApiBaseErrorMessage(inputApiBase, readPlatformErrorMessage(raw, response.status)));
+    }
+    return {
+      user: readPlatformUserPayload(raw),
+      token,
+      platformBase,
+      v1Base
+    };
+  };
+
+  updateProfile = async (params: { username: string; apiBase?: string }): Promise<PlatformMeResult> => {
+    const {
+      configPath,
+      config,
+      providers,
+      nextclawProvider,
+      platformBase,
+      v1Base,
+      inputApiBase,
+      token
+    } = this.readStoredToken(params);
+    const response = await fetch(`${platformBase}/platform/auth/profile`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: params.username
+      })
+    });
+    const raw = await response.text();
+    if (!response.ok) {
+      throw new Error(buildPlatformApiBaseErrorMessage(inputApiBase, readPlatformErrorMessage(raw, response.status)));
+    }
+    const result = readPlatformAuthResultPayload(raw);
+    persistPlatformToken({
+      configPath,
+      config,
+      providers,
+      nextclawProvider,
+      v1Base,
+      token: result.token
+    });
+    return {
+      user: result.user,
+      token: result.token,
+      platformBase,
+      v1Base
+    };
+  };
+
+  logout = (): { cleared: boolean } => {
     const { configPath, config, providers, nextclawProvider } = resolveProviderConfig({});
     const cleared = Boolean(nextclawProvider.apiKey?.trim());
     nextclawProvider.apiKey = "";
     providers.nextclaw = nextclawProvider;
     saveConfig(config, configPath);
     return { cleared };
-  }
+  };
 }

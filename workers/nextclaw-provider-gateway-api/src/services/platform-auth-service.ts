@@ -5,6 +5,7 @@ import {
   ensureUserSecurityRow,
   getUserByEmail,
   getUserById,
+  getUserByUsername,
   registerUserLoginFailure,
   resetUserLoginSecurity,
   toUserPublicView
@@ -27,6 +28,7 @@ import {
   parseIsoDate,
   verifyPassword
 } from "../utils/platform-utils";
+import { normalizePlatformUsername, validatePlatformUsername } from "../utils/platform-username";
 
 export class PlatformAuthServiceError extends Error {
   constructor(
@@ -237,6 +239,71 @@ export async function updatePlatformUserPassword(params: {
   if (!user) {
     throw new PlatformAuthServiceError(500, "PASSWORD_UPDATE_FAILED", "Password updated but user cannot be loaded.");
   }
+  return user;
+}
+
+export async function updatePlatformUserProfile(params: {
+  env: Env;
+  userId: string;
+  username: string;
+}): Promise<UserRow> {
+  const { env, userId } = params;
+  const username = normalizePlatformUsername(params.username);
+  const validationError = validatePlatformUsername(username);
+  if (validationError) {
+    throw new PlatformAuthServiceError(400, "INVALID_USERNAME", validationError);
+  }
+
+  const existing = await getUserById(env.NEXTCLAW_PLATFORM_DB, userId);
+  if (!existing) {
+    throw new PlatformAuthServiceError(404, "USER_NOT_FOUND", "User not found.");
+  }
+
+  if (existing.username && existing.username !== username) {
+    throw new PlatformAuthServiceError(
+      409,
+      "USERNAME_ALREADY_SET",
+      "Username has already been set and cannot be changed in this version.",
+    );
+  }
+
+  const owner = await getUserByUsername(env.NEXTCLAW_PLATFORM_DB, username);
+  if (owner && owner.id !== userId) {
+    throw new PlatformAuthServiceError(409, "USERNAME_TAKEN", "This username is already taken.");
+  }
+
+  if (existing.username === username) {
+    return existing;
+  }
+
+  const now = new Date().toISOString();
+  const updated = await env.NEXTCLAW_PLATFORM_DB.prepare(
+    `UPDATE users
+        SET username = ?,
+            updated_at = ?
+      WHERE id = ?`
+  )
+    .bind(username, now, existing.id)
+    .run();
+  if (!updated.success || (updated.meta.changes ?? 0) !== 1) {
+    throw new PlatformAuthServiceError(500, "PROFILE_UPDATE_FAILED", "Failed to update profile.");
+  }
+
+  const user = await getUserById(env.NEXTCLAW_PLATFORM_DB, existing.id);
+  if (!user) {
+    throw new PlatformAuthServiceError(500, "PROFILE_UPDATE_FAILED", "Profile updated but user cannot be loaded.");
+  }
+
+  await appendAuditLog(env.NEXTCLAW_PLATFORM_DB, {
+    actorUserId: user.id,
+    action: "auth.profile.username.set",
+    targetType: "user",
+    targetId: user.id,
+    beforeJson: JSON.stringify(toUserPublicView(existing)),
+    afterJson: JSON.stringify(toUserPublicView(user)),
+    metadataJson: JSON.stringify({ username }),
+  });
+
   return user;
 }
 

@@ -36,7 +36,7 @@ export abstract class InMemorySectionRepositoryBase {
 
   protected abstract getResultType(): "plugin" | "skill" | "mcp";
 
-  async listItems(query: MarketplaceListQuery): Promise<MarketplaceListResult> {
+  listItems = async (query: MarketplaceListQuery): Promise<MarketplaceListResult> => {
     const section = await this.loadSection();
     const filtered = this.filterItems(section.items, query);
     const sorted = this.sortItems(filtered, query.sort, query.q);
@@ -55,19 +55,19 @@ export abstract class InMemorySectionRepositoryBase {
       query: query.q,
       items: pageItems
     };
-  }
+  };
 
-  async getItemBySlug(slug: string): Promise<MarketplaceItem | null> {
+  getItemBySlug = async (slug: string): Promise<MarketplaceItem | null> => {
     const section = await this.loadSection();
-    const item = section.items.find((entry) => entry.slug === slug);
+    const item = section.items.find((entry) => entry.slug === slug || (entry.type === "skill" && entry.packageName === slug));
 
     return item ?? null;
-  }
+  };
 
-  async listRecommendations(
+  listRecommendations = async (
     sceneId: string | undefined,
     limit: number
-  ): Promise<MarketplaceRecommendationResult> {
+  ): Promise<MarketplaceRecommendationResult> => {
     const section = await this.loadSection();
     const selectedScene = this.selectScene(section, sceneId);
     const selectedItems = selectedScene.itemIds
@@ -84,13 +84,13 @@ export abstract class InMemorySectionRepositoryBase {
       total: selectedItems.length,
       items: selectedItems
     };
-  }
+  };
 
-  invalidateCache(): void {
+  invalidateCache = (): void => {
     this.cache = undefined;
-  }
+  };
 
-  private async loadSection(): Promise<MarketplaceCatalogSection> {
+  private loadSection = async (): Promise<MarketplaceCatalogSection> => {
     const now = Date.now();
     if (this.cache && this.cache.expiresAt > now) {
       return this.cache.section;
@@ -102,9 +102,9 @@ export abstract class InMemorySectionRepositoryBase {
       expiresAt: now + this.cacheTtlMs
     };
     return section;
-  }
+  };
 
-  private filterItems(items: MarketplaceItem[], query: MarketplaceListQuery): ScoreEntry[] {
+  private filterItems = (items: MarketplaceItem[], query: MarketplaceListQuery): ScoreEntry[] => {
     return items
       .filter((item) => this.matchesTag(item, query.tag))
       .map((item) => ({
@@ -112,24 +112,24 @@ export abstract class InMemorySectionRepositoryBase {
         score: this.computeScore(item, query.q)
       }))
       .filter((entry) => this.matchesQuery(entry.score, query.q));
-  }
+  };
 
-  private matchesTag(item: MarketplaceItem, tag: string | undefined): boolean {
+  private matchesTag = (item: MarketplaceItem, tag: string | undefined): boolean => {
     if (!tag) {
       return true;
     }
     const normalizedTag = tag.toLowerCase();
     return item.tags.some((entry) => entry.toLowerCase() === normalizedTag);
-  }
+  };
 
-  private matchesQuery(score: number, q: string | undefined): boolean {
+  private matchesQuery = (score: number, q: string | undefined): boolean => {
     if (!q) {
       return true;
     }
     return score > 0;
-  }
+  };
 
-  private computeScore(item: MarketplaceItem, q: string | undefined): number {
+  private computeScore = (item: MarketplaceItem, q: string | undefined): number => {
     if (!q) {
       return 0;
     }
@@ -143,37 +143,31 @@ export abstract class InMemorySectionRepositoryBase {
     const name = item.name.toLowerCase();
     const slug = item.slug.toLowerCase();
     const summary = item.summary.toLowerCase();
+    const packageName = item.type === "skill" ? item.packageName.toLowerCase() : "";
     const summaryLocalized = Object.values(item.summaryI18n).map((text) => text.toLowerCase());
     const description = item.description?.toLowerCase() ?? "";
     const descriptionLocalized = Object.values(item.descriptionI18n ?? {}).map((text) => text.toLowerCase());
     const tags = item.tags.map((tag) => tag.toLowerCase());
-
-    if (name.includes(normalized)) {
-      score += 8;
-    }
-    if (slug.includes(normalized)) {
-      score += 5;
-    }
-    if (summary.includes(normalized)) {
-      score += 3;
-    }
-    if (summaryLocalized.some((text) => text.includes(normalized))) {
-      score += 3;
-    }
-    if (description.includes(normalized)) {
-      score += 2;
-    }
-    if (descriptionLocalized.some((text) => text.includes(normalized))) {
-      score += 2;
-    }
-    if (tags.some((tag) => tag.includes(normalized))) {
-      score += 4;
-    }
-
+    score += this.scoreStringMatch(name, normalized, 8);
+    score += this.scoreStringMatch(slug, normalized, 5);
+    score += this.scoreStringMatch(packageName, normalized, 5);
+    score += this.scoreStringMatch(summary, normalized, 3);
+    score += this.scoreArrayMatch(summaryLocalized, normalized, 3);
+    score += this.scoreStringMatch(description, normalized, 2);
+    score += this.scoreArrayMatch(descriptionLocalized, normalized, 2);
+    score += this.scoreArrayMatch(tags, normalized, 4);
     return score;
-  }
+  };
 
-  private sortItems(entries: ScoreEntry[], sort: MarketplaceSort, q: string | undefined): ScoreEntry[] {
+  private scoreStringMatch = (value: string, query: string, score: number): number => {
+    return value.includes(query) ? score : 0;
+  };
+
+  private scoreArrayMatch = (values: string[], query: string, score: number): number => {
+    return values.some((value) => value.includes(query)) ? score : 0;
+  };
+
+  private sortItems = (entries: ScoreEntry[], sort: MarketplaceSort, q: string | undefined): ScoreEntry[] => {
     const next = [...entries];
 
     if (sort === "updated") {
@@ -194,9 +188,9 @@ export abstract class InMemorySectionRepositoryBase {
     });
 
     return next;
-  }
+  };
 
-  private compareUpdatedAt(left: MarketplaceItem, right: MarketplaceItem): number {
+  private compareUpdatedAt = (left: MarketplaceItem, right: MarketplaceItem): number => {
     const leftTs = Date.parse(left.updatedAt);
     const rightTs = Date.parse(right.updatedAt);
 
@@ -205,9 +199,9 @@ export abstract class InMemorySectionRepositoryBase {
     }
 
     return rightTs - leftTs;
-  }
+  };
 
-  private selectScene(section: MarketplaceCatalogSection, sceneId?: string) {
+  private selectScene = (section: MarketplaceCatalogSection, sceneId?: string) => {
     if (!sceneId) {
       return section.recommendations[0] ?? {
         id: "default",
@@ -227,9 +221,9 @@ export abstract class InMemorySectionRepositoryBase {
       title: sceneId,
       itemIds: []
     };
-  }
+  };
 
-  private toSummary(item: MarketplaceItem): MarketplaceItemSummary {
+  private toSummary = (item: MarketplaceItem): MarketplaceItemSummary => {
     const base = {
       id: item.id,
       slug: item.slug,
@@ -265,7 +259,12 @@ export abstract class InMemorySectionRepositoryBase {
     return {
       ...base,
       type: "skill",
+      packageName: item.packageName,
+      ownerScope: item.ownerScope,
+      skillName: item.skillName,
+      publishStatus: item.publishStatus,
+      publishedByType: item.publishedByType,
       install: item.install
     };
-  }
+  };
 }

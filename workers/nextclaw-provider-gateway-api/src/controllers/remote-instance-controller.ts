@@ -44,6 +44,22 @@ function shouldIncludeArchivedInstances(c: Context<{ Bindings: Env }>): boolean 
   return raw === "1" || raw === "true" || raw === "yes";
 }
 
+function shouldAuditRemoteInstanceRegistration(params: {
+  existing: Awaited<ReturnType<typeof getRemoteInstanceByInstallId>>;
+  next: NonNullable<Awaited<ReturnType<typeof getRemoteInstanceById>>>;
+}): boolean {
+  const { existing, next } = params;
+  if (!existing) {
+    return true;
+  }
+  return existing.user_id !== next.user_id
+    || existing.display_name !== next.display_name
+    || existing.platform !== next.platform
+    || existing.app_version !== next.app_version
+    || existing.local_origin !== next.local_origin
+    || existing.archived_at !== next.archived_at;
+}
+
 async function requireOwnedRemoteInstance(
   c: Context<{ Bindings: Env }>,
   userId: string,
@@ -106,15 +122,17 @@ export async function registerRemoteInstanceHandler(c: Context<{ Bindings: Env }
     return apiError(c, 500, "REMOTE_INSTANCE_FAILED", "Failed to persist remote instance.");
   }
 
-  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
-    actorUserId: auth.user.id,
-    action: existing ? "remote.instance.updated" : "remote.instance.created",
-    targetType: "remote_instance",
-    targetId: instance.id,
-    beforeJson: existing ? JSON.stringify(toRemoteInstanceView(existing)) : null,
-    afterJson: JSON.stringify(toRemoteInstanceView(instance)),
-    metadataJson: null
-  });
+  if (shouldAuditRemoteInstanceRegistration({ existing, next: instance })) {
+    await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
+      actorUserId: auth.user.id,
+      action: existing ? "remote.instance.updated" : "remote.instance.created",
+      targetType: "remote_instance",
+      targetId: instance.id,
+      beforeJson: existing ? JSON.stringify(toRemoteInstanceView(existing)) : null,
+      afterJson: JSON.stringify(toRemoteInstanceView(instance)),
+      metadataJson: null
+    });
+  }
 
   return c.json({
     ok: true,

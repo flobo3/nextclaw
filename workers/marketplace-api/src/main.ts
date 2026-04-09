@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { GetMcpItemUseCase } from "./application/mcp/get-mcp-item.usecase";
 import { ListMcpItemsUseCase } from "./application/mcp/list-mcp-items.usecase";
 import { ListMcpRecommendationsUseCase } from "./application/mcp/list-mcp-recommendations.usecase";
@@ -9,12 +9,18 @@ import { GetSkillItemUseCase } from "./application/skills/get-skill-item.usecase
 import { ListSkillItemsUseCase } from "./application/skills/list-skill-items.usecase";
 import { ListSkillRecommendationsUseCase } from "./application/skills/list-skill-recommendations.usecase";
 import { DomainValidationError, ResourceNotFoundError } from "./domain/errors";
-import type { MarketplaceItem, MarketplaceMcpItem } from "./domain/model";
-import { D1MarketplacePluginDataSource, D1MarketplaceSkillDataSource } from "./infrastructure/d1-data-source";
+import type { MarketplaceItem } from "./domain/model";
+import {
+  D1MarketplacePluginDataSource,
+  D1MarketplaceSkillDataSource,
+} from "./infrastructure/d1-data-source";
 import { D1MarketplaceMcpDataSource } from "./infrastructure/d1-mcp-data-source";
 import { InMemoryMcpRepository } from "./infrastructure/in-memory-mcp-repository";
 import { InMemoryPluginRepository } from "./infrastructure/in-memory-plugin-repository";
 import { InMemorySkillRepository } from "./infrastructure/in-memory-skill-repository";
+import { ensureMcpItem, ensureSkillItem } from "./presentation/http/marketplace-assertions";
+import { decodeUtf8, splitMarkdownFrontmatter } from "./presentation/http/marketplace-content";
+import { MarketplaceAuthError, requireAdminToken, resolvePublishActor } from "./presentation/http/marketplace-auth";
 import { MarketplaceQueryParser } from "./presentation/http/query-parser";
 import { ApiResponseFactory } from "./presentation/http/response";
 
@@ -24,13 +30,12 @@ type MarketplaceBindings = {
   MARKETPLACE_SKILLS_FILES: R2Bucket;
   MARKETPLACE_CACHE_TTL_SECONDS?: string;
   MARKETPLACE_ADMIN_TOKEN?: string;
+  NEXTCLAW_PLATFORM_API_BASE?: string;
 };
 
 type MarketplaceEnv = {
   Bindings: MarketplaceBindings;
 };
-
-class MarketplaceAuthError extends Error {}
 
 class MarketplaceRuntime {
   readonly responses = new ApiResponseFactory();
@@ -129,47 +134,6 @@ function getRuntime(bindings: MarketplaceBindings): MarketplaceRuntime {
   return created;
 }
 
-function requireAdminToken(c: Context<MarketplaceEnv>): void {
-  const expected = c.env.MARKETPLACE_ADMIN_TOKEN?.trim();
-  if (!expected) {
-    return;
-  }
-  const auth = c.req.header("authorization")?.trim();
-  if (auth === `Bearer ${expected}`) {
-    return;
-  }
-  throw new MarketplaceAuthError("missing or invalid admin token");
-}
-
-function splitMarkdownFrontmatter(raw: string): { metadataRaw?: string; bodyRaw: string } {
-  const normalized = raw.replace(/\r\n/g, "\n");
-  const match = normalized.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) {
-    return { bodyRaw: normalized };
-  }
-
-  return {
-    metadataRaw: match[1]?.trim() || undefined,
-    bodyRaw: match[2] ?? ""
-  };
-}
-
-function decodeUtf8(bytes: Uint8Array): string {
-  return new TextDecoder().decode(bytes);
-}
-
-function ensureSkillItem(item: MarketplaceItem): void {
-  if (item.type !== "skill") {
-    throw new ResourceNotFoundError(`skill item not found: ${item.slug}`);
-  }
-}
-
-function ensureMcpItem(item: MarketplaceItem): asserts item is MarketplaceMcpItem {
-  if (item.type !== "mcp") {
-    throw new ResourceNotFoundError(`mcp item not found: ${item.slug}`);
-  }
-}
-
 const app = new Hono<MarketplaceEnv>();
 
 app.notFound((c) => responses.error(c, "NOT_FOUND", "endpoint not found", 404));
@@ -195,9 +159,10 @@ app.use("/api/v1/*", async (c, next) => {
   const path = c.req.path;
   const isRead = method === "GET" || method === "HEAD";
   const isAdminWrite = method === "POST" && path.startsWith("/api/v1/admin/");
+  const isSkillPublish = method === "POST" && path === "/api/v1/skills/publish";
 
-  if (!isRead && !isAdminWrite) {
-    return responses.error(c, "READ_ONLY_API", "marketplace api is read-only except /api/v1/admin/*", 405);
+  if (!isRead && !isAdminWrite && !isSkillPublish) {
+    return responses.error(c, "READ_ONLY_API", "marketplace api is read-only except publish/admin routes", 405);
   }
 
   await next();
@@ -259,6 +224,7 @@ app.get("/api/v1/skills/items/:slug/files", async (c) => {
   return runtime.responses.ok(c, {
     type: "skill",
     slug: payload.item.slug,
+    packageName: payload.item.packageName,
     install: payload.item.install,
     updatedAt: payload.item.updatedAt,
     totalFiles: payload.files.length,
@@ -309,6 +275,7 @@ app.get("/api/v1/skills/items/:slug/content", async (c) => {
   return runtime.responses.ok(c, {
     type: "skill",
     slug: payload.item.slug,
+    packageName: payload.item.packageName,
     name: payload.item.name,
     install: payload.item.install,
     source: payload.item.install.kind,
@@ -375,12 +342,53 @@ app.post("/api/v1/admin/skills/upsert", async (c) => {
   }
 
   const runtime = getRuntime(c.env);
-  const result = await runtime.skillDataSource.upsertSkill(body);
+  const result = await runtime.skillDataSource.upsertSkill(body, {
+    authType: "admin_token",
+    role: "admin",
+    userId: null,
+    username: "nextclaw"
+  });
   runtime.invalidateCache();
   return runtime.responses.ok(c, {
     created: result.created,
     item: result.item,
     fileCount: result.fileCount
+  });
+});
+
+app.post("/api/v1/skills/publish", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return responses.error(c, "INVALID_BODY", "invalid json body", 400);
+  }
+
+  const runtime = getRuntime(c.env);
+  const actor = await resolvePublishActor(c);
+  const result = await runtime.skillDataSource.upsertSkill(body, actor);
+  runtime.invalidateCache();
+  return runtime.responses.ok(c, {
+    created: result.created,
+    item: result.item,
+    fileCount: result.fileCount
+  });
+});
+
+app.post("/api/v1/admin/skills/review", async (c) => {
+  requireAdminToken(c);
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return responses.error(c, "INVALID_BODY", "invalid json body", 400);
+  }
+
+  const runtime = getRuntime(c.env);
+  const item = await runtime.skillDataSource.reviewSkill(body);
+  runtime.invalidateCache();
+  return runtime.responses.ok(c, {
+    item
   });
 });
 

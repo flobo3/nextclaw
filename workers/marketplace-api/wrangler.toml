@@ -1,12 +1,17 @@
 name = "nextclaw-marketplace-api"
 main = "src/main.ts"
 compatibility_date = "2026-02-23"
+workers_dev = false
+routes = [
+  { pattern = "marketplace-api.nextclaw.io", custom_domain = true }
+]
 
 [observability]
 enabled = true
 
 [vars]
 MARKETPLACE_CACHE_TTL_SECONDS = "120"
+NEXTCLAW_PLATFORM_API_BASE = "https://ai-gateway-api.nextclaw.io"
 
 [[d1_databases]]
 binding = "MARKETPLACE_SKILLS_DB"

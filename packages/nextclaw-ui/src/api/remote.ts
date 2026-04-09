@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   RemoteAccessView,
+  RemoteAccountProfileUpdateRequest,
   RemoteBrowserAuthPollRequest,
   RemoteBrowserAuthPollResult,
   RemoteBrowserAuthStartRequest,
@@ -54,6 +55,14 @@ export async function pollRemoteBrowserAuth(data: RemoteBrowserAuthPollRequest):
 
 export async function logoutRemote(): Promise<RemoteAccessView> {
   const response = await api.post<RemoteAccessView>('/api/remote/logout', {});
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+export async function updateRemoteAccountProfile(data: RemoteAccountProfileUpdateRequest): Promise<RemoteAccessView> {
+  const response = await api.put<RemoteAccessView>('/api/remote/account/profile', data);
   if (!response.ok) {
     throw new Error(response.error.message);
   }

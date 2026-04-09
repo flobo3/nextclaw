@@ -70,6 +70,11 @@ export type MarketplacePluginItem = MarketplaceItemBase & {
 
 export type MarketplaceSkillItem = MarketplaceItemBase & {
   type: "skill";
+  packageName: string;
+  ownerScope: string;
+  skillName: string;
+  publishStatus: "pending" | "published" | "rejected";
+  publishedByType: "admin" | "user";
   install: MarketplaceSkillInstallSpec;
 };
 
@@ -128,6 +133,11 @@ export type MarketplacePluginItemSummary = MarketplaceItemSummaryBase & {
 
 export type MarketplaceSkillItemSummary = MarketplaceItemSummaryBase & {
   type: "skill";
+  packageName: string;
+  ownerScope: string;
+  skillName: string;
+  publishStatus: "pending" | "published" | "rejected";
+  publishedByType: "admin" | "user";
   install: MarketplaceSkillInstallSpec;
 };
 

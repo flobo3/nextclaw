@@ -73,9 +73,12 @@ author: NextClaw
     await publishMarketplaceSkill({
       skillDir,
       slug: "humanizer",
-      apiBaseUrl: "https://marketplace-api.nextclaw.io"
+      packageName: "@nextclaw/humanizer",
+      apiBaseUrl: "https://marketplace-api.nextclaw.io",
+      token: "admin-token"
     });
 
+    expect(capturedBody?.packageName).toBe("@nextclaw/humanizer");
     expect(capturedBody?.name).toBe("Humanizer");
     expect(capturedBody?.summary).toBe("Marketplace English summary");
     expect(capturedBody?.summaryI18n).toEqual({
@@ -87,7 +90,6 @@ author: NextClaw
       en: "Marketplace English description",
       zh: "中文描述"
     });
-    expect(capturedBody?.author).toBe("Marketplace Team");
     expect(capturedBody?.tags).toEqual(["writing", "editing"]);
   });
 
@@ -131,9 +133,12 @@ tags:
     await publishMarketplaceSkill({
       skillDir,
       slug: "humanizer",
-      apiBaseUrl: "https://marketplace-api.nextclaw.io"
+      packageName: "@nextclaw/humanizer",
+      apiBaseUrl: "https://marketplace-api.nextclaw.io",
+      token: "admin-token"
     });
 
+    expect(capturedBody?.packageName).toBe("@nextclaw/humanizer");
     expect(capturedBody?.summary).toBe("English summary");
     expect(capturedBody?.summaryI18n).toEqual({
       en: "English summary",

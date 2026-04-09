@@ -22,7 +22,7 @@ import {
   confirmRechargeIntentHandler,
   rejectRechargeIntentHandler
 } from "./controllers/admin-recharge-controller";
-import { loginHandler, meHandler, registerHandler } from "./controllers/auth-controller";
+import { loginHandler, meHandler, patchProfileHandler, registerHandler } from "./controllers/auth-controller";
 import {
   billingLedgerHandler,
   billingOverviewHandler,
@@ -56,6 +56,7 @@ function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
   app.post("/platform/auth/register", registerHandler);
   app.post("/platform/auth/login", loginHandler);
   app.get("/platform/auth/me", meHandler);
+  app.patch("/platform/auth/profile", patchProfileHandler);
   app.post("/platform/auth/browser/start", startBrowserAuthHandler);
   app.post("/platform/auth/browser/poll", pollBrowserAuthHandler);
   app.get("/platform/auth/browser", browserAuthPageHandler);
