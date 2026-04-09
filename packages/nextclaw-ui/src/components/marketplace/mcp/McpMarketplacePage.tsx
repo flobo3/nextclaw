@@ -287,7 +287,10 @@ export function McpMarketplacePage() {
   });
 
   useEffect(() => {
-    infiniteScroll.containerRef.current?.scrollTo({ top: 0 });
+    const container = infiniteScroll.containerRef.current;
+    if (container && typeof container.scrollTo === 'function') {
+      container.scrollTo({ top: 0 });
+    }
   }, [infiniteScroll.containerRef, query, scope, sort]);
 
   const installMutation = useInstallMcpMarketplaceItem();
