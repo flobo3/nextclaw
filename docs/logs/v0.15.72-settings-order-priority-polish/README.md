@@ -6,6 +6,7 @@
 - 调整消息渠道列表排序：将 `weixin`、`feishu`、`discord`、`qq` 固定提升到列表前四位，其余渠道保持原有相对顺序不变。
 - 调整提供商列表排序：将内置 `nextclaw` provider 固定放到列表最后，其余 provider 保持原有相对顺序不变。
 - 补充回归测试，锁定设置导航顺序、渠道优先级顺序，以及 `nextclaw builtin` 末位排序行为。
+- 基于干净 worktree 重新构建并刷新 `packages/nextclaw/ui-dist`，确保提交的前端产物只对应本次已提交源码状态，不混入工作区其它未提交改动。
 
 ## 测试/验证/验收方式
 
@@ -15,6 +16,10 @@
   - `PATH=/opt/homebrew/bin:$PATH pnpm --filter @nextclaw/ui tsc`
 - 前端构建验证：
   - `PATH=/opt/homebrew/bin:$PATH pnpm --filter @nextclaw/ui build`
+- 打包产物刷新验证：
+  - 在指向提交 `d3641ad8` 的临时 worktree 中执行 `PATH=/opt/homebrew/bin:$PATH pnpm --filter @nextclaw/ui build`
+  - 随后执行 `PATH=/opt/homebrew/bin:$PATH node packages/nextclaw/scripts/copy-ui-dist.mjs`
+  - 最后将生成的 `packages/nextclaw/ui-dist` 回拷到主工作区并单独提交
 - 可维护性守卫：
   - `PATH=/opt/homebrew/bin:$PATH node .agents/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs --paths packages/nextclaw-ui/src/components/layout/Sidebar.tsx packages/nextclaw-ui/src/components/layout/sidebar.layout.test.tsx packages/nextclaw-ui/src/components/config/ChannelsList.tsx packages/nextclaw-ui/src/components/config/ChannelsList.test.tsx packages/nextclaw-ui/src/components/config/ProvidersList.tsx packages/nextclaw-ui/src/components/config/providers-list.test.tsx`
 - 守卫结果：
@@ -24,7 +29,7 @@
 
 ## 发布/部署方式
 
-- 本次未直接执行发布或部署，属于前端源代码与测试收敛。
+- 本次未直接执行发布或部署，但已同步刷新 `packages/nextclaw/ui-dist` 打包产物。
 - 如需把改动带入 UI 产物，先执行：
   - `PATH=/opt/homebrew/bin:$PATH pnpm --filter @nextclaw/ui build`
 - 如需把改动继续带入打包后的 `nextclaw` 分发物，再走既有 `nextclaw` 构建/发布链路，重建 bundled UI 资源后再发布。
