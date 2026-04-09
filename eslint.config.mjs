@@ -307,12 +307,16 @@ export default [
   },
   {
     files: uiComponentFiles,
+    plugins: {
+      sonarjs
+    },
     rules: {
       "max-lines-per-function": [
         "warn",
         { max: 300, skipBlankLines: true, skipComments: true, IIFEs: true }
       ],
-      "max-statements": ["warn", 60]
+      "max-statements": ["warn", 60],
+      "sonarjs/cognitive-complexity": ["warn", 18]
     }
   },
   {
