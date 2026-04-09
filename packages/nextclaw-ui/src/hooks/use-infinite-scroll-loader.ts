@@ -4,7 +4,7 @@ const DEFAULT_THRESHOLD_PX = 160;
 
 type UseInfiniteScrollLoaderParams = {
   disabled: boolean;
-  onLoadMore: () => Promise<void> | void;
+  onLoadMore: () => Promise<unknown> | unknown;
   thresholdPx?: number;
   watchValue?: string | number;
 };

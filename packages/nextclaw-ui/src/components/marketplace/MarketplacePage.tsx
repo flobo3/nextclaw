@@ -479,7 +479,10 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
   });
 
   useEffect(() => {
-    infiniteScroll.containerRef.current?.scrollTo({ top: 0 });
+    const container = infiniteScroll.containerRef.current;
+    if (container && typeof container.scrollTo === 'function') {
+      container.scrollTo({ top: 0 });
+    }
   }, [infiniteScroll.containerRef, query, scope, sort, typeFilter]);
 
   const installMutation = useInstallMarketplaceItem();
@@ -730,9 +733,7 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
       <Tabs
         tabs={scopeTabs}
         activeTab={scope}
-        onChange={(value) => {
-          setScope(value as ScopeType);
-        }}
+        onChange={(value) => setScope(value as ScopeType)}
         className="mb-4"
       />
 
@@ -742,9 +743,7 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
         searchPlaceholder={t(copyKeys.searchPlaceholder)}
         sort={sort}
         onSearchTextChange={setSearchText}
-        onSortChange={(value) => {
-          setSort(value);
-        }}
+        onSortChange={setSort}
       />
 
       <section className="flex min-h-0 flex-1 flex-col">
