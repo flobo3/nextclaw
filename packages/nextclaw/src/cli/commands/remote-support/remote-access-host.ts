@@ -64,7 +64,7 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
     }
   ) {}
 
-  getStatus(): RemoteAccessView {
+  getStatus = (): RemoteAccessView => {
     const config = loadConfig(getConfigPath());
     const status = this.deps.remoteCommands.getStatusView();
     const account = this.readAccountView({
@@ -85,18 +85,18 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
       platformBase: status.platformBase,
       runtime: toRemoteRuntimeView(status.runtime)
     };
-  }
+  };
 
-  async login(input: {
+  login = async (input: {
     email: string;
     password: string;
     apiBase?: string;
-  }): Promise<RemoteAccessView> {
+  }): Promise<RemoteAccessView> => {
     await this.deps.platformAuthCommands.loginResult(input);
     return this.getStatus();
-  }
+  };
 
-  async startBrowserAuth(input: RemoteBrowserAuthStartRequest): Promise<RemoteBrowserAuthStartResult> {
+  startBrowserAuth = async (input: RemoteBrowserAuthStartRequest): Promise<RemoteBrowserAuthStartResult> => {
     const result = await this.deps.platformAuthCommands.startBrowserAuth({
       apiBase: input.apiBase
     });
@@ -106,9 +106,9 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
       expiresAt: result.expiresAt,
       intervalMs: result.intervalMs
     };
-  }
+  };
 
-  async pollBrowserAuth(input: RemoteBrowserAuthPollRequest): Promise<RemoteBrowserAuthPollResult> {
+  pollBrowserAuth = async (input: RemoteBrowserAuthPollRequest): Promise<RemoteBrowserAuthPollResult> => {
     const config = loadConfig(getConfigPath());
     const result = await this.deps.platformAuthCommands.pollBrowserAuth({
       apiBase: normalizeOptionalString(input.apiBase)
@@ -125,23 +125,23 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
       email: result.email,
       role: result.role
     };
-  }
+  };
 
-  logout(): RemoteAccessView {
+  logout = (): RemoteAccessView => {
     this.deps.platformAuthCommands.logout();
     return this.getStatus();
-  }
+  };
 
-  updateSettings(input: RemoteSettingsUpdateRequest): RemoteAccessView {
+  updateSettings = (input: RemoteSettingsUpdateRequest): RemoteAccessView => {
     this.deps.remoteCommands.updateConfig({
       enabled: input.enabled,
       apiBase: input.platformApiBase,
       name: input.deviceName
     });
     return this.getStatus();
-  }
+  };
 
-  async runDoctor(): Promise<RemoteDoctorView> {
+  runDoctor = async (): Promise<RemoteDoctorView> => {
     const report = await this.deps.remoteCommands.getDoctorView();
     return {
       generatedAt: report.generatedAt,
@@ -151,35 +151,44 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
         runtime: toRemoteRuntimeView(report.snapshot.runtime)
       }
     };
-  }
+  };
 
-  async controlService(action: RemoteServiceAction): Promise<RemoteServiceActionResult> {
+  controlService = async (action: RemoteServiceAction): Promise<RemoteServiceActionResult> => {
     return controlRemoteService(action, this.deps);
-  }
+  };
 
-  private readAccountView(params: {
+  private readAccountView = (params: {
     token: string | null;
     apiBase: string | null;
     platformBase: string | null;
-  }): RemoteAccountView {
-    const tokenState = readPlatformSessionTokenState(params.token);
+  }): RemoteAccountView => {
+    const { apiBase, platformBase, token } = params;
+    const tokenState = readPlatformSessionTokenState(token);
     if (!tokenState.valid) {
       return {
         loggedIn: false,
-        apiBase: params.apiBase,
-        platformBase: params.platformBase
+        apiBase,
+        platformBase
       };
     }
     const payload = tokenState.payload;
     const email = typeof payload?.email === "string" ? payload.email : undefined;
+    const username = typeof payload?.username === "string" ? payload.username : undefined;
     const role = typeof payload?.role === "string" ? payload.role : undefined;
     return {
       loggedIn: true,
       email,
+      username,
       role,
-      apiBase: params.apiBase,
-      platformBase: params.platformBase
+      apiBase,
+      platformBase
     };
-  }
+  };
 
+  updateProfile = async (input: { username: string }): Promise<RemoteAccessView> => {
+    await this.deps.platformAuthCommands.updateProfile({
+      username: input.username
+    });
+    return this.getStatus();
+  };
 }

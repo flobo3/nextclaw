@@ -7,25 +7,25 @@ import {
   readMarketplaceMetadataFile,
   type LocalizedTextMap
 } from "./marketplace.metadata.js";
+import { PlatformAuthCommands } from "../commands/platform-auth.js";
+import {
+  fetchMarketplaceSkillFileBlob,
+  fetchMarketplaceSkillFiles,
+  fetchMarketplaceSkillItem,
+  type MarketplaceSkillFileManifestEntry,
+  readMarketplaceEnvelope,
+  resolveMarketplaceAdminToken,
+  resolveMarketplaceApiBase
+} from "./marketplace-client.js";
+import {
+  normalizeTags,
+  resolvePublishPackageName,
+  validateSkillSelector,
+  validateSkillSlug
+} from "./marketplace-identity.js";
 import { runWithMarketplaceNetworkRetry } from "./marketplace-network-retry.js";
 
-const DEFAULT_MARKETPLACE_API_BASE = "https://marketplace-api.nextclaw.io";
-
-type MarketplaceEnvelope<T> = {
-  ok: boolean;
-  data?: T;
-  error?: {
-    code?: string;
-    message?: string;
-  };
-};
-
 type MarketplaceSkillInstallKind = "builtin" | "marketplace";
-type MarketplaceSkillFileManifestEntry = {
-  path: string;
-  downloadPath?: string;
-  contentBase64?: string;
-};
 
 export type MarketplaceSkillInstallOptions = {
   slug: string;
@@ -39,6 +39,8 @@ export type MarketplaceSkillPublishOptions = {
   skillDir: string;
   metaFile?: string;
   slug?: string;
+  packageName?: string;
+  scope?: string;
   name?: string;
   summary?: string;
   summaryI18n?: LocalizedTextMap;
@@ -61,45 +63,51 @@ export async function installMarketplaceSkill(options: MarketplaceSkillInstallOp
   alreadyInstalled?: boolean;
   source: MarketplaceSkillInstallKind;
 }> {
-  const slug = validateSkillSlug(options.slug.trim(), "slug");
-  const workdir = resolve(options.workdir);
+  const { slug, workdir: rawWorkdir, dir, force, apiBaseUrl } = options;
+  const selector = validateSkillSelector(slug.trim(), "slug");
+  const workdir = resolve(rawWorkdir);
   if (!existsSync(workdir)) {
     throw new Error(`Workdir does not exist: ${workdir}`);
   }
 
+  const apiBase = resolveMarketplaceApiBase(apiBaseUrl);
+  const item = await fetchMarketplaceSkillItem(apiBase, selector);
+  const installSlug = item.slug;
+  const resolvedSlug = item.packageName || item.slug;
   const destinationDir = resolveMarketplaceSkillDestinationDir({
     workdir,
-    slug,
-    dir: options.dir,
+    slug: installSlug,
+    dir,
   });
-  const apiBase = resolveMarketplaceApiBase(options.apiBaseUrl);
-  const item = await fetchMarketplaceSkillItem(apiBase, slug);
 
   if (item.install.kind === "builtin") {
-    return resolveBuiltinMarketplaceInstallResult({
+    const builtinResult = resolveBuiltinMarketplaceInstallResult({
       workdir,
-      slug,
+      slug: installSlug,
     });
+    builtinResult.slug = resolvedSlug;
+    return builtinResult;
   }
 
-  const filesPayload = await fetchMarketplaceSkillFiles(apiBase, slug);
+  const filesPayload = await fetchMarketplaceSkillFiles(apiBase, selector);
   const existingInstall = prepareMarketplaceSkillDestinationDir({
     destinationDir,
     files: filesPayload.files,
-    force: options.force,
-    slug,
+    force,
+    slug: installSlug,
   });
   if (existingInstall) {
+    existingInstall.slug = resolvedSlug;
     return existingInstall;
   }
   await writeMarketplaceSkillFiles({
     destinationDir,
     files: filesPayload.files,
     apiBase,
-    slug,
+    slug: selector,
   });
-  ensureInstalledMarketplaceSkill(destinationDir, slug);
-  return buildMarketplaceInstallResult(slug, destinationDir);
+  ensureInstalledMarketplaceSkill(destinationDir, installSlug);
+  return buildMarketplaceInstallResult(resolvedSlug, destinationDir);
 }
 
 function resolveMarketplaceSkillDestinationDir(params: {
@@ -107,10 +115,11 @@ function resolveMarketplaceSkillDestinationDir(params: {
   slug: string;
   dir?: string;
 }): string {
-  const dirName = params.dir?.trim() || "skills";
+  const { workdir, slug, dir } = params;
+  const dirName = dir?.trim() || "skills";
   return isAbsolute(dirName)
-    ? resolve(dirName, params.slug)
-    : resolve(params.workdir, dirName, params.slug);
+    ? resolve(dirName, slug)
+    : resolve(workdir, dirName, slug);
 }
 
 function resolveBuiltinMarketplaceInstallResult(params: {
@@ -265,9 +274,30 @@ function isIgnorableMarketplaceResidue(path: string): boolean {
 export async function publishMarketplaceSkill(options: MarketplaceSkillPublishOptions): Promise<{
   created: boolean;
   slug: string;
+  packageName: string;
   fileCount: number;
 }> {
-  const skillDir = resolve(options.skillDir);
+  const {
+    skillDir: rawSkillDir,
+    slug: explicitSlug,
+    metaFile,
+    packageName: explicitPackageName,
+    scope: explicitScope,
+    name: explicitName,
+    summary: explicitSummary,
+    summaryI18n: explicitSummaryI18n,
+    description: explicitDescription,
+    descriptionI18n: explicitDescriptionI18n,
+    tags: explicitTags,
+    sourceRepo: explicitSourceRepo,
+    homepage: explicitHomepage,
+    publishedAt: explicitPublishedAt,
+    updatedAt: explicitUpdatedAt,
+    apiBaseUrl,
+    token: explicitToken,
+    requireExisting
+  } = options;
+  const skillDir = resolve(rawSkillDir);
   if (!existsSync(skillDir)) {
     throw new Error(`Skill directory not found: ${skillDir}`);
   }
@@ -278,59 +308,75 @@ export async function publishMarketplaceSkill(options: MarketplaceSkillPublishOp
   }
 
   const parsedFrontmatter = parseSkillFrontmatter(readFileSync(join(skillDir, "SKILL.md"), "utf8"));
-  const metadata = readMarketplaceMetadataFile(skillDir, options.metaFile);
-  const slug = validateSkillSlug(options.slug?.trim() || metadata.slug || basename(skillDir), "slug");
-  const name = options.name?.trim() || metadata.name || parsedFrontmatter.name || slug;
-  const description = options.description?.trim()
+  const metadata = readMarketplaceMetadataFile(skillDir, metaFile);
+  const slug = validateSkillSlug(explicitSlug?.trim() || metadata.slug || basename(skillDir), "slug");
+  const name = explicitName?.trim() || metadata.name || parsedFrontmatter.name || slug;
+  const description = explicitDescription?.trim()
     || metadata.description
     || metadata.descriptionI18n?.en
     || parsedFrontmatter.description;
-  const summary = options.summary?.trim()
+  const summary = explicitSummary?.trim()
     || metadata.summary
     || metadata.summaryI18n?.en
     || parsedFrontmatter.summary
     || description
     || `${slug} skill`;
-  const summaryI18n = buildLocalizedTextMap(summary, parsedFrontmatter.summaryI18n, metadata.summaryI18n, options.summaryI18n);
+  const summaryI18n = buildLocalizedTextMap(summary, parsedFrontmatter.summaryI18n, metadata.summaryI18n, explicitSummaryI18n);
   const descriptionI18n = description
-    ? buildLocalizedTextMap(description, parsedFrontmatter.descriptionI18n, metadata.descriptionI18n, options.descriptionI18n)
+    ? buildLocalizedTextMap(description, parsedFrontmatter.descriptionI18n, metadata.descriptionI18n, explicitDescriptionI18n)
     : undefined;
-  const author = options.author?.trim() || metadata.author || parsedFrontmatter.author || "nextclaw";
-  const tags = normalizeTags(options.tags && options.tags.length > 0 ? options.tags : (metadata.tags ?? parsedFrontmatter.tags));
+  const tags = normalizeTags(explicitTags && explicitTags.length > 0 ? explicitTags : (metadata.tags ?? parsedFrontmatter.tags));
 
-  const apiBase = resolveMarketplaceApiBase(options.apiBaseUrl);
-  const token = resolveMarketplaceAdminToken(options.token);
-
-  if (options.requireExisting) {
-    await fetchMarketplaceSkillItem(apiBase, slug);
+  const apiBase = resolveMarketplaceApiBase(apiBaseUrl);
+  const adminToken = resolveMarketplaceAdminToken(explicitToken);
+  const platformAuth = new PlatformAuthCommands();
+  const currentUser = adminToken ? null : await platformAuth.me();
+  const packageName = resolvePublishPackageName({
+    explicitPackageName,
+    explicitScope,
+    slug,
+    adminTokenPresent: Boolean(adminToken),
+    currentUser
+  });
+  const authToken = adminToken ?? currentUser?.token;
+  if (!authToken) {
+    throw new Error("Publishing requires either a marketplace admin token or an active NextClaw platform login.");
   }
 
   const response = await runWithMarketplaceNetworkRetry(() =>
-    fetch(`${apiBase}/api/v1/admin/skills/upsert`, {
+    fetch(`${apiBase}/api/v1/skills/publish`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        Authorization: `Bearer ${authToken}`
       },
       body: JSON.stringify({
         slug,
+        packageName,
         name,
         summary,
         summaryI18n,
         description,
         descriptionI18n,
-        author,
         tags,
-        sourceRepo: options.sourceRepo?.trim() || metadata.sourceRepo,
-        homepage: options.homepage?.trim() || metadata.homepage,
-        publishedAt: options.publishedAt?.trim() || metadata.publishedAt,
-        updatedAt: options.updatedAt?.trim() || metadata.updatedAt,
+        sourceRepo: explicitSourceRepo?.trim() || metadata.sourceRepo,
+        homepage: explicitHomepage?.trim() || metadata.homepage,
+        publishedAt: explicitPublishedAt?.trim() || metadata.publishedAt,
+        updatedAt: explicitUpdatedAt?.trim() || metadata.updatedAt,
+        requireExisting,
         files
       })
     })
   );
 
-  const payload = await readMarketplaceEnvelope<{ created: boolean; fileCount: number }>(response);
+  const payload = await readMarketplaceEnvelope<{
+    created: boolean;
+    fileCount: number;
+    item?: {
+      slug?: string;
+      packageName?: string;
+    };
+  }>(response);
 
   if (!payload.ok || !payload.data) {
     const message = payload.error?.message || `marketplace publish failed: HTTP ${response.status}`;
@@ -339,7 +385,8 @@ export async function publishMarketplaceSkill(options: MarketplaceSkillPublishOp
 
   return {
     created: payload.data.created,
-    slug,
+    slug: payload.data.item?.slug || slug,
+    packageName: payload.data.item?.packageName || packageName,
     fileCount: payload.data.fileCount
   };
 }
@@ -380,183 +427,10 @@ function resolveBuiltinSkillDir(workdir: string, skillName: string): string {
   return dirname(builtinSkill.path);
 }
 
-async function fetchMarketplaceSkillItem(
-  apiBase: string,
-  slug: string
-): Promise<{ install: { kind: MarketplaceSkillInstallKind } }> {
-  return runWithMarketplaceNetworkRetry(async () => {
-    const response = await fetch(`${apiBase}/api/v1/skills/items/${encodeURIComponent(slug)}`, {
-      headers: {
-        Accept: "application/json"
-      }
-    });
-    const payload = await readMarketplaceEnvelope<{ install: { kind: MarketplaceSkillInstallKind | string } }>(response);
-
-    if (!payload.ok || !payload.data) {
-      const message = payload.error?.message || `marketplace skill fetch failed: ${response.status}`;
-      throw new Error(message);
-    }
-
-    const kind = payload.data.install?.kind;
-    if (kind !== "builtin" && kind !== "marketplace") {
-      throw new Error(`Unsupported skill install kind from marketplace: ${String(kind)}`);
-    }
-
-    return {
-      install: {
-        kind
-      }
-    };
-  });
-}
-
-async function fetchMarketplaceSkillFiles(
-  apiBase: string,
-  slug: string
-): Promise<{ files: MarketplaceSkillFileManifestEntry[] }> {
-  return runWithMarketplaceNetworkRetry(async () => {
-    const response = await fetch(`${apiBase}/api/v1/skills/items/${encodeURIComponent(slug)}/files`, {
-      headers: {
-        Accept: "application/json"
-      }
-    });
-
-    const payload = await readMarketplaceEnvelope<{ files: unknown }>(response);
-    if (!payload.ok || !payload.data) {
-      const message = payload.error?.message || `marketplace skill file fetch failed: ${response.status}`;
-      throw new Error(message);
-    }
-
-    if (!isRecord(payload.data) || !Array.isArray(payload.data.files)) {
-      throw new Error("Invalid marketplace skill file manifest response");
-    }
-
-    const files = payload.data.files.map((entry, index) => {
-      if (!isRecord(entry) || typeof entry.path !== "string" || entry.path.trim().length === 0) {
-        throw new Error(`Invalid marketplace skill file manifest at index ${index}`);
-      }
-      const normalized: MarketplaceSkillFileManifestEntry = {
-        path: entry.path.trim()
-      };
-      if (typeof entry.downloadPath === "string" && entry.downloadPath.trim().length > 0) {
-        normalized.downloadPath = entry.downloadPath.trim();
-      }
-      if (typeof entry.contentBase64 === "string" && entry.contentBase64.trim().length > 0) {
-        normalized.contentBase64 = entry.contentBase64.trim();
-      }
-      return normalized;
-    });
-
-    return { files };
-  });
-}
-
-async function fetchMarketplaceSkillFileBlob(
-  apiBase: string,
-  slug: string,
-  file: MarketplaceSkillFileManifestEntry
-): Promise<Buffer> {
-  const downloadUrl = resolveSkillFileDownloadUrl(apiBase, slug, file);
-  return runWithMarketplaceNetworkRetry(async () => {
-    const response = await fetch(downloadUrl, {
-      headers: {
-        Accept: "application/octet-stream"
-      }
-    });
-    if (!response.ok) {
-      const message = await tryReadMarketplaceError(response);
-      throw new Error(message || `marketplace skill file download failed: ${response.status}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  });
-}
-
 function decodeMarketplaceFileContent(path: string, contentBase64: string): Buffer {
   const normalized = contentBase64.replace(/\s+/g, "");
   if (!normalized || normalized.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) {
     throw new Error(`Invalid marketplace file contentBase64 for path: ${path}`);
   }
   return Buffer.from(normalized, "base64");
-}
-
-function resolveSkillFileDownloadUrl(apiBase: string, slug: string, file: MarketplaceSkillFileManifestEntry): string {
-  const fallback = `${apiBase}/api/v1/skills/items/${encodeURIComponent(slug)}/files/blob?path=${encodeURIComponent(file.path)}`;
-  if (!file.downloadPath) {
-    return fallback;
-  }
-
-  if (file.downloadPath.startsWith("http://") || file.downloadPath.startsWith("https://")) {
-    return file.downloadPath;
-  }
-
-  const normalizedPath = file.downloadPath.startsWith("/") ? file.downloadPath : `/${file.downloadPath}`;
-  return `${apiBase}${normalizedPath}`;
-}
-
-async function tryReadMarketplaceError(response: Response): Promise<string | undefined> {
-  const raw = await response.text();
-  if (!raw.trim()) {
-    return undefined;
-  }
-  try {
-    const payload = JSON.parse(raw) as MarketplaceEnvelope<unknown>;
-    return payload.error?.message;
-  } catch {
-    return undefined;
-  }
-}
-
-async function readMarketplaceEnvelope<T>(response: Response): Promise<MarketplaceEnvelope<T>> {
-  const raw = await response.text();
-  let payload: unknown;
-  try {
-    payload = raw.length > 0 ? JSON.parse(raw) : null;
-  } catch {
-    throw new Error(`Invalid marketplace response: ${response.status}`);
-  }
-
-  if (!isRecord(payload) || typeof payload.ok !== "boolean") {
-    throw new Error(`Invalid marketplace response shape: ${response.status}`);
-  }
-
-  return payload as MarketplaceEnvelope<T>;
-}
-
-function resolveMarketplaceApiBase(explicitBase: string | undefined): string {
-  const raw = explicitBase?.trim()
-    || process.env.NEXTCLAW_MARKETPLACE_API_BASE?.trim()
-    || DEFAULT_MARKETPLACE_API_BASE;
-  return raw.replace(/\/+$/, "");
-}
-
-function resolveMarketplaceAdminToken(explicitToken: string | undefined): string | undefined {
-  const token = explicitToken?.trim() || process.env.NEXTCLAW_MARKETPLACE_ADMIN_TOKEN?.trim();
-  return token && token.length > 0 ? token : undefined;
-}
-
-function validateSkillSlug(raw: string, fieldName: string): string {
-  if (!/^[A-Za-z0-9._-]+$/.test(raw)) {
-    throw new Error(`Invalid ${fieldName}: ${raw}`);
-  }
-  return raw;
-}
-
-function normalizeTags(rawTags: string[] | undefined): string[] {
-  const seen = new Set<string>();
-  const output: string[] = [];
-  for (const rawTag of rawTags ?? []) {
-    const tag = rawTag.trim();
-    if (!tag || seen.has(tag)) {
-      continue;
-    }
-    seen.add(tag);
-    output.push(tag);
-  }
-  return output.length > 0 ? output : ["skill"];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

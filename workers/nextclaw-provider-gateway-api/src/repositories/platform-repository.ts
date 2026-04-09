@@ -103,29 +103,28 @@ export async function appendAuditLog(
     .run();
 }
 
+const USER_ROW_SELECT_SQL = `SELECT id, email, username, password_hash, password_salt, role,
+        free_limit_usd, free_used_usd, paid_balance_usd,
+        created_at, updated_at
+   FROM users`;
+
 export async function getUserById(db: D1Database, id: string): Promise<UserRow | null> {
-  const row = await db.prepare(
-    `SELECT id, email, password_hash, password_salt, role,
-            free_limit_usd, free_used_usd, paid_balance_usd,
-            created_at, updated_at
-       FROM users
-      WHERE id = ?`
-  )
-    .bind(id)
-    .first<UserRow>();
-  return row ?? null;
+  return getUserByField(db, "id", id);
 }
 
 export async function getUserByEmail(db: D1Database, email: string): Promise<UserRow | null> {
-  const row = await db.prepare(
-    `SELECT id, email, password_hash, password_salt, role,
-            free_limit_usd, free_used_usd, paid_balance_usd,
-            created_at, updated_at
-       FROM users
-      WHERE email = ?`
-  )
-    .bind(email)
-    .first<UserRow>();
+  return getUserByField(db, "email", email);
+}
+
+export async function getUserByUsername(db: D1Database, username: string): Promise<UserRow | null> {
+  return getUserByField(db, "username", username);
+}
+async function getUserByField(
+  db: D1Database,
+  field: "id" | "email" | "username",
+  value: string
+): Promise<UserRow | null> {
+  const row = await db.prepare(`${USER_ROW_SELECT_SQL} WHERE ${field} = ? LIMIT 1`).bind(value).first<UserRow>();
   return row ?? null;
 }
 
@@ -600,6 +599,7 @@ export function toUserPublicView(user: UserRow): UserPublicView {
   return {
     id: user.id,
     email: user.email,
+    username: user.username,
     role: user.role,
     freeLimitUsd: roundUsd(user.free_limit_usd),
     freeUsedUsd: roundUsd(user.free_used_usd),

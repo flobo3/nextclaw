@@ -54,6 +54,7 @@ export type UserRole = "admin" | "user";
 export type SessionTokenPayload = {
   sub: string;
   email: string;
+  username?: string | null;
   role: UserRole;
   iat: number;
   exp: number;
@@ -62,6 +63,7 @@ export type SessionTokenPayload = {
 export type UserRow = {
   id: string;
   email: string;
+  username: string | null;
   password_hash: string;
   password_salt: string;
   role: UserRole;
@@ -82,6 +84,7 @@ export type UserSecurityRow = {
 export type UserPublicView = {
   id: string;
   email: string;
+  username: string | null;
   role: UserRole;
   freeLimitUsd: number;
   freeUsedUsd: number;

@@ -10,7 +10,8 @@ import {
   authenticatePlatformUser,
   isPlatformAuthServiceError,
   issuePlatformTokenResult,
-  registerPlatformUser
+  registerPlatformUser,
+  updatePlatformUserProfile
 } from "../services/platform-auth-service";
 import {
   apiError,
@@ -90,4 +91,35 @@ export async function meHandler(c: Context<{ Bindings: Env }>): Promise<Response
       user: toUserPublicView(auth.user)
     }
   });
+}
+
+export async function patchProfileHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  await ensurePlatformBootstrap(c.env);
+  const auth = await requireAuthUser(c);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const body = await readJson(c);
+  const username = readString(body, "username");
+  try {
+    const user = await updatePlatformUserProfile({
+      env: c.env,
+      userId: auth.user.id,
+      username
+    });
+    const result = await issuePlatformTokenResult({
+      env: c.env,
+      user
+    });
+    return c.json({
+      ok: true,
+      data: result
+    });
+  } catch (error) {
+    if (isPlatformAuthServiceError(error)) {
+      return apiError(c, error.status, error.code, error.message);
+    }
+    throw error;
+  }
 }

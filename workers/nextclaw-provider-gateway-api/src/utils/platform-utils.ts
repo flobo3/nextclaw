@@ -49,7 +49,6 @@ export function normalizeEmail(value: string): string {
 export function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
-
 export function optionalTrimmedString(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -155,6 +154,7 @@ export async function issueSessionToken(env: Env, user: UserRow): Promise<string
   const payload: SessionTokenPayload = {
     sub: user.id,
     email: user.email,
+    username: user.username,
     role: user.role,
     iat: now,
     exp: now + DEFAULT_TOKEN_TTL_SECONDS

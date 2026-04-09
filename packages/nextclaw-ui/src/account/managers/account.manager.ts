@@ -1,4 +1,4 @@
-import { logoutRemote, pollRemoteBrowserAuth, startRemoteBrowserAuth } from '@/api/remote';
+import { logoutRemote, pollRemoteBrowserAuth, startRemoteBrowserAuth, updateRemoteAccountProfile } from '@/api/remote';
 import type { RemoteAccessView } from '@/api/remote.types';
 import type { AccountPendingAction } from '@/account/stores/account.store';
 import { useAccountStore } from '@/account/stores/account.store';
@@ -57,12 +57,14 @@ export class AccountManager {
     pendingAction?: AccountPendingAction;
   }) => {
     try {
+      const apiBase = params?.apiBase;
+      const pendingAction = params?.pendingAction;
       const status = params?.status ?? (await ensureRemoteStatus());
-      if (params?.pendingAction) {
-        useAccountStore.getState().setPendingAction(params.pendingAction);
+      if (pendingAction) {
+        useAccountStore.getState().setPendingAction(pendingAction);
       }
       const result = await startRemoteBrowserAuth({
-        apiBase: resolveRemotePlatformApiBase(status, params?.apiBase)
+        apiBase: resolveRemotePlatformApiBase(status, apiBase)
       });
       useAccountStore.getState().beginBrowserAuth({
         sessionId: result.sessionId,
@@ -100,6 +102,19 @@ export class AccountManager {
     } catch (error) {
       const message = error instanceof Error ? error.message : t('remoteLogoutFailed');
       toast.error(`${t('remoteLogoutFailed')}: ${message}`);
+    }
+  };
+
+  updateUsername = async (username: string) => {
+    try {
+      await updateRemoteAccountProfile({
+        username: username.trim()
+      });
+      await refreshRemoteStatus();
+      toast.success(t('remoteAccountUsernameSetSuccess'));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('remoteAccountUsernameSetFailed');
+      toast.error(`${t('remoteAccountUsernameSetFailed')}: ${message}`);
     }
   };
 

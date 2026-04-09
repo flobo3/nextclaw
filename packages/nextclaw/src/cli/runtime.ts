@@ -15,6 +15,11 @@ import { initializeConfigIfMissing } from "./runtime-config-init.js";
 import { writeRestartSentinel } from "./restart-sentinel.js";
 import { parseStartTimeoutMs, resolveManagedServiceUiOverrides, resolveSkillsInstallWorkdir } from "./runtime-helpers.js";
 import { logStartupTrace, measureStartupSync } from "./startup-trace.js";
+import {
+  buildMarketplacePublishOptions,
+  buildMarketplaceUpdateOptions,
+  type MarketplacePublishCommandOptions
+} from "./skills/marketplace-command-options.js";
 import { installMarketplaceSkill, publishMarketplaceSkill } from "./skills/marketplace.js";
 import { runSelfUpdate } from "./update/runner.js";
 import { clearServiceState, getPackageVersion, isProcessRunning, printAgentResponse, prompt, readServiceState } from "./utils.js";
@@ -795,73 +800,15 @@ export class CliRuntime {
     }
     console.log(`  Path: ${result.destinationDir}`);
   };
-  skillsPublish = async (options: {
-    dir: string;
-    meta?: string;
-    slug?: string;
-    name?: string;
-    summary?: string;
-    description?: string;
-    author?: string;
-    tag?: string[];
-    sourceRepo?: string;
-    homepage?: string;
-    publishedAt?: string;
-    updatedAt?: string;
-    apiBaseUrl?: string;
-    token?: string;
-  }): Promise<void> => {
-    const result = await publishMarketplaceSkill({
-      skillDir: expandHome(options.dir),
-      metaFile: options.meta ? expandHome(options.meta) : undefined,
-      slug: options.slug,
-      name: options.name,
-      summary: options.summary,
-      description: options.description,
-      author: options.author,
-      tags: options.tag,
-      sourceRepo: options.sourceRepo,
-      homepage: options.homepage,
-      publishedAt: options.publishedAt,
-      updatedAt: options.updatedAt,
-      apiBaseUrl: options.apiBaseUrl,
-      token: options.token
-    });
-    console.log(`${result.created ? `✓ Published new skill: ${result.slug}` : `✓ Updated skill: ${result.slug}`}\n  Files: ${result.fileCount}`);
+  skillsPublish = async (options: MarketplacePublishCommandOptions): Promise<void> => {
+    const result = await publishMarketplaceSkill(buildMarketplacePublishOptions(options));
+    console.log(`${result.created ? `✓ Published new skill: ${result.packageName}` : `✓ Updated skill: ${result.packageName}`}\n  Alias: ${result.slug}\n  Files: ${result.fileCount}`);
   };
 
-  skillsUpdate = async (options: {
-    dir: string;
-    meta?: string;
-    slug?: string;
-    name?: string;
-    summary?: string;
-    description?: string;
-    author?: string;
-    tag?: string[];
-    sourceRepo?: string;
-    homepage?: string;
-    updatedAt?: string;
-    apiBaseUrl?: string;
-    token?: string;
-  }): Promise<void> => {
-    const result = await publishMarketplaceSkill({
-      skillDir: expandHome(options.dir),
-      metaFile: options.meta ? expandHome(options.meta) : undefined,
-      slug: options.slug,
-      name: options.name,
-      summary: options.summary,
-      description: options.description,
-      author: options.author,
-      tags: options.tag,
-      sourceRepo: options.sourceRepo,
-      homepage: options.homepage,
-      updatedAt: options.updatedAt,
-      apiBaseUrl: options.apiBaseUrl,
-      token: options.token,
-      requireExisting: true
-    });
-    console.log(`✓ Updated skill: ${result.slug}`);
+  skillsUpdate = async (options: Omit<MarketplacePublishCommandOptions, "publishedAt">): Promise<void> => {
+    const result = await publishMarketplaceSkill(buildMarketplaceUpdateOptions(options));
+    console.log(`✓ Updated skill: ${result.packageName}`);
+    console.log(`  Alias: ${result.slug}`);
     console.log(`  Files: ${result.fileCount}`);
   };
 }
