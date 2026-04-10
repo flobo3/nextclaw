@@ -3,13 +3,7 @@ import type { startPluginChannelGateways } from "@nextclaw/openclaw-compat";
 import type { RemoteServiceModule } from "@nextclaw/remote";
 import chokidar, { type FSWatcher } from "chokidar";
 import { resolve } from "node:path";
-import {
-  clearServiceState,
-  readServiceState,
-  resolveServiceLogPath,
-  resolveUiApiBase,
-  writeServiceState
-} from "../../../utils.js";
+import { localUiRuntimeStore } from "../../../runtime-state/local-ui-runtime.store.js";
 
 export const pluginGatewayLogger = {
   info: (message: string) => console.log(`[plugins] ${message}`),
@@ -121,39 +115,6 @@ export class ServiceFileWatcherRegistry {
   };
 }
 
-export function writeLocalServiceDiscoveryState(
-  uiConfig: Pick<Config["ui"], "host" | "port">,
-  pid = process.pid
-): void {
-  const uiUrl = resolveUiApiBase(uiConfig.host, uiConfig.port);
-  const apiUrl = `${uiUrl}/api`;
-  const existing = readServiceState();
-  writeServiceState({
-    pid,
-    startedAt:
-      existing?.pid === pid && typeof existing.startedAt === "string"
-        ? existing.startedAt
-        : new Date().toISOString(),
-    uiUrl,
-    apiUrl,
-    uiHost: uiConfig.host,
-    uiPort: uiConfig.port,
-    logPath: existing?.logPath ?? resolveServiceLogPath(),
-    startupState: existing?.startupState ?? "ready",
-    startupLastProbeError: existing?.startupLastProbeError ?? null,
-    startupTimeoutMs: existing?.startupTimeoutMs,
-    startupCheckedAt: new Date().toISOString(),
-    ...(existing?.remote ? { remote: existing.remote } : {})
-  });
-}
-
-export function clearOwnedServiceState(pid = process.pid): void {
-  const current = readServiceState();
-  if (current?.pid === pid) {
-    clearServiceState();
-  }
-}
-
 export function finalizeLocalUiStartup<TEvent>(params: {
   uiStartup: { publish?: ((event: TEvent) => void) | undefined } | null | undefined;
   setUiEventPublisher: (publish: ((event: TEvent) => void) | undefined) => void;
@@ -162,7 +123,7 @@ export function finalizeLocalUiStartup<TEvent>(params: {
   const { setUiEventPublisher, uiConfig, uiStartup } = params;
   setUiEventPublisher(uiStartup?.publish);
   if (uiStartup) {
-    writeLocalServiceDiscoveryState(uiConfig);
+    localUiRuntimeStore.writeCurrentProcess(uiConfig);
   }
 }
 

@@ -10,13 +10,10 @@ import { spawn } from "node:child_process";
 import { setImmediate as waitForNextTick } from "node:timers/promises";
 import { MissingProvider } from "../missing-provider.js";
 import {
-  clearServiceState,
   getPackageVersion,
   isLoopbackHost,
   isProcessRunning,
   openBrowser,
-  readServiceState,
-  resolveServiceStatePath,
   resolveServiceLogPath,
   resolveUiApiBase,
   resolveUiConfig,
@@ -27,7 +24,6 @@ import {
 import type { RequestRestartParams } from "../types.js";
 import { ServiceMarketplaceInstaller } from "./service-support/marketplace/service-marketplace-installer.js";
 import {
-  type ManagedServiceState,
   reportManagedServiceStart,
   resolveManagedServiceUiBinding,
   resolveSessionRouteCandidate,
@@ -35,12 +31,16 @@ import {
   waitForManagedServiceReadiness
 } from "./service-support/runtime/service-managed-startup.js";
 import {
-  clearOwnedServiceState,
   finalizeLocalUiStartup,
   ServiceFileWatcherRegistry,
   startGatewayRuntimeSupport,
   watchServiceConfigFile
 } from "./service-support/gateway/service-startup-support.js";
+import { localUiRuntimeStore } from "../runtime-state/local-ui-runtime.store.js";
+import {
+  managedServiceStateStore,
+  type ManagedServiceState
+} from "../runtime-state/managed-service-state.store.js";
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
 import { resolveCliSubcommandEntry } from "./service-support/marketplace/cli-subcommand-launch.js";
 import { writeReadyManagedServiceState } from "./service-support/runtime/service-remote-runtime.js";
@@ -67,7 +67,6 @@ import { logStartupTrace, measureStartupAsync, measureStartupSync } from "../sta
 
 export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-support/marketplace/service-marketplace-helpers.js";
 export { resolveCliSubcommandEntry };
-
 const {
   APP_NAME,
   getApiBase,
@@ -244,7 +243,7 @@ export class ServiceCommands {
         console.error(`Deferred startup failed: ${error instanceof Error ? error.message : String(error)}`);
       },
       cleanup: async () => {
-        clearOwnedServiceState();
+        localUiRuntimeStore.clearIfOwnedByProcess();
         await this.fileWatchers.clear();
         this.applyLiveConfigReload = null;
         this.liveUiNcpAgent = null;
@@ -417,7 +416,7 @@ export class ServiceCommands {
         `Detected running service UI bind (${binding.host}:${binding.port}); enforcing (${uiConfig.host}:${uiConfig.port})...`
       );
       await this.stopService();
-      const stateAfterStop = readServiceState();
+      const stateAfterStop = managedServiceStateStore.read();
       if (stateAfterStop && isProcessRunning(stateAfterStop.pid)) {
         process.exitCode = 1;
         console.error("Error: Failed to stop running service while enforcing public UI exposure.");
@@ -440,12 +439,12 @@ export class ServiceCommands {
     const apiUrl = `${uiUrl}/api`;
     const staticDir = resolveUiStaticDir();
 
-    const existing = readServiceState();
+    const existing = managedServiceStateStore.read();
     if (existing && isProcessRunning(existing.pid)) {
       await this.handleExistingManagedService({ existing, uiConfig, options });
       return;
     }
-    if (existing) clearServiceState();
+    if (existing) managedServiceStateStore.clear();
 
     if (!staticDir) {
       return void (process.exitCode = 1, console.error(`Error: ${APP_NAME} UI frontend bundle not found. Reinstall or rebuild ${APP_NAME}. For dev-only overrides, set NEXTCLAW_UI_STATIC_DIR to a built frontend directory.`));
@@ -493,7 +492,7 @@ export class ServiceCommands {
     if (!readiness.ready) {
       if (!isProcessRunning(startup.snapshot.pid)) {
         process.exitCode = 1;
-        clearServiceState();
+        managedServiceStateStore.clear();
         const hint = readiness.lastProbeError ? ` Last probe error: ${readiness.lastProbeError}` : "";
         this.appendStartupStage(startup.logPath, `startup failed: process exited before ready.${hint}`);
         console.error(`Error: Failed to start background service. Check logs: ${startup.logPath}.${hint}`);
@@ -533,14 +532,14 @@ export class ServiceCommands {
   };
 
   stopService = async (): Promise<void> => {
-    const state = readServiceState();
+    const state = managedServiceStateStore.read();
     if (!state) {
-      console.log("No running service found.");
+      console.log("No running background service found.");
       return;
     }
     if (!isProcessRunning(state.pid)) {
       console.log("Service is not running. Cleaning up state.");
-      clearServiceState();
+      managedServiceStateStore.clear();
       return;
     }
 
@@ -563,7 +562,8 @@ export class ServiceCommands {
       await waitForExit(state.pid, 2000);
     }
 
-    clearServiceState();
+    managedServiceStateStore.clear();
+    localUiRuntimeStore.clearIfOwnedByProcess(state.pid);
     console.log(`✓ ${APP_NAME} stopped`);
   };
 
@@ -622,7 +622,7 @@ export class ServiceCommands {
     logPath: string;
     lastProbeError: string | null;
   }): void => {
-    const statePath = resolveServiceStatePath();
+    const statePath = managedServiceStateStore.path;
     const lines = [
       "Startup diagnostics:",
       `- UI URL: ${params.uiUrl}`,

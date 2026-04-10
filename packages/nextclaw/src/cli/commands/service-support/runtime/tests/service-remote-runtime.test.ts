@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ServiceState } from "../../../../utils.js";
+import type { ManagedServiceState } from "../../../../runtime-state/managed-service-state.store.js";
 import {
   claimManagedRemoteRuntimeOwnership,
   createManagedRemoteModuleForUi
@@ -34,7 +34,7 @@ describe("claimManagedRemoteRuntimeOwnership", () => {
             localOrigin: "http://127.0.0.1:9808",
             updatedAt: "2026-03-24T00:00:00.000Z"
           }
-        }) satisfies ServiceState
+        }) satisfies ManagedServiceState
     });
 
     expect(claim.ok).toBe(false);

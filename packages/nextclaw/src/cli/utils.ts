@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { isIP } from "node:net";
@@ -10,22 +10,6 @@ import {
   getPackageVersion as getCorePackageVersion,
   type Config
 } from "@nextclaw/core";
-import type { RemoteRuntimeState } from "@nextclaw/remote";
-
-export type ServiceState = {
-  pid: number;
-  startedAt: string;
-  uiUrl: string;
-  apiUrl: string;
-  uiHost?: string;
-  uiPort?: number;
-  logPath: string;
-  startupState?: "ready" | "degraded";
-  startupLastProbeError?: string | null;
-  startupTimeoutMs?: number;
-  startupCheckedAt?: string;
-  remote?: RemoteRuntimeState;
-};
 
 export function resolveUiConfig(config: Config, overrides?: Partial<Config["ui"]>): Config["ui"] {
   const base = config.ui ?? { enabled: false, host: "127.0.0.1", port: 55667, open: false };
@@ -79,46 +63,6 @@ export async function resolvePublicIp(timeoutMs = 1500): Promise<string | null> 
 export function buildServeArgs(options: { uiPort: number }): string[] {
   const cliPath = fileURLToPath(new URL("./index.js", import.meta.url));
   return [cliPath, "serve", "--ui-port", String(options.uiPort)];
-}
-
-export function readServiceState(): ServiceState | null {
-  const path = resolveServiceStatePath();
-  if (!existsSync(path)) {
-    return null;
-  }
-  try {
-    const raw = readFileSync(path, "utf-8");
-    return JSON.parse(raw) as ServiceState;
-  } catch {
-    return null;
-  }
-}
-
-export function writeServiceState(state: ServiceState): void {
-  const path = resolveServiceStatePath();
-  mkdirSync(resolve(path, ".."), { recursive: true });
-  writeFileSync(path, JSON.stringify(state, null, 2));
-}
-
-export function updateServiceState(updater: (state: ServiceState) => ServiceState): ServiceState | null {
-  const current = readServiceState();
-  if (!current) {
-    return null;
-  }
-  const next = updater(current);
-  writeServiceState(next);
-  return next;
-}
-
-export function clearServiceState(): void {
-  const path = resolveServiceStatePath();
-  if (existsSync(path)) {
-    rmSync(path, { force: true });
-  }
-}
-
-export function resolveServiceStatePath(): string {
-  return resolve(getDataDir(), "run", "service.json");
 }
 
 export function resolveServiceLogPath(): string {

@@ -1,4 +1,4 @@
-import type { ServiceState } from "./utils.js";
+import type { ManagedServiceState } from "./runtime-state/managed-service-state.store.js";
 
 export type RestartStrategy = "background-service-or-manual" | "background-service-or-exit" | "exit-process";
 
@@ -15,7 +15,7 @@ export type RestartResult = {
 };
 
 type RestartCoordinatorDeps = {
-  readServiceState: () => ServiceState | null;
+  readServiceState: () => ManagedServiceState | null;
   isProcessRunning: (pid: number) => boolean;
   currentPid: () => number;
   restartBackgroundService: (reason: string) => Promise<boolean>;

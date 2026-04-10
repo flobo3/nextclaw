@@ -1,5 +1,5 @@
 import { ensureUiBridgeSecret } from "@nextclaw/server";
-import { isProcessRunning, readServiceState } from "../../utils.js";
+import { localUiDiscoveryService } from "../../runtime-state/local-ui-discovery.service.js";
 
 type ApiOkResponse<T> = {
   ok: true;
@@ -17,21 +17,8 @@ type ApiResponse<T> = ApiOkResponse<T> | ApiErrorResponse;
 
 export type UiBridgeApiMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-export function resolveManagedApiBase(): string | null {
-  const state = readServiceState();
-  if (!state?.pid) {
-    return null;
-  }
-  if (!isProcessRunning(state.pid)) {
-    return null;
-  }
-  if (typeof state.uiUrl === "string" && state.uiUrl.trim().length > 0) {
-    return state.uiUrl.replace(/\/+$/, "");
-  }
-  if (typeof state.apiUrl === "string" && state.apiUrl.trim().length > 0) {
-    return state.apiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "");
-  }
-  return null;
+export function resolveLocalUiApiBase(): string | null {
+  return localUiDiscoveryService.resolveApiBase();
 }
 
 export class UiBridgeApiClient {
