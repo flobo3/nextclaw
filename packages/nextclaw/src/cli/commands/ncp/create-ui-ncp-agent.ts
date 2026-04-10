@@ -350,7 +350,10 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
     onSessionRunStatusChanged: params.onSessionRunStatusChanged,
     createRuntime: (runtimeParams) => {
       pluginRuntimeRegistrationController.refreshPluginRuntimeRegistrations();
-      return runtimeRegistry.createRuntime(runtimeParams);
+      return runtimeRegistry.createRuntime({
+        ...runtimeParams,
+        resolveAssetContentPath: (assetUri) => assetStore.resolveContentPath(assetUri),
+      });
     },
   });
 

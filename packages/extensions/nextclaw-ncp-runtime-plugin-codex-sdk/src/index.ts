@@ -5,6 +5,7 @@ import type {
   NcpEndpointEvent,
 } from "@nextclaw/ncp";
 import {
+  buildCodexInputBuilder,
   CodexSdkNcpAgentRuntime,
   type CodexSdkNcpAgentRuntimeConfig,
 } from "@nextclaw/nextclaw-ncp-runtime-codex-sdk";
@@ -18,7 +19,6 @@ import {
   mapAccessModeToSandboxMode,
   resolveCodexAccessMode,
 } from "./codex-access-mode.js";
-import { buildCodexInputBuilder } from "./codex-input-builder.js";
 import { ensureCodexOpenAiResponsesBridge } from "./codex-openai-responses-bridge.js";
 import { resolveCodexResponsesApiSupport } from "./codex-responses-capability.js";
 import { createDescribeCodexSessionType } from "./codex-session-type.js";
@@ -322,8 +322,10 @@ const plugin: PluginDefinition = {
                   api.runtime.agent.defaults.workspace,
                 ),
                 sessionMetadata: runtimeParams.sessionMetadata,
+                resolveAssetContentPath: runtimeParams.resolveAssetContentPath,
               },
             ),
+            resolveAssetContentPath: runtimeParams.resolveAssetContentPath,
             threadOptions: {
               model,
               sandboxMode: mapAccessModeToSandboxMode(accessMode),

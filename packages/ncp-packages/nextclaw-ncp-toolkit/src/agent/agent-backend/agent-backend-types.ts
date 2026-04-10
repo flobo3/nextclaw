@@ -12,6 +12,7 @@ export type RuntimeFactoryParams = {
   stateManager: NcpAgentConversationStateManager;
   sessionMetadata: Record<string, unknown>;
   setSessionMetadata: (nextMetadata: Record<string, unknown>) => void;
+  resolveAssetContentPath?: (assetUri: string) => string | null;
 };
 
 export type CreateRuntimeFn = (params: RuntimeFactoryParams) => NcpAgentRuntime;
