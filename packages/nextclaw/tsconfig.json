@@ -42,6 +42,9 @@
       ],
       "@nextclaw/channel-runtime": [
         "../extensions/nextclaw-channel-runtime/src/index.ts"
+      ],
+      "@nextclaw/nextclaw-ncp-runtime-codex-sdk": [
+        "../extensions/nextclaw-ncp-runtime-codex-sdk/src/index.ts"
       ]
     }
   },

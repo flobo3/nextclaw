@@ -36,6 +36,7 @@ async function createRuntimeConfig(params?: {
   config?: Config;
   pluginConfig?: Record<string, unknown>;
   sessionMetadata?: Record<string, unknown>;
+  resolveAssetContentPath?: RuntimeFactoryParams["resolveAssetContentPath"];
 }): Promise<Record<string, unknown>> {
   let createRuntime: ((runtimeParams: RuntimeFactoryParams) => NcpAgentRuntime) | null = null;
 
@@ -65,6 +66,7 @@ async function createRuntimeConfig(params?: {
       preferred_model: "custom-1/gpt-5.4",
     },
     setSessionMetadata: vi.fn(),
+    resolveAssetContentPath: params?.resolveAssetContentPath,
   });
 
   const resolveRuntime = Reflect.get(runtime as object, "createRuntime");
@@ -154,6 +156,51 @@ describe("codex runtime plugin provider routing", () => {
         approvalPolicy: "never",
       }),
     );
+  });
+
+  it("passes asset path resolution into the codex input builder", async () => {
+    const runtimeConfig = await createRuntimeConfig({
+      resolveAssetContentPath: (assetUri) =>
+        assetUri === "asset://store/2026/04/09/asset_123" ? "/tmp/assets/screen.png" : null,
+    });
+    const inputBuilder = runtimeConfig.inputBuilder as (input: {
+      sessionId: string;
+      messages: Array<Record<string, unknown>>;
+    }) => Promise<unknown>;
+
+    const prompt = await inputBuilder({
+      sessionId: "session-1",
+      messages: [
+        {
+          id: "message-1",
+          sessionId: "session-1",
+          role: "user",
+          status: "final",
+          timestamp: "2026-04-09T00:00:00.000Z",
+          parts: [
+            { type: "text", text: "describe this image" },
+            {
+              type: "file",
+              name: "screen.png",
+              mimeType: "image/png",
+              assetUri: "asset://store/2026/04/09/asset_123",
+              sizeBytes: 2048,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(prompt).toEqual([
+      {
+        type: "text",
+        text: expect.stringContaining("describe this image"),
+      },
+      {
+        type: "local_image",
+        path: "/tmp/assets/screen.png",
+      },
+    ]);
   });
 
   it("fails fast when a custom provider has no valid external provider id", async () => {
