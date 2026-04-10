@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { ConfigSchema, saveConfig } from "@nextclaw/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as utils from "../../utils.js";
+import { managedServiceStateStore } from "../../runtime-state/managed-service-state.store.js";
 import { RemoteAccessHost } from "./remote-access-host.js";
 
 const originalNextclawHome = process.env.NEXTCLAW_HOME;
@@ -75,7 +76,7 @@ describe("RemoteAccessHost service control", () => {
       deviceName: "test-device",
       platformBase: "https://ai-gateway-api.nextclaw.io/v1"
     });
-    vi.spyOn(utils, "readServiceState").mockReturnValue(null);
+    vi.spyOn(managedServiceStateStore, "read").mockReturnValue(null);
 
     const status = host.getStatus();
 
@@ -115,7 +116,7 @@ describe("RemoteAccessHost service control", () => {
       deviceName: "test-device",
       platformBase: "https://ai-gateway-api.nextclaw.io"
     });
-    vi.spyOn(utils, "readServiceState").mockReturnValue(null);
+    vi.spyOn(managedServiceStateStore, "read").mockReturnValue(null);
 
     const status = host.getStatus();
 
@@ -133,7 +134,7 @@ describe("RemoteAccessHost service control", () => {
         open: false
       }
     }));
-    vi.spyOn(utils, "readServiceState").mockReturnValue({
+    vi.spyOn(managedServiceStateStore, "read").mockReturnValue({
       pid: process.pid,
       startedAt: "2026-03-20T00:00:00.000Z",
       uiUrl: "http://127.0.0.1:19199",
@@ -168,7 +169,7 @@ describe("RemoteAccessHost service control", () => {
         open: false
       }
     }));
-    vi.spyOn(utils, "readServiceState").mockReturnValue({
+    vi.spyOn(managedServiceStateStore, "read").mockReturnValue({
       pid: process.pid + 1,
       startedAt: "2026-03-20T00:00:00.000Z",
       uiUrl: "http://127.0.0.1:19199",

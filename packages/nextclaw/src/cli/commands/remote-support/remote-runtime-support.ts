@@ -9,13 +9,18 @@ import {
   type RemoteRuntimeState,
   type RemoteStatusSnapshot
 } from "@nextclaw/remote";
-import { getPackageVersion, isProcessRunning, readServiceState, updateServiceState } from "../../utils.js";
+import {
+  getPackageVersion,
+  isProcessRunning
+} from "../../utils.js";
+import { localUiRuntimeStore } from "../../runtime-state/local-ui-runtime.store.js";
+import { managedServiceStateStore } from "../../runtime-state/managed-service-state.store.js";
 import { resolvePlatformApiBase } from "./platform-api-base.js";
 
 let currentProcessRemoteRuntimeState: RemoteRuntimeState | null = null;
 
 export function hasRunningNextclawManagedService(): boolean {
-  const state = readServiceState();
+  const state = managedServiceStateStore.read();
   return Boolean(state && isProcessRunning(state.pid));
 }
 
@@ -30,7 +35,7 @@ export function createNextclawRemotePlatformClient(): RemotePlatformClient {
         requireConfigured: true
       }).platformBase,
     readManagedServiceState: () => {
-      const state = readServiceState();
+      const state = managedServiceStateStore.read();
       if (!state) {
         return null;
       }
@@ -56,11 +61,18 @@ export function createNextclawRemoteStatusStore(mode: RemoteRuntimeState["mode"]
   return new RemoteStatusStore(mode, {
     writeRemoteState: (next) => {
       currentProcessRemoteRuntimeState = next;
-      const serviceState = readServiceState();
+      const uiRuntimeState = localUiRuntimeStore.read();
+      if (uiRuntimeState?.pid === process.pid) {
+        localUiRuntimeStore.update((state) => ({
+          ...state,
+          remote: next
+        }));
+      }
+      const serviceState = managedServiceStateStore.read();
       if (!serviceState || serviceState.pid !== process.pid) {
         return;
       }
-      updateServiceState((state) => ({
+      managedServiceStateStore.update((state) => ({
         ...state,
         remote: next
       }));
@@ -73,13 +85,15 @@ export function buildNextclawConfiguredRemoteState(config: Config): RemoteRuntim
 }
 
 export function readCurrentNextclawRemoteRuntimeState(): RemoteRuntimeState | null {
-  const serviceState = readServiceState();
-  const currentRemoteState = currentProcessRemoteRuntimeState ?? serviceState?.remote ?? null;
+  const uiRuntimeState = localUiRuntimeStore.read();
+  const serviceState = managedServiceStateStore.read();
+  const currentRemoteState = currentProcessRemoteRuntimeState ?? uiRuntimeState?.remote ?? serviceState?.remote ?? null;
   if (!currentRemoteState) {
     return null;
   }
 
-  if (!serviceState || isProcessRunning(serviceState.pid)) {
+  const owningRuntime = uiRuntimeState ?? serviceState;
+  if (!owningRuntime || isProcessRunning(owningRuntime.pid)) {
     return currentRemoteState;
   }
 

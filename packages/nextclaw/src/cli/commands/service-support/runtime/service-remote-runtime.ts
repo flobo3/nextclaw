@@ -12,7 +12,11 @@ import {
 } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getDataDir } from "@nextclaw/core";
-import { readServiceState, resolveUiApiBase, writeServiceState, type ServiceState } from "../../../utils.js";
+import { resolveUiApiBase } from "../../../utils.js";
+import {
+  managedServiceStateStore,
+  type ManagedServiceState
+} from "../../../runtime-state/managed-service-state.store.js";
 import {
   buildNextclawConfiguredRemoteState,
   createNextclawRemoteConnector,
@@ -111,7 +115,7 @@ function createRemoteOwnershipRelease(params: {
 function detectManagedRemoteOwnershipConflict(params: {
   currentPid: number;
   isProcessRunningFn: (pid: number) => boolean;
-  readServiceStateFn: typeof readServiceState;
+  readServiceStateFn: () => ManagedServiceState | null;
 }): string | null {
   const runningService = params.readServiceStateFn();
   if (
@@ -180,13 +184,13 @@ export function claimManagedRemoteRuntimeOwnership(params: {
   currentPid?: number;
   now?: () => string;
   isProcessRunningFn?: (pid: number) => boolean;
-  readServiceStateFn?: typeof readServiceState;
+  readServiceStateFn?: () => ManagedServiceState | null;
 }): RemoteRuntimeOwnershipClaim {
   const lockPath = params.lockPath ?? resolveRemoteOwnershipLockPath();
   const currentPid = params.currentPid ?? process.pid;
   const now = params.now ?? (() => new Date().toISOString());
   const isProcessRunningFn = params.isProcessRunningFn ?? isProcessRunning;
-  const readServiceStateFn = params.readServiceStateFn ?? readServiceState;
+  const readServiceStateFn = params.readServiceStateFn ?? managedServiceStateStore.read;
   const managedConflict = detectManagedRemoteOwnershipConflict({
     currentPid,
     isProcessRunningFn,
@@ -256,7 +260,7 @@ export function writeInitialManagedServiceState(params: {
   readinessTimeoutMs: number;
   snapshot: ManagedServiceSnapshot;
 }): void {
-  writeServiceState({
+  managedServiceStateStore.write({
     pid: params.snapshot.pid,
     startedAt: new Date().toISOString(),
     uiUrl: params.snapshot.uiUrl,
@@ -275,9 +279,9 @@ export function writeReadyManagedServiceState(params: {
   readinessTimeoutMs: number;
   readiness: { ready: boolean; lastProbeError: string | null };
   snapshot: ManagedServiceSnapshot;
-}): ServiceState {
-  const currentState = readServiceState();
-  const state: ServiceState = {
+}): ManagedServiceState {
+  const currentState = managedServiceStateStore.read();
+  const state: ManagedServiceState = {
     pid: params.snapshot.pid,
     startedAt: currentState?.startedAt ?? new Date().toISOString(),
     uiUrl: params.snapshot.uiUrl,
@@ -291,6 +295,6 @@ export function writeReadyManagedServiceState(params: {
     startupCheckedAt: new Date().toISOString(),
     ...(currentState?.remote ? { remote: currentState.remote } : {})
   };
-  writeServiceState(state);
+  managedServiceStateStore.write(state);
   return state;
 }

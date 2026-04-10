@@ -2,17 +2,9 @@ import type * as NextclawCore from "@nextclaw/core";
 import { closeSync, mkdirSync, openSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
+import type { ManagedServiceState } from "../../../runtime-state/managed-service-state.store.js";
 import { resolveCliSubcommandLaunch } from "../marketplace/cli-subcommand-launch.js";
 import { writeInitialManagedServiceState } from "./service-remote-runtime.js";
-
-export type ManagedServiceState = {
-  pid: number;
-  uiUrl: string;
-  apiUrl: string;
-  uiHost?: string;
-  uiPort?: number;
-  logPath: string;
-};
 
 export type ManagedServiceSnapshot = {
   pid: number;

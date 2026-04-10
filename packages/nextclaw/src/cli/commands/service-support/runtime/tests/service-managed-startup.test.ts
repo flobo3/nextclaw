@@ -65,6 +65,7 @@ describe("spawnManagedService", () => {
       process.execPath,
       [...process.execArgv, "/tmp/dist/cli/index.js", "serve", "--ui-port", "18791"],
       expect.objectContaining({
+        env: process.env,
         detached: true
       })
     );

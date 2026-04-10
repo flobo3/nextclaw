@@ -2,7 +2,8 @@ import { APP_NAME, loadConfig, type Config } from "@nextclaw/core";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { createServer as createNetServer } from "node:net";
-import { resolveServiceStatePath, resolveUiApiBase, resolveUiConfig } from "../../../utils.js";
+import { resolveUiApiBase, resolveUiConfig } from "../../../utils.js";
+import { managedServiceStateStore } from "../../../runtime-state/managed-service-state.store.js";
 
 function getHeaderValue(headers: Record<string, string | string[] | undefined>, key: string): string | null {
   const value = headers[key];
@@ -150,7 +151,7 @@ export async function describeUnmanagedHealthyTargetMessage(params: {
 
   return [
     `Target UI health: ${healthUrl}`,
-    `A healthy ${APP_NAME} service is already responding on this port, but it is not tracked by ${resolveServiceStatePath()}.`,
+    `A healthy ${APP_NAME} service is already responding on this port, but it is not tracked by ${managedServiceStateStore.path}.`,
     `${APP_NAME} restart only stops the background service recorded in managed state; it will not auto-kill Docker or other external listeners.`,
     `Fix: stop that external service first or rerun with --ui-port <port>.`
   ].join("\n");

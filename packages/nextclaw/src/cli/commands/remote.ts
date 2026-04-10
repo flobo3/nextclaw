@@ -8,7 +8,7 @@ import {
   type RemoteStatusSnapshot
 } from "@nextclaw/remote";
 import { hostname } from "node:os";
-import { isProcessRunning, readServiceState } from "../utils.js";
+import { localUiDiscoveryService } from "../runtime-state/local-ui-discovery.service.js";
 import { createNextclawRemoteConnector, resolveNextclawRemoteStatusSnapshot } from "./remote-support/remote-runtime-support.js";
 
 type RemoteConfigChange = {
@@ -45,12 +45,7 @@ function normalizeOptionalString(value: unknown): string | undefined {
 }
 
 function resolveConfiguredLocalOrigin(config: Config): string {
-  const state = readServiceState();
-  if (state && isProcessRunning(state.pid) && Number.isFinite(state.uiPort)) {
-    return `http://127.0.0.1:${state.uiPort}`;
-  }
-  const port = typeof config.ui.port === "number" && Number.isFinite(config.ui.port) ? config.ui.port : 55667;
-  return `http://127.0.0.1:${port}`;
+  return localUiDiscoveryService.resolveLocalOrigin(config);
 }
 
 async function probeLocalUi(localOrigin: string): Promise<{ ok: boolean; detail: string }> {

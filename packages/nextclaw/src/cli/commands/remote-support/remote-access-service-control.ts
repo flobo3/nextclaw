@@ -1,7 +1,8 @@
 import { getConfigPath, loadConfig } from "@nextclaw/core";
 import type { RemoteServiceAction, RemoteServiceActionResult, RemoteServiceView } from "@nextclaw/server";
 import { spawn } from "node:child_process";
-import { isProcessRunning, readServiceState, resolveServiceStatePath, resolveUiApiBase, resolveUiConfig } from "../../utils.js";
+import { isProcessRunning, resolveUiApiBase, resolveUiConfig } from "../../utils.js";
+import { managedServiceStateStore } from "../../runtime-state/managed-service-state.store.js";
 
 export type RemoteAccessHostServiceCommands = {
   startService: (options: { uiOverrides: Partial<ReturnType<typeof resolveUiConfig>>; open: boolean }) => Promise<void>;
@@ -39,7 +40,7 @@ export function resolveRemoteServiceView(currentUi?: CurrentUi): RemoteServiceVi
     };
   }
 
-  const serviceState = readServiceState();
+  const serviceState = managedServiceStateStore.read();
   const serviceRunning = Boolean(serviceState && isProcessRunning(serviceState.pid));
   return {
     running: serviceRunning,
@@ -81,7 +82,7 @@ async function controlManagedService(
   action: RemoteServiceAction,
   deps: RemoteServiceControlDeps
 ): Promise<RemoteServiceActionResult> {
-  const state = readServiceState();
+  const state = managedServiceStateStore.read();
   const running = Boolean(state && isProcessRunning(state.pid));
   const currentProcess = Boolean(running && state?.pid === process.pid);
   const uiOverrides = resolveManagedUiOverrides();
@@ -163,7 +164,7 @@ function launchManagedSelfControl(params: {
     'const { spawn } = require("node:child_process");',
     'const { rmSync } = require("node:fs");',
     `const parentPid = ${process.pid};`,
-    `const serviceStatePath = ${JSON.stringify(resolveServiceStatePath())};`,
+    `const serviceStatePath = ${JSON.stringify(managedServiceStateStore.path)};`,
     `const command = ${JSON.stringify(params.command ?? null)};`,
     `const args = ${JSON.stringify(params.args ?? [])};`,
     `const cwd = ${JSON.stringify(process.cwd())};`,
