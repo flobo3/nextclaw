@@ -1,9 +1,5 @@
 import * as NextclawCore from "@nextclaw/core";
-import {
-  resolvePluginChannelMessageToolHints,
-  setPluginRuntimeBridge,
-  stopPluginChannelGateways
-} from "@nextclaw/openclaw-compat";
+import { resolvePluginChannelMessageToolHints } from "@nextclaw/openclaw-compat";
 import { appendFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -47,12 +43,7 @@ import { writeReadyManagedServiceState } from "./service-support/runtime/service
 import { createRemoteAccessHost } from "./service-support/runtime/service-remote-access.js";
 import { type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
 import { createGatewayShellContext, createGatewayStartupContext } from "./service-support/gateway/service-gateway-context.js";
-import {
-  runGatewayRuntimeLoop,
-  startDeferredGatewayStartup,
-  startUiShell,
-  wireSystemSessionUpdatedPublisher
-} from "./service-support/gateway/service-gateway-startup.js";
+import { runConfiguredGatewayRuntime, startUiShell } from "./service-support/gateway/service-gateway-startup.js";
 import { createServiceNcpSessionRealtimeBridge } from "./service-support/session/service-ncp-session-realtime-bridge.js";
 import { createEmptyPluginRegistry } from "./plugin/plugin-registry-loader.js";
 import {
@@ -62,6 +53,7 @@ import {
   createGatewayRuntimeState,
   type GatewayRuntimeState
 } from "./service-support/gateway/service-gateway-bootstrap.js";
+import { cleanupGatewayRuntime, handleGatewayDeferredStartupError } from "./service-support/gateway/service-gateway-runtime-lifecycle.js";
 import { checkPortAvailability, probeHealthEndpoint } from "./service-support/runtime/service-port-probe.js";
 import { logStartupTrace, measureStartupAsync, measureStartupSync } from "../startup-trace.js";
 
@@ -173,12 +165,12 @@ export class ServiceCommands {
       })
     );
     this.applyLiveConfigReload = gateway.applyLiveConfigReload;
+    const loadGatewayConfig = () => resolveConfigSecrets(loadConfig(), { configPath: gateway.runtimeConfigPath });
     const gatewayRuntimeState = createGatewayRuntimeState(gateway);
     runtimeState = gatewayRuntimeState;
     uiStartup?.publish({ type: "config.updated", payload: { path: "channels" } });
     uiStartup?.publish({ type: "config.updated", payload: { path: "plugins" } });
     configureGatewayPluginRuntime({ gateway, state: gatewayRuntimeState, getLiveUiNcpAgent: () => this.liveUiNcpAgent });
-    wireSystemSessionUpdatedPublisher({ runtimePool: gateway.runtimePool, publishUiEvent: uiStartup?.publish });
     console.log("✓ Capability hydration: scheduled in background");
     await measureStartupAsync("service.start_gateway_support_services", async () =>
       await startGatewayRuntimeSupport({
@@ -207,52 +199,37 @@ export class ServiceCommands {
         await this.wakeFromRestartSentinel({ bus: gateway.bus, sessionManager: gateway.sessionManager })
     });
 
-    logStartupTrace("service.start_gateway.runtime_loop_begin");
-    await runGatewayRuntimeLoop({
-      runtimePool: gateway.runtimePool,
-      startDeferredStartup: () =>
-        startDeferredGatewayStartup({
-        uiStartup,
-        deferredNcpSessionService: ncpSessionRealtimeBridge.deferredSessionService,
-        bus: gateway.bus,
-        sessionManager: gateway.sessionManager,
-        providerManager: gateway.providerManager,
-        cronService: gateway.cron,
-        gatewayController: gateway.gatewayController,
-        getConfig: () => resolveConfigSecrets(loadConfig(), { configPath: gateway.runtimeConfigPath }),
-        getExtensionRegistry: () => gatewayRuntimeState.extensionRegistry,
-        resolveMessageToolHints: ({ channel, accountId }) => resolvePluginChannelMessageToolHints({
+    await runConfiguredGatewayRuntime({
+      uiStartup,
+      gateway,
+      deferredNcpSessionService: ncpSessionRealtimeBridge.deferredSessionService,
+      getConfig: loadGatewayConfig,
+      getExtensionRegistry: () => gatewayRuntimeState.extensionRegistry,
+      resolveMessageToolHints: ({ channel, accountId }) =>
+        resolvePluginChannelMessageToolHints({
           registry: gatewayRuntimeState.pluginRegistry,
           channel,
-          cfg: resolveConfigSecrets(loadConfig(), { configPath: gateway.runtimeConfigPath }),
+          cfg: loadGatewayConfig(),
           accountId,
         }),
-        hydrateCapabilities: deferredGatewayStartupHooks.hydrateCapabilities,
-        startPluginGateways: deferredGatewayStartupHooks.startPluginGateways,
-        startChannels: deferredGatewayStartupHooks.startChannels,
-        wakeFromRestartSentinel: deferredGatewayStartupHooks.wakeFromRestartSentinel,
-        onNcpAgentReady: deferredGatewayStartupHooks.onNcpAgentReady,
-        publishSessionChange: ncpSessionRealtimeBridge.publishSessionChange
-      }),
-      onDeferredStartupError: (error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        bootstrapStatus.markError(message);
-        if (bootstrapStatus.getStatus().pluginHydration.state === "running") {
-          bootstrapStatus.markPluginHydrationError(message);
-        }
-        console.error(`Deferred startup failed: ${error instanceof Error ? error.message : String(error)}`);
-      },
-      cleanup: async () => {
-        localUiRuntimeStore.clearIfOwnedByProcess();
-        await this.fileWatchers.clear();
-        this.applyLiveConfigReload = null;
-        this.liveUiNcpAgent = null;
-        ncpSessionRealtimeBridge.clear();
-        await uiStartup?.deferredNcpAgent.close();
-        await gateway.remoteModule?.stop();
-        await stopPluginChannelGateways(runtimeState?.pluginGatewayHandles ?? []);
-        setPluginRuntimeBridge(null);
-      }
+      deferredStartupHooks: deferredGatewayStartupHooks,
+      getLiveUiNcpAgent: () => this.liveUiNcpAgent,
+      publishSessionChange: ncpSessionRealtimeBridge.publishSessionChange,
+      publishUiEvent: uiStartup?.publish,
+      onDeferredStartupError: (error) =>
+        handleGatewayDeferredStartupError({ bootstrapStatus, error }),
+      cleanup: async () =>
+        await cleanupGatewayRuntime({
+          fileWatchers: this.fileWatchers,
+          resetRuntimeState: () => {
+            this.applyLiveConfigReload = null;
+            this.liveUiNcpAgent = null;
+          },
+          clearRealtimeBridge: () => ncpSessionRealtimeBridge.clear(),
+          uiStartup,
+          remoteModule: gateway.remoteModule,
+          runtimeState,
+        }),
     });
     logStartupTrace("service.start_gateway.end");
   };

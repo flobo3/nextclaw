@@ -22,7 +22,6 @@ export type ProgressivePluginLoadOptions = {
   reservedToolNames?: string[];
   reservedChannelIds?: string[];
   reservedProviderIds?: string[];
-  reservedEngineKinds?: string[];
   reservedNcpAgentRuntimeKinds?: string[];
   onPluginProcessed?: (params: { loadedPluginCount: number; pluginId?: string }) => void;
   yieldToEventLoop?: () => Promise<void>;
@@ -117,7 +116,6 @@ function createEmptyPluginRegistry(): PluginRegistry {
     tools: [],
     channels: [],
     providers: [],
-    engines: [],
     ncpAgentRuntimes: [],
     diagnostics: [],
     resolvedTools: []
@@ -134,7 +132,6 @@ function createRegisterRuntimeFromOptions(options: ProgressivePluginLoadOptions,
     reservedToolNames: new Set(options.reservedToolNames ?? []),
     reservedChannelIds: new Set(options.reservedChannelIds ?? []),
     reservedProviderIds: new Set(options.reservedProviderIds ?? []),
-    reservedEngineKinds: new Set((options.reservedEngineKinds ?? ["native"]).map((entry) => entry.toLowerCase())),
     reservedNcpAgentRuntimeKinds: new Set(
       (options.reservedNcpAgentRuntimeKinds ?? ["native"]).map((entry) => entry.toLowerCase())
     )

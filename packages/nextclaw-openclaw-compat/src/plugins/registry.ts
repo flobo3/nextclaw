@@ -2,7 +2,6 @@ import path from "node:path";
 import { expandHome, type Config } from "@nextclaw/core";
 import {
   ensureUniqueNames,
-  registerPluginEngine,
   registerPluginNcpAgentRuntime,
 } from "./plugin-capability-registration.js";
 import { createPluginRuntime } from "./runtime.js";
@@ -55,13 +54,11 @@ export type PluginRegisterRuntime = {
   toolNameOwners: Map<string, string>;
   channelIdOwners: Map<string, string>;
   providerIdOwners: Map<string, string>;
-  engineKindOwners: Map<string, string>;
   ncpAgentRuntimeKindOwners: Map<string, string>;
   resolvedToolNames: Set<string>;
   reservedToolNames: Set<string>;
   reservedChannelIds: Set<string>;
   reservedProviderIds: Set<string>;
-  reservedEngineKinds: Set<string>;
   reservedNcpAgentRuntimeKinds: Set<string>;
 };
 
@@ -73,7 +70,6 @@ export function createPluginRegisterRuntime(params: {
   reservedToolNames: Set<string>;
   reservedChannelIds: Set<string>;
   reservedProviderIds: Set<string>;
-  reservedEngineKinds: Set<string>;
   reservedNcpAgentRuntimeKinds: Set<string>;
 }): PluginRegisterRuntime {
   return {
@@ -84,13 +80,11 @@ export function createPluginRegisterRuntime(params: {
     toolNameOwners: new Map<string, string>(),
     channelIdOwners: new Map<string, string>(),
     providerIdOwners: new Map<string, string>(),
-    engineKindOwners: new Map<string, string>(),
     ncpAgentRuntimeKindOwners: new Map<string, string>(),
     resolvedToolNames: new Set<string>(),
     reservedToolNames: params.reservedToolNames,
     reservedChannelIds: params.reservedChannelIds,
     reservedProviderIds: params.reservedProviderIds,
-    reservedEngineKinds: params.reservedEngineKinds,
     reservedNcpAgentRuntimeKinds: params.reservedNcpAgentRuntimeKinds
   };
 }
@@ -387,26 +381,6 @@ export function registerPluginWithApi(params: {
         pluginId: params.pluginId,
         source: params.source,
         provider
-      });
-    },
-    registerEngine: (factory, opts) => {
-      const kind = opts?.kind?.trim().toLowerCase();
-      if (!kind) {
-        params.runtime.registry.diagnostics.push({
-          level: "error",
-          pluginId: params.pluginId,
-          source: params.source,
-          message: "registerEngine requires opts.kind"
-        });
-        return;
-      }
-      registerPluginEngine({
-        runtime: params.runtime,
-        record: params.record,
-        pluginId: params.pluginId,
-        source: params.source,
-        kind,
-        factory
       });
     },
     registerNcpAgentRuntime: (registration) => {

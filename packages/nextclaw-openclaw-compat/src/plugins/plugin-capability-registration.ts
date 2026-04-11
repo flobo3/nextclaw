@@ -13,7 +13,7 @@ export function ensureUniqueNames(params: {
   source: string;
   owners: Map<string, string>;
   reserved: Set<string>;
-  kind: "tool" | "channel" | "provider" | "engine" | "ncp-runtime";
+  kind: "tool" | "channel" | "provider" | "ncp-runtime";
 }): string[] {
   const accepted: string[] = [];
   for (const rawName of params.names) {
@@ -44,35 +44,6 @@ export function ensureUniqueNames(params: {
     accepted.push(name);
   }
   return accepted;
-}
-
-export function registerPluginEngine(params: {
-  runtime: PluginRegisterRuntime;
-  record: PluginRecord;
-  pluginId: string;
-  source: string;
-  kind: string;
-  factory: PluginRegistry["engines"][number]["factory"];
-}): void {
-  const accepted = ensureUniqueNames({
-    names: [params.kind],
-    pluginId: params.pluginId,
-    diagnostics: params.runtime.registry.diagnostics,
-    source: params.source,
-    owners: params.runtime.engineKindOwners,
-    reserved: params.runtime.reservedEngineKinds,
-    kind: "engine",
-  });
-  if (accepted.length === 0) {
-    return;
-  }
-  params.runtime.registry.engines.push({
-    pluginId: params.pluginId,
-    kind: accepted[0],
-    factory: params.factory,
-    source: params.source,
-  });
-  params.record.engineKinds.push(accepted[0]);
 }
 
 export function registerPluginNcpAgentRuntime(params: {

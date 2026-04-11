@@ -19,12 +19,6 @@ export function toExtensionRegistry(pluginRegistry: PluginRegistry): NextclawExt
       channel: channel.channel,
       source: channel.source,
     })),
-    engines: pluginRegistry.engines.map((engine) => ({
-      extensionId: engine.pluginId,
-      kind: engine.kind,
-      factory: engine.factory,
-      source: engine.source,
-    })),
     ncpAgentRuntimes: pluginRegistry.ncpAgentRuntimes.map((runtime) => ({
       pluginId: runtime.pluginId,
       kind: runtime.kind,

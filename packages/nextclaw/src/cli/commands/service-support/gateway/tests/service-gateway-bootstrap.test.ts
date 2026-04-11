@@ -94,9 +94,6 @@ describe("configureGatewayPluginRuntime", () => {
       pluginRegistry: { plugins: [] },
       extensionRegistry: { channels: [] },
       pluginChannelBindings: [],
-      runtimePool: {
-        applyRuntimeConfig: vi.fn()
-      },
       reloader: {
         setApplyAgentRuntimeConfig: vi.fn(),
         setReloadPlugins: vi.fn((callback) => {
@@ -139,9 +136,6 @@ describe("configureGatewayPluginRuntime", () => {
     expect(state.pluginChannelBindings).toBe(nextPluginChannelBindings);
     expect(state.pluginUiMetadata).toBe(nextPluginUiMetadata);
     expect(state.pluginGatewayHandles).toBe(nextPluginGatewayHandles);
-    expect(gateway.runtimePool.applyRuntimeConfig).toHaveBeenCalledWith({
-      channels: { weixin: { enabled: true } }
-    });
     expect(uiNcpAgent.applyExtensionRegistry).toHaveBeenCalledWith(nextExtensionRegistry);
   });
 });

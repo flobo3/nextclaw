@@ -4,13 +4,16 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigSchema, SessionManager, type Config } from "@nextclaw/core";
 import { NcpEventType } from "@nextclaw/ncp";
-import { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
+import {
+  dispatchPromptOverNcp,
+  runGatewayInboundLoop,
+} from "./nextclaw-ncp-dispatch.js";
 
 const tempWorkspaces: string[] = [];
 
 function createWorkspace(): string {
   const workspace = mkdtempSync(
-    join(tmpdir(), "nextclaw-runtime-pool-command-test-"),
+    join(tmpdir(), "nextclaw-ncp-runner-test-"),
   );
   tempWorkspaces.push(workspace);
   return workspace;
@@ -76,12 +79,12 @@ function createNcpAgent(params?: {
 
   return {
     agent: {
-      basePath: "/api/ncp/agent",
-      agentClientEndpoint: {} as never,
-      streamProvider: {} as never,
-      runApi: { send },
+      runApi: {
+        send,
+        stream: vi.fn(),
+        abort: vi.fn(),
+      },
       sessionApi: {} as never,
-      listSessionTypes: vi.fn(),
       assetApi: { put: assetApiPut },
     },
     send,
@@ -89,42 +92,16 @@ function createNcpAgent(params?: {
   };
 }
 
-function createRuntimePool(params: {
-  workspace: string;
-  resolveNcpAgent?: () => ReturnType<typeof createNcpAgent>["agent"] | null;
-}) {
-  const config = createConfig(params.workspace);
-  const sessionManager = new SessionManager(params.workspace);
-  const bus = {
-    consumeInbound: vi.fn(async () => {
-      throw new Error("not implemented in unit test");
-    }),
-    publishOutbound: vi.fn(async () => undefined),
-  };
-
-  const runtimePool = new GatewayAgentRuntimePool({
-    bus: bus as never,
-    sessionManager,
-    config,
-    resolveNcpAgent: params.resolveNcpAgent as (() => never) | undefined,
-  });
-
-  return {
-    runtimePool,
-    bus,
-  };
-}
-
-describe("GatewayAgentRuntimePool direct dispatch", () => {
+describe("dispatchPromptOverNcp", () => {
   it("executes slash command before NCP dispatch", async () => {
     const workspace = createWorkspace();
+    const sessionManager = new SessionManager(workspace);
     const ncpAgent = createNcpAgent({ text: "ncp-reply" });
-    const { runtimePool } = createRuntimePool({
-      workspace,
-      resolveNcpAgent: vi.fn(() => ncpAgent.agent),
-    });
 
-    const result = await runtimePool.processDirect({
+    const result = await dispatchPromptOverNcp({
+      config: createConfig(workspace),
+      sessionManager,
+      resolveNcpAgent: () => ncpAgent.agent as never,
       content: "/status",
       sessionKey: "agent:main:ui:direct:web-ui",
       channel: "ui",
@@ -137,13 +114,13 @@ describe("GatewayAgentRuntimePool direct dispatch", () => {
 
   it("falls back to NCP dispatch for normal messages", async () => {
     const workspace = createWorkspace();
+    const sessionManager = new SessionManager(workspace);
     const ncpAgent = createNcpAgent({ text: "ncp-reply" });
-    const { runtimePool } = createRuntimePool({
-      workspace,
-      resolveNcpAgent: vi.fn(() => ncpAgent.agent),
-    });
 
-    const result = await runtimePool.processDirect({
+    const result = await dispatchPromptOverNcp({
+      config: createConfig(workspace),
+      sessionManager,
+      resolveNcpAgent: () => ncpAgent.agent as never,
       content: "hello",
       sessionKey: "agent:main:ui:direct:web-ui",
       channel: "ui",
@@ -167,15 +144,15 @@ describe("GatewayAgentRuntimePool direct dispatch", () => {
 
   it("uploads local attachments and forwards assetUri parts to NCP", async () => {
     const workspace = createWorkspace();
+    const sessionManager = new SessionManager(workspace);
     const ncpAgent = createNcpAgent({ text: "image reply" });
-    const { runtimePool } = createRuntimePool({
-      workspace,
-      resolveNcpAgent: vi.fn(() => ncpAgent.agent),
-    });
     const attachmentPath = join(workspace, "inbound-image.png");
     writeFileSync(attachmentPath, "fake-image");
 
-    const result = await runtimePool.processDirect({
+    const result = await dispatchPromptOverNcp({
+      config: createConfig(workspace),
+      sessionManager,
+      resolveNcpAgent: () => ncpAgent.agent as never,
       content: "describe image",
       sessionKey: "agent:main:feishu:direct:oc-chat",
       channel: "feishu",
@@ -207,43 +184,9 @@ describe("GatewayAgentRuntimePool direct dispatch", () => {
       {},
     );
   });
-
-  it("marks stop unsupported when the NCP agent is not ready", () => {
-    const workspace = createWorkspace();
-    const { runtimePool } = createRuntimePool({
-      workspace,
-      resolveNcpAgent: vi.fn(() => null),
-    });
-
-    const capability = runtimePool.supportsTurnAbort({
-      sessionKey: "agent:main:ui:direct:web-ui",
-      channel: "ui",
-      chatId: "web-ui",
-    });
-
-    expect(capability.supported).toBe(false);
-    expect(capability.reason).toContain("not ready");
-  });
-
-  it("marks stop supported when the NCP agent is ready", () => {
-    const workspace = createWorkspace();
-    const ncpAgent = createNcpAgent({ text: "ok" });
-    const { runtimePool } = createRuntimePool({
-      workspace,
-      resolveNcpAgent: vi.fn(() => ncpAgent.agent),
-    });
-
-    const capability = runtimePool.supportsTurnAbort({
-      sessionKey: "agent:main:ui:direct:web-ui",
-      channel: "ui",
-      chatId: "web-ui",
-    });
-
-    expect(capability.supported).toBe(true);
-  });
 });
 
-describe("GatewayAgentRuntimePool inbound dispatch", () => {
+describe("runGatewayInboundLoop", () => {
   it("streams reset, delta, and final reply for non-system messages", async () => {
     const workspace = createWorkspace();
     const ncpAgent = createNcpAgent({
@@ -278,14 +221,15 @@ describe("GatewayAgentRuntimePool inbound dispatch", () => {
       publishOutbound: vi.fn(async () => undefined),
     };
 
-    const runtimePool = new GatewayAgentRuntimePool({
-      bus: bus as never,
-      sessionManager: new SessionManager(workspace),
-      config: createConfig(workspace),
-      resolveNcpAgent: (() => ncpAgent.agent) as () => never,
-    });
+    await expect(
+      runGatewayInboundLoop({
+        bus: bus as never,
+        sessionManager: new SessionManager(workspace),
+        getConfig: () => createConfig(workspace),
+        resolveNcpAgent: () => ncpAgent.agent as never,
+      }),
+    ).rejects.toThrow("stop-loop");
 
-    await expect(runtimePool.run()).rejects.toThrow("stop-loop");
     expect(bus.publishOutbound).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -340,17 +284,18 @@ describe("GatewayAgentRuntimePool inbound dispatch", () => {
       }),
       publishOutbound: vi.fn(async () => undefined),
     };
-
-    const runtimePool = new GatewayAgentRuntimePool({
-      bus: bus as never,
-      sessionManager: new SessionManager(workspace),
-      config: createConfig(workspace),
-      resolveNcpAgent: (() => ncpAgent.agent) as () => never,
-    });
     const sessionUpdated = vi.fn();
-    runtimePool.setSystemSessionUpdatedHandler(sessionUpdated);
 
-    await expect(runtimePool.run()).rejects.toThrow("stop-loop");
+    await expect(
+      runGatewayInboundLoop({
+        bus: bus as never,
+        sessionManager: new SessionManager(workspace),
+        getConfig: () => createConfig(workspace),
+        resolveNcpAgent: () => ncpAgent.agent as never,
+        onSystemSessionUpdated: sessionUpdated,
+      }),
+    ).rejects.toThrow("stop-loop");
+
     expect(ncpAgent.send).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: "agent:main:ui:direct:web-ui",

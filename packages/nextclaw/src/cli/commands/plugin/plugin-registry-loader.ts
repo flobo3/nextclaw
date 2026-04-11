@@ -61,7 +61,6 @@ export function createEmptyPluginRegistry(): PluginRegistry {
     tools: [],
     channels: [],
     providers: [],
-    engines: [],
     ncpAgentRuntimes: [],
     diagnostics: [],
     resolvedTools: []

@@ -100,9 +100,6 @@ describe("hydrateServiceCapabilities", () => {
       pluginRegistry: { plugins: [] },
       extensionRegistry: { channels: [] },
       pluginChannelBindings: [],
-      runtimePool: {
-        applyRuntimeConfig: vi.fn()
-      },
       reloader: {
         rebuildChannels: vi.fn(async () => {
           expect(gateway.pluginRegistry).toBe(nextPluginRegistry);

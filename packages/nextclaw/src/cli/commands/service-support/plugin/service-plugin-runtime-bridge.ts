@@ -1,11 +1,18 @@
 import { loadConfig, resolveConfigSecrets, saveConfig, type InboundAttachment } from "@nextclaw/core";
 import { setPluginRuntimeBridge } from "@nextclaw/openclaw-compat";
 import type { getPluginChannelBindings } from "@nextclaw/openclaw-compat";
-import type { GatewayAgentRuntimePool } from "../../agent/agent-runtime-pool.js";
 import { mergePluginConfigView, toPluginConfigView } from "../../plugins.js";
 
 type InstallPluginRuntimeBridgeParams = {
-  runtimePool: GatewayAgentRuntimePool;
+  dispatchPrompt: (params: {
+    content: string;
+    sessionKey?: string;
+    channel?: string;
+    chatId?: string;
+    attachments?: InboundAttachment[];
+    metadata?: Record<string, unknown>;
+    agentId?: string;
+  }) => Promise<string>;
   runtimeConfigPath: string;
   getPluginChannelBindings: () => ReturnType<typeof getPluginChannelBindings>;
 };
@@ -30,7 +37,7 @@ type PluginRuntimeDispatchContext = {
 };
 
 export function installPluginRuntimeBridge(params: InstallPluginRuntimeBridgeParams): void {
-  const { runtimePool, runtimeConfigPath, getPluginChannelBindings } = params;
+  const { dispatchPrompt, runtimeConfigPath, getPluginChannelBindings } = params;
 
   setPluginRuntimeBridge({
     loadConfig: () =>
@@ -51,7 +58,7 @@ export function installPluginRuntimeBridge(params: InstallPluginRuntimeBridgePar
 
       try {
         await dispatcherOptions.onReplyStart?.();
-        const response = await runtimePool.processDirect(request);
+        const response = await dispatchPrompt(request);
         const replyText = typeof response === "string" ? response : String(response ?? "");
         if (replyText.trim()) {
           await dispatcherOptions.deliver({ text: replyText }, { kind: "final" });
