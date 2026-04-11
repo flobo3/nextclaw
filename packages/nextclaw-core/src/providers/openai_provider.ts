@@ -6,6 +6,18 @@ import {
   normalizeChatCompletionsResponse,
   normalizeStructuredUsageCounters
 } from "./chat-completions-normalizer.js";
+import {
+  buildOpenAiApiBaseCandidates,
+  createEmptyChatCompletionsPayloadError,
+  isSemanticallyEmptyOpenAiResponse,
+  normalizeOpenAiResponsesOutput,
+} from "../utils/openai/response.utils.js";
+import {
+  createOpenAiChatCompletionsStreamState,
+  consumeOpenAiChatCompletionsChunk,
+  finalizeOpenAiChatCompletionsStreamResponse,
+  mergeOpenAiUsageCounters,
+} from "../utils/openai/stream.utils.js";
 import type { ThinkingLevel } from "../utils/thinking.js";
 import { mapThinkingLevelToOpenAIReasoningEffort } from "../utils/thinking.js";
 
@@ -19,11 +31,12 @@ export type OpenAIProviderOptions = {
 };
 
 export class OpenAICompatibleProvider extends LLMProvider {
-  private client: OpenAI;
+  private clientPool = new Map<string, OpenAI>();
   private defaultModel: string;
   private extraHeaders?: Record<string, string> | null;
   private wireApi: "auto" | "chat" | "responses";
   private enableResponsesFallback: boolean;
+  private apiBaseCandidates: Array<string | null>;
 
   constructor(options: OpenAIProviderOptions) {
     super(options.apiKey, options.apiBase);
@@ -31,11 +44,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
     this.extraHeaders = options.extraHeaders ?? null;
     this.wireApi = options.wireApi ?? "auto";
     this.enableResponsesFallback = options.enableResponsesFallback ?? true;
-    this.client = new OpenAI({
-      apiKey: options.apiKey ?? undefined,
-      baseURL: options.apiBase ?? undefined,
-      defaultHeaders: options.extraHeaders ?? undefined
-    });
+    this.apiBaseCandidates = buildOpenAiApiBaseCandidates(options.apiBase ?? null);
   }
 
   getDefaultModel = (): string => {
@@ -109,21 +118,34 @@ export class OpenAICompatibleProvider extends LLMProvider {
     signal?: AbortSignal;
   }): Promise<LLMResponse> => {
     const model = params.model ?? this.defaultModel;
+    let lastError: unknown = null;
 
-    const response = await this.withRetry(async () =>
-      this.client.chat.completions.create({
-        model,
-        messages: params.messages as unknown as ChatCompletionMessageParam[],
-        tools: params.tools as ChatCompletionTool[] | undefined,
-        tool_choice: params.tools?.length ? "auto" : undefined,
-        ...(typeof params.maxTokens === "number" ? { max_tokens: params.maxTokens } : {})
-      }, params.signal ? { signal: params.signal } : undefined)
-    );
+    for (const apiBase of this.apiBaseCandidates) {
+      try {
+        const response = await this.withRetry(async () =>
+          this.getClient(apiBase).chat.completions.create({
+            model,
+            messages: params.messages as unknown as ChatCompletionMessageParam[],
+            tools: params.tools as ChatCompletionTool[] | undefined,
+            tool_choice: params.tools?.length ? "auto" : undefined,
+            ...(typeof params.maxTokens === "number" ? { max_tokens: params.maxTokens } : {})
+          }, params.signal ? { signal: params.signal } : undefined)
+        );
 
-    return normalizeChatCompletionsResponse(
-      response,
-      (raw) => this.parseToolCallArguments(raw)
-    );
+        const normalized = normalizeChatCompletionsResponse(
+          response,
+          (raw) => this.parseToolCallArguments(raw)
+        );
+        if (isSemanticallyEmptyOpenAiResponse(normalized)) {
+          throw createEmptyChatCompletionsPayloadError(apiBase);
+        }
+        return normalized;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError ?? createEmptyChatCompletionsPayloadError(this.apiBaseCandidates.at(-1) ?? null);
   };
 
   private chatCompletionsStream = (params: {
@@ -136,144 +158,54 @@ export class OpenAICompatibleProvider extends LLMProvider {
   }): AsyncGenerator<LLMStreamEvent> => {
     return (async function* (provider: OpenAICompatibleProvider): AsyncGenerator<LLMStreamEvent> {
       const model = params.model ?? provider.defaultModel;
-      const stream = await provider.withRetry(async () =>
-        provider.client.chat.completions.create({
-          model,
-          messages: params.messages as unknown as ChatCompletionMessageParam[],
-          tools: params.tools as ChatCompletionTool[] | undefined,
-          tool_choice: params.tools?.length ? "auto" : undefined,
-          ...(typeof params.maxTokens === "number" ? { max_tokens: params.maxTokens } : {}),
-          stream: true,
-          stream_options: {
-            include_usage: true
-          }
-        }, params.signal ? { signal: params.signal } : undefined)
-      );
+      let lastError: unknown = null;
 
-      type ToolCallBuffer = {
-        id?: string;
-        name?: string;
-        argumentsText: string;
-      };
-
-      const contentParts: string[] = [];
-      const reasoningParts: string[] = [];
-      const toolCallBuffers = new Map<number, ToolCallBuffer>();
-      let finishReason = "stop";
-      let usage: Record<string, number> = {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0
-      };
-
-      for await (const chunk of stream) {
-        if (chunk.usage) {
-          usage = provider.mergeUsageCounters(usage, chunk.usage as unknown as Record<string, unknown>);
-        }
-
-        const choice = chunk.choices?.[0];
-        if (!choice) {
-          continue;
-        }
-
-        if (typeof choice.finish_reason === "string" && choice.finish_reason.trim().length > 0) {
-          finishReason = choice.finish_reason;
-        }
-
-        const delta = choice.delta;
-        if (!delta) {
-          continue;
-        }
-
-        const reasoningDelta =
-          (delta as { reasoning_content?: string } | undefined)?.reasoning_content ??
-          (delta as { reasoning?: string } | undefined)?.reasoning;
-        if (typeof reasoningDelta === "string" && reasoningDelta) {
-          reasoningParts.push(reasoningDelta);
-          yield {
-            type: "reasoning_delta",
-            delta: reasoningDelta,
-          };
-        }
-
-        if (typeof delta.content === "string" && delta.content.length > 0) {
-          contentParts.push(delta.content);
-          yield {
-            type: "delta",
-            delta: delta.content
-          };
-        }
-
-        const toolDeltas = (delta as { tool_calls?: Array<Record<string, unknown>> }).tool_calls;
-        if (Array.isArray(toolDeltas)) {
-          for (const toolDelta of toolDeltas) {
-            const index =
-              typeof toolDelta.index === "number" && Number.isFinite(toolDelta.index)
-                ? toolDelta.index
-                : toolCallBuffers.size;
-            const current = toolCallBuffers.get(index) ?? { argumentsText: "" };
-            if (typeof toolDelta.id === "string" && toolDelta.id.trim()) {
-              current.id = toolDelta.id;
-            }
-            const fn = toolDelta.function;
-            if (fn && typeof fn === "object" && !Array.isArray(fn)) {
-              const maybeName = (fn as { name?: unknown }).name;
-              const maybeArgs = (fn as { arguments?: unknown }).arguments;
-              if (typeof maybeName === "string" && maybeName.trim()) {
-                current.name = maybeName;
+      for (const apiBase of provider.apiBaseCandidates) {
+        try {
+          const stream = await provider.withRetry(async () =>
+            provider.getClient(apiBase).chat.completions.create({
+              model,
+              messages: params.messages as unknown as ChatCompletionMessageParam[],
+              tools: params.tools as ChatCompletionTool[] | undefined,
+              tool_choice: params.tools?.length ? "auto" : undefined,
+              ...(typeof params.maxTokens === "number" ? { max_tokens: params.maxTokens } : {}),
+              stream: true,
+              stream_options: {
+                include_usage: true
               }
-              if (typeof maybeArgs === "string" && maybeArgs.length > 0) {
-                current.argumentsText += maybeArgs;
-              }
-            }
-            toolCallBuffers.set(index, current);
-          }
-          yield {
-            type: "tool_call_delta",
-            toolCalls: structuredClone(toolDeltas),
-          };
-        }
+            }, params.signal ? { signal: params.signal } : undefined)
+          );
+          const state = createOpenAiChatCompletionsStreamState();
 
-        const legacyFunctionCall = (delta as { function_call?: { name?: string; arguments?: string } } | undefined)
-          ?.function_call;
-        if (legacyFunctionCall) {
-          const legacy = toolCallBuffers.get(0) ?? { argumentsText: "" };
-          if (typeof legacyFunctionCall.name === "string" && legacyFunctionCall.name.trim()) {
-            legacy.name = legacyFunctionCall.name;
+          for await (const chunk of stream) {
+            for (const event of consumeOpenAiChatCompletionsChunk({
+              chunk: chunk as unknown as Record<string, unknown>,
+              state,
+              mergeUsageCounters: provider.mergeUsageCounters,
+            })) {
+              yield event;
+            }
           }
-          if (typeof legacyFunctionCall.arguments === "string" && legacyFunctionCall.arguments.length > 0) {
-            legacy.argumentsText += legacyFunctionCall.arguments;
+
+          const response = finalizeOpenAiChatCompletionsStreamResponse({
+            state,
+            parseToolCallArguments: provider.parseToolCallArguments,
+          });
+          if (isSemanticallyEmptyOpenAiResponse(response)) {
+            throw createEmptyChatCompletionsPayloadError(apiBase);
           }
-          if (!legacy.id) {
-            legacy.id = "legacy-fn-0";
-          }
-          toolCallBuffers.set(0, legacy);
+
+          yield {
+            type: "done",
+            response
+          };
+          return;
+        } catch (error) {
+          lastError = error;
         }
       }
 
-      const toolCalls: ToolCallRequest[] = [];
-      const orderedToolCalls = Array.from(toolCallBuffers.entries()).sort(([left], [right]) => left - right);
-      for (const [index, call] of orderedToolCalls) {
-        if (!call.name || !call.name.trim()) {
-          continue;
-        }
-        toolCalls.push({
-          id: call.id ?? `tool-${index}`,
-          name: call.name.trim(),
-          arguments: provider.parseToolCallArguments(call.argumentsText)
-        });
-      }
-
-      yield {
-        type: "done",
-        response: {
-          content: contentParts.join("") || null,
-          toolCalls,
-          finishReason,
-          usage,
-          reasoningContent: reasoningParts.join("").trim() || null
-        }
-      };
+      throw lastError ?? createEmptyChatCompletionsPayloadError(provider.apiBaseCandidates.at(-1) ?? null);
     })(this);
   };
 
@@ -296,107 +228,62 @@ export class OpenAICompatibleProvider extends LLMProvider {
       body.tools = params.tools as unknown;
     }
 
-    const base = this.apiBase ?? "https://api.openai.com/v1";
-    const responseUrl = new URL("responses", base.endsWith("/") ? base : `${base}/`);
-    const response = await this.withRetry(async () => {
-      const attempt = await fetch(responseUrl.toString(), {
-        method: "POST",
-        headers: {
-          "Authorization": this.apiKey ? `Bearer ${this.apiKey}` : "",
-          "Content-Type": "application/json",
-          ...(this.extraHeaders ?? {})
-        },
-        body: JSON.stringify(body),
-        signal: params.signal
-      });
+    let lastError: unknown = null;
 
-      if (!attempt.ok) {
-        const text = await attempt.text();
-        const preview = text.slice(0, 200);
-        const error = new Error(
-          `Responses API failed (${attempt.status}): ${preview}`
-        ) as Error & { status?: number; responseUrl?: string; bodyPreview?: string };
-        error.status = attempt.status;
-        error.responseUrl = responseUrl.toString();
-        error.bodyPreview = preview;
-        throw error;
-      }
+    for (const apiBase of this.apiBaseCandidates) {
+      const base = apiBase ?? "https://api.openai.com/v1";
+      const responseUrl = new URL("responses", base.endsWith("/") ? base : `${base}/`);
 
-      return attempt;
-    });
+      try {
+        const response = await this.withRetry(async () => {
+          const attempt = await fetch(responseUrl.toString(), {
+            method: "POST",
+            headers: {
+              "Authorization": this.apiKey ? `Bearer ${this.apiKey}` : "",
+              "Content-Type": "application/json",
+              ...(this.extraHeaders ?? {})
+            },
+            body: JSON.stringify(body),
+            signal: params.signal
+          });
 
-    const rawText = await response.text();
-    const responseAny = this.parseResponsesPayload(rawText) as {
-      output?: Array<Record<string, unknown>>;
-      usage?: Record<string, number>;
-      status?: string;
-    };
-    const outputItems = responseAny.output ?? [];
-    const toolCalls: ToolCallRequest[] = [];
-    const contentParts: string[] = [];
-    let reasoningContent: string | null = null;
-
-    for (const item of outputItems) {
-      const itemAny = item as Record<string, unknown>;
-      if (itemAny.type === "reasoning" && Array.isArray(itemAny.summary)) {
-        const summaryText = (itemAny.summary as Array<Record<string, unknown> | string>)
-          .map((entry) => (typeof entry === "string" ? entry : String((entry as { text?: string }).text ?? "")))
-          .filter(Boolean)
-          .join("\n");
-        reasoningContent = summaryText || reasoningContent;
-      }
-
-      if (itemAny.type === "message" && Array.isArray(itemAny.content)) {
-        for (const part of itemAny.content as Array<Record<string, unknown>>) {
-          const partAny = part as Record<string, unknown>;
-          if (partAny?.type === "output_text" || partAny?.type === "text") {
-            const text = String(partAny?.text ?? "");
-            if (text) {
-              contentParts.push(text);
-            }
+          if (!attempt.ok) {
+            const text = await attempt.text();
+            const preview = text.slice(0, 200);
+            const error = new Error(
+              `Responses API failed (${attempt.status}): ${preview}`
+            ) as Error & { status?: number; responseUrl?: string; bodyPreview?: string };
+            error.status = attempt.status;
+            error.responseUrl = responseUrl.toString();
+            error.bodyPreview = preview;
+            throw error;
           }
-        }
-      }
 
-      if (itemAny.type === "tool_call" || itemAny.type === "function_call") {
-        const itemFunction = itemAny.function as Record<string, unknown> | undefined;
-        const name = String(itemAny.name ?? itemFunction?.name ?? "");
-        const rawArgs =
-          itemAny.arguments ??
-          itemFunction?.arguments ??
-          itemAny.input ??
-          itemFunction?.input ??
-          "{}";
-        let args: Record<string, unknown> = {};
-        try {
-          args = typeof rawArgs === "string" ? JSON.parse(rawArgs) : (rawArgs as Record<string, unknown>);
-        } catch {
-          args = {};
-        }
-        toolCalls.push({
-          id: String(itemAny.id ?? itemAny.call_id ?? `${name}-${toolCalls.length}`),
-          name,
-          arguments: args
+          return attempt;
         });
+
+        const rawText = await response.text();
+        const responseAny = this.parseResponsesPayload(rawText) as {
+          output?: Array<Record<string, unknown>>;
+          usage?: Record<string, number>;
+          status?: string;
+        };
+        const normalized = normalizeOpenAiResponsesOutput({
+          ...responseAny,
+          usage: this.normalizeUsageCounters(responseAny.usage as Record<string, unknown> | undefined),
+        });
+        if (isSemanticallyEmptyOpenAiResponse(normalized)) {
+          throw new Error(
+            `Responses API returned an empty assistant response${apiBase ? ` for base "${apiBase}"` : ""}.`
+          );
+        }
+        return normalized;
+      } catch (error) {
+        lastError = error;
       }
     }
 
-    const usage = this.normalizeUsageCounters(responseAny.usage as Record<string, unknown> | undefined);
-    const promptTokens = usage.input_tokens ?? usage.prompt_tokens ?? 0;
-    const completionTokens = usage.output_tokens ?? usage.completion_tokens ?? 0;
-    const totalTokens = usage.total_tokens ?? promptTokens + completionTokens;
-    return {
-      content: contentParts.join("") || null,
-      toolCalls,
-      finishReason: responseAny.status ?? "stop",
-      usage: {
-        ...usage,
-        prompt_tokens: promptTokens,
-        completion_tokens: completionTokens,
-        total_tokens: totalTokens
-      },
-      reasoningContent
-    };
+    throw lastError ?? new Error("Responses API returned an empty assistant response.");
   };
 
   private parseResponsesPayload = (rawText: string): Record<string, unknown> => {
@@ -596,20 +483,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
     current: Record<string, number>,
     incoming: Record<string, unknown>
   ): Record<string, number> => {
-    const next = {
-      ...current,
-      ...normalizeStructuredUsageCounters(incoming, {})
-    };
-    if (typeof next.prompt_tokens !== "number") {
-      next.prompt_tokens = 0;
-    }
-    if (typeof next.completion_tokens !== "number") {
-      next.completion_tokens = 0;
-    }
-    if (typeof next.total_tokens !== "number") {
-      next.total_tokens = 0;
-    }
-    return next;
+    return mergeOpenAiUsageCounters(current, incoming);
   };
 
   private withRetry = async <T>(operation: () => Promise<T>): Promise<T> => {
@@ -659,6 +533,22 @@ export class OpenAICompatibleProvider extends LLMProvider {
 
   private sleep = (ms: number): Promise<void> => {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  };
+
+  private getClient = (apiBase: string | null): OpenAI => {
+    const key = apiBase?.trim() || "__default__";
+    const existing = this.clientPool.get(key);
+    if (existing) {
+      return existing;
+    }
+
+    const created = new OpenAI({
+      apiKey: this.apiKey ?? undefined,
+      baseURL: apiBase ?? undefined,
+      defaultHeaders: this.extraHeaders ?? undefined
+    });
+    this.clientPool.set(key, created);
+    return created;
   };
 
   private toResponsesInput = (messages: Array<Record<string, unknown>>): Array<Record<string, unknown>> => {

@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
+import type { LLMStreamEvent } from "./base.js";
 import { OpenAICompatibleProvider } from "./openai_provider.js";
 
 const originalFetch = globalThis.fetch;
@@ -139,7 +141,9 @@ describe("OpenAICompatibleProvider responses payload parser", () => {
       input_tokens_details_cached_tokens: 1024
     });
   });
+});
 
+describe("OpenAICompatibleProvider responses fallback policy", () => {
   it("does not fall back to responses when responses fallback is disabled", async () => {
     const provider = new OpenAICompatibleProvider({
       apiKey: "sk-test",
@@ -148,7 +152,7 @@ describe("OpenAICompatibleProvider responses payload parser", () => {
       enableResponsesFallback: false
     }) as unknown as {
       chat: (params: { messages: Array<Record<string, unknown>> }) => Promise<unknown>;
-      client: {
+      getClient: () => {
         chat: {
           completions: {
             create: ReturnType<typeof vi.fn>;
@@ -159,8 +163,14 @@ describe("OpenAICompatibleProvider responses payload parser", () => {
 
     const notFoundError = new Error("Cannot POST /chat/completions") as Error & { status?: number };
     notFoundError.status = 404;
-    provider.client.chat.completions.create = vi.fn(async () => {
-      throw notFoundError;
+    provider.getClient = () => ({
+      chat: {
+        completions: {
+          create: vi.fn(async () => {
+            throw notFoundError;
+          }),
+        },
+      },
     });
     globalThis.fetch = vi.fn(async () => {
       throw new Error("responses should not be called");
@@ -173,5 +183,157 @@ describe("OpenAICompatibleProvider responses payload parser", () => {
     ).rejects.toThrow("Cannot POST /chat/completions");
 
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("OpenAICompatibleProvider /v1 fallback", () => {
+  it("retries chat completions stream against /v1 when the root base returns an empty stream", async () => {
+    const requests: string[] = [];
+    const server = createServer((request, response) => {
+      requests.push(request.url ?? "");
+      if (request.url === "/chat/completions") {
+        response.writeHead(200, { "Content-Type": "text/event-stream" });
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+      if (request.url === "/v1/chat/completions") {
+        response.writeHead(200, { "Content-Type": "text/event-stream" });
+        response.end([
+          'data: {"id":"resp_1","object":"chat.completion.chunk","created":0,"model":"gpt-test","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":null}]}',
+          'data: {"id":"resp_1","object":"chat.completion.chunk","created":0,"model":"gpt-test","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}',
+          'data: {"id":"resp_1","object":"chat.completion.chunk","created":0,"model":"gpt-test","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}',
+          "data: [DONE]",
+          "",
+        ].join("\n\n"));
+        return;
+      }
+      response.writeHead(404, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ error: { message: `Unhandled path ${request.url}` } }));
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Expected http server to bind an ephemeral port.");
+    }
+
+    const provider = new OpenAICompatibleProvider({
+      apiKey: "sk-test",
+      apiBase: `http://127.0.0.1:${address.port}`,
+      defaultModel: "gpt-test",
+      wireApi: "chat",
+    });
+
+    const events: LLMStreamEvent[] = [];
+    for await (const event of provider.chatStream({
+      messages: [{ role: "user", content: "hello" }],
+    })) {
+      events.push(event);
+    }
+
+    server.close();
+
+    expect(requests).toEqual(["/chat/completions", "/v1/chat/completions"]);
+    expect(events).toEqual([
+      { type: "delta", delta: "OK" },
+      {
+        type: "done",
+        response: {
+          content: "OK",
+          toolCalls: [],
+          finishReason: "stop",
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2,
+          },
+          reasoningContent: null,
+        },
+      },
+    ]);
+  });
+
+  it("retries non-stream chat completions against /v1 when the root base returns an empty assistant", async () => {
+    const requests: string[] = [];
+    const server = createServer((request, response) => {
+      requests.push(request.url ?? "");
+      response.writeHead(200, { "Content-Type": "application/json" });
+      if (request.url === "/chat/completions") {
+        response.end(JSON.stringify({
+          id: "resp_root",
+          object: "chat.completion",
+          created: 0,
+          model: "gpt-test",
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant" },
+              finish_reason: "stop",
+            },
+          ],
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2,
+          },
+        }));
+        return;
+      }
+      if (request.url === "/v1/chat/completions") {
+        response.end(JSON.stringify({
+          id: "resp_v1",
+          object: "chat.completion",
+          created: 0,
+          model: "gpt-test",
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant", content: "OK" },
+              finish_reason: "stop",
+            },
+          ],
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2,
+          },
+        }));
+        return;
+      }
+      response.statusCode = 404;
+      response.end(JSON.stringify({ error: { message: `Unhandled path ${request.url}` } }));
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Expected http server to bind an ephemeral port.");
+    }
+
+    const provider = new OpenAICompatibleProvider({
+      apiKey: "sk-test",
+      apiBase: `http://127.0.0.1:${address.port}`,
+      defaultModel: "gpt-test",
+      wireApi: "chat",
+    });
+
+    const response = await provider.chat({
+      messages: [{ role: "user", content: "hello" }],
+    });
+
+    server.close();
+
+    expect(requests).toEqual(["/chat/completions", "/v1/chat/completions"]);
+    expect(response).toEqual({
+      content: "OK",
+      toolCalls: [],
+      finishReason: "stop",
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+      },
+      reasoningContent: null,
+    });
   });
 });
