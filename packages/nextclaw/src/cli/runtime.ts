@@ -6,7 +6,7 @@ import {
   setPluginRuntimeBridge,
 } from "@nextclaw/openclaw-compat";
 import { existsSync, mkdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { RestartCoordinator, type RestartStrategy } from "./restart-coordinator.js";
@@ -45,7 +45,7 @@ import { describeUnmanagedHealthyTargetMessage } from "./commands/service-suppor
 import { ServiceCommands } from "./commands/service.js";
 import { WorkspaceManager } from "./workspace.js";
 import { LlmUsageObserver, ObservedProviderManager } from "./commands/shared/llm-usage-observer.js";
-import { llmUsageSnapshotStore } from "./runtime-state/llm-usage-snapshot.store.js";
+import { llmUsageRecorder } from "./commands/shared/llm-usage-recorder.js";
 import { runCliAgentCommand } from "./commands/agent/cli-agent-runner.js";
 import type {
   AgentCommandOptions,
@@ -81,8 +81,6 @@ import type {
 } from "./types.js";
 
 export const LOGO = "🤖";
-
-const EXIT_COMMANDS = new Set(["exit", "quit", "/exit", "/quit", ":q"]);
 const FORCED_PUBLIC_UI_HOST = "0.0.0.0";
 
 export class CliRuntime {
@@ -747,5 +745,5 @@ export class CliRuntime {
   };
 
   private createObservedProviderManager = (providerManager: ProviderManager, source: string): ProviderManager =>
-    new ObservedProviderManager(providerManager, new LlmUsageObserver(llmUsageSnapshotStore, source));
+    new ObservedProviderManager(providerManager, new LlmUsageObserver(llmUsageRecorder, source));
 }

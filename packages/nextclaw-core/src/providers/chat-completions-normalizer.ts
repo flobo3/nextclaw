@@ -141,31 +141,53 @@ function extractTextValue(value: unknown): string | null {
   return null;
 }
 
-function normalizeUsageCounters(raw: Record<string, unknown> | undefined): Record<string, number> {
-  const usage: Record<string, number> = {
-    prompt_tokens: normalizeUsageValue(raw?.prompt_tokens),
-    completion_tokens: normalizeUsageValue(raw?.completion_tokens),
-    total_tokens: normalizeUsageValue(raw?.total_tokens)
-  };
-
+export function normalizeStructuredUsageCounters(
+  raw: Record<string, unknown> | undefined,
+  defaults: Record<string, number> = {
+    prompt_tokens: 0,
+    completion_tokens: 0,
+    total_tokens: 0
+  }
+): Record<string, number> {
+  const usage: Record<string, number> = { ...defaults };
   if (!raw) {
     return usage;
   }
-
-  for (const [key, value] of Object.entries(raw)) {
-    if (!(key in usage)) {
-      usage[key] = normalizeUsageValue(value);
-    }
-  }
-
+  appendUsageCounters(usage, raw);
   return usage;
 }
 
-function normalizeUsageValue(value: unknown): number {
+function normalizeUsageCounters(raw: Record<string, unknown> | undefined): Record<string, number> {
+  return normalizeStructuredUsageCounters(raw);
+}
+
+function appendUsageCounters(
+  usage: Record<string, number>,
+  raw: Record<string, unknown>,
+  prefix = ""
+): void {
+  for (const [key, value] of Object.entries(raw)) {
+    const normalizedKey = prefix ? `${prefix}_${key}` : key;
+    const normalizedValue = normalizeUsageValue(value);
+    if (normalizedValue != null) {
+      usage[normalizedKey] = normalizedValue;
+      continue;
+    }
+    if (isUsageRecord(value)) {
+      appendUsageCounters(usage, value, normalizedKey);
+    }
+  }
+}
+
+function normalizeUsageValue(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    return 0;
+    return null;
   }
   return Math.floor(value);
+}
+
+function isUsageRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function toToolCalls(

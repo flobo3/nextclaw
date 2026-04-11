@@ -379,7 +379,7 @@ NextClaw UI includes a first-class **Chat** tab so you can talk to your agent di
 - choose target agent before sending message
 - send messages with Enter (Shift+Enter for newline)
 - keep using the same session for multi-turn context
-- stream assistant output in real time via UI SSE API (`POST /api/chat/turn/stream`)
+- stream assistant output in real time through the NCP UI agent endpoints (`/api/ncp/agent/*`)
 - render assistant replies as Markdown (tables/code blocks/links)
 - show tool calls/results as structured tool cards
 - merge each full assistant turn (assistant + tool calls/results + follow-ups before next user input) into one card while preserving chronological order
@@ -458,6 +458,7 @@ Skill loading contract:
 | `nextclaw agent` | Interactive chat in the terminal |
 | `nextclaw agent --session <id> --model <model>` | Use a session-specific model/provider route (sticky for that session) |
 | `nextclaw status` | Show runtime process/health/config status (`--json`, `--verbose`, `--fix`) |
+| `nextclaw usage` | Show the latest observed LLM usage snapshot; add `--history`, `--stats`, `--limit <n>`, or `--json` for local usage history and prompt cache stats |
 | `nextclaw init` | Initialize workspace and template files |
 | `nextclaw init --force` | Re-run init and overwrite templates |
 | `nextclaw agents list` | List built-in and created agents |
@@ -612,6 +613,13 @@ Status/diagnostics tips:
 - `nextclaw status --json` outputs machine-readable status and exits `0` when the command itself succeeds; use the JSON `level` field (`healthy` / `degraded` / `stopped`) to interpret runtime state.
 - `nextclaw status --fix` safely clears stale service state if PID is dead.
 - `nextclaw doctor` runs additional checks (state coherence, health, port availability, provider readiness).
+- `nextclaw usage` shows the latest observed LLM usage snapshot from recent CLI agent runs or the local UI/NCP runtime.
+- `nextclaw usage --history --limit 20` shows recent local usage records in reverse chronological order.
+- `nextclaw usage --stats` aggregates the current local usage history into quick CLI-readable totals and cache-hit counts.
+- `nextclaw usage --json` is the preferred machine-readable entry when an AI or script needs to inspect prompt cache usage fields such as `*_cached_tokens`; combine it with `--history` or `--stats` when needed.
+- The latest snapshot is stored at `${NEXTCLAW_HOME:-~/.nextclaw}/run/llm-usage.json`.
+- The local usage history is stored at `${NEXTCLAW_HOME:-~/.nextclaw}/logs/llm-usage.jsonl`.
+- Current scope is intentionally lightweight: this local history file is not a full project-wide logging module yet.
 
 OpenClaw-compatible plugin discovery paths:
 

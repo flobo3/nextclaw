@@ -200,6 +200,13 @@ export type DoctorCommandOptions = {
   fix?: boolean;
 };
 
+export type UsageCommandOptions = {
+  json?: boolean;
+  history?: boolean;
+  stats?: boolean;
+  limit?: string | number;
+};
+
 export type HealthProbe = {
   state: "ok" | "unreachable" | "invalid-response";
   detail: string;

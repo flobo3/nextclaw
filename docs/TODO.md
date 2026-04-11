@@ -22,6 +22,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 2026-03-30 | 排查发布链是否存在过度依赖与过宽联动发布，重点审视 `@nextclaw/channel-plugin-weixin`、Codex SDK 等是否应继续直接跟随 `@nextclaw/core` / release batch | user-feedback | @owner | `TBD` | create issue: map release dependency graph and propose narrower publish groups |
 | 2026-03-11 | Brave Search API 获取需绑卡，评估 Firecrawl / Tavily 作为默认或可选替代 | user-feedback | @owner | `TBD` | create issue: compare providers and decide default strategy |
+| 2026-04-11 | 为 LLM usage / prompt cache 观测补统一日志事件模块；当前已补 CLI 本地 history / stats，但仍缺项目级日志抽象、retention 与多出口复用能力 | user-feedback | @owner | `TBD` | create issue: design pluggable usage event logger and retention strategy |
 | YYYY-MM-DD | 一句话描述待办 | user/ops/dev | @owner | `TBD` | create issue or drop |
 
 ## 2. Now（当前迭代必须做）

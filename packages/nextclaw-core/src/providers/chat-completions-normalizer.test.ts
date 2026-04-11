@@ -131,4 +131,33 @@ describe("normalizeChatCompletionsResponse", () => {
     expect(parsed.content).toBe("done");
     expect(parsed.toolCalls).toEqual([]);
   });
+
+  it("flattens nested usage details for cache observation", () => {
+    const response = {
+      choices: [
+        {
+          finish_reason: "stop",
+          message: {
+            content: "done"
+          }
+        }
+      ],
+      usage: {
+        prompt_tokens: 1200,
+        completion_tokens: 50,
+        total_tokens: 1250,
+        prompt_tokens_details: {
+          cached_tokens: 1024
+        }
+      }
+    };
+
+    const parsed = normalizeChatCompletionsResponse(response, () => ({}));
+    expect(parsed.usage).toMatchObject({
+      prompt_tokens: 1200,
+      completion_tokens: 50,
+      total_tokens: 1250,
+      prompt_tokens_details_cached_tokens: 1024
+    });
+  });
 });

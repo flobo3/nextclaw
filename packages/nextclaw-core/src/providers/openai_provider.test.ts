@@ -103,6 +103,43 @@ describe("OpenAICompatibleProvider responses payload parser", () => {
     expect(capturedBody).not.toHaveProperty("reasoning");
   });
 
+  it("preserves nested cache usage details from responses API", async () => {
+    globalThis.fetch = vi.fn(async () => new Response(
+      JSON.stringify({
+        status: "completed",
+        output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }],
+        usage: {
+          input_tokens: 1500,
+          output_tokens: 80,
+          total_tokens: 1580,
+          input_tokens_details: {
+            cached_tokens: 1024
+          }
+        }
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )) as unknown as typeof globalThis.fetch;
+
+    const responseProvider = new OpenAICompatibleProvider({
+      apiKey: "sk-test",
+      apiBase: "http://127.0.0.1:9/v1",
+      defaultModel: "gpt-test",
+      wireApi: "responses"
+    });
+    const response = await responseProvider.chat({
+      messages: [{ role: "user", content: "hello" }]
+    });
+
+    expect(response.usage).toMatchObject({
+      input_tokens: 1500,
+      output_tokens: 80,
+      total_tokens: 1580,
+      prompt_tokens: 1500,
+      completion_tokens: 80,
+      input_tokens_details_cached_tokens: 1024
+    });
+  });
+
   it("does not fall back to responses when responses fallback is disabled", async () => {
     const provider = new OpenAICompatibleProvider({
       apiKey: "sk-test",
