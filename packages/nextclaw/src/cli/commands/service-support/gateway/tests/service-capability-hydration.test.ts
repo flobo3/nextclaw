@@ -101,7 +101,6 @@ describe("hydrateServiceCapabilities", () => {
       extensionRegistry: { channels: [] },
       pluginChannelBindings: [],
       runtimePool: {
-        applyExtensionRegistry: vi.fn(),
         applyRuntimeConfig: vi.fn()
       },
       reloader: {
@@ -150,7 +149,6 @@ describe("hydrateServiceCapabilities", () => {
       }),
       { start: false }
     );
-    expect(gateway.runtimePool.applyExtensionRegistry).toHaveBeenCalledWith(nextExtensionRegistry);
     expect(uiNcpAgent.applyExtensionRegistry).toHaveBeenCalledWith(nextExtensionRegistry);
   });
 });

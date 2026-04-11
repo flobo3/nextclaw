@@ -89,7 +89,6 @@ export function configureGatewayPluginRuntime(params: {
     });
     params.state.pluginUiMetadata = getPluginUiMetadataFromRegistry(result.pluginRegistry);
     params.state.pluginGatewayHandles = result.pluginGatewayHandles;
-    params.gateway.runtimePool.applyExtensionRegistry(result.extensionRegistry);
     params.getLiveUiNcpAgent()?.applyExtensionRegistry?.(result.extensionRegistry);
     params.gateway.runtimePool.applyRuntimeConfig(nextConfig);
     if (result.restartChannels) {

@@ -1,5 +1,5 @@
 import * as NextclawCore from "@nextclaw/core";
-import { getPluginChannelBindings, resolvePluginChannelMessageToolHints } from "@nextclaw/openclaw-compat";
+import { getPluginChannelBindings } from "@nextclaw/openclaw-compat";
 import type { RemoteServiceModule } from "@nextclaw/remote";
 import { join } from "node:path";
 import { GatewayControllerImpl } from "../../../gateway/controller.js";
@@ -75,36 +75,18 @@ export function applyGatewayCapabilityState(
 function createGatewayRuntimePool(state: Pick<
   GatewayStartupContext,
   | "bus"
-  | "providerManager"
   | "sessionManager"
   | "config"
-  | "cron"
-  | "gatewayController"
-  | "extensionRegistry"
-  | "pluginRegistry"
-  | "runtimeConfigPath"
->): GatewayAgentRuntimePool {
+>, params: {
+  getLiveUiNcpAgent?: () => UiNcpAgentHandle | null;
+}): GatewayAgentRuntimePool {
   return measureStartupSync(
     "service.gateway_context.runtime_pool",
     () => new GatewayAgentRuntimePool({
       bus: state.bus,
-      providerManager: state.providerManager,
       sessionManager: state.sessionManager,
       config: state.config,
-      cronService: state.cron,
-      restrictToWorkspace: state.config.tools.restrictToWorkspace,
-      searchConfig: state.config.search,
-      execConfig: state.config.tools.exec,
-      contextConfig: state.config.agents.context,
-      gatewayController: state.gatewayController,
-      extensionRegistry: state.extensionRegistry,
-      resolveMessageToolHints: ({ channel, accountId }) =>
-        resolvePluginChannelMessageToolHints({
-          registry: state.pluginRegistry,
-          channel,
-          cfg: resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }),
-          accountId,
-        }),
+      resolveNcpAgent: () => params.getLiveUiNcpAgent?.() ?? null,
     })
   );
 }
@@ -289,7 +271,7 @@ export function createGatewayStartupContext(params: {
     })
   );
 
-  state.runtimePool = createGatewayRuntimePool(state);
+  state.runtimePool = createGatewayRuntimePool(state, { getLiveUiNcpAgent });
   state.cron.onJob = createGatewayCronJobHandler({ bus: state.bus, getLiveUiNcpAgent });
   state.heartbeat = createGatewayHeartbeat(state, { getLiveUiNcpAgent });
 
