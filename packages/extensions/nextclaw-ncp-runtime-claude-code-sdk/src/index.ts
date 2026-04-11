@@ -6,6 +6,7 @@ import {
   type NcpEndpointEvent,
   NcpEventType,
 } from "@nextclaw/ncp";
+import { buildCompletedAssistantMessage } from "./completed-assistant-message.utils.js";
 import {
   type ClaudeCodeLoader,
   type ClaudeCodeMessage,
@@ -329,6 +330,17 @@ export class ClaudeCodeSdkNcpAgentRuntime implements NcpAgentRuntime {
           kind: "final",
           sessionId,
         },
+      },
+    });
+    yield* this.emitEvent({
+      type: NcpEventType.MessageCompleted,
+      payload: {
+        sessionId,
+        message: buildCompletedAssistantMessage({
+          stateManager: this.config.stateManager,
+          sessionId,
+          messageId,
+        }),
       },
     });
     yield* this.emitEvent({

@@ -15,6 +15,10 @@
   - toolkit backend 测试新增 send completed contract 覆盖。
   - `create-ui-ncp-agent` 相关成功路径断言统一包含 `MessageCompleted`。
   - fake runtime 中原本“不真实地只发 `RunFinished`”的场景已改成最小真实行为。
+- 同批次续改：
+  - `CodexSdkNcpAgentRuntime` 与 `ClaudeCodeSdkNcpAgentRuntime` 的成功收尾现在也会显式发出 `MessageCompleted`，并保持其顺序早于 `RunFinished`。
+  - 两条 runtime 都复用各自的小型 `completed-assistant-message.utils.ts` helper，从当前 `stateManager` 快照优先读取已聚合的 assistant message；若上游本轮没有产出可见文本，则退化为一个空的 final assistant message，避免 `send()` 路径再次命中 “Run finished without a final assistant message”。
+  - 本次续改刻意没有把 fallback 再加回 consumer 或 backend，而是只把 runtime 成功终态对齐到既有 send contract。
 - 相关方案文档见 [Run API Send Completed Contract Implementation Plan](../../plans/2026-04-11-run-api-send-completed-contract-plan.md)。
 
 ## 测试/验证/验收方式
@@ -39,14 +43,21 @@
   - `pnpm -C packages/nextclaw test -- run src/cli/commands/ncp/runtime/create-ui-ncp-agent.claude.test.ts -t "runs claude session messages through the configured Claude CLI entrypoint"`
   - 结果：未通过
   - 阻塞原因：该用例命中现有 `5000ms` timeout，失败形态是 fixture 超时，不是本次 `MessageCompleted` 断言失败
+- runtime 续改类型检查：
+  - `pnpm -C packages/extensions/nextclaw-ncp-runtime-codex-sdk tsc`
+  - `pnpm -C packages/extensions/nextclaw-ncp-runtime-claude-code-sdk tsc`
+  - 结果：通过
+- toolkit 续改定向测试：
+  - `pnpm -C packages/ncp-packages/nextclaw-ncp-toolkit test src/agent/agent-conversation-state-manager.test.ts src/agent/agent-backend-finalize-status.test.ts`
+  - 结果：通过（`2` 个测试文件，`22` 个测试全部通过）
 - 可维护性守卫：
   - `pnpm lint:maintainability:guard`
   - 结果：命令未全绿
   - 非本次阻断原因：
-    - `packages/nextclaw-core/src/providers/openai_provider.ts`
-    - `packages/nextclaw/src/cli/commands/service.ts`
-    - `packages/nextclaw/src/cli/commands/ncp/runtime/nextclaw-ncp-dispatch.ts`
-  - 结论：本次触达文件未新增新的守卫阻断；`agent-backend.ts` 仅保留预算 warning
+    - `apps/desktop/scripts/update/build-product-bundle.mjs`
+    - `apps/desktop/scripts/update/build-update-manifest.mjs`
+    - `apps/desktop/scripts/update/write-bundle-public-key.mjs`
+  - 结论：本次触达文件未新增新的守卫阻断；当前剩余失败来自工作区内其它新增脚本命名治理
 
 ## 发布/部署方式
 
@@ -71,22 +82,22 @@
   - 本次顺着“统一入口、统一成功语义、行为可预测”推进了一小步。heartbeat、cron、session-request 不再各自补最后一跳，而是统一依赖 backend 暴露的单一 send contract，这更符合 NextClaw 作为统一操作层的方向。
   - primary contract 是 `runApi.send()` 对调用方暴露成功结果的协议；这里属于执行路径，不是纯观察路径，也不应依赖调用方自行补救。自动触发调用方（heartbeat、cron）若被迫各自 fallback，会把运行时协议错误伪装成局部成功；本次明确拒绝这种路径。
   - 本次顺手减债点：删掉消费者侧 fallback，把“最后一条 assistant message 的成立条件”收回 backend 单点处理。
-  - 下一步维护性切口：如果后续还要继续收敛，应优先审视 runtime 是否都能主动产出规范 `MessageCompleted`，而不是再让更多调用方自己猜最终成功条件。
+  - 本次续改已经把 codex / claude runtime 的成功终态向这条原则继续推近了一步；下一步若还要继续收敛，应考虑把“runtime 成功必须显式产出 completed message”升级成更硬的公共契约，而不是继续依赖 backend 推断。
 - 可维护性复核结论：通过
 - 本次顺手减债：是
 - 代码增减报告：
-  - 新增：210 行
+  - 新增：318 行
   - 删除：66 行
-  - 净增：+144 行
+  - 净增：+252 行
 - 非测试代码增减报告：
-  - 新增：119 行
+  - 新增：227 行
   - 删除：56 行
-  - 净增：+63 行
+  - 净增：+171 行
 - 可维护性总结：
-  - 本次是否已尽最大努力优化可维护性：是。虽然 backend 中心化 contract normalization 带来少量代码净增，但它换回的是多个调用方 fallback 的删除与职责边界的收束。
-  - 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：是。先删消费者 fallback，再只在 backend 单点补最小必要规范化，没有增加第二套成功语义。
-  - 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：部分做到。总代码净增 `144` 行、非测试代码净增 `63` 行，但未新增新的运行时模块层级，也同步删除了 session-request 侧回读兜底与无用 helper/type；增长集中在 backend 单点收敛逻辑，未扩散到多调用方。
-  - 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。backend 负责 send contract，consumer 只消费 `MessageCompleted`；没有再把 finalize 责任分散到 heartbeat、cron、session-request。
-  - 目录结构与文件组织是否满足当前项目治理要求：满足。本次没有新增新的业务目录，仅在既有模块内收敛职责，并新增一条计划文档与一条迭代记录。
+  - 本次是否已尽最大努力优化可维护性：是。续改没有继续在 backend 或 consumer 叠加新 fallback，而是只把漏掉的 runtime 成功终态补齐到已有 contract；同时把新增逻辑拆到 runtime 局部 helper，避免继续推高原始热点文件。
+  - 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：是。虽然这次续改本身有少量净增，但方向是减少“谁来补 completed”的分散关注点，而不是再引入第三套兜底。
+  - 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：部分做到。整体相对本迭代起点仍是净增；这次续改额外引入了两个小 helper 文件，因此 `claude-code-sdk/src` 目录 warning 仍在，但换回的是把 codex / claude 两条 runtime 与既有 send contract 对齐，避免继续把成功语义散落到更多调用方。
+  - 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。helper 只负责从 runtime 当前状态构造 completed message，成功语义仍然收敛在 runtime 收尾，不再回流 consumer / backend 补猜。
+  - 目录结构与文件组织是否满足当前项目治理要求：基本满足。新增文件使用了仓库认可的 `*.utils.ts` 角色后缀；但 `packages/extensions/nextclaw-ncp-runtime-claude-code-sdk/src` 目录本身仍高于 budget，本次仅记录 warning，后续若继续触达该目录应优先按职责再拆。
   - 若本次涉及代码可维护性评估，默认应基于一次独立于实现阶段的 `post-edit-maintainability-review` 填写，而不是只复述守卫结果：是。本结论基于独立复核，而不是只复述守卫；当前 `no maintainability findings`。
   - no maintainability findings
