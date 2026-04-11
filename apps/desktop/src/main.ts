@@ -1,8 +1,10 @@
 import { app, BrowserWindow, dialog } from "electron";
 import { join } from "node:path";
+import { DesktopBundleLifecycleService } from "./launcher/services/bundle-lifecycle.service";
+import { DesktopBundleLayoutStore } from "./launcher/stores/bundle-layout.store";
+import { DesktopLauncherStateStore } from "./launcher/stores/launcher-state.store";
 import { RuntimeConfigResolver } from "./runtime-config";
 import { RuntimeServiceProcess } from "./runtime-service";
-import { DesktopUpdater } from "./updater";
 
 const logger = {
   info: (message: string) => console.log(`[desktop] ${message}`),
@@ -11,7 +13,6 @@ const logger = {
 };
 
 class DesktopApplication {
-  private readonly updater = new DesktopUpdater(logger);
   private runtime: RuntimeServiceProcess | null = null;
   private window: BrowserWindow | null = null;
   private stopping = false;
@@ -35,7 +36,6 @@ class DesktopApplication {
       app.quit();
     });
     app.on("before-quit", (event) => {
-      this.updater.stop();
       if (this.stopping) {
         return;
       }
@@ -48,7 +48,6 @@ class DesktopApplication {
 
     await app.whenReady();
     const loaded = await this.bootstrapRuntimeAndWindow();
-    this.updater.start();
     if (!loaded) {
       app.quit();
     }
@@ -56,7 +55,19 @@ class DesktopApplication {
 
   private async bootstrapRuntimeAndWindow(): Promise<boolean> {
     try {
+      await this.recoverPendingBundleCandidate();
       const runtimeCommand = new RuntimeConfigResolver().resolveCommand();
+      logger.info(`Runtime source: ${runtimeCommand.source}`);
+      if (runtimeCommand.source === "bundle") {
+        logger.info(`Bundle version: ${runtimeCommand.bundleVersion ?? "unknown"}`);
+      } else {
+        logger.warn(
+          [
+            "Desktop started without an active product bundle.",
+            "This legacy runtime path is a temporary transition path until bundle-based startup is fully shipped."
+          ].join(" ")
+        );
+      }
       const runtime = new RuntimeServiceProcess({
         logger,
         scriptPath: runtimeCommand.scriptPath,
@@ -66,6 +77,9 @@ class DesktopApplication {
       this.runtime = runtime;
       this.window = this.createWindow();
       await this.window.loadURL(baseUrl);
+      if (runtimeCommand.source === "bundle" && runtimeCommand.bundleVersion) {
+        await this.markBundleHealthy(runtimeCommand.bundleVersion);
+      }
       return true;
     } catch (error) {
       logger.error(`Failed to bootstrap runtime: ${String(error)}`);
@@ -88,6 +102,42 @@ class DesktopApplication {
       await this.stopRuntime();
       return false;
     }
+  }
+
+  private async recoverPendingBundleCandidate(): Promise<void> {
+    const lifecycle = this.createBundleLifecycle();
+    const rollbackResult = await lifecycle.recoverPendingCandidate();
+    if (!rollbackResult) {
+      return;
+    }
+    if (rollbackResult.rolledBackTo) {
+      logger.warn(
+        [
+          `Rolled back unconfirmed bundle ${rollbackResult.rolledBackFrom}.`,
+          `Launcher restored ${rollbackResult.rolledBackTo} before starting desktop again.`
+        ].join(" ")
+      );
+      return;
+    }
+    logger.warn(
+      [
+        `Cleared unconfirmed bundle ${rollbackResult.rolledBackFrom}.`,
+        "No known-good bundle was available for rollback."
+      ].join(" ")
+    );
+  }
+
+  private async markBundleHealthy(version: string): Promise<void> {
+    await this.createBundleLifecycle().markVersionHealthy(version);
+    logger.info(`Bundle version marked healthy: ${version}`);
+  }
+
+  private createBundleLifecycle(): DesktopBundleLifecycleService {
+    const layout = new DesktopBundleLayoutStore();
+    return new DesktopBundleLifecycleService({
+      layout,
+      stateStore: new DesktopLauncherStateStore(layout.getLauncherStatePath())
+    });
   }
 
   private async stopRuntime(): Promise<void> {

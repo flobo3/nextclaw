@@ -33,7 +33,6 @@
     "@nextclaw/core": "workspace:*",
     "@nextclaw/openclaw-compat": "workspace:*",
     "@nextclaw/server": "workspace:*",
-    "electron-updater": "^6.6.2",
     "nextclaw": "workspace:*"
   },
   "devDependencies": {
