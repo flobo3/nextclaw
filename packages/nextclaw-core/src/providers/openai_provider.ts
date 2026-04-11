@@ -1,7 +1,11 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { LLMProvider, type LLMResponse, type LLMStreamEvent, type ToolCallRequest } from "./base.js";
-import { ChatCompletionsPayloadError, normalizeChatCompletionsResponse } from "./chat-completions-normalizer.js";
+import {
+  ChatCompletionsPayloadError,
+  normalizeChatCompletionsResponse,
+  normalizeStructuredUsageCounters
+} from "./chat-completions-normalizer.js";
 import type { ThinkingLevel } from "../utils/thinking.js";
 import { mapThinkingLevelToOpenAIReasoningEffort } from "../utils/thinking.js";
 
@@ -34,18 +38,18 @@ export class OpenAICompatibleProvider extends LLMProvider {
     });
   }
 
-  getDefaultModel(): string {
+  getDefaultModel = (): string => {
     return this.defaultModel;
-  }
+  };
 
-  async chat(params: {
+  chat = async (params: {
     messages: Array<Record<string, unknown>>;
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
     thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
-  }): Promise<LLMResponse> {
+  }): Promise<LLMResponse> => {
     if (this.wireApi === "chat") {
       return this.chatCompletions(params);
     }
@@ -60,48 +64,50 @@ export class OpenAICompatibleProvider extends LLMProvider {
       }
       throw error;
     }
-  }
+  };
 
-  async *chatStream(params: {
+  chatStream = (params: {
     messages: Array<Record<string, unknown>>;
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
     thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
-  }): AsyncGenerator<LLMStreamEvent> {
-    if (this.wireApi === "chat") {
-      for await (const event of this.chatCompletionsStream(params)) {
-        yield event;
+  }): AsyncGenerator<LLMStreamEvent> => {
+    return (async function* (provider: OpenAICompatibleProvider): AsyncGenerator<LLMStreamEvent> {
+      if (provider.wireApi === "chat") {
+        for await (const event of provider.chatCompletionsStream(params)) {
+          yield event;
+        }
+        return;
       }
-      return;
-    }
-    if (this.wireApi === "responses") {
-      const response = await this.chatResponses(params);
-      yield { type: "done", response };
-      return;
-    }
-    try {
-      for await (const event of this.chatCompletionsStream(params)) {
-        yield event;
+      if (provider.wireApi === "responses") {
+        const response = await provider.chatResponses(params);
+        yield { type: "done", response };
+        return;
       }
-    } catch (error) {
-      if (!this.shouldFallbackToResponses(error)) {
-        throw error;
+      try {
+        for await (const event of provider.chatCompletionsStream(params)) {
+          yield event;
+        }
+      } catch (error) {
+        if (!provider.shouldFallbackToResponses(error)) {
+          throw error;
+        }
+        const response = await provider.chatResponses(params);
+        yield { type: "done", response };
       }
-      const response = await this.chatResponses(params);
-      yield { type: "done", response };
-    }
-  }
+    })(this);
+  };
 
-  private async chatCompletions(params: {
+  private chatCompletions = async (params: {
     messages: Array<Record<string, unknown>>;
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
     thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
-  }): Promise<LLMResponse> {
+  }): Promise<LLMResponse> => {
     const model = params.model ?? this.defaultModel;
 
     const response = await this.withRetry(async () =>
@@ -118,165 +124,167 @@ export class OpenAICompatibleProvider extends LLMProvider {
       response,
       (raw) => this.parseToolCallArguments(raw)
     );
-  }
+  };
 
-  private async *chatCompletionsStream(params: {
+  private chatCompletionsStream = (params: {
     messages: Array<Record<string, unknown>>;
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
     thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
-  }): AsyncGenerator<LLMStreamEvent> {
-    const model = params.model ?? this.defaultModel;
-    const stream = await this.withRetry(async () =>
-      this.client.chat.completions.create({
-        model,
-        messages: params.messages as unknown as ChatCompletionMessageParam[],
-        tools: params.tools as ChatCompletionTool[] | undefined,
-        tool_choice: params.tools?.length ? "auto" : undefined,
-        ...(typeof params.maxTokens === "number" ? { max_tokens: params.maxTokens } : {}),
-        stream: true,
-        stream_options: {
-          include_usage: true
-        }
-      }, params.signal ? { signal: params.signal } : undefined)
-    );
-
-    type ToolCallBuffer = {
-      id?: string;
-      name?: string;
-      argumentsText: string;
-    };
-
-    const contentParts: string[] = [];
-    const reasoningParts: string[] = [];
-    const toolCallBuffers = new Map<number, ToolCallBuffer>();
-    let finishReason = "stop";
-    let usage: Record<string, number> = {
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      total_tokens: 0
-    };
-
-    for await (const chunk of stream) {
-      if (chunk.usage) {
-        usage = this.mergeUsageCounters(usage, chunk.usage as unknown as Record<string, unknown>);
-      }
-
-      const choice = chunk.choices?.[0];
-      if (!choice) {
-        continue;
-      }
-
-      if (typeof choice.finish_reason === "string" && choice.finish_reason.trim().length > 0) {
-        finishReason = choice.finish_reason;
-      }
-
-      const delta = choice.delta;
-      if (!delta) {
-        continue;
-      }
-
-      const reasoningDelta =
-        (delta as { reasoning_content?: string } | undefined)?.reasoning_content ??
-        (delta as { reasoning?: string } | undefined)?.reasoning;
-      if (typeof reasoningDelta === "string" && reasoningDelta) {
-        reasoningParts.push(reasoningDelta);
-        yield {
-          type: "reasoning_delta",
-          delta: reasoningDelta,
-        };
-      }
-
-      if (typeof delta.content === "string" && delta.content.length > 0) {
-        contentParts.push(delta.content);
-        yield {
-          type: "delta",
-          delta: delta.content
-        };
-      }
-
-      const toolDeltas = (delta as { tool_calls?: Array<Record<string, unknown>> }).tool_calls;
-      if (Array.isArray(toolDeltas)) {
-        for (const toolDelta of toolDeltas) {
-          const index =
-            typeof toolDelta.index === "number" && Number.isFinite(toolDelta.index)
-              ? toolDelta.index
-              : toolCallBuffers.size;
-          const current = toolCallBuffers.get(index) ?? { argumentsText: "" };
-          if (typeof toolDelta.id === "string" && toolDelta.id.trim()) {
-            current.id = toolDelta.id;
+  }): AsyncGenerator<LLMStreamEvent> => {
+    return (async function* (provider: OpenAICompatibleProvider): AsyncGenerator<LLMStreamEvent> {
+      const model = params.model ?? provider.defaultModel;
+      const stream = await provider.withRetry(async () =>
+        provider.client.chat.completions.create({
+          model,
+          messages: params.messages as unknown as ChatCompletionMessageParam[],
+          tools: params.tools as ChatCompletionTool[] | undefined,
+          tool_choice: params.tools?.length ? "auto" : undefined,
+          ...(typeof params.maxTokens === "number" ? { max_tokens: params.maxTokens } : {}),
+          stream: true,
+          stream_options: {
+            include_usage: true
           }
-          const fn = toolDelta.function;
-          if (fn && typeof fn === "object" && !Array.isArray(fn)) {
-            const maybeName = (fn as { name?: unknown }).name;
-            const maybeArgs = (fn as { arguments?: unknown }).arguments;
-            if (typeof maybeName === "string" && maybeName.trim()) {
-              current.name = maybeName;
+        }, params.signal ? { signal: params.signal } : undefined)
+      );
+
+      type ToolCallBuffer = {
+        id?: string;
+        name?: string;
+        argumentsText: string;
+      };
+
+      const contentParts: string[] = [];
+      const reasoningParts: string[] = [];
+      const toolCallBuffers = new Map<number, ToolCallBuffer>();
+      let finishReason = "stop";
+      let usage: Record<string, number> = {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      };
+
+      for await (const chunk of stream) {
+        if (chunk.usage) {
+          usage = provider.mergeUsageCounters(usage, chunk.usage as unknown as Record<string, unknown>);
+        }
+
+        const choice = chunk.choices?.[0];
+        if (!choice) {
+          continue;
+        }
+
+        if (typeof choice.finish_reason === "string" && choice.finish_reason.trim().length > 0) {
+          finishReason = choice.finish_reason;
+        }
+
+        const delta = choice.delta;
+        if (!delta) {
+          continue;
+        }
+
+        const reasoningDelta =
+          (delta as { reasoning_content?: string } | undefined)?.reasoning_content ??
+          (delta as { reasoning?: string } | undefined)?.reasoning;
+        if (typeof reasoningDelta === "string" && reasoningDelta) {
+          reasoningParts.push(reasoningDelta);
+          yield {
+            type: "reasoning_delta",
+            delta: reasoningDelta,
+          };
+        }
+
+        if (typeof delta.content === "string" && delta.content.length > 0) {
+          contentParts.push(delta.content);
+          yield {
+            type: "delta",
+            delta: delta.content
+          };
+        }
+
+        const toolDeltas = (delta as { tool_calls?: Array<Record<string, unknown>> }).tool_calls;
+        if (Array.isArray(toolDeltas)) {
+          for (const toolDelta of toolDeltas) {
+            const index =
+              typeof toolDelta.index === "number" && Number.isFinite(toolDelta.index)
+                ? toolDelta.index
+                : toolCallBuffers.size;
+            const current = toolCallBuffers.get(index) ?? { argumentsText: "" };
+            if (typeof toolDelta.id === "string" && toolDelta.id.trim()) {
+              current.id = toolDelta.id;
             }
-            if (typeof maybeArgs === "string" && maybeArgs.length > 0) {
-              current.argumentsText += maybeArgs;
+            const fn = toolDelta.function;
+            if (fn && typeof fn === "object" && !Array.isArray(fn)) {
+              const maybeName = (fn as { name?: unknown }).name;
+              const maybeArgs = (fn as { arguments?: unknown }).arguments;
+              if (typeof maybeName === "string" && maybeName.trim()) {
+                current.name = maybeName;
+              }
+              if (typeof maybeArgs === "string" && maybeArgs.length > 0) {
+                current.argumentsText += maybeArgs;
+              }
             }
+            toolCallBuffers.set(index, current);
           }
-          toolCallBuffers.set(index, current);
+          yield {
+            type: "tool_call_delta",
+            toolCalls: structuredClone(toolDeltas),
+          };
         }
-        yield {
-          type: "tool_call_delta",
-          toolCalls: structuredClone(toolDeltas),
-        };
+
+        const legacyFunctionCall = (delta as { function_call?: { name?: string; arguments?: string } } | undefined)
+          ?.function_call;
+        if (legacyFunctionCall) {
+          const legacy = toolCallBuffers.get(0) ?? { argumentsText: "" };
+          if (typeof legacyFunctionCall.name === "string" && legacyFunctionCall.name.trim()) {
+            legacy.name = legacyFunctionCall.name;
+          }
+          if (typeof legacyFunctionCall.arguments === "string" && legacyFunctionCall.arguments.length > 0) {
+            legacy.argumentsText += legacyFunctionCall.arguments;
+          }
+          if (!legacy.id) {
+            legacy.id = "legacy-fn-0";
+          }
+          toolCallBuffers.set(0, legacy);
+        }
       }
 
-      const legacyFunctionCall = (delta as { function_call?: { name?: string; arguments?: string } } | undefined)
-        ?.function_call;
-      if (legacyFunctionCall) {
-        const legacy = toolCallBuffers.get(0) ?? { argumentsText: "" };
-        if (typeof legacyFunctionCall.name === "string" && legacyFunctionCall.name.trim()) {
-          legacy.name = legacyFunctionCall.name;
+      const toolCalls: ToolCallRequest[] = [];
+      const orderedToolCalls = Array.from(toolCallBuffers.entries()).sort(([left], [right]) => left - right);
+      for (const [index, call] of orderedToolCalls) {
+        if (!call.name || !call.name.trim()) {
+          continue;
         }
-        if (typeof legacyFunctionCall.arguments === "string" && legacyFunctionCall.arguments.length > 0) {
-          legacy.argumentsText += legacyFunctionCall.arguments;
+        toolCalls.push({
+          id: call.id ?? `tool-${index}`,
+          name: call.name.trim(),
+          arguments: provider.parseToolCallArguments(call.argumentsText)
+        });
+      }
+
+      yield {
+        type: "done",
+        response: {
+          content: contentParts.join("") || null,
+          toolCalls,
+          finishReason,
+          usage,
+          reasoningContent: reasoningParts.join("").trim() || null
         }
-        if (!legacy.id) {
-          legacy.id = "legacy-fn-0";
-        }
-        toolCallBuffers.set(0, legacy);
-      }
-    }
+      };
+    })(this);
+  };
 
-    const toolCalls: ToolCallRequest[] = [];
-    const orderedToolCalls = Array.from(toolCallBuffers.entries()).sort(([left], [right]) => left - right);
-    for (const [index, call] of orderedToolCalls) {
-      if (!call.name || !call.name.trim()) {
-        continue;
-      }
-      toolCalls.push({
-        id: call.id ?? `tool-${index}`,
-        name: call.name.trim(),
-        arguments: this.parseToolCallArguments(call.argumentsText)
-      });
-    }
-
-    yield {
-      type: "done",
-      response: {
-        content: contentParts.join("") || null,
-        toolCalls,
-        finishReason,
-        usage,
-        reasoningContent: reasoningParts.join("").trim() || null
-      }
-    };
-  }
-
-  private async chatResponses(params: {
+  private chatResponses = async (params: {
     messages: Array<Record<string, unknown>>;
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
     thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
-  }): Promise<LLMResponse> {
+  }): Promise<LLMResponse> => {
     const model = params.model ?? this.defaultModel;
     const input = this.toResponsesInput(params.messages);
     const body: Record<string, unknown> = { model, input: input as unknown };
@@ -389,9 +397,9 @@ export class OpenAICompatibleProvider extends LLMProvider {
       },
       reasoningContent
     };
-  }
+  };
 
-  private parseResponsesPayload(rawText: string): Record<string, unknown> {
+  private parseResponsesPayload = (rawText: string): Record<string, unknown> => {
     const text = rawText.replace(/^\uFEFF/, "").trim();
     if (!text) {
       return {};
@@ -416,9 +424,9 @@ export class OpenAICompatibleProvider extends LLMProvider {
 
       throw new Error(`Responses API returned non-JSON payload: ${text.slice(0, 240)}`);
     }
-  }
+  };
 
-  private extractLeadingJson(text: string): string | null {
+  private extractLeadingJson = (text: string): string | null => {
     let start = -1;
     for (let index = 0; index < text.length; index += 1) {
       const ch = text[index];
@@ -475,9 +483,9 @@ export class OpenAICompatibleProvider extends LLMProvider {
     }
 
     return null;
-  }
+  };
 
-  private extractSseJson(text: string): Record<string, unknown> | null {
+  private extractSseJson = (text: string): Record<string, unknown> | null => {
     const lines = text.split(/\r?\n/);
     let latestJson: Record<string, unknown> | null = null;
     let latestResponse: Record<string, unknown> | null = null;
@@ -508,17 +516,17 @@ export class OpenAICompatibleProvider extends LLMProvider {
     }
 
     return latestResponse ?? latestJson;
-  }
+  };
 
-  private unwrapResponsesEnvelope(payload: Record<string, unknown>): Record<string, unknown> {
+  private unwrapResponsesEnvelope = (payload: Record<string, unknown>): Record<string, unknown> => {
     const response = payload.response;
     if (response && typeof response === "object" && !Array.isArray(response)) {
       return response as Record<string, unknown>;
     }
     return payload;
-  }
+  };
 
-  private shouldFallbackToResponses(error: unknown): boolean {
+  private shouldFallbackToResponses = (error: unknown): boolean => {
     if (!this.enableResponsesFallback) return false;
     const err = error as { status?: number; message?: string; code?: string };
     const status = err?.status;
@@ -537,9 +545,9 @@ export class OpenAICompatibleProvider extends LLMProvider {
       return true;
     }
     return false;
-  }
+  };
 
-  private parseToolCallArguments(raw: unknown): Record<string, unknown> {
+  private parseToolCallArguments = (raw: unknown): Record<string, unknown> => {
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
       return raw as Record<string, unknown>;
     }
@@ -569,42 +577,29 @@ export class OpenAICompatibleProvider extends LLMProvider {
     }
 
     return {};
-  }
+  };
 
-  private stripCodeFence(text: string): string {
+  private stripCodeFence = (text: string): string => {
     const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
     return fence?.[1]?.trim() ?? text;
-  }
+  };
 
-  private normalizeUsageCounters(raw: Record<string, unknown> | undefined): Record<string, number> {
-    const usage: Record<string, number> = {
+  private normalizeUsageCounters = (raw: Record<string, unknown> | undefined): Record<string, number> => {
+    return normalizeStructuredUsageCounters(raw, {
       prompt_tokens: 0,
       completion_tokens: 0,
       total_tokens: 0
-    };
-    if (!raw) {
-      return usage;
-    }
-    for (const [key, value] of Object.entries(raw)) {
-      if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-        continue;
-      }
-      usage[key] = Math.floor(value);
-    }
-    return usage;
-  }
+    });
+  };
 
-  private mergeUsageCounters(
+  private mergeUsageCounters = (
     current: Record<string, number>,
     incoming: Record<string, unknown>
-  ): Record<string, number> {
-    const next = { ...current };
-    for (const [key, value] of Object.entries(incoming)) {
-      if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-        continue;
-      }
-      next[key] = Math.floor(value);
-    }
+  ): Record<string, number> => {
+    const next = {
+      ...current,
+      ...normalizeStructuredUsageCounters(incoming, {})
+    };
     if (typeof next.prompt_tokens !== "number") {
       next.prompt_tokens = 0;
     }
@@ -615,9 +610,9 @@ export class OpenAICompatibleProvider extends LLMProvider {
       next.total_tokens = 0;
     }
     return next;
-  }
+  };
 
-  private async withRetry<T>(operation: () => Promise<T>): Promise<T> {
+  private withRetry = async <T>(operation: () => Promise<T>): Promise<T> => {
     const maxAttempts = 3;
     let attempt = 0;
 
@@ -634,9 +629,9 @@ export class OpenAICompatibleProvider extends LLMProvider {
     }
 
     throw new Error("Retry attempts exhausted");
-  }
+  };
 
-  private isTransientError(error: unknown): boolean {
+  private isTransientError = (error: unknown): boolean => {
     const err = error as {
       status?: number;
       code?: string;
@@ -660,13 +655,13 @@ export class OpenAICompatibleProvider extends LLMProvider {
       message.includes("timed out") ||
       message.includes("temporarily unavailable")
     );
-  }
+  };
 
-  private sleep(ms: number): Promise<void> {
+  private sleep = (ms: number): Promise<void> => {
     return new Promise((resolve) => setTimeout(resolve, ms));
-  }
+  };
 
-  private toResponsesInput(messages: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  private toResponsesInput = (messages: Array<Record<string, unknown>>): Array<Record<string, unknown>> => {
     const input: Array<Record<string, unknown>> = [];
     for (const msg of messages) {
       const role = String(msg.role ?? "user");
@@ -717,9 +712,9 @@ export class OpenAICompatibleProvider extends LLMProvider {
     }
 
     return input;
-  }
+  };
 
-  private normalizeResponsesContent(content: unknown): string | Array<Record<string, unknown>> {
+  private normalizeResponsesContent = (content: unknown): string | Array<Record<string, unknown>> => {
     if (typeof content === "string") {
       return [{ type: "input_text", text: content }];
     }
@@ -759,5 +754,5 @@ export class OpenAICompatibleProvider extends LLMProvider {
       return blocks;
     }
     return String(content ?? "");
-  }
+  };
 }

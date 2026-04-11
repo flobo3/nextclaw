@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { APP_NAME, APP_TAGLINE } from "@nextclaw/core";
 import { registerRemoteCommands } from "@nextclaw/remote";
+import { LlmUsageCommands } from "./commands/shared/llm-usage.commands.js";
 import { CliRuntime, LOGO } from "./runtime.js";
 import { registerAgentsCommands } from "./register-agents-commands.js";
 import { logStartupTrace, measureStartupSync } from "./startup-trace.js";
@@ -11,6 +12,7 @@ logStartupTrace("cli.index.module_loaded");
 
 const program = new Command();
 const runtime = measureStartupSync("cli.runtime.construct", () => new CliRuntime({ logo: LOGO }));
+const llmUsageCommands = new LlmUsageCommands();
 
 program
   .name(APP_NAME)
@@ -380,20 +382,8 @@ cron
   .option("-f, --force", "Run even if disabled")
   .action(async (jobId, opts) => runtime.cronRun(jobId, opts));
 
-program
-  .command("status")
-  .description(`Show ${APP_NAME} status`)
-  .option("--json", "Output JSON", false)
-  .option("--verbose", "Show extra diagnostics", false)
-  .option("--fix", "Fix stale service state when safe", false)
-  .action(async (opts) => runtime.status(opts));
-
-program
-  .command("doctor")
-  .description(`Run ${APP_NAME} diagnostics`)
-  .option("--json", "Output JSON", false)
-  .option("--verbose", "Show extra diagnostics", false)
-  .option("--fix", "Fix stale service state when safe", false)
-  .action(async (opts) => runtime.doctor(opts));
+program.command("status").description(`Show ${APP_NAME} status`).option("--json", "Output JSON", false).option("--verbose", "Show extra diagnostics", false).option("--fix", "Fix stale service state when safe", false).action(async (opts) => runtime.status(opts));
+program.command("doctor").description(`Run ${APP_NAME} diagnostics`).option("--json", "Output JSON", false).option("--verbose", "Show extra diagnostics", false).option("--fix", "Fix stale service state when safe", false).action(async (opts) => runtime.doctor(opts));
+program.command("usage").description("Show observed LLM usage snapshots, history, and prompt cache stats").option("--history", "Show recent usage history", false).option("--stats", "Show aggregated usage stats from local history", false).option("--limit <n>", "Maximum number of history records to show", "10").option("--json", "Output JSON", false).action(async (opts) => llmUsageCommands.show(opts));
 
 program.parseAsync(process.argv);

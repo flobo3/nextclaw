@@ -29,11 +29,13 @@ import { SessionCreationService } from "./session-request/session-creation.servi
 import { SessionRequestBroker } from "./session-request/session-request-broker.js";
 import { SessionRequestDeliveryService } from "./session-request/session-request-delivery.service.js";
 import { UiNcpRuntimeRegistry } from "./ui-ncp-runtime-registry.js";
+import { LlmUsageObserver, ObservedProviderManager } from "../shared/llm-usage-observer.js";
 import {
   createUiNcpAgentHandle,
   type UiNcpAgentHandle,
 } from "./runtime/ui-ncp-agent-handle.js";
 import { join } from "node:path";
+import { llmUsageRecorder } from "../shared/llm-usage-recorder.js";
 
 const CODEX_RUNTIME_KIND = "codex";
 const CODEX_DIRECT_RUNTIME_BACKEND = "codex-sdk";
@@ -166,6 +168,10 @@ function createNativeRuntimeFactory(
   sessionCreationService: SessionCreationService,
   sessionRequestBroker: SessionRequestBroker,
 ): RuntimeFactory {
+  const observedProviderManager = new ObservedProviderManager(
+    params.providerManager,
+    new LlmUsageObserver(llmUsageRecorder, "ui-ncp")
+  );
   return ({
     stateManager,
     sessionMetadata,
@@ -189,7 +195,7 @@ function createNativeRuntimeFactory(
 
     const toolRegistry = new NextclawNcpToolRegistry({
       bus: params.bus,
-      providerManager: params.providerManager,
+      providerManager: observedProviderManager,
       sessionManager: params.sessionManager,
       cronService: params.cronService,
       gatewayController: params.gatewayController,
@@ -214,7 +220,7 @@ function createNativeRuntimeFactory(
         resolveMessageToolHints: params.resolveMessageToolHints,
         assetStore,
       }),
-      llmApi: new ProviderManagerNcpLLMApi(params.providerManager),
+      llmApi: new ProviderManagerNcpLLMApi(observedProviderManager),
       toolRegistry,
       stateManager,
       reasoningNormalizationMode,
