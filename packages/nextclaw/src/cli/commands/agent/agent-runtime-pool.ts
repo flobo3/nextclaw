@@ -1,120 +1,51 @@
 import {
-  NativeAgentEngine,
+  AgentRouteResolver,
   CommandRegistry,
   createAssistantStreamDeltaControlMessage,
   createAssistantStreamResetControlMessage,
-  type CommandOption,
-  type AgentEngine,
-  type AgentEngineFactory,
-  type AgentEngineFactoryContext,
-  type AgentEngineMessageToolHintsResolver,
-  AgentRouteResolver,
-  getWorkspacePath,
-  resolveDefaultAgentProfileId,
-  resolveEffectiveAgentProfiles,
+  createTypingStopControlMessage,
   parseAgentScopedSessionKey,
-  type SessionEvent,
+  resolveDefaultAgentProfileId,
+  type CommandOption,
   type Config,
-  type CronService,
-  type ExtensionRegistry,
-  type GatewayController,
   type InboundMessage,
   type MessageBus,
-  type ProviderManager,
-  type SearchConfig,
-  type SessionManager
+  type SessionManager,
 } from "@nextclaw/core";
-import { NativeManagedAssetSupport } from "./native-managed-asset-support.js";
+import type { UiNcpAgentHandle } from "../ncp/create-ui-ncp-agent.js";
+import { runPromptOverNcp } from "../ncp/runtime/nextclaw-ncp-runner.js";
 
-type AgentProfileRuntime = { id: string; engine: AgentEngine };
-type SystemSessionUpdatedHandler = (params: { sessionKey: string; message: InboundMessage }) => void;
-
-type ResolvedAgentProfile = {
-  id: string;
-  workspace: string;
-  model: string;
-  maxIterations: number;
-  contextTokens: number;
-  engine: string;
-  engineConfig: Record<string, unknown> | undefined;
-};
+type SystemSessionUpdatedHandler = (params: {
+  sessionKey: string;
+  message: InboundMessage;
+}) => void;
 
 function normalizeAgentId(value: string | undefined): string {
   const text = (value ?? "").trim().toLowerCase();
   return text || "main";
 }
 
-function normalizeEngineKind(value: unknown): string {
+function normalizeOptionalString(value: unknown): string | undefined {
   if (typeof value !== "string") {
-    return "native";
-  }
-  const kind = value.trim().toLowerCase();
-  return kind || "native";
-}
-
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
-  return value as Record<string, unknown>;
-}
-
-function resolveAgentProfiles(config: Config): ResolvedAgentProfile[] {
-  const defaults = config.agents.defaults;
-  const defaultAgentId = normalizeAgentId(resolveDefaultAgentProfileId(config));
-  const listed = resolveEffectiveAgentProfiles(config);
-  const seed: Array<{
-    id: string;
-    workspace: string;
-    model?: string;
-    engine?: string;
-    engineConfig?: Record<string, unknown>;
-    maxToolIterations?: number;
-    contextTokens?: number;
-  }> = listed.length > 0 ? listed : [{ id: defaultAgentId, workspace: defaults.workspace }];
-  const unique = new Map<string, (typeof seed)[number]>();
-  for (const entry of seed) {
-    if (!unique.has(entry.id)) {
-      unique.set(entry.id, entry);
-    }
-  }
-
-  return Array.from(unique.values()).map((entry) => ({
-    id: entry.id,
-    workspace: getWorkspacePath(entry.workspace),
-    model: entry.model ?? defaults.model,
-    engine: normalizeEngineKind(entry.engine ?? defaults.engine),
-    engineConfig: toRecord(entry.engineConfig) ?? toRecord(defaults.engineConfig),
-    maxIterations: entry.maxToolIterations ?? defaults.maxToolIterations,
-    contextTokens: entry.contextTokens ?? defaults.contextTokens
-  }));
+  const trimmed = value.trim();
+  return trimmed || undefined;
 }
 
 export class GatewayAgentRuntimePool {
-  private routeResolver: AgentRouteResolver;
-  private runtimes = new Map<string, AgentProfileRuntime>();
-  private dynamicEngineRuntimes = new Map<string, AgentProfileRuntime>();
-  private resolvedProfiles: ResolvedAgentProfile[] = [];
+  private readonly routeResolver: AgentRouteResolver;
   private running = false;
   private defaultAgentId = "main";
   private onSystemSessionUpdated: SystemSessionUpdatedHandler | null = null;
-  private readonly nativeManagedAssetSupport = NativeManagedAssetSupport.createDefault();
 
   constructor(
     private options: {
       bus: MessageBus;
-      providerManager: ProviderManager;
       sessionManager: SessionManager;
-      cronService?: CronService | null;
-      restrictToWorkspace: boolean;
-      searchConfig: SearchConfig;
-      execConfig: { timeout: number };
-      contextConfig: Config["agents"]["context"];
-      gatewayController?: GatewayController;
-      extensionRegistry?: ExtensionRegistry;
-      resolveMessageToolHints?: AgentEngineMessageToolHintsResolver;
       config: Config;
-    }
+      resolveNcpAgent?: () => UiNcpAgentHandle | null;
+    },
   ) {
     this.routeResolver = new AgentRouteResolver(options.config);
     this.rebuild(options.config);
@@ -126,47 +57,24 @@ export class GatewayAgentRuntimePool {
 
   applyRuntimeConfig(config: Config): void {
     this.options.config = config;
-    this.options.contextConfig = config.agents.context;
-    this.options.execConfig = config.tools.exec;
-    this.options.restrictToWorkspace = config.tools.restrictToWorkspace;
-    this.options.searchConfig = config.search;
     this.routeResolver.updateConfig(config);
     this.rebuild(config);
-  }
-
-  applyExtensionRegistry(extensionRegistry?: ExtensionRegistry): void {
-    this.options.extensionRegistry = extensionRegistry;
-    this.rebuild(this.options.config);
   }
 
   setSystemSessionUpdatedHandler(handler: SystemSessionUpdatedHandler | null): void {
     this.onSystemSessionUpdated = handler;
   }
 
-  listAvailableEngineKinds(): string[] {
-    const kinds = new Set<string>(["native"]);
-    for (const runtime of this.runtimes.values()) {
-      kinds.add(normalizeEngineKind(runtime.engine.kind));
-    }
-    for (const registration of this.options.extensionRegistry?.engines ?? []) {
-      kinds.add(normalizeEngineKind(registration.kind));
-    }
-    return Array.from(kinds).sort((left, right) => {
-      if (left === "native") {
-        return -1;
-      }
-      if (right === "native") {
-        return 1;
-      }
-      return left.localeCompare(right);
-    });
-  }
-
   async processDirect(params: {
-      content: string; sessionKey?: string; channel?: string; chatId?: string;
-      attachments?: InboundMessage["attachments"]; metadata?: Record<string, unknown>;
-      agentId?: string; abortSignal?: AbortSignal; onAssistantDelta?: (delta: string) => void;
-    onSessionEvent?: (event: SessionEvent) => void;
+    content: string;
+    sessionKey?: string;
+    channel?: string;
+    chatId?: string;
+    attachments?: InboundMessage["attachments"];
+    metadata?: Record<string, unknown>;
+    agentId?: string;
+    abortSignal?: AbortSignal;
+    onAssistantDelta?: (delta: string) => void;
   }): Promise<string> {
     const { message, route } = this.resolveDirectRoute({
       content: params.content,
@@ -175,35 +83,218 @@ export class GatewayAgentRuntimePool {
       chatId: params.chatId,
       attachments: params.attachments,
       metadata: params.metadata,
-      agentId: params.agentId
+      agentId: params.agentId,
     });
-    const forcedEngineKind = this.readForcedEngineKind(message.metadata);
     const commandResult = await this.executeDirectCommand(params.content, {
       channel: message.channel,
       chatId: message.chatId,
-      sessionKey: route.sessionKey
-    });
-    if (commandResult) return commandResult;
-    const runtime = forcedEngineKind ? this.resolveRuntimeForEngineKind(forcedEngineKind, route.agentId) : this.resolveRuntime(route.agentId);
-    if (message.attachments.length > 0) {
-      const outbound = await runtime.engine.handleInbound({ message, sessionKey: route.sessionKey, publishResponse: false, onAssistantDelta: params.onAssistantDelta });
-      return outbound?.content ?? "";
-    }
-    return runtime.engine.processDirect({
-      content: params.content,
       sessionKey: route.sessionKey,
-      channel: message.channel,
-      chatId: message.chatId,
-      metadata: message.metadata,
+    });
+    if (commandResult) {
+      return commandResult;
+    }
+
+    const agent = this.requireNcpAgent("direct dispatch");
+    const result = await runPromptOverNcp({
+      agent,
+      sessionId: route.sessionKey,
+      content: params.content,
+      attachments: params.attachments,
+      metadata: this.buildRunMetadata({
+        message,
+        route,
+      }),
       abortSignal: params.abortSignal,
       onAssistantDelta: params.onAssistantDelta,
-      onSessionEvent: params.onSessionEvent
+      missingCompletedMessageError: `session "${route.sessionKey}" completed without a final assistant message`,
+      runErrorMessage: `session "${route.sessionKey}" failed`,
     });
+    return result.text;
+  }
+
+  supportsTurnAbort(params: {
+    sessionKey?: string;
+    channel?: string;
+    chatId?: string;
+    metadata?: Record<string, unknown>;
+    agentId?: string;
+  }): { supported: boolean; agentId: string; reason?: string } {
+    const { route } = this.resolveDirectRoute({
+      content: "",
+      sessionKey: params.sessionKey,
+      channel: params.channel,
+      chatId: params.chatId,
+      metadata: params.metadata,
+      agentId: params.agentId,
+    });
+    const agent = this.options.resolveNcpAgent?.() ?? null;
+    if (!agent) {
+      return {
+        supported: false,
+        agentId: route.agentId,
+        reason: "NCP agent is not ready yet",
+      };
+    }
+    return {
+      supported: true,
+      agentId: route.agentId,
+    };
+  }
+
+  async run(): Promise<void> {
+    this.running = true;
+    while (this.running) {
+      const message = await this.options.bus.consumeInbound();
+      try {
+        const explicitSessionKey = normalizeOptionalString(
+          message.metadata.session_key_override,
+        );
+        const forcedAgentId = normalizeOptionalString(
+          message.metadata.target_agent_id,
+        );
+        const route = this.routeResolver.resolveInbound({
+          message,
+          forcedAgentId,
+          sessionKeyOverride: explicitSessionKey,
+        });
+        const agent = this.requireNcpAgent("gateway dispatch");
+        if (message.channel !== "system") {
+          await this.options.bus.publishOutbound(
+            createAssistantStreamResetControlMessage(message),
+          );
+        }
+        const result = await runPromptOverNcp({
+          agent,
+          sessionId: route.sessionKey,
+          content: message.content,
+          attachments: message.attachments,
+          metadata: this.buildRunMetadata({
+            message,
+            route,
+          }),
+          onAssistantDelta:
+            message.channel !== "system"
+              ? (delta) => {
+                  if (!delta) {
+                    return;
+                  }
+                  void this.options.bus.publishOutbound(
+                    createAssistantStreamDeltaControlMessage(message, delta),
+                  );
+                }
+              : undefined,
+          missingCompletedMessageError: `session "${route.sessionKey}" completed without a final assistant message`,
+          runErrorMessage: `session "${route.sessionKey}" failed`,
+        });
+
+        if (message.channel === "system") {
+          this.onSystemSessionUpdated?.({
+            sessionKey: route.sessionKey,
+            message,
+          });
+          continue;
+        }
+
+        const replyText = result.text.trim();
+        if (!replyText) {
+          await this.options.bus.publishOutbound(
+            createTypingStopControlMessage(message),
+          );
+          continue;
+        }
+
+        await this.options.bus.publishOutbound({
+          channel: message.channel,
+          chatId: message.chatId,
+          content: result.text,
+          media: [],
+          metadata: this.buildRunMetadata({
+            message,
+            route,
+            metadata: result.completedMessage.metadata,
+          }),
+        });
+      } catch (error) {
+        await this.options.bus.publishOutbound({
+          channel: message.channel,
+          chatId: message.chatId,
+          content: `Sorry, I encountered an error: ${formatUserFacingError(error)}`,
+          media: [],
+          metadata: {},
+        });
+      }
+    }
+  }
+
+  private requireNcpAgent(purpose: string): UiNcpAgentHandle {
+    const agent = this.options.resolveNcpAgent?.() ?? null;
+    if (!agent) {
+      throw new Error(`NCP agent is not ready for ${purpose}.`);
+    }
+    return agent;
+  }
+
+  private resolveDirectRoute(params: {
+    content: string;
+    sessionKey?: string;
+    channel?: string;
+    chatId?: string;
+    attachments?: InboundMessage["attachments"];
+    metadata?: Record<string, unknown>;
+    agentId?: string;
+  }): {
+    message: InboundMessage;
+    route: ReturnType<AgentRouteResolver["resolveInbound"]>;
+  } {
+    const message: InboundMessage = {
+      channel: params.channel ?? "cli",
+      senderId: "user",
+      chatId: params.chatId ?? "direct",
+      content: params.content,
+      timestamp: new Date(),
+      attachments: params.attachments ?? [],
+      metadata: structuredClone(params.metadata ?? {}),
+    };
+    const forcedAgentId =
+      normalizeOptionalString(params.agentId) ??
+      parseAgentScopedSessionKey(params.sessionKey)?.agentId ??
+      undefined;
+    const route = this.routeResolver.resolveInbound({
+      message,
+      forcedAgentId,
+      sessionKeyOverride: params.sessionKey,
+    });
+    return {
+      message,
+      route,
+    };
+  }
+
+  private buildRunMetadata(params: {
+    message: Pick<InboundMessage, "channel" | "chatId" | "metadata" | "senderId">;
+    route: ReturnType<AgentRouteResolver["resolveInbound"]>;
+    metadata?: Record<string, unknown>;
+  }): Record<string, unknown> {
+    return {
+      ...(params.message.metadata ?? {}),
+      ...(params.metadata ?? {}),
+      channel: params.message.channel,
+      chatId: params.message.chatId,
+      chat_id: params.message.chatId,
+      accountId: params.route.accountId,
+      account_id: params.route.accountId,
+      agentId: params.route.agentId,
+      agent_id: params.route.agentId,
+      sessionKey: params.route.sessionKey,
+      session_key: params.route.sessionKey,
+      senderId: params.message.senderId,
+      sender_id: params.message.senderId,
+    };
   }
 
   private async executeDirectCommand(
     rawContent: string,
-    ctx: { channel: string; chatId: string; sessionKey: string }
+    ctx: { channel: string; chatId: string; sessionKey: string },
   ): Promise<string | null> {
     const trimmed = rawContent.trim();
     if (!trimmed.startsWith("/")) {
@@ -212,12 +303,15 @@ export class GatewayAgentRuntimePool {
     const registry = new CommandRegistry(this.options.config, this.options.sessionManager);
     const executeText = (
       registry as CommandRegistry & {
-        executeText?: (input: string, execCtx: {
-          channel: string;
-          chatId: string;
-          senderId: string;
-          sessionKey: string;
-        }) => Promise<{ content: string } | null>;
+        executeText?: (
+          input: string,
+          execCtx: {
+            channel: string;
+            chatId: string;
+            senderId: string;
+            sessionKey: string;
+          },
+        ) => Promise<{ content: string } | null>;
       }
     ).executeText;
     if (typeof executeText === "function") {
@@ -225,7 +319,7 @@ export class GatewayAgentRuntimePool {
         channel: ctx.channel,
         chatId: ctx.chatId,
         senderId: "user",
-        sessionKey: ctx.sessionKey
+        sessionKey: ctx.sessionKey,
       });
       return result?.content ?? null;
     }
@@ -245,328 +339,27 @@ export class GatewayAgentRuntimePool {
       channel: ctx.channel,
       chatId: ctx.chatId,
       senderId: "user",
-      sessionKey: ctx.sessionKey
+      sessionKey: ctx.sessionKey,
     });
     return result?.content ?? null;
   }
 
-  supportsTurnAbort(params: {
-    sessionKey?: string;
-    channel?: string;
-    chatId?: string;
-    metadata?: Record<string, unknown>;
-    agentId?: string;
-  }): { supported: boolean; agentId: string; reason?: string } {
-    const { route } = this.resolveDirectRoute({
-      content: "",
-      sessionKey: params.sessionKey,
-      channel: params.channel,
-      chatId: params.chatId,
-      metadata: params.metadata,
-      agentId: params.agentId
-    });
-    const forcedEngineKind = this.readForcedEngineKind(params.metadata);
-    let runtime: AgentProfileRuntime;
-    try {
-      runtime = forcedEngineKind
-        ? this.resolveRuntimeForEngineKind(forcedEngineKind, route.agentId)
-        : this.resolveRuntime(route.agentId);
-    } catch (error) {
-      return {
-        supported: false,
-        agentId: route.agentId,
-        reason: error instanceof Error ? error.message : String(error)
-      };
-    }
-    const supportsAbort = runtime.engine.supportsAbort ?? runtime.engine.kind === "native";
-    if (!supportsAbort) {
-      return {
-        supported: false,
-        agentId: route.agentId,
-        reason: `engine "${runtime.engine.kind}" does not support server-side stop yet`
-      };
-    }
-    return {
-      supported: true,
-      agentId: route.agentId
-    };
-  }
-
-  async run(): Promise<void> {
-    this.running = true;
-    while (this.running) {
-      const message = await this.options.bus.consumeInbound();
-      try {
-        const explicitSessionKey = this.readString(message.metadata.session_key_override);
-        const forcedAgentId = this.readString(message.metadata.target_agent_id);
-        const route = this.routeResolver.resolveInbound({
-          message,
-          forcedAgentId,
-          sessionKeyOverride: explicitSessionKey
-        });
-        const runtime = this.resolveRuntime(route.agentId);
-        if (message.channel !== "system") {
-          await this.options.bus.publishOutbound(createAssistantStreamResetControlMessage(message));
-        }
-        await runtime.engine.handleInbound({
-          message,
-          sessionKey: route.sessionKey,
-          publishResponse: true,
-          onAssistantDelta:
-            message.channel !== "system"
-              ? (delta) => {
-                  if (!delta) {
-                    return;
-                  }
-                  void this.options.bus.publishOutbound(createAssistantStreamDeltaControlMessage(message, delta));
-                }
-              : undefined
-        });
-        if (message.channel === "system") {
-          this.onSystemSessionUpdated?.({
-            sessionKey: route.sessionKey,
-            message
-          });
-        }
-      } catch (error) {
-        await this.options.bus.publishOutbound({
-          channel: message.channel,
-          chatId: message.chatId,
-          content: `Sorry, I encountered an error: ${formatUserFacingError(error)}`,
-          media: [],
-          metadata: {}
-        });
-      }
-    }
-  }
-
-  private readString(value: unknown): string | undefined {
-    if (typeof value !== "string") {
-      return undefined;
-    }
-    const trimmed = value.trim();
-    return trimmed || undefined;
-  }
-
-  private resolveDirectRoute(params: {
-    content: string;
-    sessionKey?: string;
-    channel?: string; chatId?: string;
-    attachments?: InboundMessage["attachments"]; metadata?: Record<string, unknown>; agentId?: string;
-  }): {
-    message: InboundMessage;
-    route: ReturnType<AgentRouteResolver["resolveInbound"]>;
-  } {
-    const message: InboundMessage = {
-      channel: params.channel ?? "cli",
-      senderId: "user",
-      chatId: params.chatId ?? "direct",
-      content: params.content,
-      timestamp: new Date(),
-      attachments: params.attachments ?? [],
-      metadata: params.metadata ?? {}
-    };
-    const forcedAgentId =
-      this.readString(params.agentId) ?? parseAgentScopedSessionKey(params.sessionKey)?.agentId ?? undefined;
-    const route = this.routeResolver.resolveInbound({
-      message,
-      forcedAgentId,
-      sessionKeyOverride: params.sessionKey
-    });
-    return {
-      message,
-      route
-    };
-  }
-
-  private resolveRuntime(agentId: string): AgentProfileRuntime {
-    const normalized = normalizeAgentId(agentId);
-    const runtime = this.runtimes.get(normalized);
-    if (runtime) {
-      return runtime;
-    }
-    const fallback = this.runtimes.get(this.defaultAgentId);
-    if (fallback) {
-      return fallback;
-    }
-    throw new Error("No agent runtime available");
-  }
-
-  private readForcedEngineKind(metadata?: Record<string, unknown>): string | undefined {
-    if (!metadata || typeof metadata !== "object") {
-      return undefined;
-    }
-    const raw =
-      this.readString(metadata.session_type) ??
-      this.readString(metadata.sessionType) ??
-      this.readString(metadata.engine_kind) ??
-      this.readString(metadata.engineKind);
-    return raw ? normalizeEngineKind(raw) : undefined;
-  }
-
-  private findRuntimeByEngineKind(kind: string, preferredAgentId?: string): AgentProfileRuntime | null {
-    const normalizedKind = normalizeEngineKind(kind);
-    const preferred = preferredAgentId ? this.runtimes.get(normalizeAgentId(preferredAgentId)) : null;
-    if (preferred && normalizeEngineKind(preferred.engine.kind) === normalizedKind) {
-      return preferred;
-    }
-    for (const runtime of this.runtimes.values()) {
-      if (normalizeEngineKind(runtime.engine.kind) === normalizedKind) {
-        return runtime;
-      }
-    }
-    return null;
-  }
-
-  private resolveBaseProfileForDynamicEngine(agentId: string): ResolvedAgentProfile {
-    const normalizedAgentId = normalizeAgentId(agentId);
-    return (
-      this.resolvedProfiles.find((profile) => profile.id === normalizedAgentId) ??
-      this.resolvedProfiles.find((profile) => profile.id === this.defaultAgentId) ??
-      this.resolvedProfiles[0] ?? {
-        id: this.defaultAgentId,
-        workspace: getWorkspacePath(this.options.config.agents.defaults.workspace),
-        model: this.options.config.agents.defaults.model,
-        maxIterations: this.options.config.agents.defaults.maxToolIterations,
-        contextTokens: this.options.config.agents.defaults.contextTokens,
-        engine: "native",
-        engineConfig: toRecord(this.options.config.agents.defaults.engineConfig)
-      }
-    );
-  }
-
-  private resolveRuntimeForEngineKind(kind: string, fallbackAgentId: string): AgentProfileRuntime {
-    const normalizedKind = normalizeEngineKind(kind);
-    const existing = this.findRuntimeByEngineKind(normalizedKind, fallbackAgentId);
-    if (existing) {
-      return existing;
-    }
-
-    if (!this.listAvailableEngineKinds().includes(normalizedKind)) {
-      throw new Error(`engine "${normalizedKind}" is not available`);
-    }
-
-    const cached = this.dynamicEngineRuntimes.get(normalizedKind);
-    if (cached) {
-      return cached;
-    }
-
-    const baseProfile = this.resolveBaseProfileForDynamicEngine(fallbackAgentId);
-    const dynamicProfile: ResolvedAgentProfile = {
-      ...baseProfile,
-      id: `__session_engine__${normalizedKind}`,
-      engine: normalizedKind
-    };
-    const runtime: AgentProfileRuntime = {
-      id: dynamicProfile.id,
-      engine: this.createEngine(dynamicProfile, this.options.config)
-    };
-    this.dynamicEngineRuntimes.set(normalizedKind, runtime);
-    return runtime;
-  }
-
-  private createNativeEngineFactory(): AgentEngineFactory {
-    return (context: AgentEngineFactoryContext) =>
-      new NativeAgentEngine({
-        bus: context.bus,
-        providerManager: context.providerManager,
-        workspace: context.workspace,
-        model: context.model,
-        maxIterations: context.maxIterations,
-        contextTokens: context.contextTokens,
-        searchConfig: context.searchConfig,
-        execConfig: context.execConfig,
-        cronService: context.cronService,
-        restrictToWorkspace: context.restrictToWorkspace,
-        sessionManager: context.sessionManager,
-        contextConfig: context.contextConfig,
-        gatewayController: context.gatewayController,
-        config: context.config,
-        extensionRegistry: context.extensionRegistry,
-        resolveMessageToolHints: context.resolveMessageToolHints,
-        agentId: context.agentId,
-        prepareInboundAttachments: context.prepareInboundAttachments,
-        ...(context.buildUserContent ? { buildUserContent: context.buildUserContent } : {}),
-        ...(context.additionalTools ? { additionalTools: context.additionalTools } : {}),
-      });
-  }
-
-  private resolveEngineFactory(kind: string): AgentEngineFactory {
-    if (kind === "native") {
-      return this.createNativeEngineFactory();
-    }
-    const registrations = this.options.extensionRegistry?.engines ?? [];
-    const matched = registrations.find((entry) => normalizeEngineKind(entry.kind) === kind);
-    if (matched) {
-      return matched.factory;
-    }
-    console.warn(`[engine] unknown engine "${kind}", fallback to "native"`);
-    return this.createNativeEngineFactory();
-  }
-
-  private createEngine(profile: ResolvedAgentProfile, config: Config): AgentEngine {
-    const kind = normalizeEngineKind(profile.engine);
-    const factory = this.resolveEngineFactory(kind);
-    const context: AgentEngineFactoryContext = {
-      agentId: profile.id,
-      workspace: profile.workspace,
-      model: profile.model,
-      maxIterations: profile.maxIterations,
-      contextTokens: profile.contextTokens,
-      engineConfig: profile.engineConfig,
-      bus: this.options.bus,
-      providerManager: this.options.providerManager,
-      sessionManager: this.options.sessionManager,
-      cronService: this.options.cronService,
-      restrictToWorkspace: this.options.restrictToWorkspace,
-      searchConfig: this.options.searchConfig,
-      execConfig: this.options.execConfig,
-      contextConfig: this.options.contextConfig,
-      gatewayController: this.options.gatewayController,
-      config,
-      extensionRegistry: this.options.extensionRegistry,
-      resolveMessageToolHints: this.options.resolveMessageToolHints,
-      ...this.nativeManagedAssetSupport.toRuntimeSupport(),
-    };
-    try {
-      return factory(context);
-    } catch (error) {
-      if (kind === "native") {
-        throw error;
-      }
-      console.warn(`[engine] failed to create "${kind}" for agent "${profile.id}": ${String(error)}`);
-      return this.createNativeEngineFactory()(context);
-    }
-  }
-
   private rebuild(config: Config): void {
-    const profiles = resolveAgentProfiles(config);
-    this.resolvedProfiles = profiles;
-    const configuredDefault = this.readString(config.agents.list.find((entry) => entry.default)?.id);
-    this.defaultAgentId = configuredDefault ?? profiles[0]?.id ?? "main";
-
-    const nextRuntimes = new Map<string, AgentProfileRuntime>();
-    for (const profile of profiles) {
-      const engine = this.createEngine(profile, config);
-      nextRuntimes.set(profile.id, {
-        id: profile.id,
-        engine
-      });
-    }
-    this.runtimes = nextRuntimes;
-    this.dynamicEngineRuntimes.clear();
+    this.defaultAgentId = normalizeAgentId(resolveDefaultAgentProfileId(config));
   }
 }
 
 function parseCommandArgsFromText(
   commandName: string,
   rawTail: string,
-  specs: Array<{ name: string; options?: CommandOption[] }>
+  specs: Array<{ name: string; options?: CommandOption[] }>,
 ): Record<string, unknown> {
   if (!rawTail) {
     return {};
   }
-  const command = specs.find((item) => item.name.trim().toLowerCase() === commandName);
+  const command = specs.find(
+    (item) => item.name.trim().toLowerCase() === commandName,
+  );
   const options = command?.options;
   if (!options || options.length === 0) {
     return {};
@@ -581,7 +374,9 @@ function parseCommandArgsFromText(
     }
     const option = options[i];
     const isLastOption = i === options.length - 1;
-    const rawValue = isLastOption ? tokens.slice(cursor).join(" ") : tokens[cursor];
+    const rawValue = isLastOption
+      ? tokens.slice(cursor).join(" ")
+      : tokens[cursor];
     cursor += isLastOption ? tokens.length - cursor : 1;
     const parsedValue = parseCommandOptionValue(option.type, rawValue);
     if (parsedValue !== undefined) {
@@ -591,7 +386,10 @@ function parseCommandArgsFromText(
   return args;
 }
 
-function parseCommandOptionValue(type: CommandOption["type"], rawValue: string): string | number | boolean | undefined {
+function parseCommandOptionValue(
+  type: CommandOption["type"],
+  rawValue: string,
+): string | number | boolean | undefined {
   const value = rawValue.trim();
   if (!value) {
     return undefined;
@@ -614,7 +412,10 @@ function parseCommandOptionValue(type: CommandOption["type"], rawValue: string):
 }
 
 function formatUserFacingError(error: unknown, maxChars = 320): string {
-  const raw = error instanceof Error ? error.message || error.name || "Unknown error" : String(error ?? "Unknown error");
+  const raw =
+    error instanceof Error
+      ? error.message || error.name || "Unknown error"
+      : String(error ?? "Unknown error");
   const normalized = raw.replace(/\s+/g, " ").trim();
   if (!normalized) {
     return "Unknown error";

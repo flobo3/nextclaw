@@ -81,7 +81,6 @@ export async function hydrateServiceCapabilities(params: {
     params.state.pluginChannelBindings = nextPluginChannelBindings;
     params.state.pluginUiMetadata = nextPluginUiMetadata;
 
-    params.gateway.runtimePool.applyExtensionRegistry(nextExtensionRegistry);
     params.gateway.runtimePool.applyRuntimeConfig(nextConfig);
     params.getLiveUiNcpAgent()?.applyExtensionRegistry?.(nextExtensionRegistry);
 

@@ -34,11 +34,11 @@ vi.mock("../service-capability-hydration.js", () => ({
   hydrateServiceCapabilities: vi.fn()
 }));
 
-vi.mock("../service-plugin-reload.js", () => ({
+vi.mock("../../plugin/service-plugin-reload.js", () => ({
   reloadServicePlugins: mocks.reloadServicePluginsMock
 }));
 
-vi.mock("../service-plugin-runtime-bridge.js", () => ({
+vi.mock("../../plugin/service-plugin-runtime-bridge.js", () => ({
   installPluginRuntimeBridge: mocks.installPluginRuntimeBridgeMock
 }));
 
@@ -95,7 +95,6 @@ describe("configureGatewayPluginRuntime", () => {
       extensionRegistry: { channels: [] },
       pluginChannelBindings: [],
       runtimePool: {
-        applyExtensionRegistry: vi.fn(),
         applyRuntimeConfig: vi.fn()
       },
       reloader: {
@@ -140,7 +139,6 @@ describe("configureGatewayPluginRuntime", () => {
     expect(state.pluginChannelBindings).toBe(nextPluginChannelBindings);
     expect(state.pluginUiMetadata).toBe(nextPluginUiMetadata);
     expect(state.pluginGatewayHandles).toBe(nextPluginGatewayHandles);
-    expect(gateway.runtimePool.applyExtensionRegistry).toHaveBeenCalledWith(nextExtensionRegistry);
     expect(gateway.runtimePool.applyRuntimeConfig).toHaveBeenCalledWith({
       channels: { weixin: { enabled: true } }
     });

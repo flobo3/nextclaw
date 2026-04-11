@@ -1,13 +1,12 @@
-import { loadConfig, saveConfig, getConfigPath, getDataDir, type Config, getWorkspacePath, expandHome, MessageBus, AgentLoop, ProviderManager, resolveConfigSecrets, APP_NAME, DEFAULT_WORKSPACE_DIR, DEFAULT_WORKSPACE_PATH } from "@nextclaw/core";
+import { loadConfig, saveConfig, getConfigPath, getDataDir, type Config, getWorkspacePath, expandHome, ProviderManager, resolveConfigSecrets, APP_NAME, DEFAULT_WORKSPACE_DIR, DEFAULT_WORKSPACE_PATH } from "@nextclaw/core";
 import { RemoteRuntimeActions } from "@nextclaw/remote";
 import {
   getPluginChannelBindings,
   resolvePluginChannelMessageToolHints,
   setPluginRuntimeBridge,
 } from "@nextclaw/openclaw-compat";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { RestartCoordinator, type RestartStrategy } from "./restart-coordinator.js";
@@ -22,7 +21,7 @@ import {
 } from "./skills/marketplace-command-options.js";
 import { installMarketplaceSkill, publishMarketplaceSkill } from "./skills/marketplace.js";
 import { runSelfUpdate } from "./update/runner.js";
-import { getPackageVersion, isProcessRunning, printAgentResponse, prompt } from "./utils.js";
+import { getPackageVersion, isProcessRunning } from "./utils.js";
 import { managedServiceStateStore } from "./runtime-state/managed-service-state.store.js";
 import {
   loadPluginRegistry,
@@ -45,7 +44,9 @@ import { hasRunningNextclawManagedService } from "./commands/remote-support/remo
 import { describeUnmanagedHealthyTargetMessage } from "./commands/service-support/runtime/service-port-probe.js";
 import { ServiceCommands } from "./commands/service.js";
 import { WorkspaceManager } from "./workspace.js";
-import { NativeManagedAssetSupport } from "./commands/agent/native-managed-asset-support.js";
+import { LlmUsageObserver, ObservedProviderManager } from "./commands/shared/llm-usage-observer.js";
+import { llmUsageSnapshotStore } from "./runtime-state/llm-usage-snapshot.store.js";
+import { runCliAgentCommand } from "./commands/agent/cli-agent-runner.js";
 import type {
   AgentCommandOptions,
   AgentsListCommandOptions,
@@ -547,24 +548,23 @@ export class CliRuntime {
     });
 
     try {
-      const bus = new MessageBus();
       const provider =
         this.serviceCommands.createProvider(config) ??
         this.serviceCommands.createMissingProvider(config);
-      const providerManager = new ProviderManager({ defaultProvider: provider, config });
-      const agentLoop = new AgentLoop({
-        bus,
-        providerManager,
-        workspace,
-        model: config.agents.defaults.model,
-        maxIterations: config.agents.defaults.maxToolIterations,
-        contextTokens: config.agents.defaults.contextTokens,
-        searchConfig: config.search,
-        execConfig: config.tools.exec,
-        restrictToWorkspace: config.tools.restrictToWorkspace,
-        contextConfig: config.agents.context,
+      const providerManager = this.createObservedProviderManager(
+        new ProviderManager({ defaultProvider: provider, config }),
+        "cli-agent",
+      );
+
+      await runCliAgentCommand({
+        logo: this.logo,
+        opts,
         config,
+        workspace,
+        providerManager,
         extensionRegistry,
+        loadResolvedConfig: () =>
+          resolveConfigSecrets(loadConfig(), { configPath }),
         resolveMessageToolHints: ({ channel, accountId }) =>
           resolvePluginChannelMessageToolHints({
             registry: pluginRegistry,
@@ -572,68 +572,7 @@ export class CliRuntime {
             cfg: resolveConfigSecrets(loadConfig(), { configPath }),
             accountId,
           }),
-        ...NativeManagedAssetSupport.createDefault().toRuntimeSupport(),
       });
-
-      if (opts.message) {
-        const response = await agentLoop.processDirect({
-          content: opts.message,
-          sessionKey: opts.session ?? "cli:default",
-          channel: "cli",
-          chatId: "direct",
-          metadata:
-            typeof opts.model === "string" && opts.model.trim()
-              ? { model: opts.model.trim() }
-              : {},
-        });
-        printAgentResponse(response);
-        return;
-      }
-
-      console.log(
-        `${this.logo} Interactive mode (type exit or Ctrl+C to quit)\n`,
-      );
-      const historyFile = join(getDataDir(), "history", "cli_history");
-      const historyDir = resolve(historyFile, "..");
-      mkdirSync(historyDir, { recursive: true });
-
-      const history = existsSync(historyFile)
-        ? readFileSync(historyFile, "utf-8").split("\n").filter(Boolean)
-        : [];
-      const rl = createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      });
-      rl.on("close", () => {
-        const merged = history.concat(
-          (rl as unknown as { history: string[] }).history ?? [],
-        );
-        writeFileSync(historyFile, merged.join("\n"));
-        process.exit(0);
-      });
-
-      let running = true;
-      while (running) {
-        const line = await prompt(rl, "You: ");
-        const trimmed = line.trim();
-        if (!trimmed) {
-          continue;
-        }
-        if (EXIT_COMMANDS.has(trimmed.toLowerCase())) {
-          rl.close();
-          running = false;
-          break;
-        }
-        const response = await agentLoop.processDirect({
-          content: trimmed,
-          sessionKey: opts.session ?? "cli:default",
-          metadata:
-            typeof opts.model === "string" && opts.model.trim()
-              ? { model: opts.model.trim() }
-              : {},
-        });
-        printAgentResponse(response);
-      }
     } finally {
       setPluginRuntimeBridge(null);
     }
@@ -765,13 +704,8 @@ export class CliRuntime {
     await this.cronCommands.cronRun(jobId, opts);
   };
 
-  status = async (opts: StatusCommandOptions = {}): Promise<void> => {
-    await this.diagnosticsCommands.status(opts);
-  };
-
-  doctor = async (opts: DoctorCommandOptions = {}): Promise<void> => {
-    await this.diagnosticsCommands.doctor(opts);
-  };
+  status = async (opts: StatusCommandOptions = {}): Promise<void> => { await this.diagnosticsCommands.status(opts); };
+  doctor = async (opts: DoctorCommandOptions = {}): Promise<void> => { await this.diagnosticsCommands.doctor(opts); };
 
   skillsInstall = async (options: {
     slug: string;
@@ -811,4 +745,7 @@ export class CliRuntime {
     console.log(`  Alias: ${result.slug}`);
     console.log(`  Files: ${result.fileCount}`);
   };
+
+  private createObservedProviderManager = (providerManager: ProviderManager, source: string): ProviderManager =>
+    new ObservedProviderManager(providerManager, new LlmUsageObserver(llmUsageSnapshotStore, source));
 }
