@@ -32,6 +32,7 @@
   - 不再为 CLI 额外引入专门入口目录，避免白名单继续膨胀
 - 根据收尾治理接入：
   - 已将该 skill 以高优先级项目规则接入 `AGENTS.md`
+  - 已将该规则顺序前置到 `Project Rulebook` 最前，显式保证优先级不落在靠后位置
   - 未继续堆出多条平行规则，而是将现有“新建前先规划结构”“目录预算治理”两条规则的执行方式直接接到该 skill
   - 目标是让目录架构约束进入统一治理链路，而不是再形成一块孤立说明
 
@@ -47,7 +48,6 @@
   - 白名单内目录按需可选
   - 白名单外目录默认禁止
   - 前后端目录范围明确分开
-  - `L4` 才表示多平台 / 多宿主
   - `integrations/`、`workers/`、`consumers/` 不在允许范围内
   - `L4` 当前仅表示前端多平台
   - `desktop/`、`mobile/`、`web/` 各自内部仍然是 feature 架构
@@ -55,6 +55,7 @@
   - `jobs` 不在后端允许范围内
   - CLI 入口统一归 `app/`
   - `AGENTS.md` 已新增高优先级项目规则 `collapsible-feature-root-architecture-required`
+  - 该规则在 `Project Rulebook` 中已被移动到最前位置
   - `plan-structure-before-creating-files` 与 `directory-file-budget-must-stay-explicit` 已联动该 skill
 - `build/lint/tsc` 不适用：
   - 本次仅新增/修改 skill 文档、`AGENTS.md` 规则与迭代留痕，未触达构建、类型或运行链路代码

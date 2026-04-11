@@ -338,6 +338,12 @@
   - 维护责任人：当前助手。
 ## Project Rulebook
 
+- **collapsible-feature-root-architecture-required**：
+  - 约束/适用范围：这是本项目的高优先级架构规则。凡涉及项目代码、脚本、测试、技能、运行链路配置，或会影响目录结构、文件落点、命名边界、模块拆分、平台拆分、package 拆分的设计与实现，必须自动加载并遵循 skill [`.agents/skills/collapsible-feature-root-architecture/SKILL.md`](.agents/skills/collapsible-feature-root-architecture/SKILL.md)。默认采用“可折叠 feature-root 架构”：单 feature 场景当前目录直接作为 feature root，不额外引入 `features/`；只有出现多个并列 feature 时才引入 `features/` 聚合层；只有出现稳定子业务域时才继续展开子 `features/`；目录必须落在当前作用域的白名单内，白名单内目录按需可选，白名单外目录默认禁止。CLI 入口统一归 `app/`，前端多平台仅在 `L4` 使用 `platforms/desktop|mobile|web`，且每个平台内部仍然继续遵循 feature 架构。
+  - 示例：单一 CLI package 直接使用 `src/app + src/features + src/shared`，不额外创建 `commands/`；前端单 feature 模块直接把当前目录作为 feature root，不再包一层空的 `features/<same-domain>/`；一个后端 feature 需要增长时，先在白名单内选择 `controllers/`、`routes/`、`services/`、`repositories/`、`providers/`、`types/`、`utils/`、`shared/`，而不是随手新增 `integrations/`、`workers/`、`consumers/`、`common/`。
+  - 反例：只有一个主 feature 却强行新增 `features/`；明知当前作用域白名单不含某目录仍然新建 `commands/`、`integrations/`、`helpers/`、`misc/`；把 CLI 入口单独拆成 `commands/`；把前端多平台误写成根级散目录，或把 `desktop/`、`mobile/`、`web/` 当作没有内部 feature 结构的平铺容器。
+  - 执行方式：凡发生结构决策前，必须先用该 skill 回答至少七个问题：`当前作用域是什么？`、`当前属于 L0/L1/L2/L3/L4 哪一档？`、`当前目录能否直接作为 feature root？`、`是否真的需要引入 features/？`、`当前应使用哪一份目录白名单？`、`是否存在白名单外目录；若有为何例外成立？`、`是否存在更小更简单的结构？`。若本次结构调整同时涉及命名与目录治理，还必须联动 `file-naming-convention`、`file-organization-governance` 与 `directory-file-budget-must-stay-explicit`；最终结果中必须明确写出采用的复杂度等级、白名单、目录落点理由，以及是否存在例外目录。
+  - 维护责任人：当前助手。
 - **prefer-local-openclaw-sibling-source**：
   - 约束/适用范围：当需要查看 OpenClaw 源码时，优先在本项目根目录的同级兄弟目录查找本地 `openclaw` 仓库；若存在，必须优先读取本地源码；仅在本地不存在时才允许使用其它方式（如远程仓库/网络检索）。
   - 示例：在 `/Users/peiwang/Projects/nextbot` 需要核对 OpenClaw 实现时，先检查 `/Users/peiwang/Projects/openclaw` 并直接读取对应文件。
@@ -355,12 +361,6 @@
   - 示例：在 `/Users/peiwang/Projects/nextbot` 需要核对 CoPaw 实现时，先检查 `/Users/peiwang/Projects/copaw` 并直接读取对应文件。
   - 反例：本地已有兄弟目录 `copaw`，但仍直接去网页搜索或查看远程仓库代码。
   - 执行方式：每次涉及 CoPaw 对比前，先执行兄弟目录存在性检查；存在则本地检索/读取，不存在再切换远程方案。
-  - 维护责任人：当前助手。
-- **collapsible-feature-root-architecture-required**：
-  - 约束/适用范围：这是本项目的高优先级架构规则。凡涉及项目代码、脚本、测试、技能、运行链路配置，或会影响目录结构、文件落点、命名边界、模块拆分、平台拆分、package 拆分的设计与实现，必须自动加载并遵循 skill [`.agents/skills/collapsible-feature-root-architecture/SKILL.md`](.agents/skills/collapsible-feature-root-architecture/SKILL.md)。默认采用“可折叠 feature-root 架构”：单 feature 场景当前目录直接作为 feature root，不额外引入 `features/`；只有出现多个并列 feature 时才引入 `features/` 聚合层；只有出现稳定子业务域时才继续展开子 `features/`；目录必须落在当前作用域的白名单内，白名单内目录按需可选，白名单外目录默认禁止。CLI 入口统一归 `app/`，前端多平台仅在 `L4` 使用 `platforms/desktop|mobile|web`，且每个平台内部仍然继续遵循 feature 架构。
-  - 示例：单一 CLI package 直接使用 `src/app + src/features + src/shared`，不额外创建 `commands/`；前端单 feature 模块直接把当前目录作为 feature root，不再包一层空的 `features/<same-domain>/`；一个后端 feature 需要增长时，先在白名单内选择 `controllers/`、`routes/`、`services/`、`repositories/`、`providers/`、`types/`、`utils/`、`shared/`，而不是随手新增 `integrations/`、`workers/`、`consumers/`、`common/`。
-  - 反例：只有一个主 feature 却强行新增 `features/`；明知当前作用域白名单不含某目录仍然新建 `commands/`、`integrations/`、`helpers/`、`misc/`；把 CLI 入口单独拆成 `commands/`；把前端多平台误写成根级散目录，或把 `desktop/`、`mobile/`、`web/` 当作没有内部 feature 结构的平铺容器。
-  - 执行方式：凡发生结构决策前，必须先用该 skill 回答至少七个问题：`当前作用域是什么？`、`当前属于 L0/L1/L2/L3/L4 哪一档？`、`当前目录能否直接作为 feature root？`、`是否真的需要引入 features/？`、`当前应使用哪一份目录白名单？`、`是否存在白名单外目录；若有为何例外成立？`、`是否存在更小更简单的结构？`。若本次结构调整同时涉及命名与目录治理，还必须联动 `file-naming-convention`、`file-organization-governance` 与 `directory-file-budget-must-stay-explicit`；最终结果中必须明确写出采用的复杂度等级、白名单、目录落点理由，以及是否存在例外目录。
   - 维护责任人：当前助手。
 - **cross-platform-first-for-nextclaw**：
   - 约束/适用范围：凡涉及 `nextclaw` CLI、安装/升级、自更新、路径处理、进程控制、服务托管、脚本或用户可执行流程的设计与实现，默认必须同时考虑 macOS、Linux、Windows 三平台；除非用户明确声明仅限单平台，否则禁止只按当前开发机或单一操作系统做方案。
