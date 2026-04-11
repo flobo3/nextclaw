@@ -28,9 +28,9 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
   });
 
   it("maps MediaPaths into runtime attachments", async () => {
-    const processDirect = vi.fn(async () => "ok");
+    const dispatchPrompt = vi.fn(async () => "ok");
     installPluginRuntimeBridge({
-      runtimePool: { processDirect } as never,
+      dispatchPrompt,
       runtimeConfigPath: "/tmp/config.json",
       getPluginChannelBindings: () => [],
     });
@@ -58,7 +58,7 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
       },
     });
 
-    expect(processDirect).toHaveBeenCalledWith(
+    expect(dispatchPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
         attachments: [
           expect.objectContaining({
@@ -77,9 +77,9 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
   });
 
   it("keeps remote-only media when only MediaUrls are available", async () => {
-    const processDirect = vi.fn(async () => "ok");
+    const dispatchPrompt = vi.fn(async () => "ok");
     installPluginRuntimeBridge({
-      runtimePool: { processDirect } as never,
+      dispatchPrompt,
       runtimeConfigPath: "/tmp/config.json",
       getPluginChannelBindings: () => [],
     });
@@ -103,7 +103,7 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
       },
     });
 
-    expect(processDirect).toHaveBeenCalledWith(
+    expect(dispatchPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
         attachments: [
           expect.objectContaining({
@@ -117,9 +117,9 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
   });
 
   it("dispatches attachment-only requests when MediaPaths exist without text", async () => {
-    const processDirect = vi.fn(async () => "ok");
+    const dispatchPrompt = vi.fn(async () => "ok");
     installPluginRuntimeBridge({
-      runtimePool: { processDirect } as never,
+      dispatchPrompt,
       runtimeConfigPath: "/tmp/config.json",
       getPluginChannelBindings: () => [],
     });
@@ -143,7 +143,7 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
       },
     });
 
-    expect(processDirect).toHaveBeenCalledWith(
+    expect(dispatchPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
         content: "",
         attachments: [
@@ -159,8 +159,8 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
 
   it("triggers onReplyStart before runtime processing", async () => {
     const callOrder: string[] = [];
-    const processDirect = vi.fn(async () => {
-      callOrder.push("processDirect");
+    const dispatchPrompt = vi.fn(async () => {
+      callOrder.push("dispatchPrompt");
       return "ok";
     });
     const onReplyStart = vi.fn(async () => {
@@ -168,7 +168,7 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
     });
 
     installPluginRuntimeBridge({
-      runtimePool: { processDirect } as never,
+      dispatchPrompt,
       runtimeConfigPath: "/tmp/config.json",
       getPluginChannelBindings: () => [],
     });
@@ -196,7 +196,7 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
     });
 
     expect(onReplyStart).toHaveBeenCalledTimes(1);
-    expect(processDirect).toHaveBeenCalledTimes(1);
-    expect(callOrder).toEqual(["onReplyStart", "processDirect"]);
+    expect(dispatchPrompt).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(["onReplyStart", "dispatchPrompt"]);
   });
 });

@@ -10,8 +10,8 @@ import {
 } from "@nextclaw/server";
 import { openBrowser } from "../../../utils.js";
 import type { GatewayControllerImpl } from "../../../gateway/controller.js";
-import type { GatewayAgentRuntimePool } from "../../agent/agent-runtime-pool.js";
 import { createUiNcpAgent, type UiNcpAgentHandle } from "../../ncp/create-ui-ncp-agent.js";
+import { runGatewayInboundLoop } from "../../ncp/runtime/nextclaw-ncp-dispatch.js";
 import type { NextclawExtensionRegistry } from "../../plugins.js";
 import { createDeferredUiNcpAgent, type DeferredUiNcpAgentController } from "../session/service-deferred-ncp-agent.js";
 import type { DeferredUiNcpSessionServiceController } from "../session/service-deferred-ncp-session-service.js";
@@ -28,16 +28,15 @@ export type UiStartupHandle = {
   publish: (event: UiServerEvent) => void;
 };
 
-export function wireSystemSessionUpdatedPublisher(params: {
-  runtimePool: Pick<GatewayAgentRuntimePool, "setSystemSessionUpdatedHandler">;
+export function createSystemSessionUpdatedPublisher(params: {
   publishUiEvent?: (event: UiServerEvent) => void;
-}): void {
-  params.runtimePool.setSystemSessionUpdatedHandler(({ sessionKey }) => {
+}): (params: { sessionKey: string }) => void {
+  return ({ sessionKey }) => {
     params.publishUiEvent?.({
       type: "session.updated",
       payload: { sessionKey }
     });
-  });
+  };
 }
 
 export async function startUiShell(params: {
@@ -185,21 +184,90 @@ export async function startDeferredGatewayStartup(params: {
 }
 
 export async function runGatewayRuntimeLoop(params: {
-  runtimePool: GatewayAgentRuntimePool;
+  runRuntimeLoop: () => Promise<void>;
   startDeferredStartup: () => Promise<void>;
   onDeferredStartupError: (error: unknown) => void;
   cleanup: () => Promise<void>;
 }): Promise<void> {
   let startupTask: Promise<void> | null = null;
   try {
-    const runtimePoolTask = params.runtimePool.run();
+    const runtimeLoopTask = params.runRuntimeLoop();
     startupTask = params.startDeferredStartup();
     void startupTask.catch(params.onDeferredStartupError);
-    await runtimePoolTask;
+    await runtimeLoopTask;
   } finally {
     if (startupTask) {
       await startupTask.catch(() => undefined);
     }
     await params.cleanup();
   }
+}
+
+export async function runConfiguredGatewayRuntime(params: {
+  uiStartup: UiStartupHandle | null;
+  gateway: {
+    bus: MessageBus;
+    sessionManager: SessionManager;
+    providerManager: ProviderManager;
+    cron: CronService;
+    gatewayController: GatewayControllerImpl;
+    runtimeConfigPath: string;
+  };
+  deferredNcpSessionService: DeferredUiNcpSessionServiceController;
+  getConfig: () => Config;
+  getExtensionRegistry: () => NextclawExtensionRegistry | undefined;
+  resolveMessageToolHints: (params: {
+    channel: string;
+    accountId?: string | null;
+  }) => string[];
+  deferredStartupHooks: {
+    hydrateCapabilities?: () => Promise<void>;
+    startPluginGateways: () => Promise<void>;
+    startChannels: () => Promise<void>;
+    wakeFromRestartSentinel: () => Promise<void>;
+    onNcpAgentReady: (agent: UiNcpAgentHandle) => void;
+  };
+  getLiveUiNcpAgent: () => UiNcpAgentHandle | null;
+  publishSessionChange: (sessionKey: string) => void;
+  publishUiEvent?: (event: UiServerEvent) => void;
+  onDeferredStartupError: (error: unknown) => void;
+  cleanup: () => Promise<void>;
+}): Promise<void> {
+  const onSystemSessionUpdated = createSystemSessionUpdatedPublisher({
+    publishUiEvent: params.publishUiEvent,
+  });
+
+  logStartupTrace("service.start_gateway.runtime_loop_begin");
+  await runGatewayRuntimeLoop({
+    runRuntimeLoop: () =>
+      runGatewayInboundLoop({
+        bus: params.gateway.bus,
+        sessionManager: params.gateway.sessionManager,
+        getConfig: params.getConfig,
+        resolveNcpAgent: params.getLiveUiNcpAgent,
+        onSystemSessionUpdated: ({ sessionKey }) =>
+          onSystemSessionUpdated({ sessionKey }),
+      }),
+    startDeferredStartup: () =>
+      startDeferredGatewayStartup({
+        uiStartup: params.uiStartup,
+        deferredNcpSessionService: params.deferredNcpSessionService,
+        bus: params.gateway.bus,
+        sessionManager: params.gateway.sessionManager,
+        providerManager: params.gateway.providerManager,
+        cronService: params.gateway.cron,
+        gatewayController: params.gateway.gatewayController,
+        getConfig: params.getConfig,
+        getExtensionRegistry: params.getExtensionRegistry,
+        resolveMessageToolHints: params.resolveMessageToolHints,
+        hydrateCapabilities: params.deferredStartupHooks.hydrateCapabilities,
+        startPluginGateways: params.deferredStartupHooks.startPluginGateways,
+        startChannels: params.deferredStartupHooks.startChannels,
+        wakeFromRestartSentinel: params.deferredStartupHooks.wakeFromRestartSentinel,
+        onNcpAgentReady: params.deferredStartupHooks.onNcpAgentReady,
+        publishSessionChange: params.publishSessionChange,
+      }),
+    onDeferredStartupError: params.onDeferredStartupError,
+    cleanup: params.cleanup,
+  });
 }

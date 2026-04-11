@@ -6,34 +6,22 @@ vi.mock("../../../ncp/create-ui-ncp-agent.js", () => ({
 
 import { createUiNcpAgent } from "../../../ncp/create-ui-ncp-agent.js";
 import {
+  createSystemSessionUpdatedPublisher,
   startDeferredGatewayStartup,
-  wireSystemSessionUpdatedPublisher,
 } from "../service-gateway-startup.js";
 
 afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("wireSystemSessionUpdatedPublisher", () => {
-  it("publishes a UI session.updated event when the runtime pool reports a system session update", () => {
-    let capturedHandler: ((params: { sessionKey: string }) => void) | null = null;
-    const setSystemSessionUpdatedHandler = vi.fn((handler: (params: { sessionKey: string }) => void) => {
-      capturedHandler = handler;
-    });
-    const runtimePool = {
-      setSystemSessionUpdatedHandler
-    };
+describe("createSystemSessionUpdatedPublisher", () => {
+  it("publishes a UI session.updated event when the system session reports an update", () => {
     const publishUiEvent = vi.fn();
 
-    wireSystemSessionUpdatedPublisher({
-      runtimePool: runtimePool as { setSystemSessionUpdatedHandler: (handler: (params: { sessionKey: string }) => void) => void },
+    const handler = createSystemSessionUpdatedPublisher({
       publishUiEvent
     });
 
-    expect(setSystemSessionUpdatedHandler).toHaveBeenCalledTimes(1);
-    expect(capturedHandler).not.toBeNull();
-
-    const handler = capturedHandler as unknown as (params: { sessionKey: string }) => void;
     handler({ sessionKey: "agent:main:ui:direct:web-ui" });
 
     expect(publishUiEvent).toHaveBeenCalledWith({

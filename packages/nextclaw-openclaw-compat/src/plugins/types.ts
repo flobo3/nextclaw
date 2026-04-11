@@ -1,5 +1,4 @@
 import type {
-  AgentEngineFactory,
   Config,
   ExtensionChannel,
   ProviderRuntimeResolution,
@@ -61,10 +60,6 @@ export type OpenClawPluginToolOptions = {
   name?: string;
   names?: string[];
   optional?: boolean;
-};
-
-export type OpenClawPluginEngineOptions = {
-  kind: string;
 };
 
 export type OpenClawPluginNcpAgentRuntimeRegistration = {
@@ -312,7 +307,6 @@ export type PluginRecord = {
   toolNames: string[];
   channelIds: string[];
   providerIds: string[];
-  engineKinds: string[];
   ncpAgentRuntimeKinds: string[];
   configSchema: boolean;
   configUiHints?: Record<string, PluginConfigUiHint>;
@@ -336,13 +330,6 @@ export type PluginChannelRegistration = {
 export type PluginProviderRegistration = {
   pluginId: string;
   provider: OpenClawProviderPlugin;
-  source: string;
-};
-
-export type PluginEngineRegistration = {
-  pluginId: string;
-  kind: string;
-  factory: AgentEngineFactory;
   source: string;
 };
 
@@ -514,7 +501,6 @@ export type OpenClawPluginApi = {
   ) => void;
   registerChannel: (registration: OpenClawPluginChannelRegistration) => void;
   registerProvider: (provider: OpenClawProviderPlugin) => void;
-  registerEngine: (factory: AgentEngineFactory, opts: OpenClawPluginEngineOptions) => void;
   registerNcpAgentRuntime: (registration: OpenClawPluginNcpAgentRuntimeRegistration) => void;
   registerHook: (_events: string | string[], _handler: unknown, _opts?: unknown) => void;
   registerGatewayMethod: (_method: string, _handler: unknown) => void;
@@ -531,7 +517,6 @@ export type PluginRegistry = {
   tools: PluginToolRegistration[];
   channels: PluginChannelRegistration[];
   providers: PluginProviderRegistration[];
-  engines: PluginEngineRegistration[];
   ncpAgentRuntimes: PluginNcpAgentRuntimeRegistration[];
   diagnostics: PluginDiagnostic[];
   resolvedTools: OpenClawPluginTool[];

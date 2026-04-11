@@ -22,7 +22,6 @@ function createEmptyPluginRegistry(): PluginRegistry {
     tools: [],
     channels: [],
     providers: [],
-    engines: [],
     ncpAgentRuntimes: [],
     diagnostics: [],
     resolvedTools: []
@@ -211,7 +210,6 @@ export function buildPluginStatusReport(params: {
   reservedToolNames?: string[];
   reservedChannelIds?: string[];
   reservedProviderIds?: string[];
-  reservedEngineKinds?: string[];
   reservedNcpAgentRuntimeKinds?: string[];
 }): PluginStatusReport {
   const workspaceDir = params.workspaceDir?.trim() || getWorkspacePathFromConfig(params.config);
@@ -222,7 +220,6 @@ export function buildPluginStatusReport(params: {
     reservedToolNames: params.reservedToolNames,
     reservedChannelIds: params.reservedChannelIds,
     reservedProviderIds: params.reservedProviderIds,
-    reservedEngineKinds: params.reservedEngineKinds,
     reservedNcpAgentRuntimeKinds: params.reservedNcpAgentRuntimeKinds
   });
 

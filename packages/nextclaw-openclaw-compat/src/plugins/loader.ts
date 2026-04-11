@@ -25,7 +25,6 @@ export type PluginLoadOptions = {
   reservedToolNames?: string[];
   reservedChannelIds?: string[];
   reservedProviderIds?: string[];
-  reservedEngineKinds?: string[];
   reservedNcpAgentRuntimeKinds?: string[];
 };
 
@@ -223,7 +222,6 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
     tools: [],
     channels: [],
     providers: [],
-    engines: [],
     ncpAgentRuntimes: [],
     diagnostics: [],
     resolvedTools: []
@@ -232,7 +230,6 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
   const reservedToolNames = new Set(options.reservedToolNames ?? []);
   const reservedChannelIds = new Set(options.reservedChannelIds ?? []);
   const reservedProviderIds = new Set(options.reservedProviderIds ?? []);
-  const reservedEngineKinds = new Set((options.reservedEngineKinds ?? ["native"]).map((entry) => entry.toLowerCase()));
   const reservedNcpAgentRuntimeKinds = new Set(
     (options.reservedNcpAgentRuntimeKinds ?? ["native"]).map((entry) => entry.toLowerCase())
   );
@@ -245,7 +242,6 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
     reservedToolNames,
     reservedChannelIds,
     reservedProviderIds,
-    reservedEngineKinds,
     reservedNcpAgentRuntimeKinds
   });
 

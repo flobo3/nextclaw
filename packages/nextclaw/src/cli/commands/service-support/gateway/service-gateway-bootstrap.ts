@@ -7,6 +7,7 @@ import {
   type PluginUiMetadata,
 } from "@nextclaw/openclaw-compat";
 import type { UiNcpAgentHandle } from "../../ncp/create-ui-ncp-agent.js";
+import { dispatchPromptOverNcp } from "../../ncp/runtime/nextclaw-ncp-dispatch.js";
 import {
   applyGatewayCapabilityState,
   type GatewayCapabilityState,
@@ -66,7 +67,6 @@ export function configureGatewayPluginRuntime(params: {
   state: GatewayRuntimeState;
   getLiveUiNcpAgent: () => UiNcpAgentHandle | null;
 }): void {
-  params.gateway.reloader.setApplyAgentRuntimeConfig((nextConfig) => params.gateway.runtimePool.applyRuntimeConfig(nextConfig));
   params.gateway.reloader.setReloadPlugins(async ({ config: nextConfig, changedPaths }) => {
     const result = await reloadServicePlugins({
       nextConfig,
@@ -90,7 +90,6 @@ export function configureGatewayPluginRuntime(params: {
     params.state.pluginUiMetadata = getPluginUiMetadataFromRegistry(result.pluginRegistry);
     params.state.pluginGatewayHandles = result.pluginGatewayHandles;
     params.getLiveUiNcpAgent()?.applyExtensionRegistry?.(result.extensionRegistry);
-    params.gateway.runtimePool.applyRuntimeConfig(nextConfig);
     if (result.restartChannels) {
       console.log("Config reload: plugin channel gateways restarted.");
     }
@@ -101,7 +100,15 @@ export function configureGatewayPluginRuntime(params: {
   });
 
   installPluginRuntimeBridge({
-    runtimePool: params.gateway.runtimePool,
+    dispatchPrompt: async (request) =>
+      await dispatchPromptOverNcp({
+        config: resolveConfigSecrets(loadConfig(), {
+          configPath: params.gateway.runtimeConfigPath,
+        }),
+        sessionManager: params.gateway.sessionManager,
+        resolveNcpAgent: () => params.getLiveUiNcpAgent(),
+        ...request,
+      }),
     runtimeConfigPath: params.gateway.runtimeConfigPath,
     getPluginChannelBindings: () => params.state.pluginChannelBindings
   });

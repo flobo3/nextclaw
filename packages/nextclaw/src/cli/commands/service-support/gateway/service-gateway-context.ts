@@ -6,7 +6,6 @@ import { GatewayControllerImpl } from "../../../gateway/controller.js";
 import { ConfigReloader } from "../../../config-reloader.js";
 import type { RequestRestartParams } from "../../../types.js";
 import { resolveUiConfig, resolveUiStaticDir } from "../../../utils.js";
-import { GatewayAgentRuntimePool } from "../../agent/agent-runtime-pool.js";
 import type { UiNcpAgentHandle } from "../../ncp/create-ui-ncp-agent.js";
 import { resolveChannelConfigView } from "../../channel/channel-config-view.js";
 import { loadPluginRegistry, logPluginDiagnostics, toExtensionRegistry, type NextclawExtensionRegistry } from "../../plugins.js";
@@ -25,6 +24,7 @@ const {
   MessageBus,
   ProviderManager,
   resolveConfigSecrets,
+  resolveDefaultAgentProfileId,
   saveConfig,
   SessionManager,
 } = NextclawCore;
@@ -48,7 +48,6 @@ export type GatewayStartupContext = {
   remoteModule: RemoteServiceModule | null;
   reloader: ConfigReloader;
   gatewayController: GatewayControllerImpl;
-  runtimePool: GatewayAgentRuntimePool;
   heartbeat: InstanceType<typeof HeartbeatService>;
   applyLiveConfigReload: () => Promise<void>;
 };
@@ -72,34 +71,25 @@ export function applyGatewayCapabilityState(
   gateway.extensionRegistry = next.extensionRegistry;
 }
 
-function createGatewayRuntimePool(state: Pick<
-  GatewayStartupContext,
-  | "bus"
-  | "sessionManager"
-  | "config"
->, params: {
-  getLiveUiNcpAgent?: () => UiNcpAgentHandle | null;
-}): GatewayAgentRuntimePool {
-  return measureStartupSync(
-    "service.gateway_context.runtime_pool",
-    () => new GatewayAgentRuntimePool({
-      bus: state.bus,
-      sessionManager: state.sessionManager,
-      config: state.config,
-      resolveNcpAgent: () => params.getLiveUiNcpAgent?.() ?? null,
-    })
-  );
+function normalizeAgentId(value: string | undefined): string {
+  const text = (value ?? "").trim().toLowerCase();
+  return text || "main";
 }
 
 function createGatewayHeartbeat(state: Pick<
   GatewayStartupContext,
-  "workspace" | "runtimePool"
+  "workspace" | "runtimeConfigPath"
 >, params: {
   getLiveUiNcpAgent?: () => UiNcpAgentHandle | null;
 }): InstanceType<typeof HeartbeatService> {
   const handleHeartbeat = createHeartbeatJobHandler({
     resolveNcpAgent: () => params.getLiveUiNcpAgent?.() ?? null,
-    resolveAgentId: () => state.runtimePool.primaryAgentId,
+    resolveAgentId: () =>
+      normalizeAgentId(
+        resolveDefaultAgentProfileId(
+          resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }),
+        ),
+      ),
   });
   return new HeartbeatService(
     state.workspace,
@@ -271,7 +261,6 @@ export function createGatewayStartupContext(params: {
     })
   );
 
-  state.runtimePool = createGatewayRuntimePool(state, { getLiveUiNcpAgent });
   state.cron.onJob = createGatewayCronJobHandler({ bus: state.bus, getLiveUiNcpAgent });
   state.heartbeat = createGatewayHeartbeat(state, { getLiveUiNcpAgent });
 
