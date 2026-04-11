@@ -25,6 +25,14 @@ describe("provider apiBase routing", () => {
             isLocal: false
           },
           {
+            name: "kimi-coding",
+            keywords: ["kimi-coding", "kimi-for-coding"],
+            envKey: "KIMI_CODING_API_KEY",
+            defaultApiBase: "https://api.kimi.com/coding",
+            isGateway: false,
+            isLocal: false
+          },
+          {
             name: "deepseek",
             keywords: ["deepseek"],
             envKey: "DEEPSEEK_API_KEY",
@@ -104,6 +112,19 @@ describe("provider apiBase routing", () => {
 
     expect(getProviderName(config, "dashscope-coding-plan/qwen3.5-plus")).toBe("dashscope-coding-plan");
     expect(getApiBase(config, "dashscope-coding-plan/qwen3.5-plus")).toBe("https://coding.dashscope.aliyuncs.com/v1");
+  });
+
+  it("routes kimi coding by its dedicated provider prefix", () => {
+    const config = ConfigSchema.parse({
+      providers: {
+        "kimi-coding": {
+          apiKey: "kimi-test-key"
+        }
+      }
+    });
+
+    expect(getProviderName(config, "kimi-coding/kimi-for-coding")).toBe("kimi-coding");
+    expect(getApiBase(config, "kimi-coding/kimi-for-coding")).toBe("https://api.kimi.com/coding");
   });
 
   it("skips disabled providers during routing", () => {

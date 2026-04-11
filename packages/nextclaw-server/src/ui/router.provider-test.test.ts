@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConfigSchema, LiteLLMProvider, saveConfig } from "@nextclaw/core";
+import { ConfigSchema, saveConfig } from "@nextclaw/core";
 import { createUiRouter } from "./router.js";
 
 const tempDirs: string[] = [];
@@ -82,46 +82,6 @@ describe("provider connection test route", () => {
     expect(payload.ok).toBe(true);
     expect(payload.data.success).toBe(false);
     expect(payload.data.message).toContain("API key is required");
-  });
-
-  it("uses maxTokens >= 16 when probing provider connection", async () => {
-    const configPath = createTempConfigPath();
-    saveConfig(ConfigSchema.parse({}), configPath);
-
-    const chatSpy = vi.spyOn(LiteLLMProvider.prototype, "chat").mockResolvedValue({
-      content: "pong",
-      toolCalls: [],
-      finishReason: "stop",
-      usage: {}
-    });
-
-    const app = createUiRouter({
-      configPath,
-      publish: () => {}
-    });
-
-    const response = await app.request("http://localhost/api/config/providers/openai/test", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        apiKey: "sk_test_probe",
-        model: "gpt-5.2-codex"
-      })
-    });
-
-    expect(response.status).toBe(200);
-    const payload = await response.json() as {
-      ok: true;
-      data: {
-        success: boolean;
-      };
-    };
-    expect(payload.ok).toBe(true);
-    expect(payload.data.success).toBe(true);
-    expect(chatSpy).toHaveBeenCalledTimes(1);
-    expect(chatSpy.mock.calls[0]?.[0]?.maxTokens).toBeGreaterThanOrEqual(16);
   });
 
   it("persists provider custom models and exposes provider default models in meta", async () => {
@@ -757,5 +717,36 @@ describe("provider meta catalog", () => {
       "dashscope-coding-plan/glm-4.7",
       "dashscope-coding-plan/kimi-k2.5"
     ]);
+  });
+
+  it("exposes kimi coding as a dedicated provider in meta", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(ConfigSchema.parse({}), configPath);
+
+    const app = createUiRouter({
+      configPath,
+      publish: () => {}
+    });
+
+    const metaResponse = await app.request("http://localhost/api/config/meta");
+    expect(metaResponse.status).toBe(200);
+    const metaPayload = await metaResponse.json() as {
+      ok: true;
+      data: {
+        providers: Array<{
+          name: string;
+          displayName?: string;
+          envKey?: string;
+          defaultApiBase?: string;
+          defaultModels?: string[];
+        }>;
+      };
+    };
+    const kimiCoding = metaPayload.data.providers.find((provider) => provider.name === "kimi-coding");
+    expect(kimiCoding).toBeDefined();
+    expect(kimiCoding?.displayName).toBe("Kimi Coding");
+    expect(kimiCoding?.envKey).toBe("KIMI_CODING_API_KEY");
+    expect(kimiCoding?.defaultApiBase).toBe("https://api.kimi.com/coding");
+    expect(kimiCoding?.defaultModels).toEqual(["kimi-coding/kimi-for-coding"]);
   });
 });

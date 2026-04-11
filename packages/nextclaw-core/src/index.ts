@@ -47,6 +47,7 @@ export * from "./extensions/tool-adapter.js";
 export * from "./extensions/types.js";
 export * from "./heartbeat/service.js";
 export * from "./providers/base.js";
+export * from "./providers/anthropic/anthropic-messages.provider.js";
 export * from "./providers/litellm_provider.js";
 export * from "./providers/provider_manager.js";
 export * from "./providers/registry.js";

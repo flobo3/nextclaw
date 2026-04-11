@@ -1,4 +1,5 @@
 import { LLMProvider, type LLMResponse, type LLMStreamEvent } from "./base.js";
+import { AnthropicMessagesProvider } from "./anthropic/anthropic-messages.provider.js";
 import { OpenAICompatibleProvider } from "./openai_provider.js";
 import { findGateway, findProviderByModel, findProviderByName, type ProviderSpec } from "./registry.js";
 import type { ThinkingLevel } from "../utils/thinking.js";
@@ -14,84 +15,102 @@ export type LiteLLMProviderOptions = {
 
 export class LiteLLMProvider extends LLMProvider {
   private defaultModel: string;
-  private extraHeaders?: Record<string, string> | null;
   private providerName?: string | null;
   private gatewaySpec?: ProviderSpec;
-  private client: OpenAICompatibleProvider;
+  private client: LLMProvider;
 
   constructor(options: LiteLLMProviderOptions) {
-    super(options.apiKey, options.apiBase);
-    this.defaultModel = options.defaultModel;
-    this.extraHeaders = options.extraHeaders ?? null;
-    this.providerName = options.providerName ?? null;
-    this.gatewaySpec = findGateway(this.providerName, options.apiKey ?? null, options.apiBase ?? null) ?? undefined;
+    const {
+      apiBase,
+      apiKey,
+      defaultModel,
+      extraHeaders: optionExtraHeaders,
+      providerName,
+      wireApi: requestedWireApi
+    } = options;
+    super(apiKey, apiBase);
+    this.defaultModel = defaultModel;
+    this.providerName = providerName ?? null;
+    this.gatewaySpec = findGateway(this.providerName, apiKey ?? null, apiBase ?? null) ?? undefined;
     const providerSpec = this.providerName ? findProviderByName(this.providerName) : undefined;
-    const wireApi = providerSpec?.supportsWireApi
-      ? options.wireApi ?? providerSpec.defaultWireApi ?? "auto"
+    const supportsWireApi = providerSpec?.supportsWireApi === true || !providerSpec;
+    const wireApi = supportsWireApi
+      ? requestedWireApi ?? providerSpec?.defaultWireApi ?? "auto"
       : undefined;
-    this.client = new OpenAICompatibleProvider({
-      apiKey: options.apiKey ?? null,
-      apiBase: options.apiBase ?? null,
-      defaultModel: options.defaultModel,
-      extraHeaders: options.extraHeaders ?? null,
-      wireApi,
-      enableResponsesFallback: providerSpec?.supportsResponsesApi !== false
-    });
+    const extraHeaders = this.mergeExtraHeaders(providerSpec, optionExtraHeaders ?? null);
+    this.client = providerSpec?.apiProtocol === "anthropic-messages"
+      ? new AnthropicMessagesProvider({
+          apiKey: apiKey ?? null,
+          apiBase: apiBase ?? null,
+          defaultModel,
+          extraHeaders
+        })
+      : new OpenAICompatibleProvider({
+          apiKey: apiKey ?? null,
+          apiBase: apiBase ?? null,
+          defaultModel,
+          extraHeaders,
+          wireApi,
+          enableResponsesFallback: providerSpec?.supportsResponsesApi !== false
+        });
   }
 
-  getDefaultModel(): string {
+  getDefaultModel = (): string => {
     return this.defaultModel;
-  }
+  };
 
-  async chat(params: {
+  chat = async (params: {
     messages: Array<Record<string, unknown>>;
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
     thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
-  }): Promise<LLMResponse> {
-    const requestedModel = this.stripCustomProviderPrefix(params.model ?? this.defaultModel);
+  }): Promise<LLMResponse> => {
+    const { maxTokens, messages, model, signal, thinkingLevel, tools } = params;
+    const requestedModel = this.stripCustomProviderPrefix(model ?? this.defaultModel);
     const resolvedModel = this.resolveModel(requestedModel);
     const apiModel = this.stripRoutingPrefix(resolvedModel);
-    const overrides = this.applyModelOverrides(apiModel, { maxTokens: params.maxTokens });
+    const overrides = this.applyModelOverrides(apiModel, { maxTokens });
 
     return this.client.chat({
-      messages: params.messages,
-      tools: params.tools,
+      messages,
+      tools,
       model: apiModel,
       maxTokens: overrides.maxTokens,
-      thinkingLevel: params.thinkingLevel,
-      signal: params.signal
+      thinkingLevel,
+      signal
     });
-  }
+  };
 
-  async *chatStream(params: {
+  chatStream = (params: {
     messages: Array<Record<string, unknown>>;
     tools?: Array<Record<string, unknown>>;
     model?: string | null;
     maxTokens?: number;
     thinkingLevel?: ThinkingLevel | null;
     signal?: AbortSignal;
-  }): AsyncGenerator<LLMStreamEvent> {
-    const requestedModel = this.stripCustomProviderPrefix(params.model ?? this.defaultModel);
-    const resolvedModel = this.resolveModel(requestedModel);
-    const apiModel = this.stripRoutingPrefix(resolvedModel);
-    const overrides = this.applyModelOverrides(apiModel, { maxTokens: params.maxTokens });
+  }): AsyncGenerator<LLMStreamEvent> => {
+    return (async function* (provider: LiteLLMProvider): AsyncGenerator<LLMStreamEvent> {
+      const requestedModel = provider.stripCustomProviderPrefix(params.model ?? provider.defaultModel);
+      const resolvedModel = provider.resolveModel(requestedModel);
+      const apiModel = provider.stripRoutingPrefix(resolvedModel);
+      const overrides = provider.applyModelOverrides(apiModel, { maxTokens: params.maxTokens });
 
-    for await (const event of this.client.chatStream({
-      messages: params.messages,
-      tools: params.tools,
-      model: apiModel,
-      maxTokens: overrides.maxTokens,
-      thinkingLevel: params.thinkingLevel,
-      signal: params.signal
-    })) {
-      yield event;
-    }
-  }
+      for await (const event of provider.client.chatStream({
+        messages: params.messages,
+        tools: params.tools,
+        model: apiModel,
+        maxTokens: overrides.maxTokens,
+        thinkingLevel: params.thinkingLevel,
+        signal: params.signal
+      })) {
+        yield event;
+      }
+    })(this);
+  };
 
-  private resolveModel(model: string): string {
+  private resolveModel = (model: string): string => {
     if (this.gatewaySpec) {
       let resolved = model;
       if (this.gatewaySpec.stripModelPrefix && resolved.includes("/")) {
@@ -117,9 +136,9 @@ export class LiteLLMProvider extends LLMProvider {
     }
 
     return model;
-  }
+  };
 
-  private stripRoutingPrefix(model: string): string {
+  private stripRoutingPrefix = (model: string): string => {
     if (this.gatewaySpec) {
       const prefix = this.gatewaySpec.litellmPrefix ?? "";
       if (prefix && model.startsWith(`${prefix}/`)) {
@@ -136,9 +155,9 @@ export class LiteLLMProvider extends LLMProvider {
       return model.slice(prefix.length);
     }
     return model;
-  }
+  };
 
-  private applyModelOverrides(model: string, params: { maxTokens?: number }) {
+  private applyModelOverrides = (model: string, params: { maxTokens?: number }) => {
     const spec = this.getStandardSpec(model);
     if (!spec?.modelOverrides?.length) {
       return params;
@@ -151,9 +170,9 @@ export class LiteLLMProvider extends LLMProvider {
     return {
       maxTokens: typeof overrides.max_tokens === "number" ? overrides.max_tokens : params.maxTokens
     };
-  }
+  };
 
-  private getStandardSpec(model: string): ProviderSpec | undefined {
+  private getStandardSpec = (model: string): ProviderSpec | undefined => {
     if (this.providerName) {
       const explicit = findProviderByName(this.providerName);
       if (explicit) {
@@ -162,9 +181,23 @@ export class LiteLLMProvider extends LLMProvider {
       return undefined;
     }
     return findProviderByModel(model);
-  }
+  };
 
-  private stripCustomProviderPrefix(model: string): string {
+  private mergeExtraHeaders = (
+    providerSpec: ProviderSpec | undefined,
+    extraHeaders: Record<string, string> | null
+  ): Record<string, string> | null => {
+    const defaultHeaders = providerSpec?.defaultHeaders;
+    if (!defaultHeaders || Object.keys(defaultHeaders).length === 0) {
+      return extraHeaders;
+    }
+    return {
+      ...defaultHeaders,
+      ...(extraHeaders ?? {})
+    };
+  };
+
+  private stripCustomProviderPrefix = (model: string): string => {
     const provider = this.providerName?.trim();
     if (!provider) {
       return model;
@@ -178,5 +211,5 @@ export class LiteLLMProvider extends LLMProvider {
     }
     const stripped = model.slice(prefix.length).trim();
     return stripped.length > 0 ? stripped : model;
-  }
+  };
 }
