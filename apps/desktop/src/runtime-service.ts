@@ -25,6 +25,12 @@ type ServiceState = {
   uiPort?: unknown;
 };
 
+type RuntimeConfigState = {
+  ui?: {
+    port?: unknown;
+  };
+};
+
 type RuntimeCommandFailureParams = {
   label: string;
   code: number | null;
@@ -61,13 +67,9 @@ export class RuntimeServiceProcess {
     await this.ensureInitialized();
     await this.runCliCommand(["start"], "start");
     const state = this.readServiceState();
-    if (!state) {
-      throw new Error(`Managed runtime did not write service state to ${this.resolveServiceStatePath()}`);
-    }
-    const baseUrl = resolveManagedUiBaseUrlFromState(state);
-    if (!baseUrl) {
-      throw new Error(`Managed runtime wrote invalid UI discovery state in ${this.resolveServiceStatePath()}`);
-    }
+    const baseUrl = resolveManagedUiBaseUrlFromState(state)
+      ?? resolveManagedUiBaseUrlFromConfig(this.readRuntimeConfig());
+    await waitForHealth(`${baseUrl}${this.healthPath}`, Math.min(this.startupTimeoutMs, 5_000));
     const parsedPort = this.parsePort(baseUrl);
     this.port = parsedPort;
     return { port: parsedPort ?? 0, baseUrl };
@@ -208,10 +210,32 @@ export class RuntimeServiceProcess {
     }
   };
 
+  private readRuntimeConfig = (): RuntimeConfigState | null => {
+    const configPath = this.resolveRuntimeConfigPath();
+    if (!existsSync(configPath)) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(readFileSync(configPath, "utf8"));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return null;
+      }
+      return parsed as RuntimeConfigState;
+    } catch {
+      return null;
+    }
+  };
+
   private resolveServiceStatePath = (): string => {
     const homeOverride = process.env.NEXTCLAW_HOME?.trim();
     const dataDir = homeOverride ? resolve(homeOverride) : resolve(homedir(), ".nextclaw");
     return resolve(dataDir, "run", "service.json");
+  };
+
+  private resolveRuntimeConfigPath = (): string => {
+    const homeOverride = process.env.NEXTCLAW_HOME?.trim();
+    const dataDir = homeOverride ? resolve(homeOverride) : resolve(homedir(), ".nextclaw");
+    return resolve(dataDir, "config.json");
   };
 
   private parsePort = (baseUrl: string): number | null => {
@@ -294,6 +318,12 @@ export function formatRuntimeCommandFailureMessage(params: RuntimeCommandFailure
     return header;
   }
   return `${header}\n${outputLines.join("\n")}`;
+}
+
+export function resolveManagedUiBaseUrlFromConfig(config: RuntimeConfigState | null): string {
+  const configuredPort = Number(config?.ui?.port);
+  const port = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 55667;
+  return `http://${LOOPBACK_HOST}:${port}`;
 }
 
 function rememberRuntimeCommandOutput(outputLines: string[], chunk: string): string[] {

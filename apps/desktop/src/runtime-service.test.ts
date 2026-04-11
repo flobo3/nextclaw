@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatRuntimeCommandFailureMessage, resolveManagedUiBaseUrlFromState } from "./runtime-service";
+import {
+  formatRuntimeCommandFailureMessage,
+  resolveManagedUiBaseUrlFromConfig,
+  resolveManagedUiBaseUrlFromState
+} from "./runtime-service";
 
 test("uses uiUrl when managed service state omits uiHost and uiPort", () => {
   assert.equal(
@@ -38,5 +42,27 @@ test("includes recent cli output in runtime command failure message", () => {
       "Error: Cannot start nextclaw because UI port 55667 is already occupied.",
       "Health probe: http://127.0.0.1:55667/api/health is already healthy."
     ].join("\n")
+  );
+});
+
+test("resolves managed ui base url from config using local client contract", () => {
+  assert.equal(
+    resolveManagedUiBaseUrlFromConfig({
+      ui: {
+        port: 55667,
+      }
+    }),
+    "http://127.0.0.1:55667"
+  );
+});
+
+test("managed ui config fallback keeps a stable loopback origin even when host is localhost", () => {
+  assert.equal(
+    resolveManagedUiBaseUrlFromConfig({
+      ui: {
+        port: 18792,
+      }
+    }),
+    "http://127.0.0.1:18792"
   );
 });
