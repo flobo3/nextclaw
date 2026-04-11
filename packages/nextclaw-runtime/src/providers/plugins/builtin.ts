@@ -1,5 +1,5 @@
 import type { ProviderCatalogPlugin } from "@nextclaw/core";
-import { dashscopeCodingPlanProviderSpec } from "./dashscope-coding-plan.js";
+import { dashscopeCodingPlanProviderSpec } from "./dashscope-coding-plan.js"; import { kimiCodingProviderSpec } from "./kimi-coding.provider.js";
 export const builtinProviderPlugin: ProviderCatalogPlugin = { id: "builtin-runtime-providers",
   providers: [
     {
@@ -199,7 +199,7 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = { id: "builtin-runti
       supportsResponsesApi: false,
       logo: "dashscope.png"
     },
-    dashscopeCodingPlanProviderSpec,
+    dashscopeCodingPlanProviderSpec, kimiCodingProviderSpec,
     {
       name: "qwen-portal",
       keywords: ["qwen-portal", "qwen"],

@@ -197,6 +197,14 @@ function findPluginIdByNormalizedSpec(
   return undefined;
 }
 
+function collectDefinedRecordIds(records: MarketplaceInstalledRecord[]): Set<string> {
+  return new Set(
+    records
+      .map((record) => readNonEmptyString(record.id))
+      .filter((recordId): recordId is string => Boolean(recordId))
+  );
+}
+
 export function collectInstalledPluginRecords(options: UiRouterOptions): {
   records: MarketplaceInstalledRecord[];
   specs: string[];
@@ -223,15 +231,15 @@ export function collectInstalledPluginRecords(options: UiRouterOptions): {
     pluginRecordsMap,
     pluginEntries
   });
-  const seenDiscoveredPluginIds = new Set(discoveredRecords.map((record) => record.id));
+  const seenDiscoveredPluginIds = collectDefinedRecordIds(discoveredRecords);
   const installedOnlyRecords = collectInstalledOnlyPluginRecords({
     pluginRecordsMap,
     pluginEntries,
     seenPluginIds: seenDiscoveredPluginIds
   });
-  const seenInstalledPluginIds = new Set([
+  const seenInstalledPluginIds = new Set<string>([
     ...seenDiscoveredPluginIds,
-    ...installedOnlyRecords.map((record) => record.id)
+    ...collectDefinedRecordIds(installedOnlyRecords)
   ]);
   const configOnlyRecords = collectConfigOnlyPluginRecords({
     pluginEntries,

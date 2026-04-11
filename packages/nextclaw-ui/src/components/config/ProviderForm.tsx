@@ -143,6 +143,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     () => providerAuth?.methods ?? [],
     [providerAuth?.methods]
   );
+  const supportsWireApi = Boolean(providerSpec?.supportsWireApi) || isCustomProvider;
   const providerAuthMethodOptions = useMemo(
     () =>
       providerAuthMethods.map((method) => ({
@@ -174,25 +175,18 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     () => providerAuthMethods.find((method) => method.id === resolvedAuthMethodId),
     [providerAuthMethods, resolvedAuthMethodId]
   );
-  const selectedAuthMethodHint =
-    selectedAuthMethod?.hint?.[language] || selectedAuthMethod?.hint?.en || '';
   const shouldUseAuthMethodPills = shouldUsePillSelector({
     required: providerAuth?.kind === 'device_code',
     hasDefault: Boolean(providerAuth?.defaultMethodId?.trim()),
     optionCount: providerAuthMethods.length
   });
-  const providerAuthNote =
-    providerAuth?.note?.[language] ||
-    providerAuth?.note?.en ||
-    providerAuth?.displayName ||
-    '';
   const wireApiOptions = providerSpec?.wireApiOptions || ['auto', 'chat', 'responses'];
   const wireApiSelectOptions: PillSelectOption[] = wireApiOptions.map((option) => ({
     value: option,
     label: option === 'chat' ? t('wireApiChat') : option === 'responses' ? t('wireApiResponses') : t('wireApiAuto')
   }));
   const shouldUseWireApiPills = shouldUsePillSelector({
-    required: Boolean(providerSpec?.supportsWireApi),
+    required: supportsWireApi,
     hasDefault: typeof providerSpec?.defaultWireApi === 'string' && providerSpec.defaultWireApi.length > 0,
     optionCount: wireApiSelectOptions.length
   });
@@ -302,7 +296,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     const apiKeyChanged = apiKey.trim().length > 0;
     const apiBaseChanged = apiBase.trim() !== currentApiBase.trim();
     const headersChanged = !headersEqual(extraHeaders, currentHeaders);
-    const wireApiChanged = providerSpec?.supportsWireApi ? wireApi !== currentWireApi : false;
+    const wireApiChanged = supportsWireApi ? wireApi !== currentWireApi : false;
     const modelsChanged = !modelListsEqual(models, currentEditableModels);
     const modelThinkingChanged = !modelThinkingEqual(modelThinking, currentModelThinking);
     const displayNameChanged = isCustomProvider
@@ -331,7 +325,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     currentApiBase,
     extraHeaders,
     currentHeaders,
-    providerSpec?.supportsWireApi,
+    supportsWireApi,
     wireApi,
     currentWireApi,
     models,
@@ -422,7 +416,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
       payload.extraHeaders = normalizedHeaders;
     }
 
-    if (providerSpec?.supportsWireApi && wireApi !== currentWireApi) {
+    if (supportsWireApi && wireApi !== currentWireApi) {
       payload.wireApi = wireApi;
     }
     if (!modelListsEqual(models, currentEditableModels)) {
@@ -450,7 +444,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     if (apiKey.trim().length > 0) {
       payload.apiKey = apiKey.trim();
     }
-    if (providerSpec?.supportsWireApi) {
+    if (supportsWireApi) {
       payload.wireApi = wireApi;
     }
 
@@ -608,10 +602,10 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
 
           <ProviderAuthSection
             providerAuth={providerAuth}
-            providerAuthNote={providerAuthNote}
+            providerAuthNote={providerAuth?.note?.[language] || providerAuth?.note?.en || providerAuth?.displayName || ''}
             providerAuthMethodOptions={providerAuthMethodOptions}
             providerAuthMethodsCount={providerAuthMethods.length}
-            selectedAuthMethodHint={selectedAuthMethodHint}
+            selectedAuthMethodHint={selectedAuthMethod?.hint?.[language] || selectedAuthMethod?.hint?.en || ''}
             shouldUseAuthMethodPills={shouldUseAuthMethodPills}
             resolvedAuthMethodId={resolvedAuthMethodId}
             onAuthMethodChange={setAuthMethodId}
@@ -663,7 +657,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
           <ProviderAdvancedSettingsSection
             showAdvanced={showAdvanced}
             onShowAdvancedChange={setShowAdvanced}
-            supportsWireApi={Boolean(providerSpec.supportsWireApi)}
+            supportsWireApi={supportsWireApi}
             wireApiLabel={wireApiHint?.label ?? t('wireApi')}
             wireApi={wireApi}
             onWireApiChange={setWireApi}

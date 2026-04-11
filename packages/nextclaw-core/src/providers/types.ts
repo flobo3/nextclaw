@@ -1,4 +1,5 @@
 export type WireApiMode = "auto" | "chat" | "responses";
+export type ProviderApiProtocol = "openai-compatible" | "anthropic-messages";
 
 export type LocalizedText = {
   en?: string;
@@ -50,9 +51,11 @@ export type ProviderSpec = {
   keywords: string[];
   envKey: string;
   displayName?: string;
+  apiProtocol?: ProviderApiProtocol;
   modelPrefix?: string;
   defaultModels?: string[];
   visionModels?: string[];
+  defaultHeaders?: Record<string, string>;
   litellmPrefix?: string;
   skipPrefixes?: string[];
   envExtras?: Array<[string, string]>;
