@@ -91,6 +91,10 @@
   - 原先桌面端 `dist/pack` 在生成 `seed-product-bundle.zip` 前只要求 runtime 产物存在，不保证 `packages/nextclaw/ui-dist` 一定按当前源码重新构建
   - 这会导致桌面安装包复用陈旧 `ui-dist`，把旧 UI 一起打进 DMG
   - 现在 [apps/desktop/scripts/update/services/build-product-bundle.service.mjs](/Users/peiwang/Projects/nextbot/apps/desktop/scripts/update/services/build-product-bundle.service.mjs) 已在生成 product bundle 前强制执行 `packages/nextclaw-ui build` 与 `packages/nextclaw build`，把“先拿最新 UI/runtime，再打包”变成显式合同
+- 本次续改又修正了一个直接阻断 beta 桌面更新发布的 workflow 路径合同错误：
+  - `desktop-release` workflow 原先在 `pnpm -C apps/desktop` 下仍把 `apps/desktop/dist-bundles`、`apps/desktop/release-manifests/...` 作为脚本输出参数传入
+  - 这会让 `bundle:build` 与 `bundle:manifest` 把产物错误写到 `apps/desktop/apps/desktop/...`，随后 artifact 上传阶段只能带出 DMG / ZIP 等安装物，真正用于应用内更新的 `nextclaw-bundle-*.zip` 与 `manifest-beta-*.json` 会直接丢失
+  - 现在 `.github/workflows/desktop-release.yml` 已改为把相对输出目录显式收敛到 `dist-bundles` 与 `release-manifests/...`，并在构建步骤内直接校验这两个目标文件是否存在；一旦 bundle/manifest 没写到 `apps/desktop` 预期目录，矩阵 job 会立即失败，不再制造“构建看起来成功、release 里却没有更新资产”的假成功
 - 本次最后还修正了一个只在 GitHub Actions Windows runner 上暴露的产物打包根因：
   - 原先 `build-product-bundle.service.mjs` 会把 `%TEMP%` 下的绝对路径直接传给 `pnpm deploy`
   - Windows 下该参数会被 `pnpm deploy` 错误拼成 `workspaceRoot + C:\\...` 形式，导致 `seed-product-bundle.zip` 无法生成，随后桌面端首启只能去拉远端 manifest，最终退化成 `Unable to locate nextclaw runtime script`
@@ -214,6 +218,20 @@
 - 为了避免桌面入口继续膨胀，本次又把“启动前 seed 安装 / 远端首包拉取 / pending candidate 恢复 / bundle 存储清理”从 [apps/desktop/src/main.ts](/Users/peiwang/Projects/nextbot/apps/desktop/src/main.ts) 收敛进了 [apps/desktop/src/services/desktop-bundle-bootstrap.service.ts](/Users/peiwang/Projects/nextbot/apps/desktop/src/services/desktop-bundle-bootstrap.service.ts)，让桌面入口重新只承担 Electron 生命周期与窗口装配。
 - 已执行：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/desktop-release.yml")'`
   - 结果：通过。release workflow YAML 语法可正常解析。
+- 已执行：发布 `v0.17.6-desktop-beta.4` 并观察 GitHub Actions `desktop-release`，run id `24305591341`
+  - 结果：关键桌面发布链路通过：
+    - `desktop-darwin-arm64` 成功，且 `Build signed product bundle + manifest (Unix)` 与 `Upload desktop artifacts (macOS)` 都通过
+    - `desktop-darwin-x64` 成功，且 `Build signed product bundle + manifest (Unix)` 与 `Upload desktop artifacts (macOS)` 都通过
+    - `desktop-win32-x64` 成功，且 `Build signed product bundle + manifest (Windows)` 与 `Upload desktop artifacts (Windows)` 都通过
+    - `desktop-linux-x64` 成功，且 `Build signed product bundle + manifest (Unix)` 与 `Upload desktop artifacts (Linux)` 都通过
+    - `publish-release-assets` 成功，beta release 已真实挂上：
+      - `manifest-beta-darwin-arm64.json`
+      - `manifest-beta-darwin-x64.json`
+      - `manifest-beta-linux-x64.json`
+      - `manifest-beta-win32-x64.json`
+      - 四个平台对应的 `nextclaw-bundle-*.zip`
+      - macOS / Windows / Linux 安装物与 `update-bundle-public.pem`
+  - 补充说明：同一 run 最后仍有 `publish-linux-apt-repo` 失败，失败点是 Linux APT “升级冒烟”里检测到 `candidate version did not advance: 0.0.134`；该问题发生在 gh-pages APT 仓库升级验证阶段，不影响本次 beta desktop release 页面、桌面安装物和应用内更新 manifest/bundle 资产的可用性
 - 已执行：`pnpm lint:maintainability:guard`
   - 结果：通过。当前剩余输出仅为预警，没有新增硬错误；本次新增链路的治理检查、命名检查、owner 边界检查均已通过。
 - 已执行：`pnpm dlx tsx --test apps/desktop/src/launcher/__tests__/launcher-foundation.test.ts`
@@ -246,6 +264,10 @@
 - 若要随桌面包发版，按现有桌面构建链路执行 `pnpm -C apps/desktop build:main` 后继续现有 Electron 打包流程即可。
 - 当前已实现远端 update manifest 解析、版本比较、zip 产品包下载、SHA-256 校验、Ed25519 bundle 签名校验、zip 解包安装、candidate 激活、重启切换提示、坏版本 quarantine 与启动失败自动回滚。
 - 当前已打通 release 自动产物链路：`desktop-release` 会从 `NEXTCLAW_DESKTOP_BUNDLE_PRIVATE_KEY` 导出公钥、构建桌面安装物、构建 product bundle、生成 signed manifest，并把这些文件一起上传到 GitHub Release。
+- 当前 beta 桌面更新链路已经支持：
+  - beta 包读取 beta channel manifest
+  - 自动检查更新但不自动把后台检查失败冒充成用户失败
+  - release 页面真实挂出 beta channel 的 manifest 与 bundle 资产，供桌面端应用内更新消费
 - 当前仍未实现：
   - 桌面 launcher 自身更新
 - 现阶段实际发布桌面端免下载更新时，桌面端默认会直接消费 GitHub Release 的 stable manifest 与打包内公钥；只有在本地联调、灰度或私有源场景下，才额外使用：
