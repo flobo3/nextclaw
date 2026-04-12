@@ -2,7 +2,7 @@ import type { CronCreateResult } from "@nextclaw/server";
 import type { CronAddOptions } from "../types.js";
 import { createCronCreateRequest, CronLocalService } from "./cron-support/cron-local.service.js";
 import { printCronJobs, type CronJobView } from "./cron-support/cron-job.utils.js";
-import { UiBridgeApiClient, resolveManagedApiBase } from "./shared/ui-bridge-api.service.js";
+import { UiBridgeApiClient, resolveLocalUiApiBase } from "./shared/ui-bridge-api.service.js";
 
 type CronListApiData = {
   jobs: CronJobView[];
@@ -27,7 +27,7 @@ export class CronCommands {
   ) {}
 
   private readonly createApiClient = (): UiBridgeApiClient | null => {
-    const apiBase = resolveManagedApiBase();
+    const apiBase = resolveLocalUiApiBase();
     if (!apiBase) {
       return null;
     }

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { cp, lstat, mkdir, readdir, realpath, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -68,6 +67,12 @@ function ensureFreshRuntimeArtifacts() {
   runCommand("pnpm", ["-C", "packages/nextclaw", "build"], workspaceRoot);
 }
 
+function createWorkspaceTempRoot() {
+  const tempParent = resolve(workspaceRoot, "tmp");
+  mkdirSync(tempParent, { recursive: true });
+  return mkdtempSync(join(tempParent, "nextclaw-product-bundle-"));
+}
+
 async function addDirectoryToZip(zip, sourceDir, zipRoot) {
   const entries = await readdir(sourceDir, { withFileTypes: true });
   await Promise.all(
@@ -103,17 +108,18 @@ async function buildBundleArchive(args) {
   ensureFreshRuntimeArtifacts();
   runCommand("node", [resolve(desktopDir, "scripts", "ensure-runtime.mjs")], workspaceRoot);
 
-  const tempRoot = mkdtempSync(join(tmpdir(), "nextclaw-product-bundle-"));
+  const tempRoot = createWorkspaceTempRoot();
   const bundleRoot = join(tempRoot, "bundle");
   const runtimeRoot = join(bundleRoot, "runtime");
   const uiRoot = join(bundleRoot, "ui");
   const pluginsRoot = join(bundleRoot, "plugins");
+  const runtimeDeployPath = relative(workspaceRoot, runtimeRoot);
 
   try {
     await mkdir(bundleRoot, { recursive: true });
     runCommand(
       "pnpm",
-      ["--config.node-linker=hoisted", "--filter", "nextclaw", "--prod", "deploy", runtimeRoot],
+      ["--config.node-linker=hoisted", "--filter", "nextclaw", "--prod", "deploy", runtimeDeployPath],
       workspaceRoot
     );
     await cp(join(runtimeRoot, "ui-dist"), uiRoot, { recursive: true });
