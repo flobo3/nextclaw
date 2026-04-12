@@ -1,5 +1,41 @@
 # @nextclaw/openclaw-compat
 
+## 1.0.4
+
+### Patch Changes
+
+- Auto-generated patch release for packages with meaningful drift after their latest version commit.
+
+  Packages:
+  - @nextclaw/agent-chat-ui
+  - @nextclaw/channel-plugin-weixin
+  - @nextclaw/core
+  - @nextclaw/ncp-agent-runtime
+  - @nextclaw/ncp-toolkit
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk
+  - @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
+  - @nextclaw/openclaw-compat
+  - @nextclaw/runtime
+  - @nextclaw/server
+  - @nextclaw/ui
+  - nextclaw
+
+- Updated dependencies
+  - @nextclaw/channel-plugin-weixin@0.1.29
+  - @nextclaw/core@0.12.4
+  - @nextclaw/ncp-toolkit@0.5.4
+  - @nextclaw/channel-runtime@0.4.21
+  - @nextclaw/channel-plugin-dingtalk@0.2.35
+  - @nextclaw/channel-plugin-discord@0.2.35
+  - @nextclaw/channel-plugin-email@0.2.35
+  - @nextclaw/channel-plugin-mochat@0.2.35
+  - @nextclaw/channel-plugin-qq@0.2.35
+  - @nextclaw/channel-plugin-slack@0.2.35
+  - @nextclaw/channel-plugin-telegram@0.2.35
+  - @nextclaw/channel-plugin-wecom@0.2.35
+  - @nextclaw/channel-plugin-whatsapp@0.2.35
+
 ## 1.0.3
 
 ### Patch Changes

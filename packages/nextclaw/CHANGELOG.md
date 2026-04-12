@@ -1,5 +1,37 @@
 # nextclaw
 
+## 0.17.8
+
+### Patch Changes
+
+- Auto-generated patch release for packages with meaningful drift after their latest version commit.
+
+  Packages:
+  - @nextclaw/agent-chat-ui
+  - @nextclaw/channel-plugin-weixin
+  - @nextclaw/core
+  - @nextclaw/ncp-agent-runtime
+  - @nextclaw/ncp-toolkit
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk
+  - @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
+  - @nextclaw/openclaw-compat
+  - @nextclaw/runtime
+  - @nextclaw/server
+  - @nextclaw/ui
+  - nextclaw
+
+- Updated dependencies
+  - @nextclaw/core@0.12.4
+  - @nextclaw/ncp-agent-runtime@0.3.9
+  - @nextclaw/ncp-toolkit@0.5.4
+  - @nextclaw/openclaw-compat@1.0.4
+  - @nextclaw/runtime@0.2.36
+  - @nextclaw/server@0.12.4
+  - @nextclaw/mcp@0.1.69
+  - @nextclaw/remote@0.1.81
+  - @nextclaw/ncp-mcp@0.1.71
+
 ## 0.17.6
 
 ### Patch Changes

@@ -1,5 +1,26 @@
 # @nextclaw/ncp-agent-runtime
 
+## 0.3.9
+
+### Patch Changes
+
+- Auto-generated patch release for packages with meaningful drift after their latest version commit.
+
+  Packages:
+  - @nextclaw/agent-chat-ui
+  - @nextclaw/channel-plugin-weixin
+  - @nextclaw/core
+  - @nextclaw/ncp-agent-runtime
+  - @nextclaw/ncp-toolkit
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk
+  - @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
+  - @nextclaw/openclaw-compat
+  - @nextclaw/runtime
+  - @nextclaw/server
+  - @nextclaw/ui
+  - nextclaw
+
 ## 0.3.8
 
 ### Patch Changes

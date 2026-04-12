@@ -1,5 +1,29 @@
 # @nextclaw/channel-plugin-weixin
 
+## 0.1.29
+
+### Patch Changes
+
+- Auto-generated patch release for packages with meaningful drift after their latest version commit.
+
+  Packages:
+  - @nextclaw/agent-chat-ui
+  - @nextclaw/channel-plugin-weixin
+  - @nextclaw/core
+  - @nextclaw/ncp-agent-runtime
+  - @nextclaw/ncp-toolkit
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk
+  - @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
+  - @nextclaw/openclaw-compat
+  - @nextclaw/runtime
+  - @nextclaw/server
+  - @nextclaw/ui
+  - nextclaw
+
+- Updated dependencies
+  - @nextclaw/core@0.12.4
+
 ## 0.1.28
 
 ### Patch Changes

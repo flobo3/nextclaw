@@ -1,5 +1,11 @@
 # @nextclaw/channel-plugin-wecom
 
+## 0.2.35
+
+### Patch Changes
+
+- @nextclaw/channel-runtime@0.4.21
+
 ## 0.2.34
 
 ### Patch Changes
