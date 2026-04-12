@@ -1,17 +1,17 @@
 export default {
-  "generatedAt": "2026-04-11T03:16:59.957Z",
+  "generatedAt": "2026-04-12T03:21:19.415Z",
   "hero": {
     "currentLoc": 172377,
     "trackedFiles": 1236,
-    "recentCommitCount": 556,
+    "recentCommitCount": 545,
     "activeDays30": 29,
     "recentReleaseCount": 47,
     "latestReleaseDate": "2026-04-10",
     "latestNoteDate": "2026-04-03",
     "benchmarkName": "openclaw",
-    "benchmarkCodeLines": 1758014,
-    "basePercentOfBenchmark": 9.81,
-    "lighterByPercent": 90.19
+    "benchmarkCodeLines": 1798312,
+    "basePercentOfBenchmark": 9.59,
+    "lighterByPercent": 90.41
   },
   "trends": {
     "locDaily": [
@@ -274,14 +274,14 @@ export default {
         "key": "2026-04-11",
         "label": "04-11",
         "value": 172377
+      },
+      {
+        "key": "2026-04-12",
+        "label": "04-12",
+        "value": 172377
       }
     ],
     "commitDaily": [
-      {
-        "key": "2026-03-13",
-        "label": "03-13",
-        "value": 12
-      },
       {
         "key": "2026-03-14",
         "label": "03-14",
@@ -425,6 +425,11 @@ export default {
       {
         "key": "2026-04-11",
         "label": "04-11",
+        "value": 1
+      },
+      {
+        "key": "2026-04-12",
+        "label": "04-12",
         "value": 0
       }
     ],
@@ -487,7 +492,7 @@ export default {
       {
         "key": "2026-04-06",
         "label": "04-06",
-        "value": 85
+        "value": 86
       }
     ],
     "releaseMonthly": [
@@ -606,9 +611,9 @@ export default {
     ],
     "benchmark": {
       "name": "openclaw",
-      "benchmarkCodeLines": 1758014,
-      "basePercentOfBenchmark": 9.81,
-      "lighterByPercent": 90.19
+      "benchmarkCodeLines": 1798312,
+      "basePercentOfBenchmark": 9.59,
+      "lighterByPercent": 90.41
     },
     "recentReleaseBatches": [
       {
@@ -805,7 +810,7 @@ export default {
   },
   "meta": {
     "locProfile": "source",
-    "locGeneratedAt": "2026-04-11T03:16:59.194Z",
+    "locGeneratedAt": "2026-04-12T03:21:18.668Z",
     "sourceCount": {
       "notes": 3,
       "scopes": 8
