@@ -60,9 +60,14 @@ export class DesktopUpdateManager {
   };
 
   checkForUpdates = async () => {
-    const snapshot = await this.runSnapshotCommand('checking', t('desktopUpdatesCheckFailed'), async (desktopApi) => {
-      return await desktopApi.checkForUpdates();
-    });
+    let snapshot: DesktopUpdateSnapshot;
+    try {
+      snapshot = await this.runSnapshotCommand('checking', t('desktopUpdatesCheckFailed'), async (desktopApi) => {
+        return await desktopApi.checkForUpdates();
+      });
+    } catch {
+      return;
+    }
 
     if (snapshot.status === 'up-to-date') {
       toast.success(t('desktopUpdatesAlreadyLatest'));
@@ -84,9 +89,14 @@ export class DesktopUpdateManager {
   };
 
   downloadUpdate = async () => {
-    const snapshot = await this.runSnapshotCommand('downloading', t('desktopUpdatesDownloadFailed'), async (desktopApi) => {
-      return await desktopApi.downloadUpdate();
-    });
+    let snapshot: DesktopUpdateSnapshot;
+    try {
+      snapshot = await this.runSnapshotCommand('downloading', t('desktopUpdatesDownloadFailed'), async (desktopApi) => {
+        return await desktopApi.downloadUpdate();
+      });
+    } catch {
+      return;
+    }
 
     if (snapshot.status === 'downloaded') {
       toast.success(t('desktopUpdatesReadyToApply'));
@@ -94,17 +104,25 @@ export class DesktopUpdateManager {
   };
 
   applyDownloadedUpdate = async () => {
-    await this.runSnapshotCommand('applying', t('desktopUpdatesApplyFailed'), async (desktopApi) => {
-      return await desktopApi.applyDownloadedUpdate();
-    });
+    try {
+      await this.runSnapshotCommand('applying', t('desktopUpdatesApplyFailed'), async (desktopApi) => {
+        return await desktopApi.applyDownloadedUpdate();
+      });
+    } catch {
+      return;
+    }
   };
 
   updatePreferences = async (preferences: Partial<DesktopUpdatePreferences>) => {
-    await this.runSnapshotCommand(
-      'saving-preferences',
-      t('desktopUpdatesPreferencesFailed'),
-      async (desktopApi) => await desktopApi.updatePreferences(preferences)
-    );
+    try {
+      await this.runSnapshotCommand(
+        'saving-preferences',
+        t('desktopUpdatesPreferencesFailed'),
+        async (desktopApi) => await desktopApi.updatePreferences(preferences)
+      );
+    } catch {
+      return;
+    }
   };
 
   private runSnapshotCommand = async (

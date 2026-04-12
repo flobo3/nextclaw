@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import {
   DesktopUpdateSourceService,
+  getDesktopUpdateChannelManifestUrl,
   getDesktopUpdateManifestAssetName
 } from "./desktop-update-source.service";
 
@@ -30,12 +31,12 @@ test("stable packaged apps resolve the latest stable manifest URL by default", a
     const manifestUrl = await service.resolveManifestUrl();
     assert.equal(
       manifestUrl,
-      "https://github.com/Peiiii/nextclaw/releases/latest/download/manifest-stable-darwin-arm64.json"
+      "https://Peiiii.github.io/nextclaw/desktop-updates/stable/manifest-stable-darwin-arm64.json"
     );
     assert.equal(service.resolveChannel(), "stable");
   }));
 
-test("beta packaged apps resolve the latest beta manifest asset from GitHub releases", async () =>
+test("beta packaged apps resolve the published beta channel manifest URL", async () =>
   await withTempDir("nextclaw-update-source-beta-", async (rootDir) => {
     const resourcesPath = join(rootDir, "resources");
     await mkdir(join(resourcesPath, "update"), { recursive: true });
@@ -45,7 +46,6 @@ test("beta packaged apps resolve the latest beta manifest asset from GitHub rele
       "utf8"
     );
 
-    const expectedManifestName = getDesktopUpdateManifestAssetName("beta", "darwin", "arm64");
     const service = new DesktopUpdateSourceService({
       isPackaged: true,
       appPath: rootDir,
@@ -55,28 +55,20 @@ test("beta packaged apps resolve the latest beta manifest asset from GitHub rele
       publishTarget: {
         owner: "Peiiii",
         repo: "nextclaw"
-      },
-      fetchImpl: async () =>
-        new Response(
-          JSON.stringify([
-            {
-              draft: false,
-              prerelease: true,
-              assets: [
-                {
-                  name: expectedManifestName,
-                  browser_download_url: "https://example.com/releases/download/v0.17.7-desktop-beta.1/manifest-beta-darwin-arm64.json"
-                }
-              ]
-            }
-          ]),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
+      }
     });
 
     assert.equal(service.resolveChannel(), "beta");
     assert.equal(
       await service.resolveManifestUrl(),
-      "https://example.com/releases/download/v0.17.7-desktop-beta.1/manifest-beta-darwin-arm64.json"
+      "https://Peiiii.github.io/nextclaw/desktop-updates/beta/manifest-beta-darwin-arm64.json"
     );
   }));
+
+test("builds a deterministic published channel manifest URL", () => {
+  assert.equal(
+    getDesktopUpdateChannelManifestUrl({ owner: "Peiiii", repo: "nextclaw" }, "beta", "darwin", "arm64"),
+    "https://Peiiii.github.io/nextclaw/desktop-updates/beta/manifest-beta-darwin-arm64.json"
+  );
+  assert.equal(getDesktopUpdateManifestAssetName("stable", "linux", "x64"), "manifest-stable-linux-x64.json");
+});

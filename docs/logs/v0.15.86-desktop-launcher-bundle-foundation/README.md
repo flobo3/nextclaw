@@ -95,6 +95,15 @@
   - `desktop-release` workflow 原先在 `pnpm -C apps/desktop` 下仍把 `apps/desktop/dist-bundles`、`apps/desktop/release-manifests/...` 作为脚本输出参数传入
   - 这会让 `bundle:build` 与 `bundle:manifest` 把产物错误写到 `apps/desktop/apps/desktop/...`，随后 artifact 上传阶段只能带出 DMG / ZIP 等安装物，真正用于应用内更新的 `nextclaw-bundle-*.zip` 与 `manifest-beta-*.json` 会直接丢失
   - 现在 `.github/workflows/desktop-release.yml` 已改为把相对输出目录显式收敛到 `dist-bundles` 与 `release-manifests/...`，并在构建步骤内直接校验这两个目标文件是否存在；一旦 bundle/manifest 没写到 `apps/desktop` 预期目录，矩阵 job 会立即失败，不再制造“构建看起来成功、release 里却没有更新资产”的假成功
+- 本次续改继续修正了两个真实影响 beta 更新体验的问题：
+  - beta 桌面端原先会在客户端直接请求 GitHub Releases API 来查找最新 prerelease manifest；这会在未认证或命中频控时直接返回 `403`，然后被桌面端展示成 `desktop beta release lookup failed with status 403`
+  - 现在桌面端更新源已经改成静态 channel manifest：已发布 beta 包会直接访问 `https://Peiiii.github.io/nextclaw/desktop-updates/beta/manifest-beta-<platform>-<arch>.json`，stable 包同理访问 `.../stable/...`，不再依赖 GitHub Releases API，也不再受其匿名访问策略影响
+  - 同一轮还把 channel manifest 的发布合同补进了 `.github/workflows/desktop-release.yml`：release 资产上传成功后，会把 `manifest-stable-*.json` / `manifest-beta-*.json` 同步发布到 `gh-pages` 的 `desktop-updates/<channel>/` 目录，桌面端读取的是这个静态发布面
+  - “手动检查更新失败”原先会把 update coordinator 的主状态直接改成 `failed`，于是用户明明只是点了“检查更新”，页面却会长期展示“更新失败”
+  - 现在手动检查失败只会保留当前主状态，并弹出一次性的“检查失败”提示；后台自动检查失败同样不会污染主状态，页面不会再把“观测失败”伪装成“更新流程失败”
+- 为了避免 beta 桌面发布再次被无关链路拖成红色，本次还调整了发布策略：
+  - `publish-linux-apt-repo` 只在非 beta desktop release 下执行
+  - beta release 继续完整产出 macOS / Windows / Linux 安装物、channel manifest、signed bundle 与公钥，但不会再因为 Linux APT 升级冒烟失败而把整个 beta desktop 发布链路标成失败
 - 本次最后还修正了一个只在 GitHub Actions Windows runner 上暴露的产物打包根因：
   - 原先 `build-product-bundle.service.mjs` 会把 `%TEMP%` 下的绝对路径直接传给 `pnpm deploy`
   - Windows 下该参数会被 `pnpm deploy` 错误拼成 `workspaceRoot + C:\\...` 形式，导致 `seed-product-bundle.zip` 无法生成，随后桌面端首启只能去拉远端 manifest，最终退化成 `Unable to locate nextclaw runtime script`
@@ -245,6 +254,10 @@
     - 下载新版本后会自动删除更老且无引用的历史版本
 - 已执行：`pnpm -C apps/desktop build:main`
   - 结果：通过。
+- 已执行：`node --test apps/desktop/dist/src/services/desktop-update-source.service.test.js apps/desktop/dist/src/launcher/__tests__/update-coordinator.service.test.js`
+  - 结果：通过。9/9 测试全部通过，其中新增确认：
+    - beta packaged app 会直接解析到已发布的静态 beta channel manifest URL
+    - 手动检查更新失败会抛出错误给 UI 提示，但不会把页面主状态写成 `failed`
 - 已执行：GitHub Actions `desktop-release` workflow_dispatch，run id `24302831063`
   - 结果：通过。四个矩阵 job 均成功完成：
     - `desktop-darwin-arm64`
@@ -268,6 +281,9 @@
   - beta 包读取 beta channel manifest
   - 自动检查更新但不自动把后台检查失败冒充成用户失败
   - release 页面真实挂出 beta channel 的 manifest 与 bundle 资产，供桌面端应用内更新消费
+- 当前 beta 桌面更新链路进一步收敛为：
+  - 客户端只读取静态 channel manifest，不再直接枚举 GitHub prerelease API
+  - 手动“检查更新”失败只会提示检查失败，不会把页面主状态污染成“更新失败”
 - 当前仍未实现：
   - 桌面 launcher 自身更新
 - 现阶段实际发布桌面端免下载更新时，桌面端默认会直接消费 GitHub Release 的 stable manifest 与打包内公钥；只有在本地联调、灰度或私有源场景下，才额外使用：

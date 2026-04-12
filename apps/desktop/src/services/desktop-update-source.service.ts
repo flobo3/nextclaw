@@ -8,17 +8,6 @@ export type GitHubPublishTarget = {
   repo: string;
 };
 
-type GitHubReleaseAsset = {
-  name?: unknown;
-  browser_download_url?: unknown;
-};
-
-type GitHubRelease = {
-  draft?: unknown;
-  prerelease?: unknown;
-  assets?: unknown;
-};
-
 type DesktopUpdateSourceServiceOptions = {
   isPackaged: boolean;
   appPath: string;
@@ -27,7 +16,6 @@ type DesktopUpdateSourceServiceOptions = {
   platform?: NodeJS.Platform;
   arch?: string;
   publishTarget: GitHubPublishTarget | null;
-  fetchImpl?: typeof fetch;
 };
 
 type PackagedReleaseMetadata = {
@@ -45,14 +33,6 @@ function normalizeOptionalString(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
-function isGitHubReleaseAsset(value: unknown): value is GitHubReleaseAsset {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function isGitHubRelease(value: unknown): value is GitHubRelease {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 export function normalizeDesktopReleaseChannel(value: string | null | undefined): DesktopReleaseChannel {
   return value?.trim().toLowerCase() === "beta" ? "beta" : "stable";
 }
@@ -65,17 +45,24 @@ export function getDesktopUpdateManifestAssetName(
   return `manifest-${channel}-${platform}-${arch}.json`;
 }
 
+export function getDesktopUpdateChannelManifestUrl(
+  publishTarget: GitHubPublishTarget,
+  channel: DesktopReleaseChannel,
+  platform: NodeJS.Platform,
+  arch: string
+): string {
+  return `https://${publishTarget.owner}.github.io/${publishTarget.repo}/desktop-updates/${channel}/${getDesktopUpdateManifestAssetName(channel, platform, arch)}`;
+}
+
 export class DesktopUpdateSourceService {
   private readonly env: NodeJS.ProcessEnv;
   private readonly platform: NodeJS.Platform;
   private readonly arch: string;
-  private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly options: DesktopUpdateSourceServiceOptions) {
     this.env = options.env ?? process.env;
     this.platform = options.platform ?? process.platform;
     this.arch = options.arch ?? process.arch;
-    this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
   resolveChannel = (): DesktopReleaseChannel => {
@@ -95,11 +82,7 @@ export class DesktopUpdateSourceService {
       return null;
     }
 
-    const channel = this.resolveChannel();
-    if (channel === "stable") {
-      return this.buildStableManifestUrl(this.options.publishTarget);
-    }
-    return await this.resolveLatestBetaManifestUrl(this.options.publishTarget);
+    return this.buildChannelManifestUrl(this.options.publishTarget, this.resolveChannel());
   };
 
   private readPackagedReleaseMetadata = (): PackagedReleaseMetadata => {
@@ -120,62 +103,10 @@ export class DesktopUpdateSourceService {
     };
   };
 
-  private buildStableManifestUrl = (publishTarget: GitHubPublishTarget): string => {
-    const manifestName = getDesktopUpdateManifestAssetName("stable", this.platform, this.arch);
-    return `https://github.com/${publishTarget.owner}/${publishTarget.repo}/releases/latest/download/${manifestName}`;
-  };
-
-  private resolveLatestBetaManifestUrl = async (publishTarget: GitHubPublishTarget): Promise<string> => {
-    const response = await this.fetchImpl(
-      `https://api.github.com/repos/${publishTarget.owner}/${publishTarget.repo}/releases?per_page=20`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "NextClaw-Desktop-Updater"
-        }
-      }
-    );
-    if (!response.ok) {
-      throw new Error(`desktop beta release lookup failed with status ${response.status}`);
-    }
-
-    const payload = (await response.json()) as unknown;
-    if (!Array.isArray(payload)) {
-      throw new Error("desktop beta release lookup returned an invalid payload");
-    }
-
-    const expectedManifestName = getDesktopUpdateManifestAssetName("beta", this.platform, this.arch);
-    const matchingRelease = payload.find((entry) => {
-      if (!isGitHubRelease(entry)) {
-        return false;
-      }
-      if (entry.draft === true || entry.prerelease !== true || !Array.isArray(entry.assets)) {
-        return false;
-      }
-      return entry.assets.some((asset) => {
-        if (!isGitHubReleaseAsset(asset)) {
-          return false;
-        }
-        return asset.name === expectedManifestName;
-      });
-    });
-    if (!matchingRelease || !Array.isArray(matchingRelease.assets)) {
-      throw new Error(`No beta desktop update manifest is available for ${this.platform}-${this.arch}.`);
-    }
-
-    const manifestAsset = matchingRelease.assets.find((asset: unknown) => {
-      if (!isGitHubReleaseAsset(asset)) {
-        return false;
-      }
-      return asset.name === expectedManifestName;
-    });
-    const downloadUrl =
-      manifestAsset && isGitHubReleaseAsset(manifestAsset)
-        ? normalizeOptionalString(manifestAsset.browser_download_url)
-        : null;
-    if (!downloadUrl) {
-      throw new Error(`Beta desktop update manifest asset is missing a download URL for ${this.platform}-${this.arch}.`);
-    }
-    return downloadUrl;
+  private buildChannelManifestUrl = (
+    publishTarget: GitHubPublishTarget,
+    channel: DesktopReleaseChannel
+  ): string => {
+    return getDesktopUpdateChannelManifestUrl(publishTarget, channel, this.platform, this.arch);
   };
 }

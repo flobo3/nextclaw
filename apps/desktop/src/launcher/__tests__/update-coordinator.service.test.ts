@@ -287,7 +287,7 @@ test("background update check failures do not replace the primary status with fa
     assert.match(snapshot.lastCheckedAt ?? "", /^20\d\d-/);
   }));
 
-test("manual update checks still report failures to the user", async () =>
+test("manual update checks throw without replacing the primary status", async () =>
   await withTempDir("nextclaw-update-coordinator-manual-failure-", async (rootDir) => {
     const layout = new DesktopBundleLayoutStore(rootDir);
     const stateStore = new DesktopLauncherStateStore(layout.getLauncherStatePath());
@@ -311,7 +311,12 @@ test("manual update checks still report failures to the user", async () =>
       bundleService: {} as DesktopBundleService
     });
 
-    const snapshot = await coordinator.checkForUpdates({ manual: true });
-    assert.equal(snapshot.status, "failed");
-    assert.equal(snapshot.errorMessage, "update manifest request failed with status 404");
+    await assert.rejects(
+      async () => await coordinator.checkForUpdates({ manual: true }),
+      /update manifest request failed with status 404/
+    );
+    const snapshot = coordinator.getSnapshot();
+    assert.equal(snapshot.status, "idle");
+    assert.equal(snapshot.errorMessage, null);
+    assert.match(snapshot.lastCheckedAt ?? "", /^20\d\d-/);
   }));
