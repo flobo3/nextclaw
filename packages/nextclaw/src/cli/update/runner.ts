@@ -17,7 +17,8 @@ export type UpdateStep = {
 export type SelfUpdateResult = {
   ok: boolean;
   error?: string;
-  strategy: "command" | "npm" | "none";
+  strategy: "command" | "npm" | "none" | "noop";
+  latestVersion?: string;
   steps: UpdateStep[];
 };
 
@@ -26,6 +27,7 @@ export type SelfUpdateOptions = {
   cwd?: string;
   updateCommand?: string;
   packageName?: string;
+  currentVersion?: string;
 };
 
 export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult {
@@ -33,6 +35,7 @@ export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const updateCommand = options.updateCommand ?? process.env.NEXTCLAW_UPDATE_COMMAND?.trim();
   const packageName = options.packageName ?? "nextclaw";
+  const currentVersion = options.currentVersion?.trim() || null;
 
   const resolveShellCommand = (command: string): { cmd: string; args: string[] } => {
     if (process.platform === "win32") {
@@ -41,7 +44,11 @@ export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult
     return { cmd: process.env.SHELL || "sh", args: ["-c", command] };
   };
 
-  const runStep = (cmd: string, args: string[], cwd: string): { ok: boolean; code: number | null } => {
+  const runStep = (
+    cmd: string,
+    args: string[],
+    cwd: string
+  ): { ok: boolean; code: number | null; stdout: string; stderr: string } => {
     const result = spawnSync(cmd, args, {
       cwd,
       env: createExternalCommandEnv(process.env),
@@ -49,15 +56,30 @@ export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult
       timeout: timeoutMs,
       stdio: "pipe"
     });
+    const stdout = (result.stdout ?? "").toString().slice(0, 4000);
+    const stderr = (result.stderr ?? "").toString().slice(0, 4000);
     steps.push({
       cmd,
       args,
       cwd,
       code: result.status,
-      stdout: (result.stdout ?? "").toString().slice(0, 4000),
-      stderr: (result.stderr ?? "").toString().slice(0, 4000)
+      stdout,
+      stderr
     });
-    return { ok: result.status === 0, code: result.status };
+    return { ok: result.status === 0, code: result.status, stdout, stderr };
+  };
+
+  const parseLatestVersion = (raw: string): string | null => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      return typeof parsed === "string" && parsed.trim() ? parsed.trim() : null;
+    } catch {
+      return trimmed;
+    }
   };
 
   if (updateCommand) {
@@ -72,11 +94,23 @@ export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult
 
   const npmExecutable = findExecutableOnPath("npm");
   if (npmExecutable) {
-    const ok = runStep(npmExecutable, ["i", "-g", packageName], process.cwd());
-    if (!ok.ok) {
-      return { ok: false, error: `npm install -g ${packageName} failed`, strategy: "npm", steps };
+    const cwd = options.cwd ? resolve(options.cwd) : process.cwd();
+    const latestVersionStep = runStep(npmExecutable, ["view", packageName, "version", "--json"], cwd);
+    const latestVersion = latestVersionStep.ok ? parseLatestVersion(latestVersionStep.stdout) : null;
+    if (latestVersion && currentVersion && latestVersion === currentVersion) {
+      return { ok: true, strategy: "noop", latestVersion, steps };
     }
-    return { ok: true, strategy: "npm", steps };
+    const ok = runStep(npmExecutable, ["i", "-g", packageName], cwd);
+    if (!ok.ok) {
+      return {
+        ok: false,
+        error: `npm install -g ${packageName} failed`,
+        strategy: "npm",
+        latestVersion: latestVersion ?? undefined,
+        steps
+      };
+    }
+    return { ok: true, strategy: "npm", latestVersion: latestVersion ?? undefined, steps };
   }
 
   return { ok: false, error: "no update strategy available", strategy: "none", steps };

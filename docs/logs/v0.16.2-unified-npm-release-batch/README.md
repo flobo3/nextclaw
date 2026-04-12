@@ -43,6 +43,8 @@
 
 同时完成了对应 `package.json`、`CHANGELOG.md`、发布 checkpoint 与 git tags 的同步。发布后仓库健康检查已经恢复为 clean。
 
+同批次收尾补丁中，进一步修复了 `nextclaw update` 在“当前已是最新版本”场景下仍然无条件执行 `npm i -g nextclaw` 的问题。该行为会在部分 npm 10 / arborist 全局树状态下触发崩溃，即使当前版本已经是 `0.17.8`。本次把默认行为改为先查询 registry 最新版本，只有确认存在新版本时才执行全局安装；如果当前已经是最新版本，则明确输出 no-op 结果而不是继续重装。
+
 ## 测试 / 验证 / 验收方式
 
 - 发布前漂移检查：
@@ -77,9 +79,16 @@
   - `HOME="$(mktemp -d /tmp/nextclaw-release-npx.XXXXXX)/home" npm exec nextclaw@0.17.8 -- --help`
   - `NEXTCLAW_HOME="$(mktemp -d /tmp/nextclaw-release-pnpm.XXXXXX)/home" pnpm --config.store-dir="$(mktemp -d /tmp/nextclaw-pnpm-store.XXXXXX)" dlx nextclaw@0.17.8 --help`
   - 结果：均成功输出 CLI 帮助
+- update latest-version no-op 修复验证：
+  - `pnpm -C packages/nextclaw test -- run src/cli/update/runner.test.ts`
+  - `pnpm -C packages/nextclaw tsc`
+  - `pnpm -C packages/nextclaw dev:build -- update`
+  - 结果：3 条单测通过；`tsc` 通过；源码态 CLI 在当前版本已是 `0.17.8` 时输出 `✓ nextclaw is already up to date (0.17.8)`，不会再执行全局安装
 - 可维护性守卫：
   - `pnpm lint:maintainability:guard`
-  - 结果：通过；guard 判定“本次无新增源码级 changed code-like files”，治理检查全部通过
+  - 结果：通过；保留 2 条既有 warning：
+    - `packages/nextclaw/src/cli` 目录仍超文件数预算
+    - `packages/nextclaw/src/cli/runtime.ts` 文件仍高于预算，但本次已从 `756` 行降到 `740` 行，没有继续恶化
 
 说明：发布刚完成后第一次直接执行 `pnpm dlx nextclaw@0.17.8 --help` 曾命中一次 `@nextclaw/server@0.12.4` tarball 404，但后续通过 tarball URL 直连、`npm pack`、`npm exec` 和隔离 store 的 `pnpm dlx` 都验证成功，判断为 npm/客户端缓存与传播的短暂不一致，而非包内容损坏。
 
@@ -107,6 +116,7 @@
 3. 在任意非仓库临时目录执行 `npm exec nextclaw@0.17.8 -- --help`。
 4. 确认 CLI 能正常安装并输出完整帮助与命令列表。
 5. 若业务侧依赖 channel/runtime/NCP 相关包，安装本次新版本并确认依赖解析无缺包或版本冲突。
+6. 若当前机器已经安装 `nextclaw@0.17.8`，执行 `nextclaw update`，确认输出“already up to date”并直接成功返回。
 
 ## 可维护性总结汇总
 
@@ -114,14 +124,23 @@
   - 本次不是新增单点功能，而是把最近几天已经形成的用户价值统一推到 npm，让 NextClaw 作为统一入口产品的“仓库状态、包版本、用户可安装版本”重新对齐，减少交付层漂移。
   - 顺手推进的一小步是继续复用仓库既有 `release:auto:prepare`、`release:version`、`release:publish` 主链路完成闭环，没有临时造第二套发布流程。
 - 本次是否已尽最大努力优化可维护性：
-  - 是。本次没有新增发布脚本或兜底旁路，只使用现有自动发布机制完成真实闭环。
+  - 是。本次没有新增发布脚本或兜底旁路；收尾补丁里也没有为了绕过 npm 异常去加 incident-specific stderr 识别，而是把“已是最新版本时不应重装”收敛成明确边界。
 - 是否优先遵循“删减优先、简化优先、代码更少更好、复杂度更低更好、清晰度更高更好”的原则：
   - 是。做法是复用既有自动化，而不是手工逐包发布或临时补一层专用脚本。
 - 是否让总代码量、分支数、函数数、文件数或目录平铺度下降，或至少没有继续恶化：
-  - 源码逻辑层面没有新增功能代码；本次净增长主要来自版本号、changelog 和发布元数据，这是完成发布闭环的最小必要增长，没有继续扩大运行时代码复杂度。
+  - 发布主体部分的净增长主要来自版本号、changelog 和发布元数据；收尾补丁的代码增长是最小必要的 no-op 判定与单测。与此同时，`packages/nextclaw/src/cli/runtime.ts` 净减 16 行，把 update 展示逻辑收回 `src/cli/update/` 子目录，没有继续把主 runtime 文件做大。
 - 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：
-  - 是。本次没有新增 class / helper / service / store，也没有为发布叠加补丁式抽象，职责仍由既有 release 脚本承担。
+  - 是。发布逻辑仍由既有 release 脚本承担；update 修复则保持在 `src/cli/update/` 边界内，新增的是一个纯输出工具文件和一组针对性测试，而不是把 npm/arborist 事故知识塞进 runtime 主流程。
 - 目录结构与文件组织是否满足当前项目治理要求：
   - 是。新增留痕仅落在 `docs/logs/v0.16.2-unified-npm-release-batch`，其它改动均为既有包目录下的版本与 changelog 同步。
 - 若本次涉及代码可维护性评估，是否基于独立于实现阶段的 `post-edit-maintainability-review` 填写：
-  - 不适用。本次没有新增或修改业务源代码，只有版本、changelog、发布元数据和 docs 留痕；因此未单独执行 `post-edit-maintainability-review`，改以 `pnpm lint:maintainability:guard` 和发布闭环验证作为本次维护性确认依据。
+  - 是。针对 update 收尾补丁，已在实现后独立复核：可维护性复核结论为“保留债务经说明接受”；本次顺手减债为“是”。
+  - 代码增减报告：
+    - 新增：250 行
+    - 删除：43 行
+    - 净增：+207 行
+  - 非测试代码增减报告：
+    - 新增：105 行
+    - 删除：38 行
+    - 净增：+67 行
+  - 可维护性总结：no maintainability findings。为了避免“已是最新版本还触发全局重装”的 surprise failure，本次只新增了最小必要的 registry 版本检查、一个纯输出工具文件和一组针对性测试，同时把 `runtime.ts` 从 756 行压到 740 行。保留债务主要还是 `packages/nextclaw/src/cli` 目录和 `runtime.ts` 文件的历史超预算，下一步应继续把 runtime 里其它命令分批下沉到职责更清晰的子模块。

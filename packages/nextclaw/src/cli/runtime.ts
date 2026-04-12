@@ -20,6 +20,7 @@ import {
   type MarketplacePublishCommandOptions
 } from "./skills/marketplace-command-options.js";
 import { installMarketplaceSkill, publishMarketplaceSkill } from "./skills/marketplace.js";
+import { reportSelfUpdateResult } from "./update/self-update-report.utils.js";
 import { runSelfUpdate } from "./update/runner.js";
 import { getPackageVersion, isProcessRunning } from "./utils.js";
 import { managedServiceStateStore } from "./runtime-state/managed-service-state.store.js";
@@ -596,40 +597,23 @@ export class CliRuntime {
     const versionBefore = getPackageVersion();
     console.log(`Current version: ${versionBefore}`);
 
-    const result = runSelfUpdate({ timeoutMs, cwd: process.cwd() });
-
-    const printSteps = () => {
-      for (const step of result.steps) {
-        console.log(
-          `- ${step.cmd} ${step.args.join(" ")} (code ${step.code ?? "?"})`,
-        );
-        if (step.stderr) {
-          console.log(`  stderr: ${step.stderr}`);
-        }
-        if (step.stdout) {
-          console.log(`  stdout: ${step.stdout}`);
-        }
-      }
-    };
-
-    if (!result.ok) {
-      console.error(`Update failed: ${result.error ?? "unknown error"}`);
-      if (result.steps.length > 0) {
-        printSteps();
-      }
+    const result = runSelfUpdate({
+      timeoutMs,
+      cwd: process.cwd(),
+      currentVersion: versionBefore
+    });
+    const report = reportSelfUpdateResult({
+      appName: APP_NAME,
+      currentVersion: versionBefore,
+      result,
+      readInstalledVersion: getPackageVersion
+    });
+    if (!report.ok) {
       process.exit(1);
     }
 
-    const versionAfter = getPackageVersion();
-    console.log(`✓ Update complete (${result.strategy})`);
-    if (versionAfter === versionBefore) {
-      console.log(`Version unchanged: ${versionBefore}`);
-    } else {
-      console.log(`Version updated: ${versionBefore} -> ${versionAfter}`);
-    }
-
     const state = managedServiceStateStore.read();
-    if (state && isProcessRunning(state.pid)) {
+    if (report.shouldSuggestRestart && state && isProcessRunning(state.pid)) {
       console.log(`Tip: restart ${APP_NAME} to apply the update.`);
     }
   };
