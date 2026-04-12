@@ -1,12 +1,12 @@
 export default {
-  "generatedAt": "2026-04-12T03:21:19.415Z",
+  "generatedAt": "2026-04-12T15:21:23.320Z",
   "hero": {
     "currentLoc": 172377,
     "trackedFiles": 1236,
-    "recentCommitCount": 545,
-    "activeDays30": 29,
-    "recentReleaseCount": 47,
-    "latestReleaseDate": "2026-04-10",
+    "recentCommitCount": 598,
+    "activeDays30": 30,
+    "recentReleaseCount": 50,
+    "latestReleaseDate": "2026-04-12",
     "latestNoteDate": "2026-04-03",
     "benchmarkName": "openclaw",
     "benchmarkCodeLines": 1798312,
@@ -420,17 +420,17 @@ export default {
       {
         "key": "2026-04-10",
         "label": "04-10",
-        "value": 15
+        "value": 27
       },
       {
         "key": "2026-04-11",
         "label": "04-11",
-        "value": 1
+        "value": 23
       },
       {
         "key": "2026-04-12",
         "label": "04-12",
-        "value": 0
+        "value": 19
       }
     ],
     "commitWeekly": [
@@ -492,7 +492,7 @@ export default {
       {
         "key": "2026-04-06",
         "label": "04-06",
-        "value": 86
+        "value": 139
       }
     ],
     "releaseMonthly": [
@@ -554,7 +554,7 @@ export default {
       {
         "key": "2026-04",
         "label": "04/26",
-        "value": 3
+        "value": 6
       }
     ]
   },
@@ -617,54 +617,57 @@ export default {
     },
     "recentReleaseBatches": [
       {
+        "date": "2026-04-12",
+        "tagCount": 4,
+        "sampleTags": [
+          "v0.17.6-desktop-beta.2",
+          "v0.17.6-desktop-beta.3",
+          "v0.17.6-desktop-beta.4"
+        ]
+      },
+      {
         "date": "2026-04-10",
-        "tagCount": 3,
+        "tagCount": 31,
         "sampleTags": [
           "v0.15.62-desktop-beta.3",
           "v0.15.73-desktop-beta.1",
-          "v0.17.6-desktop.1"
+          "@nextclaw/agent-chat-ui@0.3.2"
         ]
       },
       {
         "date": "2026-04-09",
-        "tagCount": 2,
+        "tagCount": 34,
         "sampleTags": [
-          "v0.15.62-desktop-beta.1",
-          "v0.15.62-desktop-beta.2"
+          "@nextclaw/channel-plugin-dingtalk@0.2.33",
+          "@nextclaw/channel-plugin-discord@0.2.33",
+          "@nextclaw/agent-chat@0.1.8"
         ]
       },
       {
         "date": "2026-04-08",
-        "tagCount": 1,
+        "tagCount": 56,
         "sampleTags": [
-          "v0.15.51-desktop.1"
+          "@nextclaw/agent-chat-ui@0.3.0",
+          "@nextclaw/channel-plugin-dingtalk@0.2.31",
+          "@nextclaw/channel-plugin-discord@0.2.31"
         ]
       },
       {
-        "date": "2026-03-31",
-        "tagCount": 168,
+        "date": "2026-04-03",
+        "tagCount": 27,
         "sampleTags": [
-          "@nextclaw/channel-plugin-dingtalk@0.2.21",
-          "@nextclaw/channel-plugin-discord@0.2.21",
-          "@nextclaw/channel-plugin-email@0.2.21"
+          "@nextclaw/channel-plugin-dingtalk@0.2.29",
+          "@nextclaw/channel-plugin-discord@0.2.29",
+          "@nextclaw/channel-plugin-email@0.2.29"
         ]
       },
       {
-        "date": "2026-03-30",
-        "tagCount": 46,
+        "date": "2026-04-01",
+        "tagCount": 34,
         "sampleTags": [
-          "@nextclaw/channel-plugin-dingtalk@0.2.20",
-          "@nextclaw/channel-plugin-discord@0.2.20",
-          "@nextclaw/channel-plugin-email@0.2.20"
-        ]
-      },
-      {
-        "date": "2026-03-29",
-        "tagCount": 20,
-        "sampleTags": [
-          "@nextclaw/nextclaw-engine-claude-agent-sdk@0.3.9",
-          "@nextclaw/nextclaw-engine-codex-sdk@0.3.10",
-          "@nextclaw/agent-chat-ui@0.2.13"
+          "@nextclaw/agent-chat-ui@0.2.19",
+          "@nextclaw/channel-plugin-dingtalk@0.2.28",
+          "@nextclaw/channel-plugin-discord@0.2.28"
         ]
       }
     ]
