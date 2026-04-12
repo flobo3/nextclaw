@@ -187,18 +187,21 @@ export class DesktopUpdateCoordinatorService {
       this.availableManifest = null;
       const persistedState = await this.recordLastCheckedAt(checkedAt);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const backgroundStatus = persistedState.downloadedVersion ? "downloaded" : DEFAULT_STATUS;
+      const preservedStatus = persistedState.downloadedVersion ? "downloaded" : DEFAULT_STATUS;
       this.snapshot = {
         ...this.snapshot,
-        status: options.manual ? "failed" : backgroundStatus,
+        status: preservedStatus,
         currentVersion: persistedState.currentVersion,
         downloadedVersion: persistedState.downloadedVersion,
         releaseNotesUrl: persistedState.downloadedReleaseNotesUrl,
         lastCheckedAt: persistedState.lastUpdateCheckAt,
-        errorMessage: options.manual ? errorMessage : null,
+        errorMessage: null,
         preferences: { ...persistedState.updatePreferences }
       };
       this.publishSnapshot();
+      if (options.manual) {
+        throw error instanceof Error ? error : new Error(errorMessage);
+      }
       return this.getSnapshot();
     }
   };

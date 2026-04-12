@@ -421,9 +421,82 @@ jobs:
             dist/desktop-release/**/latest-mac-*.yml
             dist/desktop-release/**/update-bundle-public.pem
 
-  publish-linux-apt-repo:
+  publish-desktop-update-channels:
     if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
     needs: [build-desktop, publish-release-assets]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-release-*
+          path: dist/desktop-release
+          merge-multiple: true
+
+      - name: Prepare gh-pages worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp/gh-pages
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages
+            git worktree add .tmp/gh-pages origin/gh-pages
+          else
+            git worktree add --detach .tmp/gh-pages
+            git -C .tmp/gh-pages checkout --orphan gh-pages
+            git -C .tmp/gh-pages rm -rf . >/dev/null 2>&1 || true
+            find .tmp/gh-pages -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+
+      - name: Stage desktop update channel files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/gh-pages/desktop-updates
+
+          if ! find dist/desktop-release -type f -name 'manifest-*.json' | grep -q .; then
+            echo "No desktop update manifests were downloaded."
+            exit 1
+          fi
+
+          find dist/desktop-release -type f -name 'manifest-*.json' | while read -r manifestPath; do
+            manifestFile="$(basename "$manifestPath")"
+            channel="$(printf '%s' "$manifestFile" | cut -d- -f2)"
+            targetDir=".tmp/gh-pages/desktop-updates/$channel"
+            mkdir -p "$targetDir"
+            cp "$manifestPath" "$targetDir/$manifestFile"
+          done
+
+          if [ -f "dist/desktop-release/update-bundle-public.pem" ]; then
+            cp "dist/desktop-release/update-bundle-public.pem" ".tmp/gh-pages/desktop-updates/update-bundle-public.pem"
+          fi
+
+          touch .tmp/gh-pages/.nojekyll
+
+      - name: Publish desktop update channels to gh-pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C .tmp/gh-pages config user.name "github-actions[bot]"
+          git -C .tmp/gh-pages config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C .tmp/gh-pages add desktop-updates .nojekyll
+          if git -C .tmp/gh-pages diff --cached --quiet; then
+            echo "No desktop update channel changes to publish."
+            exit 0
+          fi
+          git -C .tmp/gh-pages commit -m "chore: publish desktop update channels"
+          git -C .tmp/gh-pages push origin HEAD:gh-pages
+
+  publish-linux-apt-repo:
+    if: (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')) && !contains(github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name, 'desktop-beta')
+    needs: [build-desktop, publish-release-assets, publish-desktop-update-channels]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
