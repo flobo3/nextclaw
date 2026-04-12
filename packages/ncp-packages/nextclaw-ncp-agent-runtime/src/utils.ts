@@ -1,21 +1,10 @@
+import AjvPkg, { type ErrorObject, type ValidateFunction } from "ajv";
 import type {
   NcpInvalidToolArgumentsResult,
   NcpLLMApiInput,
   NcpToolCallResult,
   OpenAIChatMessage,
 } from "@nextclaw/ncp";
-
-type ToolSchema = {
-  type?: unknown;
-  properties?: Record<string, ToolSchema>;
-  required?: string[];
-  enum?: unknown[];
-  minimum?: number;
-  maximum?: number;
-  minLength?: number;
-  maxLength?: number;
-  items?: ToolSchema;
-};
 
 export type ParsedToolArgs =
   | {
@@ -28,6 +17,19 @@ export type ParsedToolArgs =
       rawText: string;
       issues: string[];
     };
+
+const AjvCtor = AjvPkg as unknown as new (opts?: object) => AjvLike;
+
+type AjvLike = {
+  compile: (schema: Record<string, unknown>) => ValidateFunction;
+};
+
+const toolSchemaValidator = new AjvCtor({
+  allErrors: true,
+  strict: false,
+  removeAdditional: false,
+});
+const validatorCache = new WeakMap<Record<string, unknown>, ValidateFunction>();
 
 export function genId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
@@ -104,77 +106,54 @@ export function validateToolArgs(
   if (!schema) {
     return [];
   }
-  return validateToolValue(args, schema as ToolSchema, "");
+  const validate = getOrCreateValidator(schema);
+  const valid = validate(args);
+  if (valid) {
+    return [];
+  }
+  return formatSchemaIssues(validate.errors);
 }
 
-function validateToolValue(value: unknown, schema: ToolSchema, path: string): string[] {
-  const label = path || "parameter";
-  const type = typeof schema.type === "string" ? schema.type : undefined;
-  if (type && !matchesSchemaType(value, type)) {
-    return [`${label} should be ${type}`];
+function getOrCreateValidator(schema: Record<string, unknown>): ValidateFunction {
+  const cached = validatorCache.get(schema);
+  if (cached) {
+    return cached;
   }
-
-  const errors: string[] = [];
-  if (schema.enum && !schema.enum.includes(value)) {
-    errors.push(`${label} must be one of ${JSON.stringify(schema.enum)}`);
-  }
-  if (typeof value === "number") {
-    if (schema.minimum !== undefined && value < schema.minimum) {
-      errors.push(`${label} must be >= ${schema.minimum}`);
-    }
-    if (schema.maximum !== undefined && value > schema.maximum) {
-      errors.push(`${label} must be <= ${schema.maximum}`);
-    }
-  }
-  if (typeof value === "string") {
-    if (schema.minLength !== undefined && value.length < schema.minLength) {
-      errors.push(`${label} must be at least ${schema.minLength} chars`);
-    }
-    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
-      errors.push(`${label} must be at most ${schema.maxLength} chars`);
-    }
-  }
-  if (type === "object") {
-    const objectValue = value as Record<string, unknown>;
-    for (const key of schema.required ?? []) {
-      if (!(key in objectValue)) {
-        errors.push(`missing required ${path ? `${path}.${key}` : key}`);
-      }
-    }
-    const properties = schema.properties ?? {};
-    for (const [key, childValue] of Object.entries(objectValue)) {
-      const childSchema = properties[key];
-      if (!childSchema) {
-        continue;
-      }
-      errors.push(...validateToolValue(childValue, childSchema, path ? `${path}.${key}` : key));
-    }
-  }
-  if (type === "array" && schema.items && Array.isArray(value)) {
-    value.forEach((item, index) => {
-      errors.push(...validateToolValue(item, schema.items as ToolSchema, `${label}[${index}]`));
-    });
-  }
-  return errors;
+  const validate = toolSchemaValidator.compile(schema);
+  validatorCache.set(schema, validate);
+  return validate;
 }
 
-function matchesSchemaType(value: unknown, type: string): boolean {
-  switch (type) {
-    case "string":
-      return typeof value === "string";
-    case "integer":
-      return typeof value === "number" && Number.isInteger(value);
-    case "number":
-      return typeof value === "number";
-    case "boolean":
-      return typeof value === "boolean";
-    case "array":
-      return Array.isArray(value);
-    case "object":
-      return typeof value === "object" && value !== null && !Array.isArray(value);
-    default:
-      return true;
+function formatSchemaIssues(errors: ErrorObject[] | null | undefined): string[] {
+  if (!errors || errors.length === 0) {
+    return ["Tool arguments do not match the declared schema."];
   }
+
+  return errors.map((error) => {
+    const instancePath = error.instancePath.replace(/^\//, "").replace(/\//g, ".");
+    if (
+      error.keyword === "required" &&
+      "missingProperty" in error.params &&
+      typeof error.params.missingProperty === "string"
+    ) {
+      const missingPath = instancePath
+        ? `${instancePath}.${error.params.missingProperty}`
+        : error.params.missingProperty;
+      return `${missingPath} is required`;
+    }
+    if (
+      error.keyword === "additionalProperties" &&
+      "additionalProperty" in error.params &&
+      typeof error.params.additionalProperty === "string"
+    ) {
+      const extraPath = instancePath
+        ? `${instancePath}.${error.params.additionalProperty}`
+        : error.params.additionalProperty;
+      return `${extraPath} is not allowed`;
+    }
+    const label = instancePath || "parameter";
+    return `${label}: ${error.message ?? "invalid"}`;
+  });
 }
 
 export function createInvalidToolArgumentsResult(params: {
@@ -192,6 +171,31 @@ export function createInvalidToolArgumentsResult(params: {
       toolName: params.toolName,
       rawArgumentsText: params.rawArgumentsText,
       issues: params.issues,
+    },
+  };
+}
+
+export function createToolExecutionFailedResult(params: {
+  toolCallId: string;
+  toolName: string;
+  error: unknown;
+}): {
+  ok: false;
+  error: {
+    code: "tool_execution_failed";
+    message: string;
+    toolCallId: string;
+    toolName: string;
+  };
+} {
+  const { toolCallId, toolName, error } = params;
+  return {
+    ok: false,
+    error: {
+      code: "tool_execution_failed",
+      message: error instanceof Error ? error.message : String(error),
+      toolCallId,
+      toolName,
     },
   };
 }

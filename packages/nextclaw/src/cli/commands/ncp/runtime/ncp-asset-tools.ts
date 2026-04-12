@@ -46,24 +46,46 @@ class AssetPutTool implements NcpTool {
     "Put a normal file path or base64 bytes into the managed asset store.";
   readonly parameters = {
     type: "object",
-    properties: {
-      path: {
-        type: "string",
-        description: "Existing local file path to put into the asset store.",
+    oneOf: [
+      {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description: "Existing local file path to put into the asset store.",
+          },
+          fileName: {
+            type: "string",
+            description: "Optional asset file name override.",
+          },
+          mimeType: {
+            type: "string",
+            description: "Optional mime type override.",
+          },
+        },
+        required: ["path"],
+        additionalProperties: false,
       },
-      bytesBase64: {
-        type: "string",
-        description: "Base64 file bytes. Use together with fileName when no source path exists.",
+      {
+        type: "object",
+        properties: {
+          bytesBase64: {
+            type: "string",
+            description: "Base64 file bytes. Use together with fileName when no source path exists.",
+          },
+          fileName: {
+            type: "string",
+            description: "Asset file name. Required when using bytesBase64.",
+          },
+          mimeType: {
+            type: "string",
+            description: "Optional mime type override.",
+          },
+        },
+        required: ["bytesBase64", "fileName"],
+        additionalProperties: false,
       },
-      fileName: {
-        type: "string",
-        description: "Optional asset file name override. Required when using bytesBase64.",
-      },
-      mimeType: {
-        type: "string",
-        description: "Optional mime type override.",
-      },
-    },
+    ],
   };
 
   constructor(
@@ -71,34 +93,38 @@ class AssetPutTool implements NcpTool {
     private readonly contentBasePath: string,
   ) {}
 
-  async execute(args: unknown): Promise<unknown> {
+  execute = async (args: unknown): Promise<unknown> => {
     const path = readOptionalString((args as { path?: unknown } | null)?.path);
     const fileName = readOptionalString((args as { fileName?: unknown } | null)?.fileName);
     const mimeType = readOptionalString((args as { mimeType?: unknown } | null)?.mimeType);
     const bytes = readOptionalBase64Bytes((args as { bytesBase64?: unknown } | null)?.bytesBase64);
 
-    let record: StoredAssetRecord;
     if (path) {
-      record = await this.assetStore.putPath({
+      const record = await this.assetStore.putPath({
         path,
         fileName: fileName ?? undefined,
         mimeType,
       });
-    } else if (bytes && fileName) {
-      record = await this.assetStore.putBytes({
+      return {
+        ok: true,
+        asset: toAssetPayload(record, this.contentBasePath),
+      };
+    }
+
+    if (bytes && fileName) {
+      const record = await this.assetStore.putBytes({
         fileName,
         mimeType,
         bytes,
       });
-    } else {
-      throw new Error("asset_put requires either path, or bytesBase64 + fileName.");
+      return {
+        ok: true,
+        asset: toAssetPayload(record, this.contentBasePath),
+      };
     }
 
-    return {
-      ok: true,
-      asset: toAssetPayload(record, this.contentBasePath),
-    };
-  }
+    throw new Error("asset_put received invalid arguments after validation.");
+  };
 }
 
 class AssetExportTool implements NcpTool {
@@ -118,11 +144,12 @@ class AssetExportTool implements NcpTool {
       },
     },
     required: ["assetUri", "targetPath"],
+    additionalProperties: false,
   };
 
   constructor(private readonly assetStore: LocalAssetStore) {}
 
-  async execute(args: unknown): Promise<unknown> {
+  execute = async (args: unknown): Promise<unknown> => {
     const assetUri = readOptionalString((args as { assetUri?: unknown } | null)?.assetUri);
     const targetPath = readOptionalString((args as { targetPath?: unknown } | null)?.targetPath);
     if (!assetUri || !targetPath) {
@@ -134,7 +161,7 @@ class AssetExportTool implements NcpTool {
       assetUri,
       exportedPath,
     };
-  }
+  };
 }
 
 class AssetStatTool implements NcpTool {
@@ -149,6 +176,7 @@ class AssetStatTool implements NcpTool {
       },
     },
     required: ["assetUri"],
+    additionalProperties: false,
   };
 
   constructor(
@@ -156,7 +184,7 @@ class AssetStatTool implements NcpTool {
     private readonly contentBasePath: string,
   ) {}
 
-  async execute(args: unknown): Promise<unknown> {
+  execute = async (args: unknown): Promise<unknown> => {
     const assetUri = readOptionalString((args as { assetUri?: unknown } | null)?.assetUri);
     if (!assetUri) {
       throw new Error("asset_stat requires assetUri.");
@@ -175,7 +203,7 @@ class AssetStatTool implements NcpTool {
       ok: true,
       asset: toAssetPayload(record, this.contentBasePath),
     };
-  }
+  };
 }
 
 export function createAssetTools(params: {
