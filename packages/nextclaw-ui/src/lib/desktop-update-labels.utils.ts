@@ -5,10 +5,14 @@ export const DESKTOP_UPDATE_LABELS: Record<string, { zh: string; en: string }> =
     zh: '在应用内检查、下载并决定何时应用新的桌面端版本。',
     en: 'Check, download, and decide when to apply new desktop versions without leaving the app.'
   },
-  desktopUpdatesDesktopOnlyTitle: { zh: '仅桌面端可用', en: 'Desktop Only' },
+  desktopUpdatesDesktopOnlyTitle: { zh: '当前仅桌面端可用', en: 'Currently Desktop Only' },
   desktopUpdatesDesktopOnlyDescription: {
-    zh: '这个页面只在 NextClaw Desktop 中可用。',
-    en: 'This page is only available inside NextClaw Desktop.'
+    zh: '这个页面暂时只在 NextClaw Desktop 中可用。',
+    en: 'This page is currently only available inside NextClaw Desktop.'
+  },
+  desktopUpdatesDesktopOnlyFutureHint: {
+    zh: '网页端与其他产品形态的更新体验还在继续完善，敬请期待。',
+    en: 'Update experiences for the web and other product surfaces are still being built. Stay tuned.'
   },
   desktopUpdatesOverviewTitle: { zh: '当前状态', en: 'Current Status' },
   desktopUpdatesOverviewDescription: {

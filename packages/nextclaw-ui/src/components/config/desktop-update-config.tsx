@@ -79,6 +79,9 @@ export function DesktopUpdateConfig() {
             <CardTitle>{t('desktopUpdatesDesktopOnlyTitle')}</CardTitle>
             <CardDescription>{t('desktopUpdatesDesktopOnlyDescription')}</CardDescription>
           </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-500">{t('desktopUpdatesDesktopOnlyFutureHint')}</p>
+          </CardContent>
         </Card>
       </PageLayout>
     );

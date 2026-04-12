@@ -224,6 +224,10 @@
   - 一旦版本切换、下载待应用、回滚或健康确认完成，未被这些引用命中的旧 `versions/<version>` 目录会自动删除
   - `staging/` 只再承担临时下载/解压用途，启动时与清理时会主动清掉历史残留
   - 因而桌面端更新链路现在的空间上界已收敛为“当前版本 + 一个回滚版本 + 一个已下载待应用版本 + 短生命周期 staging”，而不是每升级一次永久多留一整份 UI/runtime/plugins
+- 本次续改又补了一处网页端 `/updates` 的产品文案空态：
+  - 当用户不在桌面端而是在网页端进入更新页时，空态文案不再只说“仅桌面端可用”
+  - 现在会明确提示“当前仅桌面端可用”，并补充“网页端与其他产品形态的更新体验还在继续完善，敬请期待”
+  - 这样既能保持当前能力边界清晰，也能把后续会继续补齐多形态更新体验的产品预期说清楚
 - 为了避免桌面入口继续膨胀，本次又把“启动前 seed 安装 / 远端首包拉取 / pending candidate 恢复 / bundle 存储清理”从 [apps/desktop/src/main.ts](/Users/peiwang/Projects/nextbot/apps/desktop/src/main.ts) 收敛进了 [apps/desktop/src/services/desktop-bundle-bootstrap.service.ts](/Users/peiwang/Projects/nextbot/apps/desktop/src/services/desktop-bundle-bootstrap.service.ts)，让桌面入口重新只承担 Electron 生命周期与窗口装配。
 - 已执行：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/desktop-release.yml")'`
   - 结果：通过。release workflow YAML 语法可正常解析。
@@ -258,6 +262,12 @@
   - 结果：通过。9/9 测试全部通过，其中新增确认：
     - beta packaged app 会直接解析到已发布的静态 beta channel manifest URL
     - 手动检查更新失败会抛出错误给 UI 提示，但不会把页面主状态写成 `failed`
+- 已执行：`pnpm -C packages/nextclaw-ui tsc`
+  - 结果：通过。
+- 已执行：`pnpm -C packages/nextclaw-ui build`
+  - 结果：通过。网页端 `/updates` 非桌面空态文案已进入最新前端构建产物。
+- 已执行：`pnpm -C packages/nextclaw build`
+  - 结果：通过。`packages/nextclaw/ui-dist` 已同步最新桌面更新页文案产物。
 - 已执行：GitHub Actions `desktop-release` workflow_dispatch，run id `24302831063`
   - 结果：通过。四个矩阵 job 均成功完成：
     - `desktop-darwin-arm64`
