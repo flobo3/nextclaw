@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
       agentId: "weather",
       updatedAt: "2026-04-10T09:00:00.000Z",
       lastMessageAt: "2026-04-10T09:00:00.000Z",
-      readAt: null,
+      readAt: "2026-04-10T09:00:00.000Z",
       sessionTypeLabel: "Codex",
       preferredModel: "openai/gpt-5.3-codex",
       projectName: "project-alpha",
@@ -298,7 +298,7 @@ describe("ChatChildSessionPanel", () => {
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
         lastMessageAt: "2026-04-10T09:00:00.000Z",
-        readAt: null,
+        readAt: "2026-04-10T09:00:00.000Z",
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -346,7 +346,7 @@ describe("ChatChildSessionPanel", () => {
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
         lastMessageAt: "2026-04-10T09:00:00.000Z",
-        readAt: null,
+        readAt: "2026-04-10T09:00:00.000Z",
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -359,7 +359,7 @@ describe("ChatChildSessionPanel", () => {
         agentId: "weather",
         updatedAt: "2026-04-10T09:05:00.000Z",
         lastMessageAt: "2026-04-10T09:05:00.000Z",
-        readAt: null,
+        readAt: "2026-04-10T09:05:00.000Z",
         sessionTypeLabel: "Claude Code",
         preferredModel: "anthropic/claude-sonnet-4",
         projectName: "project-beta",
@@ -413,7 +413,7 @@ describe("ChatChildSessionPanel", () => {
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
         lastMessageAt: "2026-04-10T09:00:00.000Z",
-        readAt: null,
+        readAt: "2026-04-10T09:00:00.000Z",
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -426,7 +426,7 @@ describe("ChatChildSessionPanel", () => {
         agentId: "weather",
         updatedAt: "2026-04-10T09:05:00.000Z",
         lastMessageAt: "2026-04-10T09:05:00.000Z",
-        readAt: null,
+        readAt: "2026-04-10T09:05:00.000Z",
         runStatus: "running",
         sessionTypeLabel: "Claude Code",
         preferredModel: "anthropic/claude-sonnet-4",
@@ -458,9 +458,7 @@ describe("ChatChildSessionPanel", () => {
       />,
     );
 
-    expect(
-      screen.queryByLabelText("Session has unread updates"),
-    ).toBeNull();
+    expect(screen.queryByLabelText("Session has unread updates")).toBeNull();
 
     mocks.resolvedChildTabs = [
       {
@@ -470,7 +468,7 @@ describe("ChatChildSessionPanel", () => {
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
         lastMessageAt: "2026-04-10T09:00:00.000Z",
-        readAt: null,
+        readAt: "2026-04-10T09:00:00.000Z",
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -482,8 +480,8 @@ describe("ChatChildSessionPanel", () => {
         title: "上海天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:05:00.000Z",
-        lastMessageAt: "2026-04-10T09:05:00.000Z",
-        readAt: null,
+        lastMessageAt: "2026-04-10T09:06:00.000Z",
+        readAt: "2026-04-10T09:05:00.000Z",
         sessionTypeLabel: "Claude Code",
         preferredModel: "anthropic/claude-sonnet-4",
         projectName: "project-beta",
@@ -514,9 +512,7 @@ describe("ChatChildSessionPanel", () => {
       />,
     );
 
-    expect(
-      screen.getByLabelText("Session has unread updates"),
-    ).toBeTruthy();
+    expect(screen.getByLabelText("Session has unread updates")).toBeTruthy();
 
     rerender(
       <ChatChildSessionPanel
@@ -541,8 +537,62 @@ describe("ChatChildSessionPanel", () => {
       />,
     );
 
-    expect(
-      screen.queryByLabelText("Session has unread updates"),
-    ).toBeNull();
+    expect(screen.queryByLabelText("Session has unread updates")).toBeNull();
+  });
+
+  it("does not show an unread dot for child tabs without a persisted ui read baseline", () => {
+    mocks.resolvedChildTabs = [
+      {
+        sessionKey: "child-session-1",
+        parentSessionKey: "parent-session-1",
+        title: "北京天气",
+        agentId: "weather",
+        updatedAt: "2026-04-10T09:00:00.000Z",
+        lastMessageAt: "2026-04-10T09:00:00.000Z",
+        readAt: null,
+        sessionTypeLabel: "Codex",
+        preferredModel: "openai/gpt-5.3-codex",
+        projectName: "project-alpha",
+        projectRoot: "/Users/demo/project-alpha",
+      },
+      {
+        sessionKey: "child-session-2",
+        parentSessionKey: "parent-session-1",
+        title: "上海天气",
+        agentId: "weather",
+        updatedAt: "2026-04-10T09:05:00.000Z",
+        lastMessageAt: "2026-04-10T09:06:00.000Z",
+        readAt: null,
+        sessionTypeLabel: "Claude Code",
+        preferredModel: "anthropic/claude-sonnet-4",
+        projectName: "project-beta",
+        projectRoot: "/Users/demo/project-beta",
+      },
+    ];
+
+    render(
+      <ChatChildSessionPanel
+        tabs={[
+          {
+            sessionKey: "child-session-1",
+            parentSessionKey: "parent-session-1",
+            label: "北京天气",
+            agentId: "weather",
+          },
+          {
+            sessionKey: "child-session-2",
+            parentSessionKey: "parent-session-1",
+            label: "上海天气",
+            agentId: "weather",
+          },
+        ]}
+        activeSessionKey="child-session-1"
+        onSelectSession={vi.fn()}
+        onClose={vi.fn()}
+        onBackToParent={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Session has unread updates")).toBeNull();
   });
 });

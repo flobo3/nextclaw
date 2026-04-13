@@ -2,6 +2,7 @@
 
 ## 迭代完成说明
 
+- 验收修正：当 `metadata.ui_last_read_at` 缺失时，不再把该会话推断为“未读”，而是视为“当前客户端尚未建立已读基线”，因此不展示未读提示；只有在该字段存在后，才基于 `lastMessageAt > ui_last_read_at` 计算增量未读。
 - 将聊天会话的已读状态从前端本地 unread baseline 改为后端 `session metadata` 真相源。
 - 新增 `uiReadAt -> metadata.ui_last_read_at` 的 NCP session patch 路径，前端打开会话时会把当前会话最后一条消息时间写回后端。
 - NCP session summary 新增 `lastMessageAt`，前端未读判断改为 `lastMessageAt > readAt`，不再使用 `session.updatedAt` 充当“是否有新消息”的代理。
@@ -23,6 +24,11 @@
 
 - 以上命令均已通过。
 - `lint:maintainability:guard` 通过，但仍报告若干存量 warning：`packages/nextclaw-ui/src/api`、`packages/nextclaw-ui/src/components/chat`、`packages/nextclaw-server/src/ui` 等目录/文件接近或超过维护性预算；本次未新增阻断错误。
+- 2026-04-13 验收修正补充验证：
+  `pnpm -C packages/nextclaw-ui test -- src/components/chat/ChatSidebar.test.tsx src/components/chat/ChatConversationPanel.test.tsx`
+  `pnpm -C packages/nextclaw-ui tsc`
+  `pnpm lint:maintainability:guard`
+  均已通过；守卫仅剩仓库存量 directory/file-name warning，无新增阻断错误。
 
 ## 发布/部署方式
 
@@ -32,11 +38,12 @@
 
 ## 用户/产品视角的验收步骤
 
-1. 打开一个已有消息的会话 A，确认其在当前客户端被标记为已读。
-2. 在另一个客户端或另一个窗口让会话 A 收到新消息，此时当前未激活的客户端应显示未读提示。
-3. 在任一客户端点开会话 A，确认未读提示消失。
-4. 回到另一个客户端或刷新页面，确认未读提示仍保持消失，不会因为前端本地 baseline 重建而“复活”。
-5. 对子会话详情面板重复相同步骤，确认子会话标签的未读点行为一致。
+1. 找一个 `metadata.ui_last_read_at` 缺失的历史会话或新会话，确认它不会直接显示未读红点。
+2. 打开该会话一次，让当前客户端建立 read watermark。
+3. 在另一个客户端或另一个窗口让该会话收到新消息，此时当前未激活的客户端应显示未读提示。
+4. 在任一客户端点开该会话，确认未读提示消失。
+5. 回到另一个客户端或刷新页面，确认未读提示仍保持消失，不会因为前端本地 baseline 重建而“复活”。
+6. 对子会话详情面板重复相同步骤，确认子会话标签的未读点行为一致。
 
 ## 可维护性总结汇总
 
@@ -108,3 +115,31 @@
 
 - 是。
 - 这次已把实现收敛到最小必要边界，并主动撤回了对非 NCP 会话链路的扩散修改；剩余 warning 主要是仓库存量热点与命名治理 warning，不是本次新增结构问题。
+
+### 本次验收修正补充（2026-04-13）
+
+- 可维护性复核结论：通过
+- 本次顺手减债：是
+- no maintainability findings
+
+代码增减报告：
+
+- 新增：97 行
+- 删除：19 行
+- 净增：+78 行
+
+非测试代码增减报告：
+
+- 新增：2 行
+- 删除：1 行
+- 净增：+1 行
+
+长期目标对齐 / 可维护性推进：
+
+- 这次验收修正顺着“读路径只做展示判断、避免页面加载或兼容逻辑偷偷写状态”的方向推进了一小步，更贴近可预测的统一体验。
+- 修法优先选择“缺基线不提示”而不是自动迁移、创建时预填或页面加载批量写回，避免把观测路径变成隐式执行路径。
+
+可维护性总结：
+
+- 这次非测试代码只净增 1 行，主体是把 `ui_last_read_at` 缺失场景改成“不猜测未读”，同时补了针对历史会话和子会话的回归测试。
+- 没有新增 store/manager/service 层，也没有把复杂度转移到新的兼容分支里；剩余债务仍是聊天目录本身的存量平铺问题，不是本次修复新增。

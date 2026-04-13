@@ -513,6 +513,7 @@ describe('ChatSidebar session item interactions', () => {
         createdAt: '2026-03-19T09:00:00.000Z',
         updatedAt: '2026-03-19T09:05:00.000Z',
         lastMessageAt: '2026-03-19T09:05:00.000Z',
+        readAt: '2026-03-19T09:05:00.000Z',
         label: 'Current Task',
         sessionType: 'native',
         sessionTypeMutable: false,
@@ -523,6 +524,7 @@ describe('ChatSidebar session item interactions', () => {
         createdAt: '2026-03-19T10:00:00.000Z',
         updatedAt: '2026-03-19T10:05:00.000Z',
         lastMessageAt: '2026-03-19T10:05:00.000Z',
+        readAt: '2026-03-19T10:05:00.000Z',
         label: 'Background Task',
         sessionType: 'native',
         sessionTypeMutable: false,
@@ -551,6 +553,7 @@ describe('ChatSidebar session item interactions', () => {
         createdAt: '2026-03-19T10:00:00.000Z',
         updatedAt: '2026-03-19T10:06:00.000Z',
         lastMessageAt: '2026-03-19T10:06:00.000Z',
+        readAt: '2026-03-19T10:05:00.000Z',
         label: 'Background Task',
         sessionType: 'native',
         sessionTypeMutable: false,
@@ -573,6 +576,7 @@ describe('ChatSidebar session item interactions', () => {
         createdAt: '2026-03-19T10:00:00.000Z',
         updatedAt: '2026-03-19T10:06:00.000Z',
         lastMessageAt: '2026-03-19T10:06:00.000Z',
+        readAt: '2026-03-19T10:05:00.000Z',
         label: 'Background Task',
         sessionType: 'native',
         sessionTypeMutable: false,
@@ -596,6 +600,29 @@ describe('ChatSidebar session item interactions', () => {
     });
 
     rerender(
+      <MemoryRouter>
+        <ChatSidebar />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByLabelText('Session has unread updates')).toBeNull();
+  });
+
+  it('does not show an unread dot for sessions without a persisted ui read baseline', () => {
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:ncp-legacy',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T09:05:00.000Z',
+        lastMessageAt: '2026-03-19T09:05:00.000Z',
+        label: 'Legacy Session',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 1
+      })
+    ];
+
+    render(
       <MemoryRouter>
         <ChatSidebar />
       </MemoryRouter>

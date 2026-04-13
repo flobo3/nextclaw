@@ -22,7 +22,8 @@ export function hasUnreadSessionUpdate(
   }
   const normalizedReadAt = readAt?.trim();
   if (!normalizedReadAt) {
-    return true;
+    // Until this client establishes a read watermark, avoid guessing unread state.
+    return false;
   }
   return normalizedLastMessageAt.localeCompare(normalizedReadAt) > 0;
 }
