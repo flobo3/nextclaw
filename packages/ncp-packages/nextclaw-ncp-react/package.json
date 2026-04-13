@@ -19,7 +19,7 @@
     "prepack": "pnpm run build",
     "lint": "cd ../../.. && pnpm exec eslint packages/ncp-packages/nextclaw-ncp-react --config packages/ncp-packages/nextclaw-ncp-react/eslint.config.mjs",
     "tsc": "tsc -p tsconfig.json",
-    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/ncp": "workspace:*",

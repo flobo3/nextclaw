@@ -20,7 +20,7 @@
     "lint": "cd ../../.. && pnpm exec eslint packages/ncp-packages/nextclaw-ncp-mcp --config packages/ncp-packages/nextclaw-ncp-mcp/eslint.config.mjs",
     "tsc": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/mcp": "workspace:*",

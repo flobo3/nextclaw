@@ -20,7 +20,7 @@
     "lint": "cd ../.. && pnpm exec eslint packages/nextclaw-mcp --config eslint.config.mjs",
     "tsc": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "prepublishOnly": "node ../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",

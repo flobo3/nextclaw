@@ -41,7 +41,7 @@
   },
   "scripts": {
     "lint": "eslint index.ts",
-    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.59.0",

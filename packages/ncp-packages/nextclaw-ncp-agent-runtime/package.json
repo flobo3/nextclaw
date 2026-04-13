@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "tsc": "tsc -p tsconfig.json",
-    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/ncp": "workspace:*",

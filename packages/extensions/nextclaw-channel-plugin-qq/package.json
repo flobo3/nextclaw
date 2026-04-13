@@ -21,7 +21,7 @@
   },
   "scripts": {
     "lint": "eslint index.js",
-    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/channel-runtime": "workspace:*"

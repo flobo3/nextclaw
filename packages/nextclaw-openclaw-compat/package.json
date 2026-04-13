@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
     "test": "vitest",
-    "prepublishOnly": "node ../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@nextclaw/channel-plugin-dingtalk": "workspace:*",

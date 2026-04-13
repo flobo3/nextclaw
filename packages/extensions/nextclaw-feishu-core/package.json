@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "tsc": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "prepublishOnly": "node ../../../scripts/ensure-pnpm-publish.mjs"
+    "prepublishOnly": "node ../../../scripts/release/ensure-pnpm-publish.mjs"
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.58.0",
