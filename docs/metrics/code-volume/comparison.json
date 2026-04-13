@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T03:21:18.668Z",
+  "generatedAt": "2026-04-13T03:21:28.811Z",
   "base": {
     "name": "nextclaw",
     "projectRoot": "/home/runner/work/nextclaw/nextclaw",
@@ -9,6 +9,7 @@
       "includePaths": [
         "apps/desktop/src",
         "apps/landing/src",
+        "apps/maintainability-console/src",
         "apps/ncp-demo/backend/src",
         "apps/ncp-demo/frontend/src",
         "apps/platform-admin/src",
@@ -27,8 +28,6 @@
         "packages/extensions/nextclaw-channel-plugin-weixin/src",
         "packages/extensions/nextclaw-channel-plugin-whatsapp/index.js",
         "packages/extensions/nextclaw-channel-runtime/src",
-        "packages/extensions/nextclaw-engine-plugin-claude-agent-sdk/src",
-        "packages/extensions/nextclaw-engine-plugin-codex-sdk/src",
         "packages/extensions/nextclaw-feishu-core/src",
         "packages/extensions/nextclaw-ncp-runtime-claude-code-sdk/src",
         "packages/extensions/nextclaw-ncp-runtime-codex-sdk/src",
@@ -81,11 +80,11 @@
       ]
     },
     "totals": {
-      "files": 1236,
-      "totalLines": 192343,
-      "blankLines": 18402,
-      "commentLines": 1564,
-      "codeLines": 172377
+      "files": 1321,
+      "totalLines": 203809,
+      "blankLines": 19502,
+      "commentLines": 1566,
+      "codeLines": 182741
     }
   },
   "benchmark": {
@@ -122,17 +121,17 @@
       ]
     },
     "totals": {
-      "files": 10373,
-      "totalLines": 2003759,
-      "blankLines": 172822,
-      "commentLines": 32625,
-      "codeLines": 1798312
+      "files": 10442,
+      "totalLines": 2022943,
+      "blankLines": 174477,
+      "commentLines": 32766,
+      "codeLines": 1815700
     }
   },
   "comparison": {
-    "baseMinusBenchmarkLines": -1625935,
-    "basePercentOfBenchmark": 9.59,
-    "benchmarkMultipleOfBase": 10.43,
-    "baseIsLighterByPercent": 90.41
+    "baseMinusBenchmarkLines": -1632959,
+    "basePercentOfBenchmark": 10.06,
+    "benchmarkMultipleOfBase": 9.94,
+    "baseIsLighterByPercent": 89.94
   }
 }
