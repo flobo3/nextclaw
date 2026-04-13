@@ -19,6 +19,7 @@ import type {
   UiNcpSessionService,
   UiServerEvent
 } from "../types.js";
+import type { RuntimeControlView, RuntimeRestartResult } from "../runtime-control.types.js";
 
 export type UiRouterOptions = {
   configPath: string;
@@ -32,6 +33,7 @@ export type UiRouterOptions = {
   ncpSessionService?: UiNcpSessionService;
   authService?: UiAuthService;
   remoteAccess?: UiRemoteAccessHost;
+  runtimeControl?: UiRuntimeControlHost;
   getBootstrapStatus?: () => BootstrapStatusView;
   getPluginChannelBindings?: () => PluginChannelBinding[];
   getPluginUiMetadata?: () => PluginUiMetadata[];
@@ -47,6 +49,11 @@ export type UiRemoteAccessHost = {
   updateSettings: (input: RemoteSettingsUpdateRequest) => Promise<RemoteAccessView> | RemoteAccessView;
   runDoctor: () => Promise<RemoteDoctorView>;
   controlService: (action: RemoteServiceAction) => Promise<RemoteServiceActionResult>;
+};
+
+export type UiRuntimeControlHost = {
+  getControl: () => Promise<RuntimeControlView> | RuntimeControlView;
+  restartService: () => Promise<RuntimeRestartResult> | RuntimeRestartResult;
 };
 
 export type CronJobEntry = {

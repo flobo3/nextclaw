@@ -25,7 +25,7 @@ import { managedServiceStateStore, type ManagedServiceState } from "../runtime-s
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
 import { resolveCliSubcommandEntry } from "./service-support/marketplace/cli-subcommand-launch.js";
 import { writeReadyManagedServiceState } from "./service-support/runtime/service-remote-runtime.js";
-import { createRemoteAccessHost } from "./service-support/runtime/service-remote-access.js";
+import { createServiceUiHosts } from "./service-support/runtime/service-ui-hosts.js";
 import { type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
 import { createGatewayShellContext, createGatewayStartupContext } from "./service-support/gateway/service-gateway-context.js";
 import { runConfiguredGatewayRuntime, startUiShell } from "./service-support/gateway/service-gateway-startup.js";
@@ -104,9 +104,8 @@ export class ServiceCommands {
     let runtimeState: GatewayRuntimeState | null = null;
     const bootstrapStatus = createBootstrapStatus(shellContext.config.remote.enabled);
     const ncpSessionRealtimeBridge = createServiceNcpSessionRealtimeBridge({ sessionManager: shellContext.sessionManager });
-
     const marketplaceInstaller = new ServiceMarketplaceInstaller({ applyLiveConfigReload, runCliSubcommand: (args) => this.runCliSubcommand(args), installBuiltinSkill: (slug, force) => this.installBuiltinMarketplaceSkill(slug, force) }).createInstaller();
-    const remoteAccess = createRemoteAccessHost({ serviceCommands: this, requestRestart: this.deps.requestRestart, uiConfig: shellContext.uiConfig, remoteModule: shellContext.remoteModule });
+    const { remoteAccess, runtimeControl } = createServiceUiHosts({ serviceCommands: this, requestRestart: this.deps.requestRestart, uiConfig: shellContext.uiConfig, remoteModule: shellContext.remoteModule });
     const uiStartup = await measureStartupAsync("service.start_ui_shell", async () =>
       await startUiShell({
         uiConfig: shellContext.uiConfig,
@@ -119,6 +118,7 @@ export class ServiceCommands {
         getPluginUiMetadata: () => runtimeState?.pluginUiMetadata ?? [],
         marketplace: { apiBaseUrl: process.env.NEXTCLAW_MARKETPLACE_API_BASE, installer: marketplaceInstaller },
         remoteAccess,
+        runtimeControl,
         getBootstrapStatus: () => bootstrapStatus.getStatus(),
         openBrowserWindow: shellContext.uiConfig.open,
         applyLiveConfigReload,

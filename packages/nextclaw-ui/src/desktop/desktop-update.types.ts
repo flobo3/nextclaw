@@ -24,6 +24,13 @@ export type DesktopUpdateSnapshot = {
   preferences: DesktopUpdatePreferences;
 };
 
+export type DesktopRuntimeControlResult = {
+  accepted: boolean;
+  action: 'restart-service' | 'restart-app';
+  lifecycle: 'restarting-service' | 'restarting-app';
+  message: string;
+};
+
 export type NextClawDesktopBridge = {
   platform: string;
   version: string;
@@ -32,5 +39,7 @@ export type NextClawDesktopBridge = {
   downloadUpdate: () => Promise<DesktopUpdateSnapshot>;
   applyDownloadedUpdate: () => Promise<DesktopUpdateSnapshot>;
   updatePreferences: (preferences: Partial<DesktopUpdatePreferences>) => Promise<DesktopUpdateSnapshot>;
+  restartService: () => Promise<DesktopRuntimeControlResult>;
+  restartApp: () => Promise<DesktopRuntimeControlResult>;
   onUpdateStateChanged: (listener: (snapshot: DesktopUpdateSnapshot) => void) => () => void;
 };

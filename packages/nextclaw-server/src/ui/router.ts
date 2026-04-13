@@ -16,6 +16,7 @@ import {
   SkillMarketplaceController
 } from "./ui-routes/marketplace/index.js";
 import { RemoteRoutesController } from "./ui-routes/remote.controller.js";
+import { RuntimeControlRoutesController } from "./ui-routes/runtime-control.controller.js";
 import { err } from "./ui-routes/response.js";
 import { ServerPathRoutesController } from "./ui-routes/server-path.controller.js";
 import type { UiRouterOptions } from "./ui-routes/types.js";
@@ -115,23 +116,42 @@ function registerRemoteRoutes(app: Hono, remoteController: RemoteRoutesControlle
   app.post("/api/remote/service/:action", remoteController.controlService);
 }
 
+function registerRuntimeControlRoutes(app: Hono, runtimeControlController: RuntimeControlRoutesController | null): void {
+  if (!runtimeControlController) {
+    return;
+  }
+
+  app.get("/api/runtime/control", runtimeControlController.getControl);
+  app.post("/api/runtime/control/restart-service", runtimeControlController.restartService);
+}
+
+function createUiRouteControllers(
+  options: UiRouterOptions,
+  authService: UiAuthService,
+  marketplaceBaseUrl: string
+) {
+  return {
+    app: new AppRoutesController(options),
+    agents: new AgentsRoutesController(options),
+    auth: new AuthRoutesController(authService),
+    config: new ConfigRoutesController(options),
+    cron: new CronRoutesController(options),
+    ncpSession: new NcpSessionRoutesController(options),
+    ncpAsset: new NcpAssetRoutesController(options),
+    serverPath: new ServerPathRoutesController(),
+    remote: options.remoteAccess ? new RemoteRoutesController(options.remoteAccess) : null,
+    runtimeControl: options.runtimeControl ? new RuntimeControlRoutesController(options.runtimeControl) : null,
+    pluginMarketplace: new PluginMarketplaceController(options, marketplaceBaseUrl),
+    skillMarketplace: new SkillMarketplaceController(options, marketplaceBaseUrl),
+    mcpMarketplace: new McpMarketplaceController(options, marketplaceBaseUrl)
+  };
+}
+
 export function createUiRouter(options: UiRouterOptions): Hono {
   const app = new Hono();
   const marketplaceBaseUrl = normalizeMarketplaceBaseUrl(options);
   const authService = options.authService ?? new UiAuthService(options.configPath);
-
-  const appController = new AppRoutesController(options);
-  const agentsController = new AgentsRoutesController(options);
-  const authController = new AuthRoutesController(authService);
-  const configController = new ConfigRoutesController(options);
-  const cronController = new CronRoutesController(options);
-  const ncpSessionController = new NcpSessionRoutesController(options);
-  const ncpAssetController = new NcpAssetRoutesController(options);
-  const serverPathController = new ServerPathRoutesController();
-  const remoteController = options.remoteAccess ? new RemoteRoutesController(options.remoteAccess) : null;
-  const pluginMarketplaceController = new PluginMarketplaceController(options, marketplaceBaseUrl);
-  const skillMarketplaceController = new SkillMarketplaceController(options, marketplaceBaseUrl);
-  const mcpMarketplaceController = new McpMarketplaceController(options, marketplaceBaseUrl);
+  const controllers = createUiRouteControllers(options, authService, marketplaceBaseUrl);
 
   app.notFound((c) => c.json(err("NOT_FOUND", "endpoint not found"), 404));
 
@@ -149,22 +169,23 @@ export function createUiRouter(options: UiRouterOptions): Hono {
     return c.json(err("UNAUTHORIZED", "Authentication required."), 401);
   });
 
-  app.get("/api/health", appController.health);
-  app.get("/api/app/meta", appController.appMeta);
-  app.get("/api/runtime/bootstrap-status", appController.bootstrapStatus);
-  registerAuthRoutes(app, authController);
-  registerAgentRoutes(app, agentsController);
-  registerConfigRoutes(app, configController);
-  registerNcpSessionRoutes(app, ncpSessionController);
-  registerServerPathRoutes(app, serverPathController);
-  registerNcpRuntimeRoutes(app, options, ncpAssetController);
-  registerCronRoutes(app, cronController);
-  registerRemoteRoutes(app, remoteController);
+  app.get("/api/health", controllers.app.health);
+  app.get("/api/app/meta", controllers.app.appMeta);
+  app.get("/api/runtime/bootstrap-status", controllers.app.bootstrapStatus);
+  registerAuthRoutes(app, controllers.auth);
+  registerAgentRoutes(app, controllers.agents);
+  registerConfigRoutes(app, controllers.config);
+  registerNcpSessionRoutes(app, controllers.ncpSession);
+  registerServerPathRoutes(app, controllers.serverPath);
+  registerNcpRuntimeRoutes(app, options, controllers.ncpAsset);
+  registerCronRoutes(app, controllers.cron);
+  registerRemoteRoutes(app, controllers.remote);
+  registerRuntimeControlRoutes(app, controllers.runtimeControl);
 
   mountMarketplaceRoutes(app, {
-    plugin: pluginMarketplaceController,
-    skill: skillMarketplaceController,
-    mcp: mcpMarketplaceController
+    plugin: controllers.pluginMarketplace,
+    skill: controllers.skillMarketplace,
+    mcp: controllers.mcpMarketplace
   });
 
   return app;

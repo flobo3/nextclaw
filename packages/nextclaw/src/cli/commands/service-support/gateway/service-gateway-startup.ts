@@ -5,6 +5,7 @@ import {
   type BootstrapStatusView,
   type MarketplaceApiConfig,
   type UiNcpSessionService,
+  type UiRuntimeControlHost,
   type UiServerEvent,
   type UiRemoteAccessHost
 } from "@nextclaw/server";
@@ -50,6 +51,7 @@ export async function startUiShell(params: {
   getPluginUiMetadata: () => PluginUiMetadata[];
   marketplace: MarketplaceApiConfig;
   remoteAccess: UiRemoteAccessHost;
+  runtimeControl: UiRuntimeControlHost;
   getBootstrapStatus?: () => BootstrapStatusView;
   openBrowserWindow: boolean;
   applyLiveConfigReload?: () => Promise<void>;
@@ -74,6 +76,7 @@ export async function startUiShell(params: {
     cronService: params.cronService,
     marketplace: params.marketplace,
     remoteAccess: params.remoteAccess,
+    runtimeControl: params.runtimeControl,
     getBootstrapStatus: params.getBootstrapStatus,
     getPluginChannelBindings: params.getPluginChannelBindings,
     getPluginUiMetadata: params.getPluginUiMetadata,

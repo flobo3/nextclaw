@@ -4,7 +4,7 @@ import type { NcpAgentClientEndpoint, NcpMessage, NcpSessionApi, NcpSessionStatu
 import type { NcpHttpAgentStreamProvider } from "@nextclaw/ncp-http-agent-server";
 import type { UiNcpStoredAssetRecord } from "./ncp-attachment.types.js";
 import type { MarketplaceApiConfig } from "./marketplace.types.js";
-import type { UiRemoteAccessHost } from "./ui-routes/types.js";
+import type { UiRemoteAccessHost, UiRuntimeControlHost } from "./ui-routes/types.js";
 export type * from "./marketplace.types.js";
 export type * from "./ncp-attachment.types.js";
 export type ApiError = {
@@ -885,6 +885,7 @@ export type UiServerOptions = {
   ncpAgent?: UiNcpAgent;
   ncpSessionService?: UiNcpSessionService;
   remoteAccess?: UiRemoteAccessHost;
+  runtimeControl?: UiRuntimeControlHost;
   getBootstrapStatus?: () => BootstrapStatusView;
   getPluginChannelBindings?: () => PluginChannelBinding[];
   getPluginUiMetadata?: () => PluginUiMetadata[];

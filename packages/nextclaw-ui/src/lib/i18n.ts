@@ -16,6 +16,7 @@ import { DESKTOP_UPDATE_LABELS } from './desktop-update-labels.utils';
 import { MARKETPLACE_LABELS } from './i18n.marketplace';
 import { PATH_PICKER_LABELS } from './i18n-runtime/i18n.path-picker';
 import { REMOTE_LABELS } from './i18n.remote';
+import { RUNTIME_CONTROL_LABELS } from './i18n.runtime-control';
 import { SEARCH_LABELS } from './i18n.search';
 export type { I18nLanguage };
 export { getLanguage, getLocale, initializeI18n, LANGUAGE_OPTIONS, resolveInitialLanguage, setLanguage, subscribeLanguageChange };
@@ -301,10 +302,7 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   authRetryStatus: { zh: '重试', en: 'Retry' },
   authStatusLoadFailed: { zh: '无法获取认证状态，请检查 UI 服务是否正常。', en: 'Failed to load authentication status. Check whether the UI server is healthy.' },
 
-  // Runtime
-  runtimePageTitle: { zh: '路由与运行时', en: 'Routing & Runtime' },
-  runtimePageDescription: { zh: '对齐 OpenClaw 的多 Agent 路由：绑定规则、Agent 池、私聊范围。', en: 'Align multi-agent routing with OpenClaw: bindings, agent pool, and DM scope.' },
-  runtimeLoading: { zh: '加载运行时配置中...', en: 'Loading runtime settings...' },
+  ...RUNTIME_CONTROL_LABELS,
   authSecurityTitle: { zh: 'Security', en: 'Security' },
   authSecurityDescription: {
     zh: '保持本机控制台默认简单；只有在你需要远程暴露时，再给 UI 加一层登录门。',

@@ -4,3 +4,5 @@ export const DESKTOP_UPDATES_DOWNLOAD_CHANNEL = "nextclaw-desktop:updates:downlo
 export const DESKTOP_UPDATES_APPLY_CHANNEL = "nextclaw-desktop:updates:apply";
 export const DESKTOP_UPDATES_UPDATE_PREFERENCES_CHANNEL = "nextclaw-desktop:updates:update-preferences";
 export const DESKTOP_UPDATES_STATE_CHANGED_CHANNEL = "nextclaw-desktop:updates:state-changed";
+export const DESKTOP_RUNTIME_RESTART_SERVICE_CHANNEL = "nextclaw-desktop:runtime:restart-service";
+export const DESKTOP_RUNTIME_RESTART_APP_CHANNEL = "nextclaw-desktop:runtime:restart-app";

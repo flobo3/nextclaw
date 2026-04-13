@@ -139,6 +139,7 @@ export function startUiServer(options: UiServerStartOptions): UiServerHandle {
       ncpSessionService: options.ncpSessionService,
       authService,
       remoteAccess: options.remoteAccess,
+      runtimeControl: options.runtimeControl,
       getBootstrapStatus: options.getBootstrapStatus,
       getPluginChannelBindings: options.getPluginChannelBindings,
       getPluginUiMetadata: options.getPluginUiMetadata

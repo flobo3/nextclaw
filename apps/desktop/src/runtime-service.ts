@@ -167,6 +167,11 @@ export class RuntimeServiceProcess {
     this.port = null;
   };
 
+  restart = async (): Promise<{ port: number; baseUrl: string }> => {
+    await this.stop();
+    return await this.start();
+  };
+
   private terminateChild = async (child: ChildProcess): Promise<void> => {
     await new Promise<void>((resolve) => {
       let settled = false;

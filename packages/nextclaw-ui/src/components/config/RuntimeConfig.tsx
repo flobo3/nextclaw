@@ -3,6 +3,7 @@ import { useConfig, useConfigSchema, useUpdateRuntime } from '@/hooks/useConfig'
 import type { AgentBindingView, AgentProfileView } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { RuntimeControlCard } from '@/components/config/runtime-control-card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -79,7 +80,6 @@ export function RuntimeConfig() {
   const updateBinding = (index: number, next: AgentBindingView) => {
     setBindings((prev) => prev.map((binding, cursor) => (cursor === index ? next : binding)));
   };
-
   const handleSave = () => {
     try {
       const normalizedAgents = agents.map((agent, index) => {
@@ -160,14 +160,12 @@ export function RuntimeConfig() {
     }
   };
 
-  if (isLoading || !config) {
-    return <div className="p-8 text-gray-400">{t('runtimeLoading')}</div>;
-  }
+  if (isLoading || !config) return <div className="p-8 text-gray-400">{t('runtimeLoading')}</div>;
 
   return (
     <PageLayout className="space-y-6">
       <PageHeader title={t('runtimePageTitle')} description={t('runtimePageDescription')} />
-
+      <RuntimeControlCard />
       <Card>
         <CardHeader>
           <CardTitle>{dmScopeHint?.label ?? t('dmScope')}</CardTitle>

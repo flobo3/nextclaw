@@ -8,6 +8,7 @@ import { DesktopUpdateService } from "./launcher/services/update.service";
 import { DesktopBundleLayoutStore } from "./launcher/stores/bundle-layout.store";
 import { DesktopLauncherStateStore } from "./launcher/stores/launcher-state.store";
 import { RuntimeConfigResolver } from "./runtime-config";
+import { DesktopRuntimeControlService } from "./services/desktop-runtime-control.service";
 import { DesktopUpdateSourceService } from "./services/desktop-update-source.service";
 import { RuntimeServiceProcess } from "./runtime-service";
 import { DesktopBundleBootstrapService } from "./services/desktop-bundle-bootstrap.service";
@@ -29,6 +30,7 @@ class DesktopApplication {
   private runtime: RuntimeServiceProcess | null = null;
   private window: BrowserWindow | null = null;
   private stopping = false;
+  private desktopRuntimeControlService: DesktopRuntimeControlService | null = null;
   private desktopUpdateShell: DesktopUpdateShellService | null = null;
   private bundleBootstrap: DesktopBundleBootstrapService | null = null;
   private updateSourceService: DesktopUpdateSourceService | null = null;
@@ -70,6 +72,7 @@ class DesktopApplication {
 
     logger.info("Waiting for Electron app readiness.");
     await app.whenReady();
+    this.ensureDesktopRuntimeControlService().registerIpcHandlers();
     this.ensureDesktopUpdateShell().registerIpcHandlers();
     this.ensureDesktopUpdateShell().installApplicationMenu();
     logger.info(
@@ -214,6 +217,28 @@ class DesktopApplication {
     });
 
     return this.desktopUpdateShell;
+  };
+
+  private ensureDesktopRuntimeControlService = (): DesktopRuntimeControlService => {
+    if (this.desktopRuntimeControlService) {
+      return this.desktopRuntimeControlService;
+    }
+
+    this.desktopRuntimeControlService = new DesktopRuntimeControlService({
+      logger,
+      restartRuntime: async () => {
+        if (!this.runtime) {
+          throw new Error("Desktop runtime is not available.");
+        }
+        await this.runtime.restart();
+      },
+      restartApplication: () => {
+        app.relaunch();
+        app.quit();
+      }
+    });
+
+    return this.desktopRuntimeControlService;
   };
 
   private ensureUpdateSourceService = (): DesktopUpdateSourceService => {

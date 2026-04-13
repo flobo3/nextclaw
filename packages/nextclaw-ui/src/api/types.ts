@@ -174,6 +174,15 @@ export type {
   RemoteSettingsUpdateRequest,
   RemoteSettingsView
 } from './remote.types';
+export type {
+  RuntimeActionCapability,
+  RuntimeActionImpact,
+  RuntimeControlEnvironment,
+  RuntimeControlView,
+  RuntimeLifecycleState,
+  RuntimeRestartAction,
+  RuntimeRestartResult
+} from './runtime-control.types';
 
 export type AgentProfileView = {
   id: string;
