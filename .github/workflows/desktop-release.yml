@@ -18,6 +18,7 @@ jobs:
   build-desktop:
     name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     env:
       DESKTOP_RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
       DESKTOP_UPDATE_CHANNEL: ${{ contains(github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name, 'desktop-beta') && 'beta' || 'stable' }}

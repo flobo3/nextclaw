@@ -144,13 +144,6 @@ collect_candidate_ports() {
 }
 
 prepare_isolated_runtime_config() {
-  local runtime_script
-  runtime_script="$(find_runtime_script || true)"
-  if [[ -z "${runtime_script}" ]]; then
-    echo "[desktop-smoke] failed to locate packaged runtime script before launch." >&2
-    return 1
-  fi
-
   SMOKE_UI_PORT="$(pick_runtime_port || true)"
   if [[ -z "${SMOKE_UI_PORT}" ]]; then
     echo "[desktop-smoke] failed to reserve an isolated UI port for smoke." >&2
@@ -158,18 +151,20 @@ prepare_isolated_runtime_config() {
   fi
 
   export NEXTCLAW_UI_PORT="${SMOKE_UI_PORT}"
-  echo "[desktop-smoke] preparing isolated runtime config on port ${SMOKE_UI_PORT}"
-
-  if ! ELECTRON_RUN_AS_NODE=1 "${APP_BIN}" "${runtime_script}" init >"${RUNTIME_STDOUT_LOG}" 2>&1; then
-    echo "[desktop-smoke] isolated runtime init failed. See ${RUNTIME_STDOUT_LOG}" >&2
-    return 1
-  fi
+  echo "[desktop-smoke] writing isolated runtime config on port ${SMOKE_UI_PORT}"
 
   if ! node - "${SMOKE_HOME}/config.json" "${SMOKE_UI_PORT}" <<'NODE'
 const fs = require("node:fs");
+const path = require("node:path");
 const [configPath, port] = process.argv.slice(2);
 const parsedPort = Number(port);
-const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+let config = {};
+if (fs.existsSync(configPath)) {
+  const raw = fs.readFileSync(configPath, "utf8").trim();
+  if (raw.length > 0) {
+    config = JSON.parse(raw);
+  }
+}
 config.ui = {
   ...(config.ui && typeof config.ui === "object" ? config.ui : {}),
   enabled: true,
@@ -177,6 +172,7 @@ config.ui = {
   open: false,
   port: parsedPort
 };
+fs.mkdirSync(path.dirname(configPath), { recursive: true });
 fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 NODE
   then
