@@ -28,7 +28,7 @@ export const DESKTOP_UPDATE_LABELS: Record<string, { zh: string; en: string }> =
   desktopUpdatesStatusUpToDate: { zh: '已是最新', en: 'Up to Date' },
   desktopUpdatesStatusFailed: { zh: '更新失败', en: 'Failed' },
   desktopUpdatesLauncherVersion: { zh: '桌面壳版本', en: 'Launcher Version' },
-  desktopUpdatesCurrentBundleVersion: { zh: '当前产品版本', en: 'Current Product Version' },
+  desktopUpdatesCurrentBundleVersion: { zh: '当前内核版本', en: 'Current Kernel Version' },
   desktopUpdatesAvailableVersion: { zh: '可用版本', en: 'Available Version' },
   desktopUpdatesLastCheckedAt: { zh: '上次检查时间', en: 'Last Checked' },
   desktopUpdatesDownloadedBannerTitle: { zh: '更新已就绪', en: 'Update Ready' },
