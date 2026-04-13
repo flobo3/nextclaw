@@ -53,6 +53,25 @@ function applySessionTypePatch(
   delete metadata.sessionType;
 }
 
+function applyUiReadAtPatch(
+  metadata: Record<string, unknown>,
+  patch: SessionPatchUpdate,
+): Record<string, unknown> {
+  if (!Object.prototype.hasOwnProperty.call(patch, "uiReadAt")) {
+    return metadata;
+  }
+  const uiReadAt = typeof patch.uiReadAt === "string" ? patch.uiReadAt.trim() : "";
+  if (uiReadAt) {
+    return {
+      ...metadata,
+      ui_last_read_at: uiReadAt,
+    };
+  }
+  const { ui_last_read_at: _removed, ...nextMetadata } = metadata;
+  void _removed;
+  return nextMetadata;
+}
+
 async function applyProjectRootPatch(
   metadata: Record<string, unknown>,
   patch: SessionPatchUpdate,
@@ -74,14 +93,16 @@ async function buildPatchedSessionMetadata(params: {
   metadata: Record<string, unknown>;
   patch: SessionPatchUpdate;
 }): Promise<Record<string, unknown>> {
+  const { metadata, patch } = params;
   const nextMetadata = applySessionPreferencePatch({
-    metadata: structuredClone(params.metadata),
-    patch: params.patch,
+    metadata: structuredClone(metadata),
+    patch,
     createInvalidThinkingError: () => new Error("PREFERRED_THINKING_INVALID")
   });
-  applySessionTypePatch(nextMetadata, params.patch);
-  await applyProjectRootPatch(nextMetadata, params.patch);
-  return nextMetadata;
+  applySessionTypePatch(nextMetadata, patch);
+  const nextMetadataWithReadAt = applyUiReadAtPatch(nextMetadata, patch);
+  await applyProjectRootPatch(nextMetadataWithReadAt, patch);
+  return nextMetadataWithReadAt;
 }
 
 export class NcpSessionRoutesController {

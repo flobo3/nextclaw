@@ -80,6 +80,14 @@ function readNcpSessionProjectRoot(summary: NcpSessionSummaryView): string | nul
   return normalizeSessionProjectRootValue(metadata.project_root ?? metadata.projectRoot);
 }
 
+function readNcpSessionReadAt(summary: NcpSessionSummaryView): string | null {
+  const metadata = readMetadata(summary);
+  if (!metadata) {
+    return null;
+  }
+  return readOptionalString(metadata.ui_last_read_at);
+}
+
 function readNcpSessionType(summary: NcpSessionSummaryView): string {
   const metadata = readMetadata(summary);
   if (!metadata) {
@@ -249,6 +257,8 @@ export function adaptNcpSessionSummary(summary: NcpSessionSummaryView): SessionE
   const preferredModel = readNcpSessionPreferredModel(summary);
   const preferredThinking = readNcpSessionPreferredThinking(summary);
   const projectRoot = readNcpSessionProjectRoot(summary);
+  const readAt = readNcpSessionReadAt(summary);
+  const lastMessageAt = readOptionalString(summary.lastMessageAt);
   const projectName = getSessionProjectName(projectRoot);
   const context = parseSessionContext(summary.sessionId);
   const parentSessionId = readNcpParentSessionId(summary);
@@ -258,6 +268,8 @@ export function adaptNcpSessionSummary(summary: NcpSessionSummaryView): SessionE
     key: summary.sessionId,
     createdAt: summary.updatedAt,
     updatedAt: summary.updatedAt,
+    ...(lastMessageAt ? { lastMessageAt } : {}),
+    ...(readAt ? { readAt } : {}),
     ...(typeof summary.agentId === 'string' && summary.agentId.trim().length > 0 ? { agentId: summary.agentId.trim() } : {}),
     ...(label ? { label } : {}),
     ...context,

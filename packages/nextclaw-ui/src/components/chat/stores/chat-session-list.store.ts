@@ -13,42 +13,38 @@ export type ChatSessionListSnapshot = {
 };
 
 export function hasUnreadSessionUpdate(
-  updatedAt: string | null | undefined,
-  readUpdatedAt: string | undefined,
+  lastMessageAt: string | null | undefined,
+  readAt: string | undefined,
 ): boolean {
-  const normalizedUpdatedAt = updatedAt?.trim();
-  if (!normalizedUpdatedAt) {
+  const normalizedLastMessageAt = lastMessageAt?.trim();
+  if (!normalizedLastMessageAt) {
     return false;
   }
-  const normalizedReadUpdatedAt = readUpdatedAt?.trim();
-  if (!normalizedReadUpdatedAt) {
+  const normalizedReadAt = readAt?.trim();
+  if (!normalizedReadAt) {
     return true;
   }
-  return normalizedUpdatedAt.localeCompare(normalizedReadUpdatedAt) > 0;
+  return normalizedLastMessageAt.localeCompare(normalizedReadAt) > 0;
 }
 
 export function shouldShowUnreadSessionIndicator(params: {
   active: boolean;
-  updatedAt: string | null | undefined;
-  readUpdatedAt: string | undefined;
+  lastMessageAt: string | null | undefined;
+  readAt: string | undefined;
   runStatus?: SessionRunStatus;
 }): boolean {
-  const { active, readUpdatedAt, runStatus, updatedAt } = params;
+  const { active, readAt, runStatus, lastMessageAt } = params;
   if (active || runStatus === 'running') {
     return false;
   }
-  return hasUnreadSessionUpdate(updatedAt, readUpdatedAt);
+  return hasUnreadSessionUpdate(lastMessageAt, readAt);
 }
 
 type ChatSessionListStore = {
   snapshot: ChatSessionListSnapshot;
-  readUpdatedAtBySessionKey: Record<string, string>;
-  hasHydratedReadWatermarks: boolean;
+  optimisticReadAtBySessionKey: Record<string, string>;
   setSnapshot: (patch: Partial<ChatSessionListSnapshot>) => void;
-  markSessionRead: (sessionKey: string, updatedAt: string | null | undefined) => void;
-  hydrateReadWatermarks: (
-    entries: readonly { sessionKey: string; updatedAt: string | null | undefined }[],
-  ) => void;
+  markSessionRead: (sessionKey: string, readAt: string | null | undefined) => void;
 };
 
 type ChatSessionListStoreSet = Parameters<StateCreator<ChatSessionListStore>>[0];
@@ -72,56 +68,30 @@ function createSetSnapshotAction(set: ChatSessionListStoreSet) {
 }
 
 function createMarkSessionReadAction(set: ChatSessionListStoreSet) {
-  return (sessionKey: string, updatedAt: string | null | undefined) =>
+  return (sessionKey: string, readAt: string | null | undefined) =>
     set((state) => {
       const normalizedSessionKey = sessionKey.trim();
-      const normalizedUpdatedAt = updatedAt?.trim();
-      if (!normalizedSessionKey || !normalizedUpdatedAt) {
+      const normalizedReadAt = readAt?.trim();
+      if (!normalizedSessionKey || !normalizedReadAt) {
         return state;
       }
-      if (state.readUpdatedAtBySessionKey[normalizedSessionKey] === normalizedUpdatedAt) {
+      const previousReadAt = state.optimisticReadAtBySessionKey[normalizedSessionKey];
+      if (previousReadAt && previousReadAt.localeCompare(normalizedReadAt) >= 0) {
         return state;
       }
       return {
         ...state,
-        readUpdatedAtBySessionKey: {
-          ...state.readUpdatedAtBySessionKey,
-          [normalizedSessionKey]: normalizedUpdatedAt
+        optimisticReadAtBySessionKey: {
+          ...state.optimisticReadAtBySessionKey,
+          [normalizedSessionKey]: normalizedReadAt
         }
-      };
-    });
-}
-
-function createHydrateReadWatermarksAction(set: ChatSessionListStoreSet) {
-  return (
-    entries: readonly { sessionKey: string; updatedAt: string | null | undefined }[],
-  ) =>
-    set((state) => {
-      if (state.hasHydratedReadWatermarks) {
-        return state;
-      }
-      const nextReadUpdatedAtBySessionKey = { ...state.readUpdatedAtBySessionKey };
-      for (const entry of entries) {
-        const normalizedSessionKey = entry.sessionKey.trim();
-        const normalizedUpdatedAt = entry.updatedAt?.trim();
-        if (!normalizedSessionKey || !normalizedUpdatedAt || nextReadUpdatedAtBySessionKey[normalizedSessionKey]) {
-          continue;
-        }
-        nextReadUpdatedAtBySessionKey[normalizedSessionKey] = normalizedUpdatedAt;
-      }
-      return {
-        ...state,
-        hasHydratedReadWatermarks: true,
-        readUpdatedAtBySessionKey: nextReadUpdatedAtBySessionKey
       };
     });
 }
 
 export const useChatSessionListStore = create<ChatSessionListStore>((set) => ({
   snapshot: initialSnapshot,
-  readUpdatedAtBySessionKey: {},
-  hasHydratedReadWatermarks: false,
+  optimisticReadAtBySessionKey: {},
   setSnapshot: createSetSnapshotAction(set),
-  markSessionRead: createMarkSessionReadAction(set),
-  hydrateReadWatermarks: createHydrateReadWatermarksAction(set)
+  markSessionRead: createMarkSessionReadAction(set)
 }));

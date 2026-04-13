@@ -476,6 +476,7 @@ it("proxies ncp send, patch, and abort flows", async () => {
       preferredModel: "openai/gpt-5",
       preferredThinking: "medium",
       projectRoot: validProjectRoot,
+      uiReadAt: "2026-03-17T00:00:00.000Z",
     })
   });
   expect(patchResponse.status).toBe(200);
@@ -490,6 +491,7 @@ it("proxies ncp send, patch, and abort flows", async () => {
     preferred_model: "openai/gpt-5",
     preferred_thinking: "medium",
     project_root: validProjectRoot,
+    ui_last_read_at: "2026-03-17T00:00:00.000Z",
   });
 
   const sendResponse = await app.request("http://localhost/api/ncp/agent/send", {
@@ -510,10 +512,8 @@ it("proxies ncp send, patch, and abort flows", async () => {
     })
   });
   expect(sendResponse.status).toBe(200);
-  expect(sendResponse.headers.get("content-type")).toContain("text/event-stream");
-  const sendText = await sendResponse.text();
-  expect(sendText).toContain("\"type\":\"run.started\"");
-  expect(sendText).toContain("\"type\":\"run.finished\"");
+  expect(sendResponse.headers.get("content-type")).toContain("application/json");
+  await expect(sendResponse.json()).resolves.toEqual({ ok: true });
 
   const abortResponse = await app.request("http://localhost/api/ncp/agent/abort", {
     method: "POST",

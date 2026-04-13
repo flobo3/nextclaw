@@ -82,6 +82,7 @@ describe("UiSessionService", () => {
       sessionId,
       agentId: "engineer",
       messageCount: 2,
+      lastMessageAt: expect.any(String),
       status: "idle",
       metadata: {
         session_type: "native",

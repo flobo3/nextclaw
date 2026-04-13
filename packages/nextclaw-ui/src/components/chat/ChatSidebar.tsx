@@ -149,28 +149,13 @@ const navItems = [
 function useChatSessionUnreadState(
   items: readonly NcpSessionListItemView[],
   selectedSessionKey: string | null,
-  markSessionRead: (sessionKey: string | null | undefined, updatedAt: string | null | undefined) => void,
-  hydrateReadWatermarks: (
-    entries: readonly { sessionKey: string; updatedAt: string | null | undefined }[],
+  markSessionRead: (
+    sessionKey: string | null | undefined,
+    readAt: string | null | undefined,
+    currentReadAt?: string | null,
   ) => void,
 ): Record<string, string> {
-  const readUpdatedAtBySessionKey = useChatSessionListStore((state) => state.readUpdatedAtBySessionKey);
-  const hasHydratedReadWatermarks = useChatSessionListStore((state) => state.hasHydratedReadWatermarks);
-
-  useEffect(() => {
-    const syncHydratedReadWatermarks = () => {
-      if (hasHydratedReadWatermarks || items.length === 0) {
-        return;
-      }
-      hydrateReadWatermarks(
-        items.map(({ session }) => ({
-          sessionKey: session.key,
-          updatedAt: session.updatedAt
-        }))
-      );
-    };
-    syncHydratedReadWatermarks();
-  }, [hasHydratedReadWatermarks, hydrateReadWatermarks, items]);
+  const optimisticReadAtBySessionKey = useChatSessionListStore((state) => state.optimisticReadAtBySessionKey);
 
   useEffect(() => {
     const syncSelectedSessionReadState = () => {
@@ -182,12 +167,16 @@ function useChatSessionUnreadState(
         return;
       }
       const { session: selectedSession } = selectedItem;
-      markSessionRead(selectedSession.key, selectedSession.updatedAt);
+      markSessionRead(
+        selectedSession.key,
+        selectedSession.lastMessageAt,
+        selectedSession.readAt,
+      );
     };
     syncSelectedSessionReadState();
   }, [items, markSessionRead, selectedSessionKey]);
 
-  return readUpdatedAtBySessionKey;
+  return optimisticReadAtBySessionKey;
 }
 
 export function ChatSidebar() {
@@ -220,11 +209,10 @@ export function ChatSidebar() {
     [defaultSessionType, inputSnapshot.sessionTypeOptions]
   );
   const isProjectFirstView = listSnapshot.listMode === 'project-first';
-  const readUpdatedAtBySessionKey = useChatSessionUnreadState(
+  const optimisticReadAtBySessionKey = useChatSessionUnreadState(
     items,
     listSnapshot.selectedSessionKey,
     presenter.chatSessionListManager.markSessionRead,
-    presenter.chatSessionListManager.hydrateReadWatermarks,
   );
   const handleLanguageSwitch = (nextLang: I18nLanguage) => {
     if (language === nextLang) return;
@@ -261,10 +249,15 @@ export function ChatSidebar() {
   };
   const renderSessionItem = ({ session, runStatus }: NcpSessionListItemView) => {
     const active = listSnapshot.selectedSessionKey === session.key;
+    const optimisticReadAt = optimisticReadAtBySessionKey[session.key];
+    const effectiveReadAt =
+      optimisticReadAt && session.readAt
+        ? (optimisticReadAt.localeCompare(session.readAt) > 0 ? optimisticReadAt : session.readAt)
+        : optimisticReadAt ?? session.readAt;
     const showUnreadDot = shouldShowUnreadSessionIndicator({
       active,
-      updatedAt: session.updatedAt,
-      readUpdatedAt: readUpdatedAtBySessionKey[session.key],
+      lastMessageAt: session.lastMessageAt,
+      readAt: effectiveReadAt,
       runStatus,
     });
     const context = resolveSessionContextView(session, inputSnapshot.sessionTypeOptions);

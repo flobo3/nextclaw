@@ -7,6 +7,7 @@ export type NcpSessionSummary = {
   agentId?: string;
   messageCount: number;
   updatedAt: string;
+  lastMessageAt?: string;
   status?: NcpSessionStatus;
   metadata?: Record<string, unknown>;
 };

@@ -129,15 +129,15 @@ export function ChatChildSessionPanel({
 }: ChatChildSessionPanelProps) {
   const presenter = usePresenter();
   const resolvedTabs = useNcpChildSessionTabsView(tabs);
-  const readUpdatedAtBySessionKey = useChatSessionListStore(
-    (state) => state.readUpdatedAtBySessionKey,
+  const optimisticReadAtBySessionKey = useChatSessionListStore(
+    (state) => state.optimisticReadAtBySessionKey,
   );
   const activeTab =
     resolvedTabs.find((tab) => tab.sessionKey === activeSessionKey) ??
     resolvedTabs[0] ??
     null;
   const activeTabSessionKey = activeTab?.sessionKey ?? null;
-  const activeTabUpdatedAt = activeTab?.updatedAt?.trim() ?? null;
+  const activeTabReadAt = activeTab?.lastMessageAt?.trim() ?? null;
   const hasParentSession = resolvedTabs.some((tab) =>
     Boolean(tab.parentSessionKey),
   );
@@ -145,16 +145,17 @@ export function ChatChildSessionPanel({
 
   useEffect(() => {
     const syncActiveTabReadState = () => {
-      if (!activeTabSessionKey || !activeTabUpdatedAt) {
+      if (!activeTabSessionKey || !activeTabReadAt) {
         return;
       }
       presenter.chatSessionListManager.markSessionRead(
         activeTabSessionKey,
-        activeTabUpdatedAt,
+        activeTabReadAt,
+        activeTab?.readAt ?? null,
       );
     };
     syncActiveTabReadState();
-  }, [activeTabSessionKey, activeTabUpdatedAt, presenter]);
+  }, [activeTab?.readAt, activeTabReadAt, activeTabSessionKey, presenter]);
 
   if (!activeTab) {
     return null;
@@ -203,10 +204,17 @@ export function ChatChildSessionPanel({
               <Tabs value={activeSessionKey} onValueChange={onSelectSession}>
                 <TabsList className="h-auto min-w-max justify-start gap-1.5 rounded-none bg-transparent p-0 text-gray-500">
                   {resolvedTabs.map((tab) => {
+                    const optimisticReadAt = optimisticReadAtBySessionKey[tab.sessionKey];
+                    const effectiveReadAt =
+                      optimisticReadAt && tab.readAt
+                        ? (optimisticReadAt.localeCompare(tab.readAt) > 0
+                            ? optimisticReadAt
+                            : tab.readAt)
+                        : optimisticReadAt ?? tab.readAt;
                     const showUnreadDot = shouldShowUnreadSessionIndicator({
                       active: tab.sessionKey === activeSessionKey,
-                      updatedAt: tab.updatedAt,
-                      readUpdatedAt: readUpdatedAtBySessionKey[tab.sessionKey],
+                      lastMessageAt: tab.lastMessageAt,
+                      readAt: effectiveReadAt,
                       runStatus: tab.runStatus,
                     });
                     return (

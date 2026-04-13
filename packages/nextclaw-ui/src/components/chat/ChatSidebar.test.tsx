@@ -32,11 +32,10 @@ vi.mock('@/components/chat/presenter/chat-presenter-context', () => ({
       setQuery: mocks.setQuery,
       setListMode: mocks.setListMode,
       selectSession: mocks.selectSession,
-      markSessionRead: (sessionKey: string | null | undefined, updatedAt: string | null | undefined) =>
-        sessionKey ? useChatSessionListStore.getState().markSessionRead(sessionKey, updatedAt) : undefined,
-      hydrateReadWatermarks: (
-        entries: readonly { sessionKey: string; updatedAt: string | null | undefined }[],
-      ) => useChatSessionListStore.getState().hydrateReadWatermarks(entries)
+      markSessionRead: (
+        sessionKey: string | null | undefined,
+        readAt: string | null | undefined,
+      ) => (sessionKey ? useChatSessionListStore.getState().markSessionRead(sessionKey, readAt) : undefined),
     }
   })
 }));
@@ -132,8 +131,7 @@ function resetSidebarTestState() {
     }
   });
   useChatSessionListStore.setState({
-    readUpdatedAtBySessionKey: {},
-    hasHydratedReadWatermarks: false,
+    optimisticReadAtBySessionKey: {},
     snapshot: {
       ...useChatSessionListStore.getState().snapshot,
       query: '',
@@ -514,6 +512,7 @@ describe('ChatSidebar session item interactions', () => {
         key: 'session:ncp-1',
         createdAt: '2026-03-19T09:00:00.000Z',
         updatedAt: '2026-03-19T09:05:00.000Z',
+        lastMessageAt: '2026-03-19T09:05:00.000Z',
         label: 'Current Task',
         sessionType: 'native',
         sessionTypeMutable: false,
@@ -523,6 +522,7 @@ describe('ChatSidebar session item interactions', () => {
         key: 'session:ncp-2',
         createdAt: '2026-03-19T10:00:00.000Z',
         updatedAt: '2026-03-19T10:05:00.000Z',
+        lastMessageAt: '2026-03-19T10:05:00.000Z',
         label: 'Background Task',
         sessionType: 'native',
         sessionTypeMutable: false,
@@ -550,6 +550,7 @@ describe('ChatSidebar session item interactions', () => {
         key: 'session:ncp-2',
         createdAt: '2026-03-19T10:00:00.000Z',
         updatedAt: '2026-03-19T10:06:00.000Z',
+        lastMessageAt: '2026-03-19T10:06:00.000Z',
         label: 'Background Task',
         sessionType: 'native',
         sessionTypeMutable: false,
@@ -571,6 +572,7 @@ describe('ChatSidebar session item interactions', () => {
         key: 'session:ncp-2',
         createdAt: '2026-03-19T10:00:00.000Z',
         updatedAt: '2026-03-19T10:06:00.000Z',
+        lastMessageAt: '2026-03-19T10:06:00.000Z',
         label: 'Background Task',
         sessionType: 'native',
         sessionTypeMutable: false,

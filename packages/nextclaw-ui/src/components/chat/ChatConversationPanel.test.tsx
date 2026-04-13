@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
       title: "北京天气",
       agentId: "weather",
       updatedAt: "2026-04-10T09:00:00.000Z",
+      lastMessageAt: "2026-04-10T09:00:00.000Z",
+      readAt: null,
       sessionTypeLabel: "Codex",
       preferredModel: "openai/gpt-5.3-codex",
       projectName: "project-alpha",
@@ -84,17 +86,14 @@ vi.mock("@/components/chat/presenter/chat-presenter-context", () => ({
       setSelectedAgentId: mocks.setSelectedAgentId,
       markSessionRead: (
         sessionKey: string | null | undefined,
-        updatedAt: string | null | undefined,
+        readAt: string | null | undefined,
       ) =>
         sessionKey
           ? useChatSessionListStore.getState().markSessionRead(
               sessionKey,
-              updatedAt,
+              readAt,
             )
           : undefined,
-      hydrateReadWatermarks: (
-        entries: readonly { sessionKey: string; updatedAt: string | null | undefined }[],
-      ) => useChatSessionListStore.getState().hydrateReadWatermarks(entries),
     },
     chatInputManager: {
       setPendingSessionType: mocks.setPendingSessionType,
@@ -192,8 +191,7 @@ describe("ChatConversationPanel", () => {
       },
     });
     useChatSessionListStore.setState({
-      readUpdatedAtBySessionKey: {},
-      hasHydratedReadWatermarks: false,
+      optimisticReadAtBySessionKey: {},
       snapshot: {
         ...useChatSessionListStore.getState().snapshot,
       },
@@ -299,6 +297,8 @@ describe("ChatChildSessionPanel", () => {
         title: "北京天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
+        lastMessageAt: "2026-04-10T09:00:00.000Z",
+        readAt: null,
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -345,6 +345,8 @@ describe("ChatChildSessionPanel", () => {
         title: "北京天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
+        lastMessageAt: "2026-04-10T09:00:00.000Z",
+        readAt: null,
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -356,6 +358,8 @@ describe("ChatChildSessionPanel", () => {
         title: "上海天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:05:00.000Z",
+        lastMessageAt: "2026-04-10T09:05:00.000Z",
+        readAt: null,
         sessionTypeLabel: "Claude Code",
         preferredModel: "anthropic/claude-sonnet-4",
         projectName: "project-beta",
@@ -408,6 +412,8 @@ describe("ChatChildSessionPanel", () => {
         title: "北京天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
+        lastMessageAt: "2026-04-10T09:00:00.000Z",
+        readAt: null,
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -419,6 +425,8 @@ describe("ChatChildSessionPanel", () => {
         title: "上海天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:05:00.000Z",
+        lastMessageAt: "2026-04-10T09:05:00.000Z",
+        readAt: null,
         runStatus: "running",
         sessionTypeLabel: "Claude Code",
         preferredModel: "anthropic/claude-sonnet-4",
@@ -461,6 +469,8 @@ describe("ChatChildSessionPanel", () => {
         title: "北京天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:00:00.000Z",
+        lastMessageAt: "2026-04-10T09:00:00.000Z",
+        readAt: null,
         sessionTypeLabel: "Codex",
         preferredModel: "openai/gpt-5.3-codex",
         projectName: "project-alpha",
@@ -472,6 +482,8 @@ describe("ChatChildSessionPanel", () => {
         title: "上海天气",
         agentId: "weather",
         updatedAt: "2026-04-10T09:05:00.000Z",
+        lastMessageAt: "2026-04-10T09:05:00.000Z",
+        readAt: null,
         sessionTypeLabel: "Claude Code",
         preferredModel: "anthropic/claude-sonnet-4",
         projectName: "project-beta",

@@ -51,6 +51,13 @@ export function toSessionSummary(
     ...(readOptionalAgentId(session.agentId) ? { agentId: readOptionalAgentId(session.agentId) } : {}),
     messageCount: session.messages.length,
     updatedAt: session.updatedAt,
+    ...(session.messages.length > 0
+      ? {
+          lastMessageAt:
+            session.messages[session.messages.length - 1]?.timestamp ??
+            session.updatedAt,
+        }
+      : {}),
     status: liveSession?.activeExecution ? "running" : "idle",
     ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
   };
@@ -59,6 +66,7 @@ export function toSessionSummary(
 export function toLiveSessionSummary(session: LiveSessionState): NcpSessionSummary {
   const snapshot = session.stateManager.getSnapshot();
   const messages = readMessages(snapshot);
+  const updatedAt = now();
   const metadata = withAutoSessionLabel({
     metadata:
       Object.keys(session.metadata).length > 0
@@ -72,7 +80,12 @@ export function toLiveSessionSummary(session: LiveSessionState): NcpSessionSumma
     sessionId: session.sessionId,
     ...(readOptionalAgentId(session.agentId) ? { agentId: readOptionalAgentId(session.agentId) } : {}),
     messageCount: messages.length,
-    updatedAt: now(),
+    updatedAt,
+    ...(messages.length > 0
+      ? {
+          lastMessageAt: messages[messages.length - 1]?.timestamp ?? updatedAt,
+        }
+      : {}),
     status: session.activeExecution ? "running" : "idle",
     ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
   };

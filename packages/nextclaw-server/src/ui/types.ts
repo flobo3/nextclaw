@@ -478,6 +478,7 @@ export type SessionPatchUpdate = {
   preferredThinking?: ThinkingLevel | null;
   sessionType?: string | null;
   projectRoot?: string | null;
+  uiReadAt?: string | null;
   clearHistory?: boolean;
 };
 

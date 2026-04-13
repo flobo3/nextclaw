@@ -13,6 +13,8 @@ export type ResolvedChildSessionTab = {
   title: string;
   agentId: string | null;
   updatedAt: string | null;
+  lastMessageAt: string | null;
+  readAt: string | null;
   runStatus?: SessionRunStatus;
   sessionTypeLabel: string | null;
   preferredModel: string | null;
@@ -64,6 +66,8 @@ export function useNcpChildSessionTabsView(
           title: resolveChildSessionTitle(tab, session),
           agentId,
           updatedAt: session?.updatedAt ?? null,
+          lastMessageAt: session?.lastMessageAt ?? null,
+          readAt: session?.readAt ?? null,
           runStatus: summary?.status === "running" ? "running" : undefined,
           sessionTypeLabel: session?.sessionType
             ? resolveSessionTypeLabel(session.sessionType)

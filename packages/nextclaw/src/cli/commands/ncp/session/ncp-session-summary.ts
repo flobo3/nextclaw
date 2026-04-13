@@ -8,12 +8,19 @@ export function createNcpSessionSummary(params: {
   status: NcpSessionStatus;
   metadata?: Record<string, unknown>;
 }): NcpSessionSummary {
+  const { sessionId, agentId, messages, updatedAt, status, metadata } = params;
   return {
-    sessionId: params.sessionId,
-    ...(params.agentId ? { agentId: params.agentId } : {}),
-    messageCount: params.messages.length,
-    updatedAt: params.updatedAt,
-    status: params.status,
-    ...(params.metadata ? { metadata: structuredClone(params.metadata) } : {}),
+    sessionId,
+    ...(agentId ? { agentId } : {}),
+    messageCount: messages.length,
+    updatedAt,
+    ...(messages.length > 0
+      ? {
+          lastMessageAt:
+            messages[messages.length - 1]?.timestamp ?? updatedAt,
+        }
+      : {}),
+    status,
+    ...(metadata ? { metadata: structuredClone(metadata) } : {}),
   };
 }

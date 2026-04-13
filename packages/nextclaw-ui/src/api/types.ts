@@ -240,6 +240,8 @@ export type SessionEntryView = {
   key: string;
   createdAt: string;
   updatedAt: string;
+  lastMessageAt?: string;
+  readAt?: string;
   agentId?: string;
   label?: string;
   channel?: string;
@@ -331,6 +333,7 @@ export type SessionPatchUpdate = {
   preferredThinking?: ThinkingLevel | null;
   sessionType?: string | null;
   projectRoot?: string | null;
+  uiReadAt?: string | null;
   clearHistory?: boolean;
 };
 

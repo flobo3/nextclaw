@@ -5,6 +5,7 @@ import type { SetStateAction } from 'react';
 import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
 import { normalizeSessionProjectRootValue } from '@/lib/session-project/session-project.utils';
 import { createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
+import { updateNcpSession } from '@/api/ncp-session';
 
 export class ChatSessionListManager {
   constructor(
@@ -17,6 +18,22 @@ export class ChatSessionListManager {
       return (next as (value: T) => T)(prev);
     }
     return next;
+  };
+
+  private shouldPersistReadAt = (
+    sessionKey: string,
+    readAt: string,
+    currentReadAt?: string | null,
+  ): boolean => {
+    const optimisticReadAt = useChatSessionListStore.getState().optimisticReadAtBySessionKey[sessionKey];
+    const effectiveCurrentReadAt =
+      optimisticReadAt && currentReadAt
+        ? (optimisticReadAt.localeCompare(currentReadAt) > 0 ? optimisticReadAt : currentReadAt)
+        : optimisticReadAt ?? currentReadAt ?? undefined;
+    if (!effectiveCurrentReadAt) {
+      return true;
+    }
+    return readAt.localeCompare(effectiveCurrentReadAt) > 0;
   };
 
   setSelectedAgentId = (next: SetStateAction<string>) => {
@@ -46,17 +63,21 @@ export class ChatSessionListManager {
     useChatSessionListStore.getState().setSnapshot({ listMode: value });
   };
 
-  markSessionRead = (sessionKey: string | null | undefined, updatedAt: string | null | undefined) => {
-    if (!sessionKey) {
+  markSessionRead = (
+    sessionKey: string | null | undefined,
+    readAt: string | null | undefined,
+    currentReadAt?: string | null,
+  ) => {
+    const normalizedSessionKey = sessionKey?.trim();
+    const normalizedReadAt = readAt?.trim();
+    if (!normalizedSessionKey || !normalizedReadAt) {
       return;
     }
-    useChatSessionListStore.getState().markSessionRead(sessionKey, updatedAt);
-  };
-
-  hydrateReadWatermarks = (
-    entries: readonly { sessionKey: string; updatedAt: string | null | undefined }[],
-  ) => {
-    useChatSessionListStore.getState().hydrateReadWatermarks(entries);
+    if (!this.shouldPersistReadAt(normalizedSessionKey, normalizedReadAt, currentReadAt)) {
+      return;
+    }
+    useChatSessionListStore.getState().markSessionRead(normalizedSessionKey, normalizedReadAt);
+    void updateNcpSession(normalizedSessionKey, { uiReadAt: normalizedReadAt }).catch(() => undefined);
   };
 
   createSession = (sessionType?: string, projectRoot?: string | null): string => {

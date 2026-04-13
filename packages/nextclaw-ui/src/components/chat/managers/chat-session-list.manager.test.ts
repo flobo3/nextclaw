@@ -3,8 +3,18 @@ import { ChatSessionListManager } from '@/components/chat/managers/chat-session-
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 
+const mocks = vi.hoisted(() => ({
+  updateNcpSession: vi.fn(),
+}));
+
+vi.mock('@/api/ncp-session', () => ({
+  updateNcpSession: mocks.updateNcpSession,
+}));
+
 describe('ChatSessionListManager', () => {
   beforeEach(() => {
+    mocks.updateNcpSession.mockReset();
+    mocks.updateNcpSession.mockResolvedValue({});
     useChatInputStore.setState({
       snapshot: {
         ...useChatInputStore.getState().snapshot,
@@ -15,8 +25,7 @@ describe('ChatSessionListManager', () => {
       }
     });
     useChatSessionListStore.setState({
-      readUpdatedAtBySessionKey: {},
-      hasHydratedReadWatermarks: false,
+      optimisticReadAtBySessionKey: {},
       snapshot: {
         ...useChatSessionListStore.getState().snapshot,
         selectedSessionKey: 'session-1',
@@ -133,27 +142,27 @@ describe('ChatSessionListManager', () => {
 
     manager.markSessionRead('session-2', '2026-04-10T10:00:00.000Z');
 
-    expect(useChatSessionListStore.getState().readUpdatedAtBySessionKey['session-2']).toBe(
+    expect(useChatSessionListStore.getState().optimisticReadAtBySessionKey['session-2']).toBe(
       '2026-04-10T10:00:00.000Z'
     );
+    expect(mocks.updateNcpSession).toHaveBeenCalledWith('session-2', {
+      uiReadAt: '2026-04-10T10:00:00.000Z'
+    });
   });
 
-  it('hydrates the initial unread baseline through the session list owner boundary', () => {
+  it('skips persisting read state when the backend already has the same watermark', () => {
     const manager = new ChatSessionListManager(
       {} as ConstructorParameters<typeof ChatSessionListManager>[0],
       {} as ConstructorParameters<typeof ChatSessionListManager>[1]
     );
 
-    manager.hydrateReadWatermarks([
-      {
-        sessionKey: 'session-2',
-        updatedAt: '2026-04-10T10:00:00.000Z'
-      }
-    ]);
-
-    expect(useChatSessionListStore.getState().readUpdatedAtBySessionKey['session-2']).toBe(
+    manager.markSessionRead(
+      'session-2',
+      '2026-04-10T10:00:00.000Z',
       '2026-04-10T10:00:00.000Z'
     );
-    expect(useChatSessionListStore.getState().hasHydratedReadWatermarks).toBe(true);
+
+    expect(useChatSessionListStore.getState().optimisticReadAtBySessionKey['session-2']).toBeUndefined();
+    expect(mocks.updateNcpSession).not.toHaveBeenCalled();
   });
 });
