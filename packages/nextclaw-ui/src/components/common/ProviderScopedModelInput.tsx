@@ -64,6 +64,11 @@ export function ProviderScopedModelInput({
       setModelId(currentModel);
       return;
     }
+    if (!currentModel) {
+      setModelId('');
+      setProviderName((currentProvider) => (providerMap.has(currentProvider) ? currentProvider : ''));
+      return;
+    }
     const matchedProvider = findProviderByModel(currentModel, providerCatalog);
     const effectiveProvider = matchedProvider ?? '';
     const aliases = providerMap.get(effectiveProvider)?.aliases ?? [];
@@ -72,9 +77,14 @@ export function ProviderScopedModelInput({
   }, [hasProviders, providerCatalog, providerMap, value]);
 
   const handleProviderChange = (nextProvider: string) => {
+    const nextProviderModel = normalizeModelOptions(providerMap.get(nextProvider)?.models ?? [])[0] ?? '';
     setProviderName(nextProvider);
-    setModelId('');
-    onChange('');
+    setModelId(nextProviderModel);
+    if (!nextProviderModel) {
+      onChange('');
+      return;
+    }
+    onChange(composeProviderModel(providerMap.get(nextProvider)?.prefix ?? nextProvider, nextProviderModel));
   };
 
   const handleModelChange = (nextModelId: string) => {
