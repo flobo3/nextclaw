@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import { defaultSortByLocation, parseDiffCheckArgs } from "./lint-new-code-governance-support.mjs";
 import { collectChangedFileNameEntries } from "./lint-new-code-file-names.mjs";
+import {
+  isPathWithinPrefixes,
+  STRICT_TOUCHED_LEGACY_SOURCE_PATHS
+} from "./touched-legacy-governance-contracts.mjs";
 
 const usage = `Usage:
   node scripts/lint-new-code-file-role-boundaries.mjs
@@ -13,7 +17,7 @@ const usage = `Usage:
 
 Blocks new or renamed workspace source files whose file names violate the repository's
 directory-to-suffix mapping or the default role-suffix whitelist.
-Warns when a touched legacy file still keeps a mismatched file name.`;
+Warns when a touched legacy file still keeps a mismatched file name unless the path is under strict touched-legacy governance.`;
 
 const ROLE_SUFFIX_ALLOWLIST = new Set([
   "config",
@@ -88,6 +92,9 @@ const SOURCE_ROOT_SEGMENTS = new Set(["src"]);
 const toPosixPath = (filePath) => filePath.split(path.sep).join(path.posix.sep);
 
 const isTrackedAsNewOrRename = (status) => status === "A" || status === "R" || status === "U";
+const isStrictTouchedLegacyPath = (entry) => (
+  entry.status === "M" && isPathWithinPrefixes(entry.filePath, STRICT_TOUCHED_LEGACY_SOURCE_PATHS)
+);
 
 const getExtension = (filePath) => path.posix.extname(filePath);
 
@@ -178,19 +185,23 @@ const buildViolation = (entry, message) => ({
   column: 1,
   ownerLine: 1,
   status: entry.status,
-  level: isTrackedAsNewOrRename(entry.status) ? "error" : "warn",
+  level: isTrackedAsNewOrRename(entry.status) || isStrictTouchedLegacyPath(entry) ? "error" : "warn",
   message
 });
 
 const buildDirectoryMismatchMessage = (entry, directoryName, expectedLabel) => (
   isTrackedAsNewOrRename(entry.status)
     ? `new or renamed file in '${directoryName}/' must match '${expectedLabel}' (tests may append '*.test.ts'); rename the file or move it to the correct directory`
+    : isStrictTouchedLegacyPath(entry)
+      ? `touched legacy file in '${directoryName}/' still does not match '${expectedLabel}' and this path is under strict touched-legacy governance; rename or relocate it before continuing`
     : `touched legacy file in '${directoryName}/' still does not match '${expectedLabel}' (tests may append '*.test.ts'); rename or relocate it when safe`
 );
 
 const buildDefaultSuffixMessage = (entry) => (
   isTrackedAsNewOrRename(entry.status)
     ? "new or renamed non-component/page/hook file must use an approved secondary suffix or an allowed app/root entry name"
+    : isStrictTouchedLegacyPath(entry)
+      ? "touched legacy non-component/page/hook file still lacks an approved secondary suffix or allowed app/root entry name, and this path is under strict touched-legacy governance"
     : "touched legacy non-component/page/hook file still lacks an approved secondary suffix or allowed app/root entry name; rename it when safe"
 );
 
@@ -259,7 +270,7 @@ export const printViolations = ({ changedFiles, violations }) => {
   }
 
   if (errors.length > 0) {
-    console.error("File role-boundary diff check blocked new or renamed files whose directory and suffix naming do not match.");
+    console.error("File role-boundary diff check blocked new/renamed files or strict touched legacy files whose directory and suffix naming do not match.");
     for (const violation of errors) {
       console.error(`- [${violation.level}] ${violation.filePath}: ${violation.message}`);
     }

@@ -3,16 +3,17 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { defaultSortByLocation, isGovernedWorkspaceFile, rootDir } from "./lint-new-code-governance-support.mjs";
-import { inspectKebabFilePath } from "./file-name-kebab-shared.mjs";
+import { defaultSortByLocation, rootDir } from "./lint-new-code-governance-support.mjs";
+import { inspectDocKebabFilePath, isGovernedDocFile } from "./doc-file-name-shared.mjs";
+import { DOC_NAMING_ROOTS } from "./touched-legacy-governance-contracts.mjs";
 
 const usage = `Usage:
-  node scripts/report-file-name-kebab-violations.mjs
-  node scripts/report-file-name-kebab-violations.mjs --json
-  node scripts/report-file-name-kebab-violations.mjs --limit 50
-  node scripts/report-file-name-kebab-violations.mjs --tracked-only
+  node scripts/report-doc-file-name-violations.mjs
+  node scripts/report-doc-file-name-violations.mjs --json
+  node scripts/report-doc-file-name-violations.mjs --limit 50
+  node scripts/report-doc-file-name-violations.mjs --tracked-only
 
-Scans tracked and untracked workspace source files, then reports legacy non-kebab file names with suggested rename targets.`;
+Scans governed documentation files, then reports legacy non-kebab document file names with suggested rename targets.`;
 
 const parseArgs = (argv) => {
   const options = {
@@ -57,26 +58,26 @@ const parseArgs = (argv) => {
   return options;
 };
 
-export const collectWorkspaceFileNameViolations = ({ trackedOnly = false } = {}) => {
-  const output = execFileSync(
-    "git",
-    trackedOnly
-      ? ["ls-files", "--cached", "--", "apps", "packages", "workers", "scripts"]
-      : ["ls-files", "--cached", "--others", "--exclude-standard", "--", "apps", "packages", "workers", "scripts"],
-    {
-      cwd: rootDir,
-      encoding: "utf8",
-      maxBuffer: 20 * 1024 * 1024
-    }
-  );
+const listGovernedDocFiles = (trackedOnly) => {
+  const args = trackedOnly
+    ? ["ls-files", "--cached", "--", ...DOC_NAMING_ROOTS]
+    : ["ls-files", "--cached", "--others", "--exclude-standard", "--", ...DOC_NAMING_ROOTS];
 
-  const findings = output
+  return execFileSync("git", args, {
+    cwd: rootDir,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024
+  })
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .filter(isGovernedWorkspaceFile)
+    .filter(isGovernedDocFile);
+};
+
+export const collectDocFileNameViolations = ({ trackedOnly = false } = {}) => {
+  const findings = listGovernedDocFiles(trackedOnly)
     .flatMap((filePath) => {
-      const finding = inspectKebabFilePath(filePath);
+      const finding = inspectDocKebabFilePath(filePath);
       if (!finding) {
         return [];
       }
@@ -96,12 +97,12 @@ const printTextReport = (violations, limit) => {
   const shownViolations = limit == null ? violations : violations.slice(0, limit);
   const directories = new Set(violations.map((item) => path.posix.dirname(item.filePath)));
 
-  console.log("File-name kebab-case legacy report");
+  console.log("Doc file-name kebab-case legacy report");
   console.log(`- scanned violations: ${violations.length}`);
   console.log(`- affected directories: ${directories.size}`);
 
   if (violations.length === 0) {
-    console.log("- no legacy non-kebab file names found");
+    console.log("- no legacy non-kebab document file names found");
     return;
   }
 
@@ -116,7 +117,7 @@ const printTextReport = (violations, limit) => {
 
 const main = () => {
   const options = parseArgs(process.argv.slice(2));
-  const violations = collectWorkspaceFileNameViolations({ trackedOnly: options.trackedOnly });
+  const violations = collectDocFileNameViolations({ trackedOnly: options.trackedOnly });
 
   if (options.json) {
     console.log(JSON.stringify({

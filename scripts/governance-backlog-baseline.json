@@ -1,0 +1,7 @@
+{
+  "trackedOnly": true,
+  "metrics": {
+    "sourceFileNameViolations": 81,
+    "docFileNameViolations": 11
+  }
+}

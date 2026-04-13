@@ -100,3 +100,44 @@ test("downgrades to warning when a subtree exception is recorded", () => {
 
   assert.equal(finding?.level, "warn");
 });
+
+test("blocks touched strict flat directories even when they are not newly growing", () => {
+  const finding = evaluateFlatDirectoryFinding({
+    directoryPath: "packages/nextclaw-ui/src/components/chat",
+    currentShape: {
+      directCodeFiles: [
+        "packages/nextclaw-ui/src/components/chat/ChatPage.tsx",
+        "packages/nextclaw-ui/src/components/chat/chat.service.ts",
+        "packages/nextclaw-ui/src/components/chat/chat.store.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-adapter.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-runtime.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-controller.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-provider.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-panel.tsx"
+      ],
+      directSubdirectories: []
+    },
+    previousShape: {
+      directCodeFiles: [
+        "packages/nextclaw-ui/src/components/chat/ChatPage.tsx",
+        "packages/nextclaw-ui/src/components/chat/chat.service.ts",
+        "packages/nextclaw-ui/src/components/chat/chat.store.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-adapter.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-runtime.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-controller.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-provider.ts",
+        "packages/nextclaw-ui/src/components/chat/chat-panel.tsx"
+      ],
+      directSubdirectories: []
+    },
+    exception: {
+      readmePath: "packages/nextclaw-ui/src/components/chat/README.md",
+      found: false,
+      missingFields: ["原因"],
+      reason: null
+    }
+  });
+
+  assert.equal(finding?.level, "error");
+  assert.match(finding?.message ?? "", /strict flat-directory governance/);
+});

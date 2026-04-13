@@ -87,6 +87,13 @@ React hook 文件例外：
 - `index.ts` 仅做导出聚合（barrel），不放业务逻辑。
 - 避免模糊文件名：`utils.ts`、`helpers.ts`、`common.ts`（除非在明确子域目录下且职责单一）。
 
+## 6.1 文档文件命名
+
+- 受治理的文档范围默认包括：`docs/**`、`apps/docs/**`、`commands/**` 下的 `*.md` / `*.mdx` 文件。
+- 文档文件默认也应使用 kebab-case，允许保留少量约定名例外：`README.md`、`CHANGELOG.md`、`RELEASE.md`、`VALIDATION.md`、`ACCEPTANCE.md`、`ITERATION.md`、`index.md`，以及根级治理文档 `TODO.md`、`ROADMAP.md`、`USAGE.md`、`VISION.md`、`ARCHITECTURE.md`。
+- 文档允许使用 kebab-case 主名加可选语义后缀，例如：`provider-options.md`、`workspace-templates.plan.md`、`2026-04-13-touched-legacy-governance-hardening-plan.md`。
+- 除显式例外外，禁止新增 `PascalCase.md`、`snake_case.md`、带空格文档名，或语义弱、不可预测的文档文件名。
+
 ## 7. 反例
 
 - `ChatController.ts`（非 kebab-case）
@@ -106,10 +113,17 @@ React hook 文件例外：
 - 新增文件：必须立即遵循本规范。
 - 存量文件：按“改动即治理”原则，在触达文件时顺带迁移命名。
 - 大规模改名：按模块分批进行，避免一次性跨仓库重命名导致冲突。
+- 对 legacy 债务不再只停留在 warning：
+  - 仓库会维护一组 `strict touched governance` 路径；这些路径下的历史遗留命名，一旦被触达，就必须在本次改动中一起收敛。
+  - 严格路径默认优先覆盖维护性主链路、高频目录和文档治理目录，后续按批次持续扩大，而不是一次性炸全仓。
+- 全仓历史命名债务默认进入 baseline ratchet：
+  - 不要求一轮清零。
+  - 但要求 tracked backlog 总量只能下降，不能继续上升。
 
 ## 9. 机器守卫与审计入口
 
 - `pnpm lint:new-code:governance` 现在会自动运行 `file-name-kebab-case` diff gate。
+- `pnpm lint:new-code:governance` 现在也会自动运行 `doc-file-name-kebab-case` diff gate。
 - `pnpm lint:new-code:governance` 现在也会自动运行 `file-role-boundaries` diff gate。
 - 对新增或重命名的源码/脚本/测试文件：
   - 若文件名不是 kebab-case，会直接阻断。
@@ -117,11 +131,16 @@ React hook 文件例外：
   - 若目录与后缀不匹配，例如 `services/foo-manager.ts`，也会直接阻断。
   - 输出会同时给出建议目标名，便于直接改名。
 - 对历史遗留且本次被触达的非 kebab-case 文件：
-  - 默认只给 warning，不直接阻断主任务。
+  - 默认给 warning，不直接阻断主任务。
+  - 若路径已进入 `strict touched governance`，则会升级为 error，要求本次一并改名。
   - AI 仍必须评估是否可在同链路里安全重命名，并在保留债务时说明原因与下一步迁移位点。
 - 对历史遗留且本次被触达的目录-后缀错配文件：
   - 默认先给 warning，不一次性炸掉全仓历史债务。
+  - 若路径已进入 `strict touched governance`，则会升级为 error。
   - AI 仍必须在同链路内评估是否可安全迁移；若暂不迁移，需说明原因与后续入口。
+- 对受治理文档：
+  - 新增或重命名的 `*.md` / `*.mdx` 文件若不符合 kebab-case 或显式例外，会直接阻断。
+  - 历史遗留文档在被触达时默认 warning；若位于 `strict touched governance` 路径，则升级为 error。
 - 如需盘点全仓历史命名债务，统一使用：
 
 ```bash
@@ -129,3 +148,14 @@ pnpm report:file-naming
 ```
 
 - 该报告会输出“旧路径 -> 建议 kebab-case 路径”的清单，作为后续 AI 分批迁移、按目录偿还历史命名债务的统一入口。
+- 如需盘点全仓历史文档命名债务，使用：
+
+```bash
+pnpm report:doc-file-naming
+```
+
+- 如需确认历史命名债务总量没有反弹，使用：
+
+```bash
+pnpm check:governance-backlog-ratchet
+```

@@ -14,6 +14,11 @@ const checks = [
     args: [path.join(scriptDir, "lint-new-code-file-names.mjs")],
   },
   {
+    name: "doc-file-name-kebab-case",
+    command: "node",
+    args: [path.join(scriptDir, "lint-doc-file-names.mjs")],
+  },
+  {
     name: "file-role-boundaries",
     command: "node",
     args: [path.join(scriptDir, "lint-new-code-file-role-boundaries.mjs")],

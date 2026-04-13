@@ -88,3 +88,14 @@ test("warns instead of blocking when a touched legacy file still violates the di
   assert.equal(violation.level, "warn");
   assert.match(violation.message, /touched legacy file in 'providers\//);
 });
+
+test("blocks touched legacy file-role violations inside strict touched governance", () => {
+  const violation = inspectFileRoleBoundaryEntry({
+    filePath: "apps/platform-admin/src/pages/LoginPage.tsx",
+    status: "M"
+  });
+
+  assert.ok(violation);
+  assert.equal(violation.level, "error");
+  assert.match(violation.message, /strict touched-legacy governance/);
+});

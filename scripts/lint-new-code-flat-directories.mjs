@@ -10,6 +10,10 @@ import {
   runGit,
   toPosixPath
 } from "./lint-new-code-governance-support.mjs";
+import {
+  isPathWithinPrefixes,
+  STRICT_TOUCHED_FLAT_DIRECTORY_PATHS
+} from "./touched-legacy-governance-contracts.mjs";
 
 const usage = `Usage:
   node scripts/lint-new-code-flat-directories.mjs
@@ -214,6 +218,7 @@ export const evaluateFlatDirectoryFinding = ({ directoryPath, currentShape, prev
 
   const previousSignals = summarizeDirectoryTreeSignals(previousShape);
   const completeException = exception.found && exception.missingFields.length === 0;
+  const isStrictTouchedDirectory = isPathWithinPrefixes(directoryPath, STRICT_TOUCHED_FLAT_DIRECTORY_PATHS);
   if (completeException) {
     return {
       filePath: directoryPath,
@@ -223,6 +228,17 @@ export const evaluateFlatDirectoryFinding = ({ directoryPath, currentShape, prev
       level: "warn",
       message: `touched flat mixed directory still needs a subtree boundary, but an exception is recorded in ${exception.readmePath}`,
       reason: exception.reason
+    };
+  }
+  if (isStrictTouchedDirectory) {
+    return {
+      filePath: directoryPath,
+      line: 1,
+      column: 1,
+      ownerLine: 1,
+      level: "error",
+      message: "touched directory is under strict flat-directory governance; add a subtree boundary or record a complete exception before further edits",
+      reason: null
     };
   }
   if (exception.found) {

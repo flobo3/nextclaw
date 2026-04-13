@@ -10,6 +10,10 @@ import {
   runGit
 } from "./lint-new-code-governance-support.mjs";
 import { inspectKebabFilePath } from "./file-name-kebab-shared.mjs";
+import {
+  isPathWithinPrefixes,
+  STRICT_TOUCHED_LEGACY_SOURCE_PATHS
+} from "./touched-legacy-governance-contracts.mjs";
 
 const usage = `Usage:
   node scripts/lint-new-code-file-names.mjs
@@ -18,7 +22,14 @@ const usage = `Usage:
   node scripts/lint-new-code-file-names.mjs -- packages/nextclaw-ui/src
 
 Blocks new or renamed workspace source files whose file names are not kebab-case.
-Warns when a touched legacy file still keeps a non-kebab file name.`;
+Warns when a touched legacy file still keeps a non-kebab file name unless the path is under strict touched-legacy governance.`;
+
+export const isBlockingFileNameEntry = (entry) => (
+  entry.status === "A" ||
+  entry.status === "R" ||
+  entry.status === "U" ||
+  (entry.status === "M" && isPathWithinPrefixes(entry.filePath, STRICT_TOUCHED_LEGACY_SOURCE_PATHS))
+);
 
 const getNameStatusArgs = (pathArgs, options) => {
   if (options.baseRef) {
@@ -97,7 +108,7 @@ export const collectFileNameKebabViolations = (entries) => defaultSortByLocation
       return [];
     }
 
-    const isBlocking = entry.status === "A" || entry.status === "R" || entry.status === "U";
+    const isBlocking = isBlockingFileNameEntry(entry);
     const suggestedPath = finding.suggestedPath;
 
     return [{
@@ -109,7 +120,9 @@ export const collectFileNameKebabViolations = (entries) => defaultSortByLocation
       level: isBlocking ? "error" : "warn",
       suggestedPath,
       message: isBlocking
-        ? `new or renamed file name is not kebab-case (${finding.reason}); rename to '${suggestedPath}'`
+        ? entry.status === "M"
+          ? `touched legacy file name is still not kebab-case (${finding.reason}) under strict touched-legacy governance; rename to '${suggestedPath}'`
+          : `new or renamed file name is not kebab-case (${finding.reason}); rename to '${suggestedPath}'`
         : `touched legacy file name is still not kebab-case (${finding.reason}); rename to '${suggestedPath}' when safe`
     }];
   })
@@ -139,7 +152,7 @@ export const printViolations = ({ changedFiles, violations }) => {
   }
 
   if (errors.length > 0) {
-    console.error("File-name kebab-case diff check blocked new or renamed files with non-kebab names.");
+    console.error("File-name kebab-case diff check blocked new/renamed files or strict touched legacy files with non-kebab names.");
     for (const violation of errors) {
       console.error(`- [${violation.level}] ${violation.filePath}: ${violation.message}`);
     }
