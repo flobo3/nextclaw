@@ -1,6 +1,7 @@
 import {
   PUBLIC_PHASES,
   type ItemsQuery,
+  type PortalDataMode,
   type ItemsResponse,
   type PortalOverview,
   type PublicItem,
@@ -14,11 +15,15 @@ import { PORTAL_PREVIEW_ITEMS } from "./portal-preview.config.js";
 const ACTIVE_PHASES = new Set<PublicPhase>(["considering", "planned", "building", "reviewing"]);
 
 export class PortalQueryService {
-  readonly mode = "preview";
+  readonly mode: PortalDataMode;
   readonly items: PublicItem[];
 
-  constructor(items: PublicItem[] = PORTAL_PREVIEW_ITEMS) {
-    this.items = items;
+  constructor(params?: {
+    mode?: PortalDataMode;
+    items?: PublicItem[];
+  }) {
+    this.mode = params?.mode ?? "preview";
+    this.items = params?.items ?? PORTAL_PREVIEW_ITEMS;
   }
 
   getOverview = (): PortalOverview => {

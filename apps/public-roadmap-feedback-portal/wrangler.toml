@@ -3,6 +3,21 @@ main = "worker/index.ts"
 compatibility_date = "2026-04-14"
 workers_dev = true
 
+[vars]
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_DATA_MODE = "preview"
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_API_URL = "https://api.linear.app/graphql"
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_AUTH_MODE = "personal-key"
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_PUBLIC_LABELS = "public"
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_FEATURE_LABELS = "feature"
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_BUG_LABELS = "bug"
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_IMPROVEMENT_LABELS = "improvement"
+PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_RESEARCH_LABELS = "research"
+
+[[d1_databases]]
+binding = "PUBLIC_ROADMAP_PORTAL_DB"
+database_name = "nextclaw-public-roadmap-portal"
+database_id = "00000000-0000-0000-0000-000000000000"
+
 [assets]
 directory = "./dist/client"
 binding = "ASSETS"

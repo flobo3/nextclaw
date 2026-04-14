@@ -6,7 +6,9 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["@cloudflare/workers-types"]
   },
-  "include": ["worker", "server/portal.controller.ts", "server/portal-*.ts", "shared"]
+  "include": ["worker", "server/**/*.ts", "shared"],
+  "exclude": ["server/index.ts"]
 }

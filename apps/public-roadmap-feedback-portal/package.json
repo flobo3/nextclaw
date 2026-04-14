@@ -15,7 +15,9 @@
     "tsc": "tsc -p tsconfig.json && tsc -p tsconfig.backend.json --noEmit && tsc -p tsconfig.worker.json",
     "smoke": "node scripts/smoke.test.mjs",
     "smoke:remote": "PUBLIC_ROADMAP_FEEDBACK_PORTAL_SKIP_LOCAL_SERVER=1 node scripts/smoke.test.mjs",
-    "deploy": "pnpm run build && pnpm exec wrangler deploy --config wrangler.toml"
+    "deploy": "pnpm run build && pnpm exec wrangler deploy --config wrangler.toml",
+    "db:migrate:local": "wrangler d1 migrations apply PUBLIC_ROADMAP_PORTAL_DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply PUBLIC_ROADMAP_PORTAL_DB --remote"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",
@@ -29,10 +31,12 @@
     "@types/node": "^25.5.0",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
+    "@cloudflare/workers-types": "^4.20260218.0",
     "@vitejs/plugin-react": "^6.0.1",
     "playwright": "^1.52.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.3"
+    "vite": "^8.0.3",
+    "wrangler": "^4.45.0"
   }
 }
