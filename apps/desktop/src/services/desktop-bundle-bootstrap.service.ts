@@ -10,6 +10,7 @@ import {
   type DesktopLauncherState,
   type DesktopReleaseChannel
 } from "../launcher/stores/launcher-state.store";
+import type { PackagedSeedBundleMetadata } from "./desktop-update-source.service";
 
 type DesktopBundleBootstrapLogger = {
   info: (message: string) => void;
@@ -23,7 +24,18 @@ type DesktopBundleBootstrapServiceOptions = {
   resolveManifestUrl: () => Promise<string | null>;
   bundlePublicKey: string | null;
   seedBundlePath: string | null;
+  seedBundleMetadata?: PackagedSeedBundleMetadata | null;
   layout?: DesktopBundleLayoutStore;
+};
+
+type PackagedSeedInstallPlan = {
+  seedVersion: string;
+  currentVersion: string | null;
+  seedMetadata: PackagedSeedBundleMetadata | null;
+  seedSha256: string | null;
+  shouldRetryQuarantinedSeed: boolean;
+  shouldInstallSeed: boolean;
+  samePackagedSeedAttempt: boolean;
 };
 
 export class DesktopBundleBootstrapService {
@@ -99,7 +111,8 @@ export class DesktopBundleBootstrapService {
 
     try {
       const updateService = this.createUpdateService();
-      const seedVersion = await updateService.readLocalArchiveBundleVersion(seedBundlePath);
+      const seedVersion =
+        this.options.seedBundleMetadata?.version ?? (await updateService.readLocalArchiveBundleVersion(seedBundlePath));
       if (seedVersion !== failedBundleVersion) {
         return false;
       }
@@ -123,43 +136,111 @@ export class DesktopBundleBootstrapService {
     }
 
     try {
+      const inspectStartedAt = Date.now();
       const updateService = this.createUpdateService();
-      const seedVersion = await updateService.readLocalArchiveBundleVersion(seedBundlePath);
-      const seedSha256 = await this.readBundleArchiveSha256(seedBundlePath);
-      const currentVersion = state.currentVersion;
-      const quarantined = state.badVersions.includes(seedVersion);
-      const samePackagedSeedAttempt =
-        state.lastAttemptedPackagedSeedVersion === seedVersion && state.lastAttemptedPackagedSeedSha256 === seedSha256;
-      const shouldUpgrade = !currentVersion || compareDesktopVersions(seedVersion, currentVersion) > 0;
-      const shouldRetryQuarantinedSeed = quarantined && !samePackagedSeedAttempt;
-      const shouldInstallSeed = (!quarantined && shouldUpgrade) || shouldRetryQuarantinedSeed;
-      if (!shouldInstallSeed) {
-        if (quarantined && samePackagedSeedAttempt) {
-          this.options.logger.warn(
-            `Skipping packaged seed bundle ${seedVersion} because the same packaged archive fingerprint already failed on this machine.`
-          );
-        }
+      const installPlan = await this.createPackagedSeedInstallPlan(state, seedBundlePath, updateService);
+      if (!installPlan.shouldInstallSeed) {
+        this.logSkippedPackagedSeedInstall(installPlan);
         return false;
       }
-      this.options.logger.info(
-        shouldRetryQuarantinedSeed
-          ? `Packaged seed bundle ${seedVersion} was previously quarantined, but the packaged archive fingerprint changed. Desktop will retry it before boot.`
-          : !currentVersion
-            ? "No active product bundle found. Desktop will install the packaged seed bundle before boot."
-            : `Packaged seed bundle ${seedVersion} is newer than current bundle ${currentVersion}. Desktop will upgrade before boot.`
-      );
+      this.logPackagedSeedMetadata(installPlan);
+      this.logPackagedSeedInstallPlan(installPlan);
+      const installStartedAt = Date.now();
       const stagedSeedBundle = await updateService.stageLocalArchive(seedBundlePath);
+      const seedSha256 = await this.resolvePackagedSeedSha256(installPlan, seedBundlePath);
       await this.createLauncherStateStore().update((currentState) => ({
         ...currentState,
-        lastAttemptedPackagedSeedVersion: seedVersion,
+        lastAttemptedPackagedSeedVersion: installPlan.seedVersion,
         lastAttemptedPackagedSeedSha256: seedSha256
       }));
-      this.options.logger.info(`Prepared packaged seed bundle ${stagedSeedBundle.activatedVersion} for desktop startup.`);
+      this.options.logger.info(
+        [
+          `Prepared packaged seed bundle ${stagedSeedBundle.activatedVersion} for desktop startup.`,
+          `inspectMs=${installStartedAt - inspectStartedAt}`,
+          `installMs=${Date.now() - installStartedAt}`
+        ].join(" ")
+      );
       return true;
     } catch (error) {
       this.options.logger.warn(`Failed to inspect or install packaged seed bundle: ${String(error)}`);
       return false;
     }
+  };
+
+  private createPackagedSeedInstallPlan = async (
+    state: DesktopLauncherState,
+    seedBundlePath: string,
+    updateService: DesktopUpdateService
+  ): Promise<PackagedSeedInstallPlan> => {
+    const seedMetadata = this.options.seedBundleMetadata ?? null;
+    const seedVersion = seedMetadata?.version ?? (await updateService.readLocalArchiveBundleVersion(seedBundlePath));
+    const currentVersion = state.currentVersion;
+    const quarantined = state.badVersions.includes(seedVersion);
+    const shouldUpgrade = !currentVersion || compareDesktopVersions(seedVersion, currentVersion) > 0;
+    const samePackagedSeedAttempt = await this.isSamePackagedSeedAttempt(state, seedVersion, seedMetadata, seedBundlePath);
+    const shouldRetryQuarantinedSeed = quarantined && !samePackagedSeedAttempt;
+    return {
+      seedVersion,
+      currentVersion,
+      seedMetadata,
+      seedSha256: samePackagedSeedAttempt ? seedMetadata?.sha256 ?? state.lastAttemptedPackagedSeedSha256 : seedMetadata?.sha256 ?? null,
+      shouldRetryQuarantinedSeed,
+      shouldInstallSeed: (!quarantined && shouldUpgrade) || shouldRetryQuarantinedSeed,
+      samePackagedSeedAttempt
+    };
+  };
+
+  private isSamePackagedSeedAttempt = async (
+    state: DesktopLauncherState,
+    seedVersion: string,
+    seedMetadata: PackagedSeedBundleMetadata | null,
+    seedBundlePath: string
+  ): Promise<boolean> => {
+    if (!state.badVersions.includes(seedVersion) || state.lastAttemptedPackagedSeedVersion !== seedVersion) {
+      return false;
+    }
+    const seedSha256 = seedMetadata?.sha256 ?? (await this.readBundleArchiveSha256(seedBundlePath));
+    return state.lastAttemptedPackagedSeedSha256 === seedSha256;
+  };
+
+  private resolvePackagedSeedSha256 = async (
+    installPlan: PackagedSeedInstallPlan,
+    seedBundlePath: string
+  ): Promise<string> => {
+    return installPlan.seedSha256 ?? installPlan.seedMetadata?.sha256 ?? (await this.readBundleArchiveSha256(seedBundlePath));
+  };
+
+  private logSkippedPackagedSeedInstall = (installPlan: PackagedSeedInstallPlan): void => {
+    if (installPlan.samePackagedSeedAttempt) {
+      this.options.logger.warn(
+        `Skipping packaged seed bundle ${installPlan.seedVersion} because the same packaged archive fingerprint already failed on this machine.`
+      );
+    }
+  };
+
+  private logPackagedSeedMetadata = (installPlan: PackagedSeedInstallPlan): void => {
+    if (!installPlan.seedMetadata) {
+      return;
+    }
+    this.options.logger.info(
+      [
+        `Packaged seed metadata loaded for ${installPlan.seedVersion}.`,
+        `archiveBytes=${installPlan.seedMetadata.archiveBytes}`,
+        `files=${installPlan.seedMetadata.fileCount}`,
+        `directories=${installPlan.seedMetadata.directoryCount}`,
+        `uncompressedBytes=${installPlan.seedMetadata.uncompressedBytes}`
+      ].join(" ")
+    );
+  };
+
+  private logPackagedSeedInstallPlan = (installPlan: PackagedSeedInstallPlan): void => {
+    this.options.logger.info(
+      installPlan.shouldRetryQuarantinedSeed
+        ? `Packaged seed bundle ${installPlan.seedVersion} was previously quarantined, but the packaged archive fingerprint changed. Desktop will retry it before boot.`
+        : !installPlan.currentVersion
+          ? "No active product bundle found. Desktop will install the packaged seed bundle before boot."
+          : `Packaged seed bundle ${installPlan.seedVersion} is newer than current bundle ${installPlan.currentVersion}. Desktop will upgrade before boot.`
+    );
   };
 
   private readBundleArchiveSha256 = async (archivePath: string): Promise<string> => {

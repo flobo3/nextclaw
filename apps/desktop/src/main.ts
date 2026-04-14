@@ -109,9 +109,11 @@ class DesktopApplication {
     try {
       logger.info("Bootstrapping runtime and desktop window.");
       const bundleBootstrap = this.ensureBundleBootstrap();
+      const bundleBootstrapStartedAt = Date.now();
       await bundleBootstrap.ensureInitialBundleAvailability();
       await bundleBootstrap.recoverPendingBundleCandidate();
       await bundleBootstrap.pruneRetainedBundleArtifacts();
+      logger.info(`Desktop bundle bootstrap finished in ${Date.now() - bundleBootstrapStartedAt}ms.`);
       runtimeCommand = new RuntimeConfigResolver().resolveCommand();
       logger.info(`Runtime source: ${runtimeCommand.source}`);
       this.logResolvedRuntimeCommand(runtimeCommand);
@@ -145,7 +147,9 @@ class DesktopApplication {
       scriptPath,
       runtimeEnv: createDesktopRuntimeEnv()
     });
+    const runtimeStartStartedAt = Date.now();
     const { baseUrl } = await runtime.start();
+    logger.info(`Desktop runtime startup finished in ${Date.now() - runtimeStartStartedAt}ms.`);
     this.runtime = runtime;
     this.runtimeBaseUrl = baseUrl;
     this.ensureDesktopUpdateShell();
@@ -221,7 +225,8 @@ class DesktopApplication {
       channel: this.ensureUpdateSourceService().resolveChannel(),
       resolveManifestUrl: async () => await this.ensureUpdateSourceService().resolveManifestUrl(),
       bundlePublicKey: this.getBundlePublicKey() ?? null,
-      seedBundlePath: this.getSeedBundlePath() ?? null
+      seedBundlePath: this.getSeedBundlePath() ?? null,
+      seedBundleMetadata: this.ensureUpdateSourceService().resolvePackagedSeedBundleMetadata()
     });
     return this.bundleBootstrap;
   };
@@ -377,19 +382,15 @@ class DesktopApplication {
         sandbox: false
       }
     });
-
     attachWindowDiagnostics(window, logger);
     window.on("close", (event) => {
       this.ensureDesktopPresenceService().handleWindowClose(event);
     });
-
     window.on("closed", () => {
       this.window = null;
     });
-
     return window;
   };
 }
-
 const desktop = new DesktopApplication();
 void desktop.start();

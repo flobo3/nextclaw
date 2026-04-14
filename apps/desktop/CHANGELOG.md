@@ -1,5 +1,14 @@
 # @nextclaw/desktop
 
+## 0.0.141
+
+### Patch Changes
+
+- Add packaged seed metadata to the desktop release payload so startup can avoid redundant archive reads before deciding whether a packaged seed needs reinstall.
+- Add desktop bootstrap timing logs to separate bundle-bootstrap time from runtime-startup time during Windows startup investigations.
+- Updated dependencies
+  - nextclaw@0.17.11
+
 ## 0.0.140
 
 ### Patch Changes

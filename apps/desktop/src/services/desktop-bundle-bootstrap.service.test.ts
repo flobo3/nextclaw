@@ -94,3 +94,48 @@ test("does not retry the same quarantined packaged seed fingerprint again", asyn
     assert.equal(stateStore.read().candidateVersion, null);
     assert.equal(stateStore.read().lastAttemptedPackagedSeedSha256, sha256);
   }));
+
+test("uses packaged seed metadata to skip older seed archives without opening the bundle", async () =>
+  await withTempDir("nextclaw-desktop-packaged-seed-metadata-skip-", async (rootDir) => {
+    const layout = new DesktopBundleLayoutStore(rootDir);
+    await layout.ensureLauncherDirs();
+    writeBundleFixture({
+      rootDir: layout.getVersionsDir(),
+      version: "0.17.10"
+    });
+    await layout.writeCurrentPointer({ version: "0.17.10" });
+    const stateStore = new DesktopLauncherStateStore(layout.getLauncherStatePath());
+    await stateStore.write(
+      createLauncherState({
+        currentVersion: "0.17.10",
+        lastKnownGoodVersion: "0.17.10"
+      })
+    );
+
+    const service = new DesktopBundleBootstrapService({
+      logger: {
+        info: () => {},
+        warn: () => {}
+      },
+      layout,
+      launcherVersion: "0.1.0",
+      channel: "stable",
+      resolveManifestUrl: async () => null,
+      bundlePublicKey: null,
+      seedBundlePath: join(rootDir, "missing-seed.zip"),
+      seedBundleMetadata: {
+        version: "0.17.9",
+        sha256: "metadata-sha256",
+        archiveBytes: 10,
+        fileCount: 1,
+        directoryCount: 1,
+        uncompressedBytes: 10
+      }
+    });
+
+    await service.ensureInitialBundleAvailability();
+
+    assert.deepEqual(layout.readCurrentPointer(), { version: "0.17.10" });
+    assert.equal(stateStore.read().currentVersion, "0.17.10");
+    assert.equal(stateStore.read().candidateVersion, null);
+  }));

@@ -11,6 +11,15 @@ export type GitHubPublishTarget = {
   repo: string;
 };
 
+export type PackagedSeedBundleMetadata = {
+  version: string;
+  sha256: string;
+  archiveBytes: number;
+  fileCount: number;
+  directoryCount: number;
+  uncompressedBytes: number;
+};
+
 type DesktopUpdateSourceServiceOptions = {
   isPackaged: boolean;
   appPath: string;
@@ -26,6 +35,7 @@ type PackagedReleaseMetadata = {
   channel: DesktopReleaseChannel;
   releaseTag: string | null;
   manifestBaseUrl: string | null;
+  seedBundle: PackagedSeedBundleMetadata | null;
 };
 
 const RELEASE_METADATA_FILE_NAME = "update-release-metadata.json";
@@ -36,6 +46,37 @@ function normalizeOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeOptionalPositiveNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  return value;
+}
+
+function normalizePackagedSeedBundleMetadata(value: unknown): PackagedSeedBundleMetadata | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const version = normalizeOptionalString(record.version);
+  const sha256 = normalizeOptionalString(record.sha256);
+  const archiveBytes = normalizeOptionalPositiveNumber(record.archiveBytes);
+  const fileCount = normalizeOptionalPositiveNumber(record.fileCount);
+  const directoryCount = normalizeOptionalPositiveNumber(record.directoryCount);
+  const uncompressedBytes = normalizeOptionalPositiveNumber(record.uncompressedBytes);
+  if (!version || !sha256 || archiveBytes === null || fileCount === null || directoryCount === null || uncompressedBytes === null) {
+    return null;
+  }
+  return {
+    version,
+    sha256,
+    archiveBytes,
+    fileCount,
+    directoryCount,
+    uncompressedBytes
+  };
 }
 
 export function getDesktopUpdateManifestAssetName(
@@ -117,6 +158,10 @@ export class DesktopUpdateSourceService {
     return channel;
   };
 
+  resolvePackagedSeedBundleMetadata = (): PackagedSeedBundleMetadata | null => {
+    return this.readPackagedReleaseMetadata().seedBundle;
+  };
+
   private readPackagedReleaseMetadata = (): PackagedReleaseMetadata => {
     const metadataPath = this.options.isPackaged
       ? join(this.options.resourcesPath, "update", RELEASE_METADATA_FILE_NAME)
@@ -125,7 +170,8 @@ export class DesktopUpdateSourceService {
       return {
         channel: "stable",
         releaseTag: null,
-        manifestBaseUrl: null
+        manifestBaseUrl: null,
+        seedBundle: null
       };
     }
 
@@ -133,7 +179,8 @@ export class DesktopUpdateSourceService {
     return {
       channel: normalizeDesktopReleaseChannel(normalizeOptionalString(parsed.channel)),
       releaseTag: normalizeOptionalString(parsed.releaseTag),
-      manifestBaseUrl: normalizeOptionalString(parsed.manifestBaseUrl)
+      manifestBaseUrl: normalizeOptionalString(parsed.manifestBaseUrl),
+      seedBundle: normalizePackagedSeedBundleMetadata(parsed.seedBundle)
     };
   };
 
