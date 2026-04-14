@@ -1,0 +1,625 @@
+:root {
+  color-scheme: dark;
+  font-family: "Space Grotesk", "Sora", "Avenir Next", "SF Pro Text", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(255, 178, 74, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(63, 195, 255, 0.18), transparent 24%),
+    radial-gradient(circle at bottom center, rgba(100, 255, 178, 0.1), transparent 30%),
+    linear-gradient(135deg, #06111d 0%, #0b1628 48%, #07101c 100%);
+  color: #edf5ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+.leaderboard-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.leaderboard-shell__backdrop {
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black 0%, transparent 85%);
+  pointer-events: none;
+}
+
+.leaderboard-shell__content {
+  position: relative;
+  z-index: 1;
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 84px;
+}
+
+.hero,
+.panel,
+.persona-tabs__button,
+.universe-card,
+.ranking-card,
+.sub-ranking-card,
+.profile-card,
+.drawer,
+.methodology-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(7, 14, 27, 0.9);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(22px);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.85fr);
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 24px;
+  padding: 30px;
+  border-radius: 30px;
+}
+
+.hero__eyebrow,
+.panel__eyebrow,
+.drawer__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8ec8ff;
+}
+
+.hero h1 {
+  margin: 12px 0 12px;
+  font-size: clamp(34px, 4vw, 60px);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+}
+
+.hero__summary,
+.panel__subtitle,
+.drawer__header p,
+.sub-ranking-card p,
+.profile-card__summary,
+.profile-card__detail,
+.methodology-card p,
+.methodology-card li,
+.drawer__score-row p,
+.drawer__evidence-card p {
+  color: rgba(237, 245, 255, 0.78);
+  line-height: 1.65;
+}
+
+.hero__meta,
+.ranking-card__chips,
+.profile-card__tags,
+.profile-card__sources,
+.drawer__link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero__meta-pill,
+.ranking-card__chip,
+.profile-card__tag,
+.profile-card__badge,
+.ranking-card__badge,
+.universe-card__category {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  color: rgba(242, 247, 255, 0.9);
+}
+
+.hero__meta-pill--live {
+  border-color: rgba(122, 234, 196, 0.3);
+  color: #7aeac4;
+}
+
+.hero__sidebar {
+  display: grid;
+  gap: 14px;
+}
+
+.hero__stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hero__stat-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hero__stat-value {
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.hero__stat-label {
+  margin-top: 6px;
+  color: rgba(237, 245, 255, 0.72);
+  font-size: 13px;
+}
+
+.hero__refresh-button,
+.ranking-card__button,
+.profile-card__button,
+.drawer__close {
+  border: 0;
+  border-radius: 18px;
+  padding: 13px 16px;
+  cursor: pointer;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.hero__refresh-button,
+.ranking-card__button,
+.profile-card__button {
+  background: linear-gradient(135deg, #ffb24a, #ff7f57);
+  color: #07101c;
+  font-weight: 700;
+}
+
+.drawer__close {
+  background: rgba(255, 255, 255, 0.08);
+  color: #edf5ff;
+}
+
+.hero__refresh-button:hover,
+.ranking-card__button:hover,
+.profile-card__button:hover,
+.drawer__close:hover,
+.persona-tabs__button:hover,
+.universe-card:hover,
+.sub-ranking-item:hover {
+  transform: translateY(-1px);
+}
+
+.persona-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.persona-tabs__button {
+  padding: 16px;
+  border-radius: 22px;
+  color: #edf5ff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.persona-tabs__button--active {
+  border-color: rgba(255, 178, 74, 0.4);
+  background:
+    linear-gradient(135deg, rgba(255, 178, 74, 0.22), rgba(66, 190, 255, 0.14)),
+    rgba(8, 16, 29, 0.92);
+}
+
+.persona-tabs__label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.persona-tabs__hint {
+  display: block;
+  color: rgba(237, 245, 255, 0.72);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.panel {
+  margin-top: 18px;
+  padding: 22px;
+  border-radius: 26px;
+}
+
+.panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+.panel__title {
+  margin: 8px 0 6px;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.loading-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.loading-card {
+  height: 140px;
+  border-radius: 22px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  background-size: 220px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.panel--error h2 {
+  margin-top: 0;
+}
+
+.universe-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.universe-column {
+  display: grid;
+  gap: 12px;
+}
+
+.universe-column__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.universe-column__header h3,
+.sub-ranking-card h3,
+.profile-card h3,
+.methodology-card h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.universe-column__cards,
+.ranking-list,
+.profile-grid,
+.drawer__evidence-list,
+.drawer__score-table {
+  display: grid;
+  gap: 12px;
+}
+
+.universe-card {
+  border-radius: 20px;
+  padding: 16px;
+  text-align: left;
+  color: #edf5ff;
+  cursor: pointer;
+}
+
+.universe-card__topline,
+.profile-card__topline,
+.ranking-card__name-row,
+.drawer__evidence-topline,
+.drawer__score-head,
+.sub-ranking-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.universe-card__name,
+.ranking-card__rank,
+.ranking-card__score {
+  font-weight: 700;
+}
+
+.universe-card__summary,
+.universe-card__meta,
+.drawer__empty {
+  margin: 0;
+  color: rgba(237, 245, 255, 0.74);
+}
+
+.universe-card__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.ranking-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
+}
+
+.ranking-card__left {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.ranking-card__rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #42beff, #7aeac4);
+  color: #07101c;
+  font-size: 20px;
+}
+
+.ranking-card__name-row h3 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.ranking-card__summary {
+  margin: 10px 0 12px;
+}
+
+.ranking-card__right {
+  display: grid;
+  gap: 12px;
+  justify-items: end;
+  align-content: start;
+}
+
+.ranking-card__score {
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.ranking-card__subscore,
+.sub-ranking-item__meta {
+  color: rgba(237, 245, 255, 0.72);
+  font-size: 13px;
+}
+
+.sub-ranking-grid,
+.methodology-grid,
+.methodology-footer {
+  display: grid;
+  gap: 16px;
+}
+
+.sub-ranking-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sub-ranking-card,
+.methodology-card {
+  border-radius: 22px;
+  padding: 18px;
+}
+
+.sub-ranking-card__items {
+  display: grid;
+  gap: 10px;
+}
+
+.sub-ranking-item {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #edf5ff;
+  cursor: pointer;
+}
+
+.sub-ranking-item__rank,
+.sub-ranking-item__score {
+  color: #7aeac4;
+  font-weight: 700;
+}
+
+.profile-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-card {
+  padding: 18px;
+  border-radius: 22px;
+}
+
+.profile-card__summary {
+  margin: 14px 0 12px;
+}
+
+.profile-card__detail {
+  margin: 10px 0;
+}
+
+.profile-card__sources {
+  margin-top: 14px;
+}
+
+.profile-card__sources a,
+.drawer__evidence-card a,
+.drawer__link-list a {
+  color: #8ec8ff;
+  text-decoration: none;
+}
+
+.methodology-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.methodology-footer {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.methodology-card ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(2, 5, 10, 0.56);
+  padding: 16px;
+}
+
+.drawer {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border-radius: 28px;
+  padding: 22px;
+}
+
+.drawer__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.drawer__header h2 {
+  margin: 8px 0 8px;
+}
+
+.drawer__section {
+  margin-top: 22px;
+  display: grid;
+  gap: 12px;
+}
+
+.drawer__section h3 {
+  margin: 0;
+}
+
+.drawer__metric {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.drawer__metric-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.drawer__evidence-card,
+.drawer__score-row {
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.drawer__evidence-topline,
+.drawer__score-head {
+  color: rgba(237, 245, 255, 0.8);
+  font-size: 13px;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -220px 0;
+  }
+
+  to {
+    background-position: 220px 0;
+  }
+}
+
+@media (max-width: 1120px) {
+  .hero,
+  .sub-ranking-grid,
+  .drawer__metric-grid,
+  .profile-grid,
+  .methodology-grid,
+  .methodology-footer,
+  .universe-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .persona-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .loading-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .leaderboard-shell__content {
+    width: min(100% - 20px, 1440px);
+    padding-top: 20px;
+  }
+
+  .hero,
+  .panel,
+  .drawer {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .persona-tabs,
+  .hero__stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-card,
+  .drawer__header {
+    display: grid;
+  }
+
+  .ranking-card__left {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-card__right {
+    justify-items: start;
+  }
+
+  .drawer-backdrop {
+    padding: 8px;
+  }
+}
