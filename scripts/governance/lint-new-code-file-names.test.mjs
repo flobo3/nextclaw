@@ -20,7 +20,7 @@ test("blocks new files whose names are not kebab-case", () => {
   assert.equal(violations[0].suggestedPath, "packages/demo/src/ncp-chat-page.tsx");
 });
 
-test("warns instead of blocking when a touched legacy file keeps a non-kebab name", () => {
+test("blocks touched files whose names are still not kebab-case", () => {
   const violations = collectFileNameKebabViolations([
     {
       filePath: "packages/demo/src/useAgents.ts",
@@ -29,11 +29,11 @@ test("warns instead of blocking when a touched legacy file keeps a non-kebab nam
   ]);
 
   assert.equal(violations.length, 1);
-  assert.equal(violations[0].level, "warn");
-  assert.match(violations[0].message, /touched legacy file name is still not kebab-case/);
+  assert.equal(violations[0].level, "error");
+  assert.match(violations[0].message, /touched file name is not kebab-case/);
 });
 
-test("blocks touched legacy files when the path is under strict touched governance", () => {
+test("treats any touched invalid file name as blocking debt", () => {
   const entry = {
     filePath: "apps/platform-admin/src/pages/LoginPage.tsx",
     status: "M"
@@ -44,7 +44,7 @@ test("blocks touched legacy files when the path is under strict touched governan
   const violations = collectFileNameKebabViolations([entry]);
   assert.equal(violations.length, 1);
   assert.equal(violations[0].level, "error");
-  assert.match(violations[0].message, /strict touched-legacy governance/);
+  assert.match(violations[0].message, /touched file name is not kebab-case/);
 });
 
 test("accepts already compliant file names", () => {

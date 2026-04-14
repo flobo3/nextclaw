@@ -56,7 +56,7 @@ tags:
 ```bash
 cp -R <skill>/assets/commands ./commands
 cp -R <skill>/assets/docs ./docs
-cp <skill>/assets/AGENTS.template.md ./AGENTS.md
+cp <skill>/assets/agents.template.md ./AGENTS.md
 ```
 
 ## 关键约束
@@ -73,8 +73,8 @@ cp <skill>/assets/AGENTS.template.md ./AGENTS.md
 
 ## 模板索引
 
-- `assets/AGENTS.template.md`
+- `assets/agents.template.md`
 - `assets/commands/commands.md`
-- `assets/docs/logs/TEMPLATE.md`
+- `assets/docs/logs/template.md`
 - `assets/docs/logs/README.md`
 - `assets/docs/workflows/npm-release-process.md`

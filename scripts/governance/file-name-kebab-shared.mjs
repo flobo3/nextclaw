@@ -1,7 +1,7 @@
 import path from "node:path";
 
 const kebabSegmentPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const supportedExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
+const supportedExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".py", ".sh"]);
 
 const toPosixPath = (value) => value.split(path.sep).join(path.posix.sep);
 

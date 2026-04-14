@@ -58,6 +58,18 @@ test("allows component files without role suffixes", () => {
   }), null);
 });
 
+test("skips role-boundary enforcement for script support paths", () => {
+  assert.equal(inspectFileRoleBoundaryEntry({
+    filePath: ".agents/skills/post-edit-maintainability-guard/scripts/check-maintainability.mjs",
+    status: "M"
+  }), null);
+
+  assert.equal(inspectFileRoleBoundaryEntry({
+    filePath: "apps/demo/scripts/smoke-test.sh",
+    status: "A"
+  }), null);
+});
+
 test("requires use-* naming inside hooks directories", () => {
   const violation = inspectFileRoleBoundaryEntry({
     filePath: "packages/demo/src/hooks/chat-session.ts",
@@ -78,18 +90,18 @@ test("requires -page naming inside pages directories", () => {
   assert.match(violation.message, /pages\/' must match '<domain>-page\.tsx'/);
 });
 
-test("warns instead of blocking when a touched legacy file still violates the directory mapping", () => {
+test("blocks touched files when they still violate the directory mapping", () => {
   const violation = inspectFileRoleBoundaryEntry({
     filePath: "packages/demo/src/providers/openai.ts",
     status: "M"
   });
 
   assert.ok(violation);
-  assert.equal(violation.level, "warn");
-  assert.match(violation.message, /touched legacy file in 'providers\//);
+  assert.equal(violation.level, "error");
+  assert.match(violation.message, /touched file in 'providers\//);
 });
 
-test("blocks touched legacy file-role violations inside strict touched governance", () => {
+test("blocks touched files outside page naming rules too", () => {
   const violation = inspectFileRoleBoundaryEntry({
     filePath: "apps/platform-admin/src/pages/LoginPage.tsx",
     status: "M"
@@ -97,5 +109,5 @@ test("blocks touched legacy file-role violations inside strict touched governanc
 
   assert.ok(violation);
   assert.equal(violation.level, "error");
-  assert.match(violation.message, /strict touched-legacy governance/);
+  assert.match(violation.message, /touched file in 'pages\//);
 });

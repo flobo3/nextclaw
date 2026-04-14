@@ -6,13 +6,6 @@ const normalizePath = (value) => value
   .replace(/^\.\/+/, "")
   .replace(/\/+$/, "");
 
-export const STRICT_TOUCHED_LEGACY_SOURCE_PATHS = [
-  "apps/platform-admin/src/pages",
-  "apps/platform-console/src/pages",
-  "packages/nextclaw-core/src/providers",
-  "packages/nextclaw-ui/src/components/chat"
-];
-
 export const STRICT_TOUCHED_FLAT_DIRECTORY_PATHS = [
   "packages/nextclaw-ui/src/components/chat",
   "workers/nextclaw-provider-gateway-api/src"
@@ -21,16 +14,8 @@ export const STRICT_TOUCHED_FLAT_DIRECTORY_PATHS = [
 export const DOC_NAMING_ROOTS = [
   "commands",
   "docs",
-  "apps/docs"
-];
-
-export const STRICT_TOUCHED_LEGACY_DOC_PATHS = [
-  "commands",
-  "docs/internal",
-  "docs/plans",
-  "docs/workflows",
-  "apps/docs/en",
-  "apps/docs/zh"
+  "apps/docs",
+  ".agents"
 ];
 
 export const GOVERNANCE_BACKLOG_BASELINE_PATH = "scripts/governance/governance-backlog-baseline.json";

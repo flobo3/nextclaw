@@ -19,6 +19,7 @@ const DOC_EXACT_STEM_ALLOWLIST = new Set([
   "USAGE",
   "VISION",
   "ARCHITECTURE",
+  "SKILL",
   "index"
 ]);
 

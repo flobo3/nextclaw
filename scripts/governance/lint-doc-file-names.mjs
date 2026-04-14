@@ -8,11 +8,7 @@ import {
   parseDiffCheckArgs,
   runGit
 } from "./lint-new-code-governance-support.mjs";
-import {
-  DOC_NAMING_ROOTS,
-  isPathWithinPrefixes,
-  STRICT_TOUCHED_LEGACY_DOC_PATHS
-} from "./touched-legacy-governance-contracts.mjs";
+import { DOC_NAMING_ROOTS } from "./touched-legacy-governance-contracts.mjs";
 
 const usage = `Usage:
   node scripts/governance/lint-doc-file-names.mjs
@@ -20,8 +16,8 @@ const usage = `Usage:
   node scripts/governance/lint-doc-file-names.mjs --base origin/main
   node scripts/governance/lint-doc-file-names.mjs -- docs apps/docs
 
-Blocks new or renamed governed documentation files whose file names are not kebab-case.
-Warns when a touched legacy doc file still keeps a non-kebab file name unless the path is under strict touched-legacy governance.`;
+Blocks changed governed documentation files whose file names are not kebab-case.
+Once a doc file is touched, legacy non-kebab names must be renamed in the same change.`;
 
 const getNameStatusArgs = (pathArgs, options) => {
   if (options.baseRef) {
@@ -92,7 +88,7 @@ const isBlockingDocEntry = (entry) => (
   entry.status === "A" ||
   entry.status === "R" ||
   entry.status === "U" ||
-  (entry.status === "M" && isPathWithinPrefixes(entry.filePath, STRICT_TOUCHED_LEGACY_DOC_PATHS))
+  entry.status === "M"
 );
 
 export const collectDocFileNameDiffViolations = (entries) => defaultSortByLocation(
@@ -102,20 +98,17 @@ export const collectDocFileNameDiffViolations = (entries) => defaultSortByLocati
       return [];
     }
 
-    const isBlocking = isBlockingDocEntry(entry);
     return [{
       filePath: entry.filePath,
       line: 1,
       column: 1,
       ownerLine: 1,
       status: entry.status,
-      level: isBlocking ? "error" : "warn",
+      level: "error",
       suggestedPath: finding.suggestedPath,
-      message: isBlocking
-        ? entry.status === "M"
-          ? `touched legacy doc file name is still not kebab-case (${finding.reason}) under strict touched-legacy governance; rename to '${finding.suggestedPath}'`
-          : `new or renamed doc file name is not kebab-case (${finding.reason}); rename to '${finding.suggestedPath}'`
-        : `touched legacy doc file name is still not kebab-case (${finding.reason}); rename to '${finding.suggestedPath}' when safe`
+      message: entry.status === "M"
+        ? `touched doc file name is not kebab-case (${finding.reason}); rename to '${finding.suggestedPath}' before continuing`
+        : `new or renamed doc file name is not kebab-case (${finding.reason}); rename to '${finding.suggestedPath}'`
     }];
   })
 );
@@ -134,30 +127,16 @@ export const printViolations = ({ changedFiles, violations }) => {
     return 0;
   }
 
-  const errors = violations.filter((item) => item.level === "error");
-  const warnings = violations.filter((item) => item.level === "warn");
-
-  if (errors.length === 0 && warnings.length === 0) {
+  if (violations.length === 0) {
     console.log(`Doc file-name kebab-case diff check passed for ${changedFiles.length} changed file(s).`);
     return 0;
   }
 
-  if (errors.length > 0) {
-    console.error("Doc file-name kebab-case diff check blocked new/renamed files or strict touched legacy files with non-kebab names.");
-    for (const violation of errors) {
-      console.error(`- [${violation.level}] ${violation.filePath}: ${violation.message}`);
-    }
+  console.error("Doc file-name kebab-case diff check blocked changed files with non-kebab names.");
+  for (const violation of violations) {
+    console.error(`- [${violation.level}] ${violation.filePath}: ${violation.message}`);
   }
-
-  if (warnings.length > 0) {
-    const writer = errors.length > 0 ? console.error : console.log;
-    writer("Legacy doc file-name kebab-case warnings:");
-    for (const violation of warnings) {
-      writer(`- [${violation.level}] ${violation.filePath}: ${violation.message}`);
-    }
-  }
-
-  return errors.length > 0 ? 1 : 0;
+  return 1;
 };
 
 const main = () => {

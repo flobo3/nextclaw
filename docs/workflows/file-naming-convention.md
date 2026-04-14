@@ -113,9 +113,13 @@ React hook 文件例外：
 - 新增文件：必须立即遵循本规范。
 - 存量文件：按“改动即治理”原则，在触达文件时顺带迁移命名。
 - 大规模改名：按模块分批进行，避免一次性跨仓库重命名导致冲突。
-- 对 legacy 债务不再只停留在 warning：
-  - 仓库会维护一组 `strict touched governance` 路径；这些路径下的历史遗留命名，一旦被触达，就必须在本次改动中一起收敛。
-  - 严格路径默认优先覆盖维护性主链路、高频目录和文档治理目录，后续按批次持续扩大，而不是一次性炸全仓。
+- 对 touched legacy 债务默认直接阻断：
+  - 只要源码/脚本/测试文件或受治理文档被触达，其文件名若仍不符合规范，就必须在本次改动中一起收敛。
+  - 不再区分“普通 touched warning”与“strict touched error”两档命名治理；历史命名债务一旦进入本次 diff，就属于必须偿还的同链路债务。
+- 对 touched parent directories 也默认直接阻断：
+  - 只要受治理文件被触达，其父目录链也会被检查。
+  - 目录段默认必须使用 kebab-case；版本/日期目录可使用 `v<semver>-<slug>` 或 `YYYY-MM-DD-<slug>`。
+  - 少量技术目录例外（例如 `.agents`、`.skild`、`__tests__`、`generated`）由机器规则显式白名单声明。
 - 全仓历史命名债务默认进入 baseline ratchet：
   - 不要求一轮清零。
   - 但要求 tracked backlog 总量只能下降，不能继续上升。
@@ -123,24 +127,24 @@ React hook 文件例外：
 ## 9. 机器守卫与审计入口
 
 - `pnpm lint:new-code:governance` 现在会自动运行 `file-name-kebab-case` diff gate。
+- `pnpm lint:new-code:governance` 现在也会自动运行 `directory-name-kebab-case` diff gate。
 - `pnpm lint:new-code:governance` 现在也会自动运行 `doc-file-name-kebab-case` diff gate。
 - `pnpm lint:new-code:governance` 现在也会自动运行 `file-role-boundaries` diff gate。
-- 对新增或重命名的源码/脚本/测试文件：
+- 对新增、重命名或普通修改的源码/脚本/测试文件：
   - 若文件名不是 kebab-case，会直接阻断。
+  - 若其父目录链存在不符合规范的目录段，也会直接阻断。
   - 若非组件 / 非页面 / 非 hook 文件没有使用白名单二级后缀，会直接阻断。
   - 若目录与后缀不匹配，例如 `services/foo-manager.ts`，也会直接阻断。
   - 输出会同时给出建议目标名，便于直接改名。
 - 对历史遗留且本次被触达的非 kebab-case 文件：
-  - 默认给 warning，不直接阻断主任务。
-  - 若路径已进入 `strict touched governance`，则会升级为 error，要求本次一并改名。
-  - AI 仍必须评估是否可在同链路里安全重命名，并在保留债务时说明原因与下一步迁移位点。
+  - 默认直接阻断，不再保留 warning 豁免。
+  - AI 应把重命名视为本次改动的同链路收尾，而不是“以后再说”的额外任务。
 - 对历史遗留且本次被触达的目录-后缀错配文件：
-  - 默认先给 warning，不一次性炸掉全仓历史债务。
-  - 若路径已进入 `strict touched governance`，则会升级为 error。
-  - AI 仍必须在同链路内评估是否可安全迁移；若暂不迁移，需说明原因与后续入口。
+  - 默认直接阻断，不再保留 warning 豁免。
+  - AI 应在同链路内完成迁移；若存在外部约束导致无法立即改名，必须先停下来说明阻碍。
 - 对受治理文档：
-  - 新增或重命名的 `*.md` / `*.mdx` 文件若不符合 kebab-case 或显式例外，会直接阻断。
-  - 历史遗留文档在被触达时默认 warning；若位于 `strict touched governance` 路径，则升级为 error。
+  - 新增、重命名或普通修改的 `*.md` / `*.mdx` 文件若不符合 kebab-case 或显式例外，会直接阻断。
+  - `.agents/**/SKILL.md` 属于显式允许的技能文档约定名。
 - 如需盘点全仓历史命名债务，统一使用：
 
 ```bash

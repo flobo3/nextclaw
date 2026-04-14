@@ -17,7 +17,7 @@ test("blocks new doc files whose names are not kebab-case", () => {
   assert.equal(violations[0].suggestedPath, "docs/plans/runtime-control-plan.md");
 });
 
-test("warns when a touched legacy doc file is outside strict touched governance", () => {
+test("blocks touched legacy doc files too", () => {
   const violations = collectDocFileNameDiffViolations([
     {
       filePath: "docs/logs/legacy-batch/CHANGELOG.md",
@@ -30,21 +30,19 @@ test("warns when a touched legacy doc file is outside strict touched governance"
   ]);
 
   assert.equal(violations.length, 1);
-  assert.equal(violations[0].level, "warn");
-  assert.match(violations[0].message, /touched legacy doc file name is still not kebab-case/);
+  assert.equal(violations[0].level, "error");
+  assert.match(violations[0].message, /touched doc file name is not kebab-case/);
 });
 
-test("blocks touched legacy doc files inside strict touched governance", () => {
+test("allows SKILL docs under governed .agents roots", () => {
   const violations = collectDocFileNameDiffViolations([
     {
-      filePath: "docs/plans/RuntimeControlPlan.md",
+      filePath: ".agents/skills/file-naming-convention/SKILL.md",
       status: "M"
     }
   ]);
 
-  assert.equal(violations.length, 1);
-  assert.equal(violations[0].level, "error");
-  assert.match(violations[0].message, /strict touched-legacy governance/);
+  assert.deepEqual(violations, []);
 });
 
 test("allows exact doc stem exceptions", () => {

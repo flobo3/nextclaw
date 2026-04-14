@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import { resolveRepoPath } from "../shared/repo-paths.mjs";
 
 export const rootDir = resolveRepoPath(import.meta.url);
-const governedRoots = ["apps", "packages", "workers", "scripts"];
-const supportedSourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
+export const DEFAULT_GOVERNED_SOURCE_PATHS = ["apps", "packages", "workers", "scripts", "bridge", ".agents"];
+const governedRoots = DEFAULT_GOVERNED_SOURCE_PATHS;
+const supportedSourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".py", ".sh"]);
 
 export const parseDiffCheckArgs = (argv, usage) => {
   const options = {
@@ -115,7 +116,7 @@ const getDiffCommandArgs = (mode, pathArgs, options) => {
   return ["diff", "--no-color", "--unified=0", "--diff-filter=AM", "HEAD", "--", ...pathArgs];
 };
 
-export const collectChangedWorkspaceFiles = (options, defaultPaths = ["apps", "packages", "workers", "scripts"]) => {
+export const collectChangedWorkspaceFiles = (options, defaultPaths = DEFAULT_GOVERNED_SOURCE_PATHS) => {
   const pathArgs = options.paths.length > 0 ? options.paths : defaultPaths;
   const changedTrackedFiles = runGit(getDiffCommandArgs("names", pathArgs, options), { allowFailure: true })
     .split("\n")

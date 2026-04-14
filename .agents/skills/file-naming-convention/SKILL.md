@@ -31,8 +31,9 @@ Trigger this skill when requests include any of these intents:
 
 For this repository specifically:
 
-- `pnpm lint:new-code:file-names` blocks new or renamed non-kebab source/script/test files.
-- `pnpm lint:new-code:file-role-boundaries` blocks new or renamed non-component/page/hook files that do not use an approved secondary suffix, and also blocks directory-to-suffix mismatches such as `services/foo-manager.ts`.
+- `pnpm lint:new-code:file-names` blocks touched non-kebab source/script/test files, not only new names.
+- `pnpm lint:new-code:directory-names` blocks touched files whose parent directory chain is not governed.
+- `pnpm lint:new-code:file-role-boundaries` blocks touched non-component/page/hook files that do not use an approved secondary suffix, and also blocks directory-to-suffix mismatches such as `services/foo-manager.ts`.
 - `pnpm report:file-naming` prints the current legacy non-kebab backlog for gradual migration.
 
 ## Decision Rules
