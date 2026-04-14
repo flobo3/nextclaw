@@ -84,7 +84,7 @@ export function getPackageTagName(pkg) {
 export function getExpectedPublishGuardCommand(entry) {
   const relativeScriptPath = relative(
     entry.absolutePackageDir,
-    join(ROOT_DIR, "scripts", "ensure-pnpm-publish.mjs")
+    join(ROOT_DIR, "scripts", "release", "ensure-pnpm-publish.mjs")
   ).replaceAll("\\", "/");
   return `node ${relativeScriptPath}`;
 }

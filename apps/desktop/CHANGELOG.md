@@ -1,5 +1,28 @@
 # @nextclaw/desktop
 
+## 0.0.140
+
+### Patch Changes
+
+- Promoted the current desktop update and presence lifecycle work into the next stable launcher build.
+- Hardened packaged seed recovery and bundled update public-key validation for desktop updates.
+- Updated dependencies
+  - @nextclaw/channel-plugin-dingtalk@0.2.37
+  - @nextclaw/channel-plugin-discord@0.2.37
+  - @nextclaw/channel-plugin-email@0.2.37
+  - @nextclaw/channel-plugin-feishu@0.2.24
+  - @nextclaw/channel-plugin-mochat@0.2.37
+  - @nextclaw/channel-plugin-qq@0.2.37
+  - @nextclaw/channel-plugin-slack@0.2.37
+  - @nextclaw/channel-plugin-telegram@0.2.37
+  - @nextclaw/channel-plugin-wecom@0.2.37
+  - @nextclaw/channel-plugin-whatsapp@0.2.37
+  - @nextclaw/channel-runtime@0.4.23
+  - @nextclaw/core@0.12.6
+  - @nextclaw/openclaw-compat@1.0.6
+  - @nextclaw/server@0.12.6
+  - nextclaw@0.17.11
+
 ## 0.0.138
 
 ### Patch Changes

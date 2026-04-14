@@ -1,5 +1,65 @@
 # @nextclaw/openclaw-compat
 
+## 1.0.6
+
+### Patch Changes
+
+- Auto-generated patch release for packages with meaningful drift after their latest version commit.
+
+  Packages:
+  - @nextclaw/agent-chat
+  - @nextclaw/agent-chat-ui
+  - @nextclaw/channel-plugin-dingtalk
+  - @nextclaw/channel-plugin-discord
+  - @nextclaw/channel-plugin-email
+  - @nextclaw/channel-plugin-feishu
+  - @nextclaw/channel-plugin-mochat
+  - @nextclaw/channel-plugin-qq
+  - @nextclaw/channel-plugin-slack
+  - @nextclaw/channel-plugin-telegram
+  - @nextclaw/channel-plugin-wecom
+  - @nextclaw/channel-plugin-weixin
+  - @nextclaw/channel-plugin-whatsapp
+  - @nextclaw/channel-runtime
+  - @nextclaw/core
+  - @nextclaw/feishu-core
+  - @nextclaw/mcp
+  - @nextclaw/ncp
+  - @nextclaw/ncp-agent-runtime
+  - @nextclaw/ncp-http-agent-client
+  - @nextclaw/ncp-http-agent-server
+  - @nextclaw/ncp-mcp
+  - @nextclaw/ncp-react
+  - @nextclaw/ncp-react-ui
+  - @nextclaw/ncp-toolkit
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk
+  - @nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk
+  - @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
+  - @nextclaw/openclaw-compat
+  - @nextclaw/remote
+  - @nextclaw/runtime
+  - @nextclaw/server
+  - @nextclaw/ui
+  - nextclaw
+
+- Updated dependencies
+  - @nextclaw/channel-plugin-dingtalk@0.2.37
+  - @nextclaw/channel-plugin-discord@0.2.37
+  - @nextclaw/channel-plugin-email@0.2.37
+  - @nextclaw/channel-plugin-feishu@0.2.24
+  - @nextclaw/channel-plugin-mochat@0.2.37
+  - @nextclaw/channel-plugin-qq@0.2.37
+  - @nextclaw/channel-plugin-slack@0.2.37
+  - @nextclaw/channel-plugin-telegram@0.2.37
+  - @nextclaw/channel-plugin-wecom@0.2.37
+  - @nextclaw/channel-plugin-weixin@0.1.31
+  - @nextclaw/channel-plugin-whatsapp@0.2.37
+  - @nextclaw/channel-runtime@0.4.23
+  - @nextclaw/core@0.12.6
+  - @nextclaw/ncp@0.5.1
+  - @nextclaw/ncp-toolkit@0.5.6
+
 ## 1.0.5
 
 ### Patch Changes

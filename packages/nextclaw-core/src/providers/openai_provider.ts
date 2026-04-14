@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
-import { LLMProvider, type LLMResponse, type LLMStreamEvent, type ToolCallRequest } from "./base.js";
+import { LLMProvider, type LLMResponse, type LLMStreamEvent } from "./base.js";
 import {
   ChatCompletionsPayloadError,
   normalizeChatCompletionsResponse,
