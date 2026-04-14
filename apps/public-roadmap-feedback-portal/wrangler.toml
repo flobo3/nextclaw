@@ -3,6 +3,10 @@ main = "worker/index.ts"
 compatibility_date = "2026-04-14"
 workers_dev = true
 
+[[routes]]
+pattern = "roadmap.nextclaw.io"
+custom_domain = true
+
 [vars]
 PUBLIC_ROADMAP_FEEDBACK_PORTAL_DATA_MODE = "live"
 PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_API_URL = "https://api.linear.app/graphql"

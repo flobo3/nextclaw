@@ -49,6 +49,14 @@
     - `PUBLIC_ROADMAP_FEEDBACK_PORTAL_DATA_MODE=live`
     - `PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_TEAM_KEY=NC`
     - `PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_PUBLIC_LABELS=all`
+  - 当前对外主入口已切到自定义域名：
+    - `https://roadmap.nextclaw.io`
+    - 备用入口仍保留：`https://nextclaw-public-roadmap-feedback-portal.15353764479037.workers.dev`
+  - 当前 live 版本：
+    - `19b9b097-231c-4153-a220-67ccb8e0702a`
+  - 门户静态入口元信息已对齐主域名：
+    - `canonical=https://roadmap.nextclaw.io`
+    - `og:url=https://roadmap.nextclaw.io`
   - 补强 Linear provider：
     - 改为根级 `issues` 分页查询，避免 team issues 嵌套查询在真实工作区触发 complexity 超限
     - 支持显式 `all/*` 语义，在当前 team 没有 `public` 标签时也能同步全量公开事项
@@ -77,9 +85,16 @@
     - `SELECT COUNT(*) FROM item_source_links WHERE provider = 'linear'` 返回 `59`
     - `SELECT title, public_phase, item_type FROM public_items WHERE source = 'linear' ORDER BY updated_at DESC LIMIT 5`
   - `pnpm -C apps/public-roadmap-feedback-portal run deploy`
-- 额外说明：
-  - 当前终端环境对 `workers.dev` 域名的直接 HTTP 访问出现超时，因此“从本终端直接请求线上 URL”的最后一步外部连通性验收未能在会话内拿到成功响应。
-  - 但 Cloudflare 部署返回成功、当前线上版本号已更新，且远端 D1 中真实 Linear 数据已经写入并可查询，因此部署与 live 数据落地本身已完成。
+  - `curl -I https://roadmap.nextclaw.io`
+  - `curl https://roadmap.nextclaw.io/api/overview`
+  - `curl 'https://roadmap.nextclaw.io/api/items?sort=recent&view=board'`
+  - `curl https://roadmap.nextclaw.io/api/feedback`
+  - Playwright 浏览器侧只读冒烟：
+    - 访问 `https://roadmap.nextclaw.io`
+    - 确认页面渲染出 `公开路线图与产品进展`
+    - 确认页面渲染出 `社区建议与反馈`
+    - 确认页面渲染出真实 Linear 事项：`NextClaw Apps`
+    - 确认页面渲染出真实 Linear 事项：`有时候发了第一条消息后就被吞了`
 - 冒烟覆盖的真实链路：
   - 打开首页并确认预览模式与社区反馈区可见
   - 提交一条新的公开建议并关联官方事项
@@ -103,6 +118,8 @@
   - `pnpm -C apps/public-roadmap-feedback-portal db:migrate:remote`
 - Cloudflare Worker 部署：
   - `pnpm deploy:public-roadmap:portal`
+  - 当前线上主域名：`https://roadmap.nextclaw.io`
+  - 当前备用域名：`https://nextclaw-public-roadmap-feedback-portal.15353764479037.workers.dev`
 - live mode 说明：
   - 官方路线图当前已走 `PUBLIC_ROADMAP_FEEDBACK_PORTAL_DATA_MODE=live + D1 + Linear sync`
   - 社区建议、评论、投票在 live mode 下写入 D1
@@ -121,6 +138,7 @@
 5. 在事项详情里继续评论或点赞后，页面应刷新出最新信号。
 6. 把环境切到 `live` 并执行 D1 migration 后，社区建议、评论、投票应持久化到 D1，而不是只存在 preview 内存态。
 7. 当前版本已经接入 `NC` team 的真实 Linear 事项；至少可以在远端 D1 中确认 `59` 条官方事项已存在。
+8. 通过 `https://roadmap.nextclaw.io/api/overview` 或首页 UI，应能看到真实事项，例如 `NextClaw Apps`、`有时候发了第一条消息后就被吞了`。
 
 ## 可维护性总结汇总
 
@@ -141,4 +159,5 @@
 - 可维护性总结：
   - 这次净增长属于新增能力的最小必要集合，但已经提前做了两笔关键减债：一是把 preview / community 责任压回子目录，二是把写侧逻辑收进 `PortalWriteService`，没有让评论、投票、建议提交流入 controller 或 React 组件。
   - 收尾阶段又顺手偿还了一笔真实环境债务：把 Linear provider 改成分页根查询，并加入显式 `all/*` 策略，不再把“有 `public` 标签”写死成唯一可运行路径。
+  - 这次域名收尾没有继续引入新的业务层抽象，只是在现有 Worker 配置上补一条清晰的 custom domain route，并把页面 canonical / `og:url` 与主入口统一，保持部署入口单一、可预测。
   - 当前主要观察点是 [`portal-query.service.ts`](/Users/peiwang/Projects/nextbot/apps/public-roadmap-feedback-portal/server/portal-query.service.ts) 已明显变大；下一步如果继续扩展审核、合并或统计能力，应优先把 engagement 聚合和 thread 组装继续拆出稳定子 owner。
