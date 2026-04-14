@@ -22,6 +22,12 @@
   - 新桌面 launcher 版本：`0.0.141`
   - `nextclaw` bundle 版本：`0.17.11`
 - 同批次补齐了 landing 页 stable fallback，把官网兜底下载目标从 `v0.17.11-desktop.1 / 0.0.140` 切到 `v0.17.11-desktop.2 / 0.0.141`，避免 GitHub Releases API 失手时仍回退到旧安装包。
+- 同批次继续补齐了 landing 的静态 HTML 结构化数据入口，避免官网运行时入口已经是新版本，但 SEO / 分享抓取面仍停在旧 release：
+  - [apps/landing/en/index.html](/Users/peiwang/Projects/nextbot/apps/landing/en/index.html)
+  - [apps/landing/en/download/index.html](/Users/peiwang/Projects/nextbot/apps/landing/en/download/index.html)
+  - [apps/landing/zh/index.html](/Users/peiwang/Projects/nextbot/apps/landing/zh/index.html)
+  - [apps/landing/zh/download/index.html](/Users/peiwang/Projects/nextbot/apps/landing/zh/download/index.html)
+  - 上述 4 个 `downloadUrl` 现已统一切到 `https://github.com/Peiiii/nextclaw/releases/tag/v0.17.11-desktop.2`
 - 本次正式版发布正文：[github-release.md](/Users/peiwang/Projects/nextbot/docs/logs/v0.16.22-desktop-windows-startup-seed-metadata/github-release.md)
 
 ## 测试/验证/验收方式
@@ -50,6 +56,16 @@
 - 已执行：`pnpm lint:maintainability:guard`
   - 结果：增量 maintainability / governance 检查通过。
   - 未完全通过项：最后的 `check:governance-backlog-ratchet` 仍因仓库既有 `docFileNameViolations` 基线从 `11` 漂移到 `13` 失败；该阻断与本次桌面启动改动无直接关系，本次未扩 scope 处理历史文档命名债务。
+- 已通过：`pnpm -C apps/landing build`
+- 已通过：`pnpm -C apps/landing lint`
+  - 结果：无 error；保留既有 warning：[`apps/landing/src/main.ts`](/Users/peiwang/Projects/nextbot/apps/landing/src/main.ts) 超长文件与超长 `render` 方法，本次没有继续放大该债务。
+- 已通过：`pnpm -C apps/landing tsc`
+- 已通过：`rg -n "v0\\.17\\.11-desktop\\.2|0\\.0\\.141|NextClaw\\.Desktop-0\\.0\\.141" apps/landing/dist`
+  - 结果：构建产物中的主 bundle 已包含新的正式版 tag、版本号和四个平台下载资产名。
+- 已通过：`pnpm deploy:landing`
+  - Wrangler 返回的本次部署地址：`https://b7080200.nextclaw-landing.pages.dev`
+- 已通过：线上回读部署后的 `/en/download/` HTML
+  - 结果：部署后的静态 HTML 中，结构化数据 `downloadUrl` 已切到 `v0.17.11-desktop.2`，不再停在旧的 `v0.17.8-desktop.1`。
 - 未执行：真实 Windows 安装级冒烟
   - 原因：当前工作环境不是 Windows，无法在本机直接复现安装包现场；因此本次关于 Windows 真实收益的判断，仍需以后续 release 包在 Windows 实机日志中复核。
 
@@ -70,6 +86,10 @@
   - bundle version：`0.17.11`
   - release note：对齐 [github-release.md](/Users/peiwang/Projects/nextbot/docs/logs/v0.16.22-desktop-windows-startup-seed-metadata/github-release.md)
 - landing 页 stable fallback 需与正式版同步指向 `v0.17.11-desktop.2`，避免官网兜底仍分发旧版 `0.0.140` 安装包。
+- landing 官网静态站点已重新部署：
+  - 命令：`pnpm deploy:landing`
+  - 本次 Pages 部署地址：`https://b7080200.nextclaw-landing.pages.dev`
+  - 目标：让运行时 fallback、SEO 结构化 `downloadUrl`、下载页入口和正式 GitHub release 同步收敛到同一个稳定版。
 
 ## 用户/产品视角的验收步骤
 
@@ -81,6 +101,7 @@
 4. 如果第一段远大于第二段，说明时间主要仍耗在 packaged seed 安装/解包；如果第二段更大，才继续往 runtime init / serve 健康等待方向查。
 5. 再次关闭并重开桌面端，确认后续冷启动明显快于首次启动，且不再重复 packaged seed 安装的重活。
 6. 在官网 landing 页触发 stable fallback 场景时，确认下载目标已经落到 `v0.17.11-desktop.2 / 0.0.141`，而不是旧的 `v0.17.11-desktop.1 / 0.0.140`。
+7. 在官网首页与下载页查看页面源码或分享抓取结果，确认结构化数据 `downloadUrl` 也已经落到 `v0.17.11-desktop.2`，而不是历史残留的 `v0.17.8-desktop.1`。
 
 ## 可维护性总结汇总
 
@@ -106,6 +127,7 @@
   - packaged metadata 的读取仍收敛在 `DesktopUpdateSourceService`。
   - 没有把启动性能判断散落到 UI、runtime CLI 或额外脚本中。
   - 与发布面相关的增量只落在 landing 的 stable fallback 常量，没有再引入新的运行时分支或第二套下载决策逻辑。
+  - 本轮补齐的静态 HTML 入口仍保持为最小显式常量替换，没有再额外引入模板脚本、构建时注入层或新的 HTML 生成旁路。
 - 目录结构与文件组织是否满足当前项目治理要求：满足当前增量治理要求。
   - `lint:new-code:governance` 已通过。
   - 仍保留的非本次阻断债务是仓库级 `doc file-name backlog ratchet` 基线漂移，本次未扩 scope 处理。
@@ -113,4 +135,4 @@
   - 可维护性复核结论：保留债务经说明接受
   - 本次顺手减债：是
   - no maintainability findings
-  - 长期目标对齐 / 可维护性推进：这次顺着“更少隐式重活、更少 surprise、诊断更直接”的方向前进了一步。它还没有把 Windows 首启慢的问题彻底消灭，因为真正的大头仍是 packaged seed 首次解压 1.2 万多个文件；但至少已经把启动前重复整包读 zip 的额外成本拿掉，并把下一轮排查入口收敛成明确的时间分段，而不是继续靠猜。正式版收尾阶段又顺手把 landing fallback 对齐到了同一稳定包，避免“修复已上线但官网兜底仍下发旧版”的发布面漂移。
+  - 长期目标对齐 / 可维护性推进：这次顺着“更少隐式重活、更少 surprise、诊断更直接”的方向前进了一步。它还没有把 Windows 首启慢的问题彻底消灭，因为真正的大头仍是 packaged seed 首次解压 1.2 万多个文件；但至少已经把启动前重复整包读 zip 的额外成本拿掉，并把下一轮排查入口收敛成明确的时间分段，而不是继续靠猜。正式版收尾阶段又顺手把 landing fallback、静态 HTML 结构化数据和线上部署地址对齐到了同一稳定包，避免“修复已上线但官网某些下载/抓取面仍指向旧版”的发布面漂移。
