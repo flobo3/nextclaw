@@ -64,6 +64,10 @@ export class PortalConfigService {
     return parseCsv(this.env.PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_PUBLIC_LABELS, ["public"]);
   };
 
+  shouldSyncAllLinearIssues = (): boolean => {
+    return this.getLinearPublicLabels().some((label) => label === "all" || label === "*");
+  };
+
   getLinearTypeMatchers = (): Record<PublicItemType, string[]> => {
     return {
       feature: parseCsv(this.env.PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_FEATURE_LABELS, ["feature"]),

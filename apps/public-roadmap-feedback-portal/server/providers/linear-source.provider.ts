@@ -22,51 +22,66 @@ type LinearIssueNode = {
   };
 };
 
+type LinearIssuesConnection = {
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string | null;
+  };
+  nodes: LinearIssueNode[];
+};
+
 type LinearTeamNode = {
   id: string;
   name: string;
   key: string;
-  issues: {
-    nodes: LinearIssueNode[];
-  };
 };
 
-type LinearGraphqlResponse = {
-  data?: {
-    teams?: {
-      nodes: LinearTeamNode[];
-    };
-  };
+type LinearGraphqlResponse<T> = {
+  data?: T;
   errors?: Array<{
     message: string;
   }>;
 };
 
-const LINEAR_TEAM_ISSUES_QUERY = `
-query PublicRoadmapIssues($teamKey: String!) {
+const LINEAR_TEAM_QUERY = `
+query PublicRoadmapTeam($teamKey: String!) {
   teams(filter: { key: { eq: $teamKey } }) {
     nodes {
       id
       name
       key
-      issues(orderBy: updatedAt) {
+    }
+  }
+}
+`;
+
+const LINEAR_ISSUES_PAGE_QUERY = `
+query PublicRoadmapIssuesPage($teamKey: String!, $after: String) {
+  issues(
+    first: 50,
+    after: $after,
+    filter: { team: { key: { eq: $teamKey } } },
+    orderBy: updatedAt
+  ) {
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      id
+      identifier
+      title
+      description
+      updatedAt
+      completedAt
+      canceledAt
+      url
+      state {
+        name
+      }
+      labels {
         nodes {
-          id
-          identifier
-          title
-          description
-          updatedAt
-          completedAt
-          canceledAt
-          url
-          state {
-            name
-          }
-          labels {
-            nodes {
-              name
-            }
-          }
+          name
         }
       }
     }
@@ -82,6 +97,51 @@ export class LinearSourceProvider {
   }
 
   listPublicItems = async (): Promise<SyncedPortalItem[]> => {
+    const team = await this.getTeam();
+    if (!team) {
+      return [];
+    }
+
+    const issues = await this.listTeamIssues();
+    return issues
+      .filter((issue) => this.isPublicIssue(issue))
+      .map((issue) => this.mapIssueToSyncedItem(issue, team));
+  };
+
+  private getTeam = async (): Promise<LinearTeamNode | null> => {
+    const payload = await this.executeGraphql<{
+      teams?: {
+        nodes: LinearTeamNode[];
+      };
+    }>(LINEAR_TEAM_QUERY, {
+      teamKey: this.configService.getLinearTeamKey()
+    });
+    return payload.teams?.nodes?.[0] ?? null;
+  };
+
+  private listTeamIssues = async (): Promise<LinearIssueNode[]> => {
+    const issues: LinearIssueNode[] = [];
+    let afterCursor: string | null = null;
+
+    do {
+      const payload: {
+        issues: LinearIssuesConnection;
+      } = await this.executeGraphql<{
+        issues: LinearIssuesConnection;
+      }>(LINEAR_ISSUES_PAGE_QUERY, {
+        teamKey: this.configService.getLinearTeamKey(),
+        after: afterCursor
+      });
+      issues.push(...payload.issues.nodes);
+      afterCursor = payload.issues.pageInfo.hasNextPage
+        ? payload.issues.pageInfo.endCursor
+        : null;
+    } while (afterCursor);
+
+    return issues;
+  };
+
+  private executeGraphql = async <T>(query: string, variables: Record<string, unknown>): Promise<T> => {
     const response = await fetch(this.configService.getLinearApiUrl(), {
       method: "POST",
       headers: {
@@ -89,31 +149,25 @@ export class LinearSourceProvider {
         authorization: this.configService.getLinearAuthorizationHeader()
       },
       body: JSON.stringify({
-        query: LINEAR_TEAM_ISSUES_QUERY,
-        variables: {
-          teamKey: this.configService.getLinearTeamKey()
-        }
+        query,
+        variables
       })
     });
 
-    const payload = await response.json() as LinearGraphqlResponse;
-    if (!response.ok || payload.errors?.length) {
+    const payload = await response.json() as LinearGraphqlResponse<T>;
+    if (!response.ok || payload.errors?.length || !payload.data) {
       const message = payload.errors?.map((entry) => entry.message).join("; ")
         || `Linear request failed with status ${response.status}.`;
       throw new Error(message);
     }
 
-    const team = payload.data?.teams?.nodes?.[0];
-    if (!team) {
-      return [];
-    }
-
-    return team.issues.nodes
-      .filter((issue) => this.isPublicIssue(issue))
-      .map((issue) => this.mapIssueToSyncedItem(issue, team));
+    return payload.data;
   };
 
   private isPublicIssue = (issue: LinearIssueNode): boolean => {
+    if (this.configService.shouldSyncAllLinearIssues()) {
+      return true;
+    }
     const labels = issue.labels.nodes.map((entry) => entry.name.trim().toLowerCase());
     return this.configService.getLinearPublicLabels().some((label) => labels.includes(label));
   };

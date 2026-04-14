@@ -37,6 +37,21 @@
     - 给官方事项点赞和评论
     - 给社区建议点赞和评论
     - 在官方事项详情里直接看到关联建议
+- 同批次收尾继续完成了真实 live 落地：
+  - 创建远端 D1：`nextclaw-public-roadmap-portal`
+  - 远端应用 migration：
+    - `0001_public_roadmap_portal.sql`
+    - `0002_community_feedback.sql`
+  - 用真实 Linear `NC` team 数据完成首次远端同步，共写入 `59` 条官方事项和 `59` 条 source links
+  - Cloudflare Worker 已部署到：
+    - `https://nextclaw-public-roadmap-feedback-portal.15353764479037.workers.dev`
+  - 当前 Worker live 配置：
+    - `PUBLIC_ROADMAP_FEEDBACK_PORTAL_DATA_MODE=live`
+    - `PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_TEAM_KEY=NC`
+    - `PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_PUBLIC_LABELS=all`
+  - 补强 Linear provider：
+    - 改为根级 `issues` 分页查询，避免 team issues 嵌套查询在真实工作区触发 complexity 超限
+    - 支持显式 `all/*` 语义，在当前 team 没有 `public` 标签时也能同步全量公开事项
 - 目录治理同步优化：
   - 把 preview 和 community 内部类型收进子目录，避免 `server/` 顶层继续越过维护性预算。
 - 相关设计文档：
@@ -52,6 +67,19 @@
   - `pnpm smoke:public-roadmap:portal`
   - `pnpm validate:public-roadmap:portal`
   - `pnpm lint:new-code:governance -- apps/public-roadmap-feedback-portal`
+- 已通过的 live/部署侧验证：
+  - `pnpm -C apps/public-roadmap-feedback-portal db:migrate:remote`
+  - `linear auth whoami`
+  - 使用真实 Linear token + `NC` team key 本地验证 provider 拉取成功，共 `59` 条事项
+  - 远端 D1 验证：
+    - `SELECT name FROM sqlite_master WHERE type='table'`
+    - `SELECT name FROM d1_migrations`
+    - `SELECT COUNT(*) FROM item_source_links WHERE provider = 'linear'` 返回 `59`
+    - `SELECT title, public_phase, item_type FROM public_items WHERE source = 'linear' ORDER BY updated_at DESC LIMIT 5`
+  - `pnpm -C apps/public-roadmap-feedback-portal run deploy`
+- 额外说明：
+  - 当前终端环境对 `workers.dev` 域名的直接 HTTP 访问出现超时，因此“从本终端直接请求线上 URL”的最后一步外部连通性验收未能在会话内拿到成功响应。
+  - 但 Cloudflare 部署返回成功、当前线上版本号已更新，且远端 D1 中真实 Linear 数据已经写入并可查询，因此部署与 live 数据落地本身已完成。
 - 冒烟覆盖的真实链路：
   - 打开首页并确认预览模式与社区反馈区可见
   - 提交一条新的公开建议并关联官方事项
@@ -76,9 +104,10 @@
 - Cloudflare Worker 部署：
   - `pnpm deploy:public-roadmap:portal`
 - live mode 说明：
-  - 官方路线图仍走 `PUBLIC_ROADMAP_FEEDBACK_PORTAL_DATA_MODE=live + D1 + Linear sync`
+  - 官方路线图当前已走 `PUBLIC_ROADMAP_FEEDBACK_PORTAL_DATA_MODE=live + D1 + Linear sync`
   - 社区建议、评论、投票在 live mode 下写入 D1
-  - preview mode 下这些交互是显式临时态，只用于本地预览和演示
+  - 当前公开策略为 `PUBLIC_ROADMAP_FEEDBACK_PORTAL_LINEAR_PUBLIC_LABELS=all`，即先公开 `NC` team 的全部事项；后续如果你想收敛到标签白名单，只需把它改回具体标签列表并重新同步
+  - preview mode 仍保留给本地开发与演示
 
 ## 用户/产品视角的验收步骤
 
@@ -91,6 +120,7 @@
    - 已关联到该事项的社区建议
 5. 在事项详情里继续评论或点赞后，页面应刷新出最新信号。
 6. 把环境切到 `live` 并执行 D1 migration 后，社区建议、评论、投票应持久化到 D1，而不是只存在 preview 内存态。
+7. 当前版本已经接入 `NC` team 的真实 Linear 事项；至少可以在远端 D1 中确认 `59` 条官方事项已存在。
 
 ## 可维护性总结汇总
 
@@ -110,4 +140,5 @@
 - no maintainability findings
 - 可维护性总结：
   - 这次净增长属于新增能力的最小必要集合，但已经提前做了两笔关键减债：一是把 preview / community 责任压回子目录，二是把写侧逻辑收进 `PortalWriteService`，没有让评论、投票、建议提交流入 controller 或 React 组件。
+  - 收尾阶段又顺手偿还了一笔真实环境债务：把 Linear provider 改成分页根查询，并加入显式 `all/*` 策略，不再把“有 `public` 标签”写死成唯一可运行路径。
   - 当前主要观察点是 [`portal-query.service.ts`](/Users/peiwang/Projects/nextbot/apps/public-roadmap-feedback-portal/server/portal-query.service.ts) 已明显变大；下一步如果继续扩展审核、合并或统计能力，应优先把 engagement 聚合和 thread 组装继续拆出稳定子 owner。
