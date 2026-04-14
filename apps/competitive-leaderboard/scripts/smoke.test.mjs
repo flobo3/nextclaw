@@ -8,31 +8,34 @@ const appRoot = process.cwd();
 const baseUrl = (process.env.COMPETITIVE_LEADERBOARD_BASE_URL ?? "http://127.0.0.1:3194").replace(/\/+$/, "");
 const distIndexPath = resolve(appRoot, "dist/client/index.html");
 const serverPort = Number.parseInt(new URL(baseUrl).port || "3194", 10);
+const skipLocalServer = process.env.COMPETITIVE_LEADERBOARD_SKIP_LOCAL_SERVER === "1";
 
-if (!existsSync(distIndexPath)) {
+if (!skipLocalServer && !existsSync(distIndexPath)) {
   console.error("Smoke test requires a built client. Run `pnpm -C apps/competitive-leaderboard build` first.");
   process.exit(1);
 }
 
-const serverProcess = spawn("pnpm", ["run", "start"], {
-  cwd: appRoot,
-  env: {
-    ...process.env,
-    COMPETITIVE_LEADERBOARD_PORT: `${serverPort}`
-  },
-  stdio: ["ignore", "pipe", "pipe"]
-});
-
 let serverLogs = "";
-serverProcess.stdout.on("data", (chunk) => {
+const serverProcess = skipLocalServer
+  ? null
+  : spawn("pnpm", ["run", "start"], {
+      cwd: appRoot,
+      env: {
+        ...process.env,
+        COMPETITIVE_LEADERBOARD_PORT: `${serverPort}`
+      },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+
+serverProcess?.stdout.on("data", (chunk) => {
   serverLogs += chunk.toString();
 });
-serverProcess.stderr.on("data", (chunk) => {
+serverProcess?.stderr.on("data", (chunk) => {
   serverLogs += chunk.toString();
 });
 
 const stopServer = () => {
-  if (!serverProcess.killed) {
+  if (serverProcess && !serverProcess.killed) {
     serverProcess.kill("SIGTERM");
   }
 };
@@ -53,13 +56,13 @@ try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await expectText(page, "龙虾类产品研究榜单");
   await expectText(page, "先画全市场，再谈总榜");
-  await expectText(page, "只对真正同类的一层做统一总榜");
-  await expectText(page, "把“声量”和“能力”拆开看");
+  await expectText(page, "只对真正同类的 core 层做统一总榜");
+  await expectText(page, "并把公共信号和能力覆盖拆开给你看");
   await expectText(page, "Derivative / Watch");
 
   const profileCards = page.locator(".profile-card");
-  if ((await profileCards.count()) < 14) {
-    throw new Error("Expected at least 14 product profile cards in the universe.");
+  if ((await profileCards.count()) < 20) {
+    throw new Error("Expected at least 20 product profile cards in the universe.");
   }
 
   await page.getByRole("button", { name: "看证据" }).first().click();
@@ -76,6 +79,14 @@ try {
 }
 
 async function waitForHealth() {
+  if (skipLocalServer) {
+    const response = await fetch(`${baseUrl}/health`);
+    if (!response.ok) {
+      throw new Error(`Remote smoke health check failed at ${baseUrl}/health.`);
+    }
+    return;
+  }
+
   const deadline = Date.now() + 30_000;
 
   while (Date.now() < deadline) {

@@ -12,8 +12,10 @@
     "build:server": "tsc -p tsconfig.backend.json",
     "start": "node dist/server/index.js",
     "lint": "cd ../.. && pnpm exec eslint apps/competitive-leaderboard --config apps/competitive-leaderboard/eslint.config.mjs --max-warnings=0",
-    "tsc": "tsc -p tsconfig.json && tsc -p tsconfig.backend.json --noEmit",
-    "smoke": "node scripts/smoke.test.mjs"
+    "tsc": "tsc -p tsconfig.json && tsc -p tsconfig.backend.json --noEmit && tsc -p tsconfig.worker.json",
+    "smoke": "node scripts/smoke.test.mjs",
+    "smoke:remote": "COMPETITIVE_LEADERBOARD_SKIP_LOCAL_SERVER=1 node scripts/smoke.test.mjs",
+    "deploy": "pnpm run build && pnpm exec wrangler deploy --config wrangler.toml"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",

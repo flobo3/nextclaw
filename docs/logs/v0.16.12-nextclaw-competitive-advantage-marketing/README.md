@@ -55,13 +55,23 @@
   - `pnpm -C apps/competitive-leaderboard tsc`
   - `pnpm -C apps/competitive-leaderboard smoke`
   - `pnpm validate:competitive:leaderboard`
+- 已执行 Cloudflare Worker dry-run：
+  - `pnpm exec wrangler deploy --config apps/competitive-leaderboard/wrangler.toml --dry-run`
+- 已执行真实发布：
+  - `pnpm deploy:competitive:leaderboard`
 - smoke 覆盖点已切到新模型：
   - 首页出现“龙虾类产品研究榜单”
   - 页面出现“先画全市场，再谈总榜”
   - 页面出现“只对真正同类的一层做统一总榜”
   - 页面出现“把‘声量’和‘能力’拆开看”
-  - 产品资料卡不少于 14 个
+  - 产品资料卡不少于 20 个
   - 打开证据抽屉后能看到“纳入判断 / 能力矩阵 / 公共信号拆解”
+- 线上验证：
+  - Cloudflare deploy 成功返回 `Current Version ID: 8f92b641-bbc1-4495-9234-89923a5fd30b`
+  - 线上地址：`https://nextclaw-competitive-leaderboard.15353764479037.workers.dev`
+  - 额外远程 smoke 已尝试：
+    - `COMPETITIVE_LEADERBOARD_BASE_URL=https://nextclaw-competitive-leaderboard.15353764479037.workers.dev pnpm smoke:competitive:leaderboard:remote`
+  - 当前终端到 `workers.dev` 的网络请求出现连接超时，因此远程 smoke 未拿到稳定结果；但 `wrangler deploy` 已确认发布成功。
 - 维护性治理：
   - 已执行 `pnpm lint:maintainability:guard`
   - 结果：未通过
@@ -75,8 +85,14 @@
   - `pnpm dev:competitive:leaderboard`
 - 本地完整验证：
   - `pnpm validate:competitive:leaderboard`
-- 当前仍是仓库内独立 app，尚未接入正式线上部署。
-- 若后续上线，建议继续保持“研究型榜单站”身份，而不是直接降级为官网某个宣传分栏。
+- Cloudflare 发布：
+  - `pnpm deploy:competitive:leaderboard`
+- 当前线上地址：
+  - `https://nextclaw-competitive-leaderboard.15353764479037.workers.dev`
+- 部署形态：
+  - Cloudflare Worker + static assets
+  - Worker 名称：`nextclaw-competitive-leaderboard`
+- 建议继续保持“研究型榜单站”身份，而不是直接降级为官网某个宣传分栏。
 
 ## 用户/产品视角的验收步骤
 
