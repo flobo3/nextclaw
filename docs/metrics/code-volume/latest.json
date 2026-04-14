@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-13T03:21:28.811Z",
+  "generatedAt": "2026-04-14T03:21:09.237Z",
   "projectRoot": "/home/runner/work/nextclaw/nextclaw",
   "git": {
-    "sha": "00c8bd7eab98e2cef1b5d40d7dcd28f00504d35d",
+    "sha": "e3c99924270bbc02d3f2b3e876a7692aa0e7e90e",
     "ref": "master"
   },
   "scope": {
@@ -82,19 +82,19 @@
   },
   "totals": {
     "files": 1321,
-    "totalLines": 203809,
-    "blankLines": 19502,
+    "totalLines": 203830,
+    "blankLines": 19505,
     "commentLines": 1566,
-    "codeLines": 182741
+    "codeLines": 182759
   },
   "byLanguage": [
     {
       "name": "TypeScript",
       "files": 1105,
-      "totalLines": 174116,
-      "blankLines": 16986,
+      "totalLines": 174137,
+      "blankLines": 16989,
       "commentLines": 1502,
-      "codeLines": 155628
+      "codeLines": 155646
     },
     {
       "name": "TSX",
@@ -197,10 +197,10 @@
     {
       "name": "apps/desktop",
       "files": 25,
-      "totalLines": 4419,
-      "blankLines": 424,
+      "totalLines": 4440,
+      "blankLines": 427,
       "commentLines": 3,
-      "codeLines": 3992
+      "codeLines": 4010
     },
     {
       "name": "workers/marketplace-api",
@@ -3209,6 +3209,16 @@
       "codeLines": 213
     },
     {
+      "path": "apps/desktop/src/launcher/services/bundle.service.ts",
+      "scope": "apps/desktop",
+      "language": "TypeScript",
+      "files": 1,
+      "totalLines": 248,
+      "blankLines": 35,
+      "commentLines": 1,
+      "codeLines": 212
+    },
+    {
       "path": "packages/nextclaw-openclaw-compat/src/plugins/progressive-plugin-loader/progressive-bundled-plugin-loader.ts",
       "scope": "packages/nextclaw-openclaw-compat",
       "language": "TypeScript",
@@ -3556,16 +3566,6 @@
       "totalLines": 229,
       "blankLines": 22,
       "commentLines": 13,
-      "codeLines": 194
-    },
-    {
-      "path": "apps/desktop/src/launcher/services/bundle.service.ts",
-      "scope": "apps/desktop",
-      "language": "TypeScript",
-      "files": 1,
-      "totalLines": 227,
-      "blankLines": 32,
-      "commentLines": 1,
       "codeLines": 194
     },
     {
@@ -13680,8 +13680,8 @@
     }
   ],
   "delta": {
-    "previousCodeLines": null,
-    "codeLines": null,
-    "percent": null
+    "previousCodeLines": 182741,
+    "codeLines": 18,
+    "percent": 0.01
   }
 }

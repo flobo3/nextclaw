@@ -1,17 +1,17 @@
 export default {
-  "generatedAt": "2026-04-13T03:21:29.716Z",
+  "generatedAt": "2026-04-14T03:21:09.966Z",
   "hero": {
-    "currentLoc": 182741,
+    "currentLoc": 182759,
     "trackedFiles": 1321,
-    "recentCommitCount": 597,
-    "activeDays30": 30,
+    "recentCommitCount": 567,
+    "activeDays30": 29,
     "recentReleaseCount": 51,
     "latestReleaseDate": "2026-04-13",
     "latestNoteDate": "2026-04-03",
     "benchmarkName": "openclaw",
-    "benchmarkCodeLines": 1815700,
-    "basePercentOfBenchmark": 10.06,
-    "lighterByPercent": 89.94
+    "benchmarkCodeLines": 1842003,
+    "basePercentOfBenchmark": 9.92,
+    "lighterByPercent": 90.08
   },
   "trends": {
     "locDaily": [
@@ -284,14 +284,14 @@ export default {
         "key": "2026-04-13",
         "label": "04-13",
         "value": 182741
+      },
+      {
+        "key": "2026-04-14",
+        "label": "04-14",
+        "value": 182759
       }
     ],
     "commitDaily": [
-      {
-        "key": "2026-03-15",
-        "label": "03-15",
-        "value": 33
-      },
       {
         "key": "2026-03-16",
         "label": "03-16",
@@ -435,7 +435,12 @@ export default {
       {
         "key": "2026-04-13",
         "label": "04-13",
-        "value": 6
+        "value": 9
+      },
+      {
+        "key": "2026-04-14",
+        "label": "04-14",
+        "value": 0
       }
     ],
     "commitWeekly": [
@@ -497,7 +502,7 @@ export default {
       {
         "key": "2026-04-13",
         "label": "04-13",
-        "value": 6
+        "value": 9
       }
     ],
     "releaseMonthly": [
@@ -616,9 +621,9 @@ export default {
     ],
     "benchmark": {
       "name": "openclaw",
-      "benchmarkCodeLines": 1815700,
-      "basePercentOfBenchmark": 10.06,
-      "lighterByPercent": 89.94
+      "benchmarkCodeLines": 1842003,
+      "basePercentOfBenchmark": 9.92,
+      "lighterByPercent": 90.08
     },
     "recentReleaseBatches": [
       {
@@ -818,7 +823,7 @@ export default {
   },
   "meta": {
     "locProfile": "source",
-    "locGeneratedAt": "2026-04-13T03:21:28.811Z",
+    "locGeneratedAt": "2026-04-14T03:21:09.237Z",
     "sourceCount": {
       "notes": 3,
       "scopes": 8
