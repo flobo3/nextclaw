@@ -1,93 +1,112 @@
 # NextClaw Vision
 
-NextClaw aims to build an AI Agent platform that is **self-aware, self-governing, infinitely extensible, and purpose-built for digital omnipotence**.
+NextClaw's long-term vision is to become the personal operating layer for the AI era.
 
-The following four pillars define the product's long-term direction and fundamental beliefs. They are not a feature checklist for any single release, but the North Star that guides every iteration.
+It is not a traditional operating system kernel. It is the default entry point through which users interact with software, the internet, systems, services, and cloud computing.
 
----
+This is the public documentation version of the vision and should stay aligned with the canonical repository document at `docs/VISION.md`.
 
-## Pillar I: Self-Aware & Self-Governing — An AI "Omniscient and Omnipotent" Over Its Own System
+## What It Is Really Trying to Build
 
-The agent possesses complete awareness of and control over its own system — truly omniscient and omnipotent within its domain.
+NextClaw is not trying to become "an AI product with many features." It aims to become a native AI entry point that is unified, natural, powerful, and trustworthy enough to be used every day.
 
-**Self-Awareness (Omniscient)**
+In the ideal state, users do not first think, "Which app, website, or service should I open?" They start with NextClaw, express the goal, and let NextClaw understand the intent, call tools, connect services, orchestrate the workflow, and deliver the result.
 
-- The agent knows everything about itself: identity (NextClaw), version, full configuration (providers, models, channels, cron, plugins), runtime state, health, capability boundaries, and relevant documentation.
-- It can answer any question about itself in conversation — "What channels do I have?", "What model am I using?", "Am I healthy?", "What capabilities do I support?"
-- Covers both static information (config, version) and dynamic information (runtime state, real-time health, session context).
+If traditional operating systems defined how people use computers, NextClaw wants to help define how people use the digital world in the AI era.
 
-**Self-Governance (Omnipotent)**
+## How to Read This Vision
 
-- The agent can perform any management action on its system via tools: modify configuration, enable/disable channels, add/remove cron jobs, install/uninstall plugins, trigger diagnostics and restarts, etc.
-- Destructive or irreversible operations require explicit confirmation to ensure safety and control.
-- The built-in chat interface becomes a first-class surface for this self-governing system — users can accomplish through natural language everything that previously required UI or CLI.
+"Personal operating layer" is the top-level goal, but it is not an empty slogan. To make it real, NextClaw needs several threads to hold at the same time.
 
-**Goal**: Make the agent a complete proxy for its own system. Users need only converse to understand and control every aspect of NextClaw.
+### 1. Unified Entry Point
 
----
+NextClaw should become a unified entry point, not just one more parallel tool.
 
-## Pillar II: Plugin-Based Extensibility & Ecosystem Growth
+- users should increasingly start with NextClaw when they want to get something done
+- software, services, channels, devices, and cloud resources should be brought together through NextClaw
+- it should grow into a default workspace for workflows, conversations, and information flows
 
-Once the system core stabilizes, plugins and skills enable unlimited functional expansion and organic community growth.
+### 2. Capability Orchestration
 
-**Stable Core**
+NextClaw does not create value by rebuilding every tool itself. It creates value by connecting, coordinating, and composing the software, systems, services, and compute that already exist.
 
-- The core runtime, plugin SDK, and channel protocols converge toward stability with backward compatibility.
-- Clear boundary between core and plugins: the core handles scheduling, security, and lifecycle management; feature expansion is delegated to plugins.
+- translating user intent into executable workflows
+- calling tools, connecting services, and organizing multi-step tasks
+- converging multiple models, channels, plugins, and runtime environments into one understandable experience
 
-**Open Plugin/Skill System**
+The direction is "unified entry point plus orchestration," not "feature landfill."
 
-- OpenClaw-compatible plugin and skill development workflow.
-- One-click install, enable, configure, and uninstall plugins from the UI.
-- Developers can build plugins using NextClaw itself, lowering the barrier to creation.
+### 3. Self-Awareness and Self-Governance
 
-**Marketplace Ecosystem**
+The original direction around self-knowledge and self-governance should not be thrown away, but it does not need two near-duplicate terms. We can fold the old "self-knowledge" idea into a broader notion of self-awareness, then pair it with self-governance.
 
-- High-quality user-developed plugins and skills can be published to the Marketplace pool.
-- A closed loop of "use → build → share → discover" drives organic community growth and a thriving ecosystem.
-- Supporting infrastructure for ratings, version management, and dependency resolution.
+- knowing who it is: identity, version, rules, capability boundaries, and tool boundaries
+- knowing its own system state: configuration, runtime state, health, and service connections
+- knowing who it is working for: the user, preferences, and recurring patterns
+- knowing what context it is in: session, project, channel, device, and runtime environment
+- knowing what it has done, how things went, and where errors came from
+- being able to perform key management actions through tools, such as config changes, channel control, task management, extension management, diagnostics, and recovery
 
----
+The goal is not to mythologize the agent. The goal is to let users understand and control NextClaw itself through natural language and a unified control surface.
 
-## Pillar III: Infrastructure for Digital Omnipotence
+### 4. Self-Evolution
 
-NextClaw is not just a chatbot — it aspires to be the infrastructure for users to be "omnipotent" in the digital world, across three dimensions:
+NextClaw cannot remain a static entry point. It should develop a governable, accumulative, reusable ability to improve over time.
 
-**a. Full Management and Utilization of the Host System**
+- learning from mistakes instead of repeating them
+- reflecting on user feedback, task outcomes, and failure replays
+- improving execution strategies, tool discipline, context organization, and memory structures
+- turning repeated experience into longer-lived user preferences, project knowledge, procedural memory, and skill memory
+- becoming more like "this user's own operating layer" as usage grows
 
-- The agent deeply understands and leverages the host system it runs on (OS, filesystem, local services, hardware resources, etc.).
-- Management operations on the host via tool calls: file management, process management, system monitoring, local application integration, etc.
-- Making AI the intelligent hub through which users control their local environment.
+### 5. Plugin-Based Extensibility and Ecosystem Growth
 
-**b. Convenient Access to Internet Data and Cloud Computing**
+A personal operating layer cannot grow by inflating the core forever. It needs a stable core plus an expansion ecosystem.
 
-- Seamless access to internet data sources: search, scraping, API calls, information aggregation.
-- Orchestration and utilization of cloud computing resources: cloud storage, serverless functions, remote services, etc.
-- Users reach the internet's data and compute through natural language, without manually operating complex tools.
+- the core runtime, plugin SDK, and channel protocols should converge toward stable boundaries
+- long-term capability expansion should increasingly come through plugins, skills, and the marketplace
+- users and developers should be able to form a loop of use -> build -> share -> discover
 
-**c. Comprehensive Management of User Data**
+### 6. Digital World Infrastructure
 
-- Management of local user data: files, notes, configurations, personal knowledge bases.
-- Connection and integration of data scattered across users' apps and platforms (email, calendar, social media, notes, cloud drives, etc.).
-- Providing a unified data view and operational capability while respecting privacy and security.
+NextClaw is not just a chatbot. It aims to become a general operating infrastructure for users in the digital world.
 
----
+- understanding and using the host system, local services, filesystems, and hardware resources
+- connecting to internet data sources, APIs, and cloud computing resources
+- giving users a more unified way to work with data scattered across many systems
 
-## Pillar IV: Out-of-the-Box Experience
+### 7. Out-of-the-Box Experience
 
-Remove every barrier to adoption — users know what they can do immediately after installation and can start with a single click.
+If NextClaw is meant to become a personal operating layer, it cannot work only for advanced users. It must also be easy to activate for new users.
 
-**Instantly Visible Capabilities**
+- users should quickly understand what it can do on first launch
+- important scenarios should support one-click setup and activation
+- the path from learning to installing to first successful use should be short and smooth
 
-- On first launch, showcase NextClaw's core capabilities and typical scenarios (scheduled reminders, intelligent Q&A, multi-channel integration, data management, etc.).
-- A "capability gallery" or guided wizard lets users intuitively grasp the product's value.
+## The Product Level We Aim For
 
-**One-Click Activation**
+The goal is not to recreate a movie-style JARVIS fantasy. The goal is to reach that level of product importance:
 
-- Key scenarios support one-click configuration and launch — no manual form-filling required.
-- Pre-built scenario templates (e.g., WeChat assistant, scheduled tasks, email digest) — select and go.
+- important enough to become the user's first entry point
+- unified enough to sit above software, services, platforms, and compute
+- natural enough that users express intent more and switch tools less
+- continuous enough that every turn does not feel like amnesia
+- reliable enough to be trusted as a long-term default workspace
+- adaptive enough to become more useful over time instead of staying flat
 
-**Zero-Friction Onboarding**
+## What This Does Not Mean
 
-- The path from installation to first working scenario should be as short and simple as possible.
-- Landing page, in-app guidance, and documentation form a closed loop: learn → install → experience → go deeper.
+This vision does not mean:
+
+- stuffing every possible capability into a monolithic product
+- rebuilding everything ourselves
+- piling on isolated features just to appear powerful
+- shipping a chat shell that cannot actually orchestrate the real world
+- turning "self-awareness" into mystical language without real system capabilities behind it
+- turning "self-evolution" into an uncontrollable black-box self-modifying system
+
+## Relationship with NCP
+
+`NextClaw` is the productized operating layer facing end users. `NCP` is the protocol, runtime, and building-block foundation beneath it.
+
+You can think of NCP as the infrastructure base, and NextClaw as the productized entry point for real users.
