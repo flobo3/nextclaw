@@ -28,6 +28,7 @@ import { ProviderManagerNcpLLMApi } from "./provider/provider-manager-ncp-llm-ap
 import { SessionCreationService } from "./session-request/session-creation.service.js";
 import { SessionRequestBroker } from "./session-request/session-request-broker.js";
 import { SessionRequestDeliveryService } from "./session-request/session-request-delivery.service.js";
+import { SessionSearchRuntimeSupport } from "./session-search/session-search-runtime.service.js";
 import { UiNcpRuntimeRegistry } from "./ui-ncp-runtime-registry.js";
 import { LlmUsageObserver, ObservedProviderManager } from "../shared/llm-usage-observer.js";
 import {
@@ -167,6 +168,7 @@ function createNativeRuntimeFactory(
   assetStore: LocalAssetStore,
   sessionCreationService: SessionCreationService,
   sessionRequestBroker: SessionRequestBroker,
+  sessionSearchRuntimeSupport: SessionSearchRuntimeSupport,
 ): RuntimeFactory {
   const observedProviderManager = new ObservedProviderManager(
     params.providerManager,
@@ -209,6 +211,9 @@ function createNativeRuntimeFactory(
         }),
         ...mcpToolRegistryAdapter.listToolsForRun({
           agentId: context.agentId,
+        }),
+        sessionSearchRuntimeSupport.createTool({
+          currentSessionId: context.sessionId,
         }),
       ],
     });
@@ -308,8 +313,13 @@ class PluginRuntimeRegistrationController {
 }
 
 export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<UiNcpAgentHandle> {
-  const sessionStore = new NextclawAgentSessionStore(params.sessionManager, {
+  const sessionSearchRuntimeSupport = new SessionSearchRuntimeSupport({
+    sessionManager: params.sessionManager,
     onSessionUpdated: params.onSessionUpdated,
+    databasePath: join(getDataDir(), "session-search.db"),
+  });
+  const sessionStore = new NextclawAgentSessionStore(params.sessionManager, {
+    onSessionUpdated: sessionSearchRuntimeSupport.handleSessionUpdated,
   });
   const runtimeRegistry = new UiNcpRuntimeRegistry();
   const { toolRegistryAdapter, applyMcpConfig, dispose: disposeMcpRuntimeSupport } =
@@ -321,14 +331,14 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
   const sessionCreationService = new SessionCreationService(
     params.sessionManager,
     params.getConfig,
-    params.onSessionUpdated,
+    sessionSearchRuntimeSupport.handleSessionUpdated,
   );
   const sessionRequestBroker = new SessionRequestBroker(
     params.sessionManager,
     sessionCreationService,
     new SessionRequestDeliveryService(() => backend),
     () => backend,
-    params.onSessionUpdated,
+    sessionSearchRuntimeSupport.handleSessionUpdated,
   );
   const createNativeRuntime = createNativeRuntimeFactory(
     params,
@@ -336,6 +346,7 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
     assetStore,
     sessionCreationService,
     sessionRequestBroker,
+    sessionSearchRuntimeSupport,
   );
 
   runtimeRegistry.register({
@@ -349,6 +360,7 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
     params.getExtensionRegistry,
   );
   pluginRuntimeRegistrationController.refreshPluginRuntimeRegistrations();
+  await sessionSearchRuntimeSupport.initialize();
 
   backend = new DefaultNcpAgentBackend({
     endpointId: "nextclaw-ui-agent",
@@ -375,6 +387,7 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
     dispose: async () => {
       pluginRuntimeRegistrationController.dispose();
       await backend?.stop();
+      await sessionSearchRuntimeSupport.dispose();
       await disposeMcpRuntimeSupport();
     },
     assetStore,
