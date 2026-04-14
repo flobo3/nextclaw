@@ -9,6 +9,7 @@ Electron desktop shell for NextClaw.
 - `pnpm -C apps/desktop dist`: build desktop artifacts with electron-builder.
 - `pnpm -C apps/desktop smoke`: run non-GUI runtime smoke test.
 - `pnpm -C apps/desktop bundle:public-key -- ...`: derive the bundled desktop update public key from the signing private key.
+- `pnpm -C apps/desktop bundle:public-key:ensure`: guarantee `build/update-bundle-public.pem` exists before packaging. If no private key is present locally, it writes the currently published public key instead of leaving the packaged app without a verifier.
 - `pnpm -C apps/desktop bundle:build -- ...`: build a launcher-compatible zipped product bundle.
 - `pnpm -C apps/desktop bundle:manifest -- ...`: generate a signed desktop update manifest for a product bundle archive.
 
@@ -17,6 +18,7 @@ Electron desktop shell for NextClaw.
 - `build:main` uses `tsc` emit (no bundling). This avoids bundling Electron's runtime loader into `dist/src/main.js`.
 - `dev` will auto-check `nextclaw/dist`. If missing, it auto-runs `pnpm -C packages/nextclaw build`, then injects `NEXTCLAW_DESKTOP_RUNTIME_SCRIPT=../../packages/nextclaw/dist/cli/index.js` explicitly.
 - `pack` / `dist` will auto-ensure `nextclaw-ui` + `nextclaw` runtime artifacts before packaging.
+- `pack` / `dist` now also auto-ensure `build/update-bundle-public.pem`. Do not bypass this by calling raw `electron-builder` unless you have already prepared the bundled update public key yourself.
 - If you see `Electron failed to install correctly`, first run:
   - `PATH=/opt/homebrew/bin:$PATH pnpm install`
   - `PATH=/opt/homebrew/bin:$PATH pnpm -C apps/desktop build`
@@ -97,6 +99,7 @@ Desktop runtime sources are now intentionally reduced to only two:
 
 Run all checks from repo root:
 
+- `PATH=/opt/homebrew/bin:$PATH pnpm desktop:package:verify`
 - `PATH=/opt/homebrew/bin:$PATH pnpm build`
 - `PATH=/opt/homebrew/bin:$PATH pnpm lint`
 - `PATH=/opt/homebrew/bin:$PATH pnpm tsc`
@@ -111,6 +114,8 @@ Expected startup logs include:
 - `Channels enabled: ...`
 - `UI API: http://0.0.0.0:<port>/api`
 - `UI frontend: http://0.0.0.0:<port>`
+
+`pnpm desktop:package:verify` is the required guardrail for NextClaw desktop release candidates. It now blocks packages that are missing `resources/update/update-bundle-public.pem` or cannot verify a published manifest signature.
 
 ### 2) Build desktop artifacts
 

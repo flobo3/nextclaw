@@ -10,6 +10,7 @@
   "scripts": {
     "bundle:build": "node scripts/update/services/build-product-bundle.service.mjs",
     "bundle:public-key": "node scripts/update/services/write-bundle-public-key.service.mjs",
+    "bundle:public-key:ensure": "node scripts/update/services/ensure-bundle-public-key.service.mjs --output build/update-bundle-public.pem",
     "bundle:release-metadata": "node scripts/update/services/write-release-metadata.service.mjs",
     "bundle:seed": "node scripts/update/services/prepare-seed-bundle.service.mjs",
     "icons:generate": "node scripts/generate-icons.mjs",
@@ -19,8 +20,8 @@
     "build:main": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json --outDir dist --noEmit false",
     "lint": "eslint \"src/**/*.ts\"",
     "tsc": "tsc -p tsconfig.json --noEmit",
-    "pack": "node scripts/ensure-runtime.mjs && pnpm bundle:seed && pnpm build:main && electron-builder --dir",
-    "dist": "node scripts/ensure-runtime.mjs && pnpm bundle:seed && pnpm build:main && electron-builder",
+    "pack": "node scripts/ensure-runtime.mjs && pnpm bundle:public-key:ensure && pnpm bundle:seed && pnpm build:main && electron-builder --dir",
+    "dist": "node scripts/ensure-runtime.mjs && pnpm bundle:public-key:ensure && pnpm bundle:seed && pnpm build:main && electron-builder",
     "smoke": "pnpm build:main && node scripts/smoke-runtime.mjs",
     "smoke:update": "node scripts/smoke-product-update.mjs",
     "validation:prepare-manual-update": "node scripts/prepare-manual-update-validation.mjs",

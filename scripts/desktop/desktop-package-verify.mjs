@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createPublicKey, verify } from "node:crypto";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -63,12 +64,21 @@ function runCommonBuildSteps() {
   run(binName("pnpm"), ["-C", "packages/nextclaw-openclaw-compat", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw-server", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw", "build"]);
+  run(binName("pnpm"), ["-C", "apps/desktop", "bundle:public-key:ensure"]);
   run(binName("pnpm"), ["-C", "apps/desktop", "bundle:seed"]);
   run(binName("pnpm"), ["-C", "apps/desktop", "lint"]);
   run(binName("pnpm"), ["-C", "apps/desktop", "tsc"]);
   run(binName("pnpm"), ["-C", "apps/desktop", "build:main"], {
     env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
   });
+}
+
+function parsePublicKey(publicKeyPem, context) {
+  try {
+    return createPublicKey(publicKeyPem);
+  } catch (error) {
+    throw new Error(`Invalid desktop update public key from ${context}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function readExpectedBundleVersion() {
@@ -143,6 +153,38 @@ function verifySeedBundleRuntimeInit(seedBundlePath) {
   }
 }
 
+function serializeUnsignedManifest(manifest) {
+  return JSON.stringify({
+    channel: manifest.channel,
+    platform: manifest.platform,
+    arch: manifest.arch,
+    latestVersion: manifest.latestVersion,
+    minimumLauncherVersion: manifest.minimumLauncherVersion,
+    bundleUrl: manifest.bundleUrl,
+    bundleSha256: manifest.bundleSha256,
+    bundleSignature: manifest.bundleSignature,
+    releaseNotesUrl: manifest.releaseNotesUrl
+  });
+}
+
+function assertManifestSignatureCanBeVerified(publicKeyPath, manifestUrl) {
+  const publicKey = parsePublicKey(readFileSync(publicKeyPath, "utf8"), publicKeyPath);
+  const response = spawnSync("curl", ["-fsSL", manifestUrl], {
+    cwd: rootDir,
+    encoding: "utf8"
+  });
+  if (response.status !== 0) {
+    throw new Error(`Failed to download ${manifestUrl}: ${response.stderr || response.stdout}`);
+  }
+  const manifest = JSON.parse(response.stdout);
+  const signature = Buffer.from(manifest.manifestSignature, "base64");
+  const valid = verify(null, Buffer.from(serializeUnsignedManifest(manifest)), publicKey, signature);
+  if (!valid) {
+    throw new Error(`Packaged update public key cannot verify published manifest: ${manifestUrl}`);
+  }
+  console.log(`[desktop-verify] update manifest signature verified: ${manifestUrl}`);
+}
+
 function verifyMacDesktopPackage() {
   cleanReleaseDir();
   const arch = process.arch === "x64" ? "x64" : "arm64";
@@ -168,6 +210,15 @@ function verifyMacDesktopPackage() {
   if (!existsSync(seedBundlePath)) {
     throw new Error(`Packaged seed bundle missing: ${seedBundlePath}`);
   }
+  const packagedPublicKeyPath = resolve(mountedAppRoot, "Contents/Resources/update/update-bundle-public.pem");
+  if (!existsSync(packagedPublicKeyPath)) {
+    throw new Error(`Packaged update public key missing: ${packagedPublicKeyPath}`);
+  }
+  parsePublicKey(readFileSync(packagedPublicKeyPath, "utf8"), packagedPublicKeyPath);
+  assertManifestSignatureCanBeVerified(
+    packagedPublicKeyPath,
+    `https://Peiiii.github.io/nextclaw/desktop-updates/stable/manifest-stable-darwin-${arch}.json`
+  );
   assertSeedBundleVersion(seedBundlePath);
   verifySeedBundleRuntimeInit(seedBundlePath);
   run("bash", ["apps/desktop/scripts/smoke-macos-dmg.sh", dmgPath, "120"]);

@@ -37,6 +37,22 @@
   - 启动器现在会记录“上一次尝试过的 packaged seed 指纹”
   - 如果同版本 packaged seed 的归档指纹已经变化，就允许重新尝试这份修复后的 seed
   - 如果同版本 packaged seed 指纹根本没变，则继续跳过，避免对同一份坏包无限重试
+- 本次继续修复“点击检查更新时报 `manifest signature verification requires bundlePublicKey`”的问题：
+  - 根因是本地标准 DMG 打包前没有准备 `apps/desktop/build/update-bundle-public.pem`
+  - `electron-builder` 遇到缺失的 `extraResources` 只打印 `file source doesn't exist`，不会直接失败
+  - 结果就是安装包能启动，但 `Contents/Resources/update/update-bundle-public.pem` 缺失，用户点击“检查更新”时更新服务无法验证线上 manifest 签名
+- 现在已修正 `scripts/desktop/desktop-package-verify.mjs`：
+  - 打包前必须准备桌面更新公钥
+  - 若存在 `NEXTCLAW_DESKTOP_BUNDLE_PRIVATE_KEY` / `NEXTCLAW_DESKTOP_BUNDLE_PRIVATE_KEY_FILE`，则从私钥导出公钥
+  - 本地无私钥时，显式下载当前线上发布的公开公钥 `https://Peiiii.github.io/nextclaw/desktop-updates/update-bundle-public.pem`，作为本地验证包的 pinned key
+  - DMG 产出后强制校验 `.app` 内的 `Contents/Resources/update/update-bundle-public.pem` 存在且能解析
+  - 继续用包内公钥真实验证线上 stable manifest 签名，避免再把“能启动但检查更新必炸”的安装包交付出去
+- 本次继续把这条约束前移成更系统化的防呆：
+  - 新增 `apps/desktop/scripts/update/services/ensure-bundle-public-key.service.mjs`
+  - `pnpm -C apps/desktop dist` / `pack` 现在都会先执行 `bundle:public-key:ensure`
+  - `scripts/desktop/desktop-package-build.mjs` 也会先执行同一条保证逻辑
+  - 新增项目内 skill：`.agents/skills/desktop-release-contract-guard/SKILL.md`
+  - 目标不是“记住这次事故”，而是让后续桌面发包默认带上正确的更新验签合同
 
 ## 测试/验证/验收方式
 
@@ -66,11 +82,31 @@
   - 结果：从标准 DMG 解出的安装版 `.app` bundle 签名校验通过。
 - 已通过：`PATH=/opt/homebrew/bin:$PATH pnpm desktop:package:verify`
   - 结果：
+    - 本地无私钥环境下，脚本已显式下载线上公开公钥并写入 `apps/desktop/build/update-bundle-public.pem`
+    - 新 `.app` 内已确认存在 `Contents/Resources/update/update-bundle-public.pem`
+    - 已通过包内公钥验证线上 stable manifest：`update manifest signature verified: https://Peiiii.github.io/nextclaw/desktop-updates/stable/manifest-stable-darwin-arm64.json`
     - 新生成的 `seed-product-bundle.zip` 已明确产出 `bundleVersion = 0.17.10`
     - `desktop:package:verify` 新增硬断言并输出 `seed bundle version verified: 0.17.10`
     - `desktop:package:verify` 新增“直接解包 seed runtime 并执行 `init`”的硬验证，当前日志已输出 `seed runtime init verified`
     - 新标准安装包重新产出为 `apps/desktop/release/NextClaw Desktop-0.0.138-arm64.dmg`
     - DMG 冒烟继续通过：`runtime fallback health check passed: http://127.0.0.1:55667/api/health`
+- 已通过：桌面更新服务级真实检查
+  - 验证方式：
+    - 从新打出的 `.app` 读取 `Contents/Resources/update/update-bundle-public.pem`
+    - 直接实例化 `DesktopUpdateService`
+    - 调用 `checkForUpdate("https://Peiiii.github.io/nextclaw/desktop-updates/stable/manifest-stable-darwin-arm64.json", "0.17.10")`
+  - 真实观察结果：
+    - 不再抛出 `manifest signature verification requires bundlePublicKey`
+    - 返回 `null`
+  - 结论：通过。`null` 表示签名验证已经通过，并且当前本地 `0.17.10` 高于线上 stable manifest 的 `0.17.8`，所以没有可更新项。
+- 已通过：删掉本地公钥后的直接打包防回归验证
+  - 验证方式：
+    - 先删除 `apps/desktop/build/update-bundle-public.pem`
+    - 直接执行 `PATH=/opt/homebrew/bin:$PATH pnpm -C apps/desktop dist -- --mac dmg --arm64 --publish never`
+  - 真实观察结果：
+    - `bundle:public-key:ensure` 会先重建 `build/update-bundle-public.pem`
+    - 直接打包路径也能重新产出标准 DMG，而不是再悄悄生成缺少验签公钥的坏包
+  - 结论：通过。现在即使绕过 `desktop:package:verify` 直接走 `apps/desktop dist`，也不再容易重现这次问题。
 - 已通过：`node --test apps/desktop/dist/src/services/desktop-bundle-bootstrap.service.test.js apps/desktop/dist/src/launcher/__tests__/launcher-foundation.test.js`
   - 结果：
     - 新增两条启动器测试已通过：
@@ -127,6 +163,7 @@
 - 若本机已有历史桌面端仍在后台运行，先从托盘或菜单完全退出，再启动这次的新安装包，避免单实例进程把旧窗口直接带回前台。
 - 使用桌面端进入配置或聊天主流程，确认本地 UI 可正常打开并访问运行时接口。
 - 进入“设置 > 桌面端更新”或查看桌面端当前版本时，确认不再停留在旧的 `0.17.7`，而是已经切到这次包内自带的 `0.17.10`
+- 点击“检查更新”，确认不会再出现 `manifest signature verification requires bundlePublicKey`；若当前线上 stable 低于本地版本，预期结果应是“已是最新”或等价的无更新状态。
 - 重点检查 provider、默认模型、会话列表是否继续读取用户已有的 `~/.nextclaw` 数据，而不是变成空白初始化状态。
 
 ## 可维护性总结汇总
@@ -137,4 +174,4 @@
 - 抽象、模块边界、class / helper / service / store 等职责划分是否更合适、更清晰，是否避免了过度抽象或补丁式叠加：是。启动器状态继续由 `DesktopLauncherStateStore` 统一承载，packaged seed 的重试判定收敛在 `DesktopBundleBootstrapService`，没有把这类生命周期决策散落到 UI、脚本或更新源服务。
 - 目录结构与文件组织是否满足当前项目治理要求：满足。本次仅收敛既有桌面端路径解析与构建脚本，没有引入新的目录或角色层。
 - 若本次涉及代码可维护性评估，默认应基于一次独立于实现阶段的 `post-edit-maintainability-review` 填写，而不是只复述守卫结果：已做独立复核，结论为“通过”。本次没有把逻辑继续补丁式塞进 `recoverPendingCandidate()` 或 UI 层，而是把判定约束留在 packaged seed bootstrap 边界内；新增状态字段和 layout 注入都服务于可测试性，没有引入新的职责漂移。
-- 长期目标对齐 / 可维护性推进：这次顺着“更少 surprise、更可预测”的长期方向推进了一步。桌面启动器现在不再仅靠模糊的版本号记忆坏包，而是能识别“同版本但安装包内容已经变了”的修复场景。剩余可以继续优化的点，是把当前较重的桌面发包验证进一步拆成更快的增量层和更慢的发布层，但这属于独立批次，不在这次收尾里继续扩 scope。
+- 长期目标对齐 / 可维护性推进：这次顺着“更少 surprise、更可预测”的长期方向推进了一步。桌面启动器现在不再仅靠模糊的版本号记忆坏包，而是能识别“同版本但安装包内容已经变了”的修复场景；桌面打包验证也不再允许缺少更新公钥的安装包悄悄产出。剩余可以继续优化的点，是把当前较重的桌面发包验证进一步拆成更快的增量层和更慢的发布层，但这属于独立批次，不在这次收尾里继续扩 scope。

@@ -60,6 +60,8 @@ function packageForCurrentPlatform() {
   run(binName("pnpm"), ["-C", "packages/nextclaw-openclaw-compat", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw-server", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw", "build"]);
+  run(binName("pnpm"), ["-C", "apps/desktop", "bundle:public-key:ensure"]);
+  run(binName("pnpm"), ["-C", "apps/desktop", "bundle:seed"]);
   run(binName("pnpm"), ["-C", "apps/desktop", "build:main"], { env });
 
   if (process.platform === "darwin") {
