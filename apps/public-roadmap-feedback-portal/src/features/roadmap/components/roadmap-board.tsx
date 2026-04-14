@@ -35,10 +35,14 @@ export function RoadmapBoard({ items, onOpenItem }: RoadmapBoardProps): JSX.Elem
                 >
                   <div className="item-card__meta">
                     <TagChip tone="type">{PUBLIC_ITEM_TYPE_LABELS[item.type]}</TagChip>
-                    <span>{item.engagement.voteCount} votes</span>
+                    <span>{item.engagement.voteCount} 支持</span>
                   </div>
                   <h3>{item.title}</h3>
                   <p>{item.summary}</p>
+                  <div className="item-card__signals">
+                    <span>{item.engagement.commentCount} 评论</span>
+                    <span>{item.engagement.linkedFeedbackCount} 个建议</span>
+                  </div>
                   <span className="item-card__action">查看事项详情</span>
                 </button>
               ))}

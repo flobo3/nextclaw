@@ -1,4 +1,9 @@
-import type { PublicItem } from "../shared/public-roadmap-feedback-portal.types.js";
+import type { PublicItem } from "../../shared/public-roadmap-feedback-portal.types.js";
+import type {
+  StoredCommentEntry,
+  StoredFeedbackEntry,
+  StoredVoteEntry
+} from "../community/portal-community.types.js";
 
 export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
   {
@@ -16,13 +21,13 @@ export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
     updatedAt: "2026-04-14T08:30:00.000Z",
     shippedAt: null,
     engagement: {
-      voteCount: 42,
-      commentCount: 0,
-      linkedFeedbackCount: 3
+      voteCount: 18,
+      commentCount: 1,
+      linkedFeedbackCount: 0
     },
     sourceMetadata: {
       provider: "manual-official",
-      sourceLabel: "Phase 1 preview",
+      sourceLabel: "Phase 3 preview",
       sourceStatus: "In Progress",
       sourceUrl: null,
       teamName: "NextClaw",
@@ -44,13 +49,13 @@ export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
     updatedAt: "2026-04-14T08:00:00.000Z",
     shippedAt: null,
     engagement: {
-      voteCount: 28,
+      voteCount: 11,
       commentCount: 0,
-      linkedFeedbackCount: 2
+      linkedFeedbackCount: 0
     },
     sourceMetadata: {
       provider: "manual-official",
-      sourceLabel: "Phase 2 planned",
+      sourceLabel: "Phase 2 live sync",
       sourceStatus: "Todo",
       sourceUrl: null,
       teamName: "NextClaw",
@@ -64,22 +69,22 @@ export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
     summary: "让用户不加入内部 Linear，也能提出需求、表达优先级并参与讨论。",
     description:
       "社区反馈会独立存储在 Portal 自己的数据面中。首版不会把评论和投票回写 Linear，避免公开互动与内部执行系统强耦合。",
-    publicPhase: "planned",
+    publicPhase: "building",
     type: "feature",
     source: "manual-official",
     isOfficial: true,
     tags: ["community", "vote", "comment"],
-    updatedAt: "2026-04-14T07:45:00.000Z",
+    updatedAt: "2026-04-14T09:10:00.000Z",
     shippedAt: null,
     engagement: {
-      voteCount: 35,
+      voteCount: 15,
       commentCount: 0,
-      linkedFeedbackCount: 4
+      linkedFeedbackCount: 0
     },
     sourceMetadata: {
       provider: "manual-official",
-      sourceLabel: "Phase 3 planned",
-      sourceStatus: "Backlog",
+      sourceLabel: "Phase 3 building",
+      sourceStatus: "In Progress",
       sourceUrl: null,
       teamName: "NextClaw",
       labelNames: ["feedback", "community"]
@@ -100,9 +105,9 @@ export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
     updatedAt: "2026-04-14T06:30:00.000Z",
     shippedAt: null,
     engagement: {
-      voteCount: 19,
+      voteCount: 9,
       commentCount: 0,
-      linkedFeedbackCount: 1
+      linkedFeedbackCount: 0
     },
     sourceMetadata: {
       provider: "manual-official",
@@ -128,7 +133,7 @@ export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
     updatedAt: "2026-04-04T09:00:00.000Z",
     shippedAt: "2026-04-04T09:00:00.000Z",
     engagement: {
-      voteCount: 16,
+      voteCount: 6,
       commentCount: 0,
       linkedFeedbackCount: 0
     },
@@ -156,9 +161,9 @@ export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
     updatedAt: "2026-04-14T08:45:00.000Z",
     shippedAt: "2026-04-14T08:45:00.000Z",
     engagement: {
-      voteCount: 23,
+      voteCount: 8,
       commentCount: 0,
-      linkedFeedbackCount: 1
+      linkedFeedbackCount: 0
     },
     sourceMetadata: {
       provider: "manual-official",
@@ -168,5 +173,113 @@ export const PORTAL_PREVIEW_ITEMS: PublicItem[] = [
       teamName: "NextClaw",
       labelNames: ["architecture", "quality"]
     }
+  }
+];
+
+export const PORTAL_PREVIEW_FEEDBACK_ENTRIES: StoredFeedbackEntry[] = [
+  {
+    id: "feedback-001",
+    slug: "public-roadmap-email-subscribe",
+    title: "希望能订阅路线图更新",
+    description: "如果我对某个事项感兴趣，希望能在状态变化时收到邮件或站内更新提醒。",
+    category: "feature",
+    status: "reviewing",
+    authorLabel: "早期用户",
+    tags: ["updates", "notification"],
+    createdAt: "2026-04-13T10:20:00.000Z",
+    updatedAt: "2026-04-14T07:30:00.000Z",
+    linkedItemId: "pulse-001",
+    seedVoteCount: 7,
+    seedCommentCount: 1
+  },
+  {
+    id: "feedback-002",
+    slug: "public-roadmap-filter-by-channel",
+    title: "想按渠道或产品线筛选路线图",
+    description: "如果后面 NextClaw 同时覆盖桌面端、Web 和插件，希望我能快速筛出自己关心的那一块。",
+    category: "improvement",
+    status: "open",
+    authorLabel: "社区观察员",
+    tags: ["filter", "product-line"],
+    createdAt: "2026-04-13T12:10:00.000Z",
+    updatedAt: "2026-04-14T06:50:00.000Z",
+    linkedItemId: null,
+    seedVoteCount: 5,
+    seedCommentCount: 0
+  },
+  {
+    id: "feedback-003",
+    slug: "linear-public-comments-context",
+    title: "希望官方事项详情能带更多上下文",
+    description: "除了简短说明，我还想看到为什么现在排这个优先级，以及它和前后事项的关系。",
+    category: "research",
+    status: "linked",
+    authorLabel: "产品体验党",
+    tags: ["context", "detail"],
+    createdAt: "2026-04-12T08:40:00.000Z",
+    updatedAt: "2026-04-14T05:40:00.000Z",
+    linkedItemId: "pulse-004",
+    seedVoteCount: 4,
+    seedCommentCount: 1
+  }
+];
+
+export const PORTAL_PREVIEW_COMMENTS: StoredCommentEntry[] = [
+  {
+    id: "comment-001",
+    targetType: "item",
+    targetId: "pulse-001",
+    body: "如果能把官方事项和社区声音统一在一个页面里，传播效果会比单纯贴 Linear 截图好很多。",
+    authorLabel: "产品伙伴",
+    createdAt: "2026-04-14T06:40:00.000Z"
+  },
+  {
+    id: "comment-002",
+    targetType: "feedback",
+    targetId: "feedback-001",
+    body: "订阅提醒很有用，尤其是对已经点赞过的事项。",
+    authorLabel: "等待发布的人",
+    createdAt: "2026-04-14T07:10:00.000Z"
+  },
+  {
+    id: "comment-003",
+    targetType: "feedback",
+    targetId: "feedback-003",
+    body: "优先级背景如果能讲清楚，会更容易让外部用户理解节奏。",
+    authorLabel: "体验研究员",
+    createdAt: "2026-04-14T07:20:00.000Z"
+  }
+];
+
+export const PORTAL_PREVIEW_VOTES: StoredVoteEntry[] = [
+  {
+    id: "vote-001",
+    targetType: "item",
+    targetId: "pulse-001",
+    createdAt: "2026-04-14T06:00:00.000Z"
+  },
+  {
+    id: "vote-002",
+    targetType: "item",
+    targetId: "pulse-003",
+    createdAt: "2026-04-14T06:02:00.000Z"
+  },
+  {
+    id: "vote-003",
+    targetType: "feedback",
+    targetId: "feedback-001",
+    createdAt: "2026-04-14T06:05:00.000Z"
+  },
+  {
+    id: "vote-004",
+    targetType: "feedback",
+    targetId: "feedback-001",
+    createdAt: "2026-04-14T06:06:00.000Z"
+  },
+  {
+    id: "vote-005",
+    targetType: "feedback",
+    targetId: "feedback-002",
+    createdAt: "2026-04-14T06:07:00.000Z"
   }
 ];

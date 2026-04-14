@@ -24,7 +24,9 @@ body {
 }
 
 button,
-select {
+select,
+input,
+textarea {
   font: inherit;
 }
 
@@ -162,7 +164,8 @@ button {
 }
 
 .roadmap-panel,
-.updates-panel {
+.updates-panel,
+.community-panel {
   padding: 28px;
 }
 
@@ -354,6 +357,14 @@ button {
   font-weight: 700;
 }
 
+.item-card__signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #536579;
+  font-size: 0.9rem;
+}
+
 .roadmap-list {
   display: grid;
   gap: 12px;
@@ -377,6 +388,10 @@ button {
 .roadmap-list-row__signals strong {
   font-size: 1.4rem;
   color: #102134;
+}
+
+.roadmap-list-row__signals small {
+  font-style: normal;
 }
 
 .updates-timeline {
@@ -428,6 +443,198 @@ button {
 .tag-chip--neutral {
   background: rgba(16, 33, 52, 0.08);
   color: #33475b;
+}
+
+.community-panel__layout {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.3fr);
+}
+
+.community-panel__form,
+.community-panel__threads,
+.feedback-thread-card,
+.linked-feedback-card {
+  display: grid;
+  gap: 14px;
+}
+
+.community-panel__form {
+  align-content: start;
+  padding: 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 247, 235, 0.95), rgba(255, 255, 255, 0.9));
+  border: 1px solid rgba(155, 95, 34, 0.12);
+}
+
+.community-panel__form h3,
+.community-panel__toolbar strong,
+.detail-panel__card h3,
+.detail-panel__card h4,
+.feedback-thread-card h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+}
+
+.community-panel__form p,
+.community-panel__toolbar p,
+.feedback-thread-card p,
+.comment-card p,
+.linked-feedback-card p {
+  margin: 0;
+  color: #536579;
+}
+
+.community-panel__form label,
+.community-panel__toolbar label,
+.comment-composer label {
+  display: grid;
+  gap: 6px;
+  color: #516273;
+  font-size: 0.92rem;
+}
+
+.community-panel__form input,
+.community-panel__form select,
+.community-panel__form textarea,
+.comment-composer input,
+.comment-composer textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 14px;
+  border: 1px solid rgba(16, 33, 52, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+  color: #102134;
+}
+
+.community-panel__submit,
+.detail-panel__primary-actions button,
+.feedback-thread-card__actions button,
+.comment-composer button {
+  border: 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #102134;
+  color: white;
+  font-weight: 700;
+}
+
+.community-panel__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+}
+
+.community-panel__thread-list {
+  display: grid;
+  gap: 14px;
+}
+
+.feedback-thread-card {
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(16, 33, 52, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.feedback-thread-card__header,
+.linked-feedback-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.feedback-thread-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.feedback-thread-card__signals {
+  display: grid;
+  justify-items: end;
+  color: #536579;
+}
+
+.feedback-thread-card__signals strong {
+  font-size: 1.5rem;
+  color: #102134;
+  line-height: 1;
+}
+
+.feedback-thread-card__link {
+  border: 0;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(38, 108, 190, 0.1);
+  color: #215f9c;
+  font-weight: 700;
+}
+
+.feedback-thread-card__meta,
+.detail-panel__primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.feedback-thread-card__meta {
+  color: #5a6c80;
+  font-size: 0.9rem;
+}
+
+.feedback-thread-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.feedback-thread-card__actions button:nth-child(2),
+.detail-panel__primary-actions button:nth-child(2) {
+  background: rgba(16, 33, 52, 0.08);
+  color: #102134;
+}
+
+.feedback-thread-card__comments,
+.detail-panel__comments,
+.detail-panel__linked-feedback {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-card,
+.linked-feedback-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(16, 33, 52, 0.05);
+}
+
+.comment-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: #5b6d80;
+  font-size: 0.88rem;
+}
+
+.comment-composer {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(16, 33, 52, 0.04);
+}
+
+.empty-inline-state {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px dashed rgba(16, 33, 52, 0.14);
+  color: #637588;
 }
 
 .detail-panel {
@@ -525,7 +732,8 @@ button {
 
   .overview-panel,
   .roadmap-panel,
-  .updates-panel {
+  .updates-panel,
+  .community-panel {
     padding: 20px;
   }
 
@@ -541,6 +749,17 @@ button {
   .roadmap-list-row,
   .update-card {
     grid-template-columns: 1fr;
+  }
+
+  .community-panel__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .community-panel__toolbar,
+  .feedback-thread-card__header,
+  .linked-feedback-card__header {
+    flex-direction: column;
+    align-items: start;
   }
 
   .roadmap-list-row__signals {

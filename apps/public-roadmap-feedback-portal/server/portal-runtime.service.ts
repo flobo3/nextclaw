@@ -1,4 +1,11 @@
 import type {
+  CreateCommentInput,
+  CreateCommentResponse,
+  CreateFeedbackInput,
+  CreateFeedbackResponse,
+  CreateVoteResponse,
+  FeedbackQuery,
+  FeedbackResponse,
   ItemsQuery,
   ItemsResponse,
   PortalOverview,
@@ -7,11 +14,16 @@ import type {
 } from "../shared/public-roadmap-feedback-portal.types.js";
 import { PortalConfigService } from "./portal-config.service.js";
 import type { PortalWorkerEnv } from "./portal-env.types.js";
-import { LinearSourceProvider } from "./providers/linear-source.provider.js";
 import { PortalQueryService } from "./portal-query.service.js";
+import { PortalWriteService } from "./portal-write.service.js";
+import { LinearSourceProvider } from "./providers/linear-source.provider.js";
+import { getPortalPreviewStateService } from "./preview/portal-preview-state.service.js";
+import { PortalSyncManager } from "./portal-sync.manager.js";
+import { CommentRepository } from "./repositories/comment.repository.js";
+import { FeedbackEntryRepository } from "./repositories/feedback-entry.repository.js";
 import { PublicItemRepository } from "./repositories/public-item.repository.js";
 import { PortalSourceLinkRepository } from "./repositories/portal-source-link.repository.js";
-import { PortalSyncManager } from "./portal-sync.manager.js";
+import { VoteRepository } from "./repositories/vote.repository.js";
 
 export class PortalRuntimeService {
   readonly env: PortalWorkerEnv;
@@ -36,6 +48,44 @@ export class PortalRuntimeService {
 
   getUpdates = async (): Promise<UpdatesResponse> => {
     return (await this.createQueryService()).getUpdates();
+  };
+
+  listFeedback = async (query: FeedbackQuery): Promise<FeedbackResponse> => {
+    return (await this.createQueryService()).listFeedback(query);
+  };
+
+  createFeedback = async (input: CreateFeedbackInput): Promise<CreateFeedbackResponse> => {
+    const created = await this.createWriteService().createFeedback(input);
+    return {
+      mode: this.configService.getDataMode(),
+      item: (await this.createQueryService()).getFeedbackThread(created.id)
+    };
+  };
+
+  createVote = async (
+    targetType: CreateVoteResponse["targetType"],
+    targetId: string
+  ): Promise<CreateVoteResponse> => {
+    const voteCount = await this.createWriteService().createVote(targetType, targetId);
+    return {
+      mode: this.configService.getDataMode(),
+      targetType,
+      targetId,
+      voteCount
+    };
+  };
+
+  createComment = async (
+    targetType: CreateVoteResponse["targetType"],
+    targetId: string,
+    input: CreateCommentInput
+  ): Promise<CreateCommentResponse> => {
+    const result = await this.createWriteService().createComment(targetType, targetId, input);
+    return {
+      mode: this.configService.getDataMode(),
+      comment: result.comment,
+      commentCount: result.commentCount
+    };
   };
 
   syncLinearRoadmap = async (): Promise<{
@@ -63,17 +113,62 @@ export class PortalRuntimeService {
   };
 
   private createQueryService = async (): Promise<PortalQueryService> => {
-    const mode = this.configService.getDataMode();
-    if (mode === "preview") {
+    if (this.configService.getDataMode() === "preview") {
+      const previewStateService = getPortalPreviewStateService();
       return new PortalQueryService({
-        mode: "preview"
+        mode: "preview",
+        items: previewStateService.listItems(),
+        feedbackEntries: previewStateService.listFeedbackEntries(),
+        comments: previewStateService.listComments(),
+        votes: previewStateService.listVotes()
       });
     }
 
-    const repository = new PublicItemRepository(this.assertLiveDatabase());
+    const db = this.assertLiveDatabase();
+    const publicItemRepository = new PublicItemRepository(db);
+    const feedbackEntryRepository = new FeedbackEntryRepository(db);
+    const commentRepository = new CommentRepository(db);
+    const voteRepository = new VoteRepository(db);
+
     return new PortalQueryService({
       mode: "live",
-      items: await repository.listItems()
+      items: await publicItemRepository.listItems(),
+      feedbackEntries: await feedbackEntryRepository.listFeedbackEntries(),
+      comments: await commentRepository.listComments(),
+      votes: await voteRepository.listVotes()
+    });
+  };
+
+  private createWriteService = (): PortalWriteService => {
+    if (this.configService.getDataMode() === "preview") {
+      const previewStateService = getPortalPreviewStateService();
+      return new PortalWriteService({
+        mode: "preview",
+        getItem: previewStateService.getItem,
+        getFeedbackEntry: previewStateService.getFeedbackEntry,
+        createFeedbackEntry: previewStateService.createFeedbackEntry,
+        createComment: previewStateService.createComment,
+        countComments: previewStateService.countComments,
+        createVote: previewStateService.createVote,
+        countVotes: previewStateService.countVotes
+      });
+    }
+
+    const db = this.assertLiveDatabase();
+    const publicItemRepository = new PublicItemRepository(db);
+    const feedbackEntryRepository = new FeedbackEntryRepository(db);
+    const commentRepository = new CommentRepository(db);
+    const voteRepository = new VoteRepository(db);
+
+    return new PortalWriteService({
+      mode: "live",
+      getItem: publicItemRepository.getItem,
+      getFeedbackEntry: feedbackEntryRepository.getFeedbackEntry,
+      createFeedbackEntry: feedbackEntryRepository.createFeedbackEntry,
+      createComment: commentRepository.createComment,
+      countComments: commentRepository.countComments,
+      createVote: voteRepository.createVote,
+      countVotes: voteRepository.countVotes
     });
   };
 

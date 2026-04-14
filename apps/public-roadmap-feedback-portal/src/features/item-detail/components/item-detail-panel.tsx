@@ -1,11 +1,16 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { PublicItemDetail } from "@shared/public-roadmap-feedback-portal.types";
 import { usePortalPresenter } from "../../../app/portal-presenter.service";
+import { CommentComposer } from "../../../shared/components/comment-composer";
+import { TagChip } from "../../../shared/components/tag-chip";
 import {
+  COMMUNITY_FEEDBACK_STATUS_LABELS,
   formatPortalDate,
   PUBLIC_ITEM_TYPE_LABELS,
   PUBLIC_PHASE_LABELS
 } from "../../../shared/portal-format.utils";
-import { TagChip } from "../../../shared/components/tag-chip";
+import { portalApiService, portalQueryKeys } from "../../../services/portal-api.service";
+import { useCommunityFeedbackStore } from "../../../stores/community-feedback.store";
 
 type ItemDetailPanelProps = {
   data: PublicItemDetail | undefined;
@@ -15,6 +20,31 @@ type ItemDetailPanelProps = {
 
 export function ItemDetailPanel({ data, isOpen, isPending }: ItemDetailPanelProps): JSX.Element | null {
   const presenter = usePortalPresenter();
+  const queryClient = useQueryClient();
+  const activeItemId = data?.item.id ?? "";
+  const commentDrafts = useCommunityFeedbackStore((state) => state.snapshot.commentDrafts);
+  const commentDraft = commentDrafts[`item:${activeItemId}`] ?? {
+    body: "",
+    authorLabel: ""
+  };
+
+  const voteMutation = useMutation({
+    mutationFn: async () => await portalApiService.createItemVote(activeItemId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: portalQueryKeys.all() });
+    }
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: async () => await portalApiService.createItemComment(
+      activeItemId,
+      presenter.communityFeedbackManager.buildCreateCommentInput("item", activeItemId)
+    ),
+    onSuccess: async () => {
+      presenter.communityFeedbackManager.clearCommentDraft("item", activeItemId);
+      await queryClient.invalidateQueries({ queryKey: portalQueryKeys.all() });
+    }
+  });
 
   if (!isOpen) {
     return null;
@@ -52,13 +82,69 @@ export function ItemDetailPanel({ data, isOpen, isPending }: ItemDetailPanelProp
               </div>
               <div>
                 <dt>反馈信号</dt>
-                <dd>{data.item.engagement.voteCount} votes · {data.item.engagement.linkedFeedbackCount} linked requests</dd>
+                <dd>
+                  {data.item.engagement.voteCount} 支持 · {data.item.engagement.commentCount} 评论 · {data.item.engagement.linkedFeedbackCount} 个关联建议
+                </dd>
               </div>
               <div>
                 <dt>来源</dt>
                 <dd>{data.item.sourceMetadata.sourceLabel}</dd>
               </div>
             </dl>
+            <div className="detail-panel__primary-actions">
+              <button type="button" onClick={() => void voteMutation.mutate()} disabled={voteMutation.isPending}>
+                {voteMutation.isPending ? "提交中…" : "支持这个事项"}
+              </button>
+              <button
+                type="button"
+                onClick={() => presenter.communityFeedbackManager.prefillLinkedItem(data.item.id)}
+              >
+                用这个事项预填建议表单
+              </button>
+            </div>
+            {data.comments.length > 0 ? (
+              <div className="detail-panel__comments">
+                <h3>事项评论</h3>
+                {data.comments.map((comment) => (
+                  <article key={comment.id} className="comment-card">
+                    <header>
+                      <strong>{comment.authorLabel}</strong>
+                      <span>{formatPortalDate(comment.createdAt)}</span>
+                    </header>
+                    <p>{comment.body}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-inline-state">这个事项还没有评论。</div>
+            )}
+            <CommentComposer
+              authorLabel={commentDraft.authorLabel}
+              body={commentDraft.body}
+              isPending={commentMutation.isPending}
+              onAuthorLabelChange={(value) => presenter.communityFeedbackManager.setCommentAuthorLabel("item", activeItemId, value)}
+              onBodyChange={(value) => presenter.communityFeedbackManager.setCommentBody("item", activeItemId, value)}
+              onSubmit={() => void commentMutation.mutate()}
+              submitLabel="评论这个事项"
+            />
+            {data.linkedFeedback.length > 0 ? (
+              <div className="detail-panel__linked-feedback">
+                <h3>关联建议</h3>
+                {data.linkedFeedback.map((thread) => (
+                  <article key={thread.feedback.id} className="linked-feedback-card">
+                    <div className="linked-feedback-card__header">
+                      <div className="detail-panel__chips">
+                        <TagChip tone="type">{PUBLIC_ITEM_TYPE_LABELS[thread.feedback.category]}</TagChip>
+                        <TagChip tone="phase">{COMMUNITY_FEEDBACK_STATUS_LABELS[thread.feedback.status]}</TagChip>
+                      </div>
+                      <strong>{thread.feedback.engagement.voteCount} 支持</strong>
+                    </div>
+                    <h4>{thread.feedback.title}</h4>
+                    <p>{thread.feedback.description}</p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
             {data.relatedItems.length > 0 ? (
               <div className="detail-panel__related">
                 <h3>相关事项</h3>

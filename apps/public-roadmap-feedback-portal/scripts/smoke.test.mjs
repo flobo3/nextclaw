@@ -48,26 +48,50 @@ process.on("SIGTERM", stopServer);
 
 try {
   await waitForHealth();
+
   const browser = await chromium.launch();
   const page = await browser.newPage({
     viewport: {
       width: 1440,
-      height: 1200
+      height: 1400
     }
   });
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await expectText(page, "公开路线图与产品进展");
-  await expectText(page, "Phase 1 preview data");
-  await expectText(page, "公开阶段视图");
-  await expectText(page, "近期已交付");
-  await expectText(page, "Building");
+  await expectText(page, "Preview mode");
+  await expectText(page, "社区建议与反馈");
+  await expectText(page, "提交一个建议");
 
-  await page.getByRole("button", { name: "List" }).click();
-  await expectText(page, "公开路线图与反馈门户");
-  await page.getByRole("button", { name: "公开路线图与反馈门户" }).click();
+  const feedbackTitle = `Phase 3 smoke request ${Date.now()}`;
+  const feedbackDescription = "希望事项详情页可以展示更多上下文和订阅入口，便于持续跟踪。";
+
+  await page.getByLabel("标题").fill(feedbackTitle);
+  await page.getByLabel("需求类型").selectOption("feature");
+  await page.getByLabel("关联官方事项").selectOption("pulse-001");
+  await page.getByLabel("称呼").first().fill("Smoke Tester");
+  await page.getByLabel("详细描述").fill(feedbackDescription);
+  await page.getByRole("button", { name: "提交公开建议" }).click();
+
+  await expectText(page, feedbackTitle);
+
+  const feedbackCard = page.locator(".feedback-thread-card").filter({ hasText: feedbackTitle }).first();
+  await feedbackCard.getByRole("button", { name: "支持这个建议" }).click();
+  await feedbackCard.getByLabel("称呼").fill("Smoke Commenter");
+  await feedbackCard.getByLabel("评论").fill("这条建议值得优先做，特别适合公开路线图场景。");
+  await feedbackCard.getByRole("button", { name: "回复这个建议" }).click();
+  await expectText(page, "这条建议值得优先做");
+
+  await page.getByRole("button", { name: "公开路线图与反馈门户" }).first().click();
   await expectText(page, "路线图事项详情");
-  await expectText(page, "Linear 数据源适配层");
+  await expectText(page, feedbackTitle);
+
+  await page.getByRole("button", { name: "支持这个事项" }).click();
+  const detailPanel = page.locator(".detail-panel__card");
+  await detailPanel.getByLabel("称呼").fill("Item Reviewer");
+  await detailPanel.getByLabel("评论").fill("详情里直接看到社区声音很有帮助。");
+  await detailPanel.getByRole("button", { name: "评论这个事项" }).click();
+  await expectText(page, "详情里直接看到社区声音很有帮助");
 
   await browser.close();
   stopServer();

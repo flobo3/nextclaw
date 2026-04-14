@@ -31,7 +31,8 @@ export function RoadmapList({ items, onOpenItem }: RoadmapListProps): JSX.Elemen
           </div>
           <div className="roadmap-list-row__signals">
             <strong>{item.engagement.voteCount}</strong>
-            <span>votes</span>
+            <span>支持</span>
+            <small>{item.engagement.linkedFeedbackCount} 建议</small>
             <em>{formatPortalDate(item.updatedAt)}</em>
           </div>
         </button>

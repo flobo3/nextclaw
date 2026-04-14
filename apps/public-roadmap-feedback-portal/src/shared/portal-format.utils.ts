@@ -1,4 +1,8 @@
-import type { PublicItemType, PublicPhase } from "@shared/public-roadmap-feedback-portal.types";
+import type {
+  CommunityFeedbackStatus,
+  PublicItemType,
+  PublicPhase
+} from "@shared/public-roadmap-feedback-portal.types";
 
 export const PUBLIC_PHASE_LABELS: Record<PublicPhase, string> = {
   considering: "Considering",
@@ -23,6 +27,13 @@ export const PUBLIC_ITEM_TYPE_LABELS: Record<PublicItemType, string> = {
   bug: "Bug",
   improvement: "Improvement",
   research: "Research"
+};
+
+export const COMMUNITY_FEEDBACK_STATUS_LABELS: Record<CommunityFeedbackStatus, string> = {
+  open: "Open",
+  reviewing: "Reviewing",
+  linked: "Linked",
+  closed: "Closed"
 };
 
 export function formatPortalDate(value: string | null): string {
