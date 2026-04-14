@@ -292,7 +292,7 @@ function signRelease(repoRoot, releasePath, signingMode) {
     ]);
 
     run("node", [
-      resolve("scripts", "export-linux-apt-public-key.mjs"),
+      resolve("scripts", "desktop", "export-linux-apt-public-key.mjs"),
       "--gpg-home",
       gpgHome,
       "--key-id",
