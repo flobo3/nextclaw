@@ -16,6 +16,11 @@
   - 新桌面 bundle 版本：`0.17.11`
 - 更新 landing 页桌面下载 fallback：
   - 将 [`apps/landing/src/main.ts`](/Users/peiwang/Projects/nextbot/apps/landing/src/main.ts) 中的 `DESKTOP_RELEASE_FALLBACK` 从 `v0.17.8-desktop.1 / 0.0.136` 切到 `v0.17.11-desktop.1 / 0.0.140`，避免 GitHub API 不可用时继续回退到旧正式版。
+- 补齐并纠正 GitHub Release 正文：
+  - 将本次桌面正式版 release note 修正为双语双区块格式，恢复仓库既有规范：`English Version` 在前，`中文版` 在后。
+  - 新增本次实际发布正文：[GITHUB_RELEASE.md](/Users/peiwang/Projects/nextbot/docs/logs/v0.16.18-unified-release-0-17-11/GITHUB_RELEASE.md)
+  - 新增可复用模板：[GITHUB_RELEASE_TEMPLATE.md](/Users/peiwang/Projects/nextbot/docs/logs/v0.16.18-unified-release-0-17-11/GITHUB_RELEASE_TEMPLATE.md)
+  - 本次也顺手清掉了当前线上 release note 中重复四次的 `Full Changelog` 噪音。
 - 顺手修掉三个真实阻断发布链路的问题：
   - 将 [`scripts/release/release-scope.mjs`](/Users/peiwang/Projects/nextbot/scripts/release/release-scope.mjs) 的 `prepublishOnly` 预期路径从旧的 `scripts/ensure-pnpm-publish.mjs` 对齐到当前真实路径 `scripts/release/ensure-pnpm-publish.mjs`，否则 `release:check:groups` 会持续假失败。
   - 删除 [`packages/nextclaw-core/src/providers/openai_provider.ts`](/Users/peiwang/Projects/nextbot/packages/nextclaw-core/src/providers/openai_provider.ts) 中未使用的 `ToolCallRequest` 导入，解除本次 strict release check 的第一处真正 error。
@@ -75,6 +80,7 @@
   - release 页面：`https://github.com/Peiiii/nextclaw/releases/tag/v0.17.11-desktop.1`
   - 发布时间：`2026-04-14T12:46:23Z`
   - 结果：`isPrerelease=false`
+  - release note 已更新为双语双区块正式说明，并对齐到 [GITHUB_RELEASE.md](/Users/peiwang/Projects/nextbot/docs/logs/v0.16.18-unified-release-0-17-11/GITHUB_RELEASE.md)
 - 桌面远端工作流：
   - 首次失败 run：`24400918045`
   - 闭环 rerun：`24401769943`
@@ -88,7 +94,7 @@
 2. 执行 `npm view @nextclaw/ui version @nextclaw/server version @nextclaw/core version`，确认主链包版本分别为 `0.12.8 / 0.12.6 / 0.12.6`。
 3. 打开 NPM 包页面 `https://www.npmjs.com/package/nextclaw`，确认展示的是 `0.17.11`。
 4. 打开桌面正式 release 页面 `https://github.com/Peiiii/nextclaw/releases/tag/v0.17.11-desktop.1`。
-5. 确认 release 不是 pre-release，并在 workflow 完成后包含四平台安装物、signed product bundle、manifest 与 `update-bundle-public.pem`。
+5. 确认 release 不是 pre-release，并且 release note 为双语双区块格式：先 `English Version`，再 `中文版`。
 6. 下载桌面端安装包后打开应用，进入运行时配置页，确认新的 `Service Management` / `Runtime Presence` 能力仍可用。
 7. 在桌面端点击“检查更新”，确认不会再出现缺少 `bundlePublicKey` 的更新验签错误。
 8. 当 landing 走 fallback 路径时，确认下载目标落到 `v0.17.11-desktop.1 / 0.0.140`，而不是旧的 `v0.17.8-desktop.1 / 0.0.136`。
@@ -105,5 +111,5 @@
 - 若本次涉及代码可维护性评估，默认应基于一次独立于实现阶段的 `post-edit-maintainability-review` 填写，而不是只复述守卫结果：是。
 - 可维护性复核结论：保留债务经说明接受。
 - 本次顺手减债：是。除了把 `release:check:groups` 的旧路径合同修正到当前脚本目录结构外，还去掉了 Linux APT 发布对 artifact 顶层结构的脆弱假设，改成递归收集 `.deb`，避免以后 rerun 再次出现“构建成功但 APT 仓库漏包”的假闭环。
-- 长期目标对齐 / 可维护性推进：本次顺着“让统一发布链路更可预测、更少 surprise failure”的方向推进了一小步。虽然没有减少 changelog 造成的元信息膨胀，但至少把真正阻断发布的历史假错误收掉了，并把 stable 桌面入口、NPM registry、landing fallback、desktop update channels、Linux APT repo 五条发布面重新拉回一致。
-- 可维护性总结：这次是典型的发布闭环批次，代码增长主要是版本与 changelog 元数据，业务复杂度几乎没有继续上升。保留的主要债务是 strict lint 存量错误、legacy 文件命名迁移，以及 APT 仓库的大文件仍在 `gh-pages` 直接托管；下一步最值得单独开批次处理的是 `@nextclaw/agent-chat-ui` 的 strict lint 清债、`providers/` 目录的 legacy kebab-case 迁移，以及 Linux 安装物分发承载策略。
+- 长期目标对齐 / 可维护性推进：本次顺着“让统一发布链路更可预测、更少 surprise failure”的方向推进了一小步。虽然没有减少 changelog 造成的元信息膨胀，但至少把真正阻断发布的历史假错误收掉了，并把 stable 桌面入口、NPM registry、landing fallback、desktop update channels、Linux APT repo、GitHub release note 六条发布面重新拉回一致。
+- 可维护性总结：这次是典型的发布闭环批次，代码增长主要是版本与 changelog 元数据，业务复杂度几乎没有继续上升。保留的主要债务是 strict lint 存量错误、legacy 文件命名迁移，以及 APT 仓库的大文件仍在 `gh-pages` 直接托管；本轮已顺手把 GitHub release 双语结构从“隐含约定”前移为可复用模板。下一步最值得单独开批次处理的是 `@nextclaw/agent-chat-ui` 的 strict lint 清债、`providers/` 目录的 legacy kebab-case 迁移，以及 Linux 安装物分发承载策略。
