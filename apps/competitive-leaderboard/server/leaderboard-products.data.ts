@@ -1458,6 +1458,569 @@ export const PRODUCT_SEEDS: ProductSeed[] = [
   },
   {
     product: {
+      id: "workbuddy",
+      name: "WorkBuddy",
+      displayName: "WorkBuddy",
+      category: "operating-layer",
+      comparability: "watch",
+      disclosure: "third-party",
+      shortDescription: "腾讯面向职场场景的桌面智能体工作台。",
+      positioning: "腾讯官方把 WorkBuddy 放进自家 AI agent solutions 版图，强调一键部署、桌面工作台、企业知识库和多模型接入。",
+      bestFor: "适合关注企业 / 职场场景下产品化 claw 方案的人。",
+      caution: "它是商业化闭源方案，公开能力证据足以进入市场地图，但还不适合和开源自托管 core 产品统一混排。",
+      highlight: "桌面工作台、一键部署、企业知识库、主流模型接入。",
+      tags: ["tencent", "enterprise", "desktop-agent", "one-click", "commercial"],
+      sources: [
+        siteSource("https://static.www.tencent.com/uploads/2026/03/23/3bf86ccec6c79fe625b93ad20bbfc31a.pdf"),
+        siteSource("https://static.www.tencent.com/uploads/2026/03/18/e6a646796d0d869acc76271c9ee1a6a5.pdf")
+      ]
+    },
+    repoStats: null,
+    inclusionChecks: buildInclusionChecks({
+      "assistant-identity": {
+        passed: true,
+        summary: "腾讯把它列入 AI agent solutions，并明确是桌面 workstation AI agent。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      "standalone-entry": {
+        passed: true,
+        summary: "它是独立的桌面智能体工作台，不是单纯平台附属按钮。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      "self-hosted-or-local": {
+        passed: false,
+        summary: "当前公开表达更偏一键部署的商业化托管与桌面工作台，不是开源自托管产品。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      "action-layer": {
+        passed: true,
+        summary: "腾讯明确强调 AI agent solutions、企业知识库、多模型与持续任务执行。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      "official-docs": {
+        passed: true,
+        summary: "腾讯官方 IR 材料与新闻稿都公开点名 WorkBuddy。",
+        evidenceIds: ["workbuddy-positioning", "workbuddy-release"]
+      }
+    }),
+    capabilityAssessments: buildCapabilityAssessments({
+      "web-or-admin-ui": {
+        status: "yes",
+        summary: "官方把它定义为 desktop workstation AI agent。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      "scheduled-automation": {
+        status: "partial",
+        summary: "官方材料强调 autonomous workflows 和 continuous task execution，但没有像开源 core 那样展开定时细节。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      extensibility: {
+        status: "partial",
+        summary: "腾讯强调企业知识库与多模型接入，但对外插件 / skills 细节公开较少。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      memory: {
+        status: "partial",
+        summary: "企业知识库明确存在，但长期个人记忆公开表达不多。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      "task-execution": {
+        status: "yes",
+        summary: "官方把它放在 AI agent solutions 和 autonomous workflows 里，明确强调执行导向。",
+        evidenceIds: ["workbuddy-positioning", "workbuddy-release"]
+      },
+      "deployment-flexibility": {
+        status: "partial",
+        summary: "官方重点是 one-click deployment，而不是多种自部署形态。",
+        evidenceIds: ["workbuddy-positioning"]
+      },
+      "docs-onboarding": {
+        status: "partial",
+        summary: "目前主要能核验到腾讯官方材料和发布稿，公开独立产品文档仍偏少。",
+        evidenceIds: ["workbuddy-release"]
+      }
+    }),
+    evidence: [
+      createEvidence(
+        "workbuddy-positioning",
+        "workbuddy",
+        "Tencent Corporate Overview 2026",
+        "https://static.www.tencent.com/uploads/2026/03/23/3bf86ccec6c79fe625b93ad20bbfc31a.pdf",
+        "腾讯 IR 材料把 WorkBuddy 列为 self-developed desktop workstation AI agent，强调 one-click deployment、leading global foundation models、agent solutions 和 autonomous workflows。"
+      ),
+      createEvidence(
+        "workbuddy-release",
+        "workbuddy",
+        "Tencent 2025 Annual Results Press Release",
+        "https://static.www.tencent.com/uploads/2026/03/18/e6a646796d0d869acc76271c9ee1a6a5.pdf",
+        "腾讯官方业绩新闻稿把 WorkBuddy 和 QClaw 一并列为已经产生实际效用的 AI 产品。"
+      )
+    ]
+  },
+  {
+    product: {
+      id: "qclaw",
+      name: "QClaw",
+      displayName: "QClaw",
+      category: "personal-assistant",
+      comparability: "watch",
+      disclosure: "third-party",
+      shortDescription: "腾讯面向个人用户和微信入口的本地 AI agent。",
+      positioning: "腾讯官方把 QClaw 定位为基于 OpenClaw 的 local AI agent，强调通过微信小程序触达新手用户执行真实任务。",
+      bestFor: "适合观察微信入口、个人端执行层和本地 agent 结合方式的人。",
+      caution: "它与 OpenClaw 关系很近，但当前是腾讯自家商业化产品化路线，不宜与开源 core 统一总榜混排。",
+      highlight: "微信小程序入口、本地 agent、聊天指挥、执行层产品化。",
+      tags: ["tencent", "wechat", "personal-agent", "openclaw-based", "commercial"],
+      sources: [
+        siteSource("https://static.www.tencent.com/uploads/2026/03/23/3bf86ccec6c79fe625b93ad20bbfc31a.pdf"),
+        siteSource("https://static.www.tencent.com/uploads/2026/03/18/e6a646796d0d869acc76271c9ee1a6a5.pdf")
+      ]
+    },
+    repoStats: null,
+    inclusionChecks: buildInclusionChecks({
+      "assistant-identity": {
+        passed: true,
+        summary: "腾讯明确把它写成本地 AI agent，而不是单纯聊天入口。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "standalone-entry": {
+        passed: true,
+        summary: "官方表达的是面向 novice users 的独立 agent 产品，而不是平台附属功能。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "self-hosted-or-local": {
+        passed: true,
+        summary: "腾讯官方直接写 local AI agent based on OpenClaw。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "action-layer": {
+        passed: true,
+        summary: "官方强调 execute tasks via Weixin Mini Programs，明显不是纯对话产品。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "official-docs": {
+        passed: true,
+        summary: "腾讯官方 IR 材料与新闻稿都公开点名 QClaw。",
+        evidenceIds: ["qclaw-positioning", "qclaw-release"]
+      }
+    }),
+    capabilityAssessments: buildCapabilityAssessments({
+      "local-control": {
+        status: "yes",
+        summary: "腾讯官方直接把它表述为 local AI agent。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "multi-channel": {
+        status: "partial",
+        summary: "官方材料突出 Weixin Mini Programs，公开多渠道广度暂不如 core 开源产品明确。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "task-execution": {
+        status: "yes",
+        summary: "官方明确写 novice users 可通过微信小程序执行任务。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "deployment-flexibility": {
+        status: "partial",
+        summary: "公开表达重点在本地 agent 与微信小程序触达，并未展开多种部署形态。",
+        evidenceIds: ["qclaw-positioning"]
+      },
+      "docs-onboarding": {
+        status: "partial",
+        summary: "目前主要能核验到官方 IR 材料和新闻稿。",
+        evidenceIds: ["qclaw-release"]
+      }
+    }),
+    evidence: [
+      createEvidence(
+        "qclaw-positioning",
+        "qclaw",
+        "Tencent Corporate Overview 2026",
+        "https://static.www.tencent.com/uploads/2026/03/23/3bf86ccec6c79fe625b93ad20bbfc31a.pdf",
+        "腾讯 IR 材料把 QClaw 表述为 based on OpenClaw 的 local AI agent，强调通过 Weixin Mini Programs 帮助 novice users 执行任务。"
+      ),
+      createEvidence(
+        "qclaw-release",
+        "qclaw",
+        "Tencent 2025 Annual Results Press Release",
+        "https://static.www.tencent.com/uploads/2026/03/18/e6a646796d0d869acc76271c9ee1a6a5.pdf",
+        "腾讯官方业绩新闻稿把 QClaw 列入已经产生实际效用的 AI 产品。"
+      )
+    ]
+  },
+  {
+    product: {
+      id: "arkclaw",
+      name: "ArkClaw",
+      displayName: "ArkClaw",
+      category: "operating-layer",
+      comparability: "watch",
+      disclosure: "third-party",
+      shortDescription: "火山引擎的云上开箱即用 SaaS 版 OpenClaw。",
+      positioning: "火山引擎官方把 ArkClaw 直接描述为开箱即用的 SaaS 版 OpenClaw，并围绕云端部署、飞书接入、技能与行业场景展开。",
+      bestFor: "适合关注火山引擎 / 飞书生态里的云端 claw 产品化方案的人。",
+      caution: "它是商业托管型 claw 方案，和开源自托管 core 的证据结构不对称。",
+      highlight: "云上部署、飞书接入、行业场景 demo、社群与技能生态。",
+      tags: ["bytedance", "volcengine", "saas", "feishu", "commercial"],
+      sources: [
+        docsSource("https://developer.volcengine.com/activities/7617735747969548298"),
+        docsSource("https://developer.volcengine.com/articles/7617679989978824745"),
+        docsSource("https://developer.volcengine.com/articles/7627032833655046198")
+      ]
+    },
+    repoStats: null,
+    inclusionChecks: buildInclusionChecks({
+      "assistant-identity": {
+        passed: true,
+        summary: "官方直接把它作为 SaaS 版 OpenClaw 和可用的 AI Agent 产品来表达。",
+        evidenceIds: ["arkclaw-positioning"]
+      },
+      "standalone-entry": {
+        passed: true,
+        summary: "它是独立云产品入口，不是附属聊天功能。",
+        evidenceIds: ["arkclaw-positioning"]
+      },
+      "self-hosted-or-local": {
+        passed: false,
+        summary: "公开定位明确偏云上 SaaS，而不是本地 / 自托管。",
+        evidenceIds: ["arkclaw-positioning"]
+      },
+      "action-layer": {
+        passed: true,
+        summary: "官方公开了技能、联网、文档、GUI 浏览器和行业自动化场景。",
+        evidenceIds: ["arkclaw-positioning", "arkclaw-scenarios"]
+      },
+      "official-docs": {
+        passed: true,
+        summary: "火山引擎开发者社区有活动页、教程页和实践文章。",
+        evidenceIds: ["arkclaw-positioning", "arkclaw-scenarios"]
+      }
+    }),
+    capabilityAssessments: buildCapabilityAssessments({
+      "web-or-admin-ui": {
+        status: "yes",
+        summary: "官方强调云上开箱即用和 SaaS 使用方式。",
+        evidenceIds: ["arkclaw-positioning"]
+      },
+      "multi-channel": {
+        status: "partial",
+        summary: "公开重点在飞书接入和业务场景，广义多渠道表达不如 OpenClaw 家族直白。",
+        evidenceIds: ["arkclaw-positioning"]
+      },
+      "scheduled-automation": {
+        status: "yes",
+        summary: "官方明确写 7x24 小时在线的数字员工与持续监控场景。",
+        evidenceIds: ["arkclaw-positioning", "arkclaw-scenarios"]
+      },
+      extensibility: {
+        status: "yes",
+        summary: "官方公开了 skills、联网插件、文档插件和专属 AI 生产力映射。",
+        evidenceIds: ["arkclaw-scenarios"]
+      },
+      "task-execution": {
+        status: "yes",
+        summary: "行业场景文章明确给出真实任务执行和自动化流程。",
+        evidenceIds: ["arkclaw-scenarios"]
+      },
+      "docs-onboarding": {
+        status: "yes",
+        summary: "官方有保姆级上手教程与 Workshop 页面。",
+        evidenceIds: ["arkclaw-positioning"]
+      }
+    }),
+    evidence: [
+      createEvidence(
+        "arkclaw-positioning",
+        "arkclaw",
+        "ArkClaw Workshop",
+        "https://developer.volcengine.com/activities/7617735747969548298",
+        "火山引擎官方活动页把 ArkClaw 描述为开箱即用的 SaaS 版 OpenClaw，并强调云上使用、零配置上手和主流国产模型搭配。"
+      ),
+      createEvidence(
+        "arkclaw-scenarios",
+        "arkclaw",
+        "ArkClaw Automotive Scenarios",
+        "https://developer.volcengine.com/articles/7627032833655046198",
+        "火山引擎官方实践文展示了 ArkClaw 在联网、文档、GUI 浏览器、知识库和持续监控上的真实业务场景。"
+      )
+    ]
+  },
+  {
+    product: {
+      id: "kimiclaw",
+      name: "Kimi Claw",
+      displayName: "Kimi Claw",
+      category: "operating-layer",
+      comparability: "watch",
+      disclosure: "third-party",
+      shortDescription: "Kimi 的一键云部署 OpenClaw 托管版本。",
+      positioning: "Kimi 官方把 Kimi Claw 描述成 one-click OpenClaw cloud deployment 和 fully managed OpenClaw as a service。",
+      bestFor: "适合想观察月之暗面如何把 OpenClaw 做成托管云产品的人。",
+      caution: "这是闭源云托管形态，更适合进商业变体观察层，而不是和开源 core 统一混排。",
+      highlight: "一键云部署、24/7 在线、ClawHub skills、40GB 云存储。",
+      tags: ["kimi", "moonshot", "cloud-hosted", "clawhub", "commercial"],
+      sources: [
+        docsSource("https://www.kimi.com/resources/kimi-claw-introduction"),
+        docsSource("https://www.kimi.com/resources/openclaw-saas"),
+        siteSource("https://www.kimi.com/kimiplus/zh/kimiclaw")
+      ]
+    },
+    repoStats: null,
+    inclusionChecks: buildInclusionChecks({
+      "assistant-identity": {
+        passed: true,
+        summary: "Kimi 官方明确把它表达成托管型 OpenClaw agent / personal assistant 入口。",
+        evidenceIds: ["kimiclaw-positioning"]
+      },
+      "standalone-entry": {
+        passed: true,
+        summary: "它是独立的 Kimi Claw 产品页与云工作区，不是宿主内小功能。",
+        evidenceIds: ["kimiclaw-positioning"]
+      },
+      "self-hosted-or-local": {
+        passed: false,
+        summary: "官方主打 fully cloud-hosted managed environment，而不是本地自托管。",
+        evidenceIds: ["kimiclaw-positioning", "kimiclaw-saas"]
+      },
+      "action-layer": {
+        passed: true,
+        summary: "官方公开了 skills、scheduled tasks、web、文件、长期记忆和工作流。",
+        evidenceIds: ["kimiclaw-positioning", "kimiclaw-saas"]
+      },
+      "official-docs": {
+        passed: true,
+        summary: "Kimi 官方 resources 与产品页都公开存在。",
+        evidenceIds: ["kimiclaw-positioning"]
+      }
+    }),
+    capabilityAssessments: buildCapabilityAssessments({
+      "web-or-admin-ui": {
+        status: "yes",
+        summary: "官方明确是 browser-based 云工作区。",
+        evidenceIds: ["kimiclaw-positioning"]
+      },
+      "scheduled-automation": {
+        status: "yes",
+        summary: "官方明确公开 proactive scheduled tasks。",
+        evidenceIds: ["kimiclaw-positioning"]
+      },
+      extensibility: {
+        status: "yes",
+        summary: "官方强调 5,000+ ClawHub skills 可直接调用。",
+        evidenceIds: ["kimiclaw-positioning"]
+      },
+      memory: {
+        status: "yes",
+        summary: "官方明确公开 persistent memory 与个性化。",
+        evidenceIds: ["kimiclaw-positioning"]
+      },
+      "task-execution": {
+        status: "yes",
+        summary: "官方公开自动化、研究、数据分析和 coding workflows。",
+        evidenceIds: ["kimiclaw-positioning"]
+      },
+      "deployment-flexibility": {
+        status: "partial",
+        summary: "官方重点是一键云部署，也支持 link existing OpenClaw，但不是自托管主叙事。",
+        evidenceIds: ["kimiclaw-positioning", "kimiclaw-saas"]
+      },
+      "docs-onboarding": {
+        status: "yes",
+        summary: "官方有 introduction、SaaS、deployment 等完整资源文章。",
+        evidenceIds: ["kimiclaw-positioning", "kimiclaw-saas"]
+      }
+    }),
+    evidence: [
+      createEvidence(
+        "kimiclaw-positioning",
+        "kimiclaw",
+        "Kimi Claw Introduction",
+        "https://www.kimi.com/resources/kimi-claw-introduction",
+        "Kimi 官方把 Kimi Claw 定位为 one-click OpenClaw cloud deployment，公开了 persistent memory、scheduled tasks、5,000+ ClawHub skills、40GB cloud storage 和 web terminal。"
+      ),
+      createEvidence(
+        "kimiclaw-saas",
+        "kimiclaw",
+        "OpenClaw as a Service with Kimi Claw",
+        "https://www.kimi.com/resources/openclaw-saas",
+        "Kimi 官方把 Kimi Claw 直接表述为 fully managed OpenClaw as a service，并强调无需服务器、自动托管和云端工作区。"
+      )
+    ]
+  },
+  {
+    product: {
+      id: "autoclaw",
+      name: "AutoClaw",
+      displayName: "AutoClaw",
+      category: "personal-assistant",
+      comparability: "watch",
+      disclosure: "third-party",
+      shortDescription: "智谱 AutoGLM 推出的一键下载聊天式 AI 助手。",
+      positioning: "AutoGLM 官方把 AutoClaw 表达成 right inside your chats 的 AI assistant，强调一键下载、在 IM 里设任务、用真实工具执行并把结果回传到聊天里。",
+      bestFor: "适合关注聊天入口和桌面下载式 claw 轻产品化的人。",
+      caution: "公开资料已经足够证明它是 claw 变体，但公开深度仍不如开源 core 丰富。",
+      highlight: "一键下载、聊天入口、真实工具执行、结果回传 IM。",
+      tags: ["zhipu", "autoglm", "chat-first", "desktop-download", "commercial"],
+      sources: [
+        siteSource("https://autoglm.z.ai/autoclaw/"),
+        siteSource("https://autoglm.z.ai/")
+      ]
+    },
+    repoStats: null,
+    inclusionChecks: buildInclusionChecks({
+      "assistant-identity": {
+        passed: true,
+        summary: "官方直接写 Your AI assistant, right inside your chats。",
+        evidenceIds: ["autoclaw-positioning"]
+      },
+      "standalone-entry": {
+        passed: true,
+        summary: "它有独立下载入口和产品页，不是宿主内小功能。",
+        evidenceIds: ["autoclaw-positioning"]
+      },
+      "self-hosted-or-local": {
+        passed: false,
+        summary: "它是本地下载的桌面产品，但公开材料没有把自托管作为主叙事。",
+        evidenceIds: ["autoclaw-positioning"]
+      },
+      "action-layer": {
+        passed: true,
+        summary: "官方明确写 handle complex tasks using real tools，并把结果回传到聊天。",
+        evidenceIds: ["autoclaw-positioning"]
+      },
+      "official-docs": {
+        passed: true,
+        summary: "AutoGLM 官方站和 AutoClaw 产品页公开存在。",
+        evidenceIds: ["autoclaw-positioning"]
+      }
+    }),
+    capabilityAssessments: buildCapabilityAssessments({
+      "local-control": {
+        status: "partial",
+        summary: "官方明确提供 Mac / Windows 下载，但没有展开本地执行边界细节。",
+        evidenceIds: ["autoclaw-positioning"]
+      },
+      "multi-channel": {
+        status: "partial",
+        summary: "官方主叙事是 IM 内使用，但没有像 core 开源产品那样公开列出完整渠道矩阵。",
+        evidenceIds: ["autoclaw-positioning"]
+      },
+      "task-execution": {
+        status: "yes",
+        summary: "官方明确写 handle complex tasks using real tools。",
+        evidenceIds: ["autoclaw-positioning"]
+      },
+      "docs-onboarding": {
+        status: "partial",
+        summary: "公开资料主要是产品页与下载入口，完整文档体系还不多。",
+        evidenceIds: ["autoclaw-positioning"]
+      }
+    }),
+    evidence: [
+      createEvidence(
+        "autoclaw-positioning",
+        "autoclaw",
+        "AutoClaw by AutoGLM",
+        "https://autoglm.z.ai/autoclaw/",
+        "AutoGLM 官方把 AutoClaw 定位为 right inside your chats 的 AI assistant，强调一键下载、真实工具执行、复杂任务处理与结果回传到 IM。"
+      )
+    ]
+  },
+  {
+    product: {
+      id: "maxclaw",
+      name: "MaxClaw",
+      displayName: "MaxClaw",
+      category: "operating-layer",
+      comparability: "watch",
+      disclosure: "third-party",
+      shortDescription: "MiniMax 的官方云托管 AI agent 平台。",
+      positioning: "MiniMax 官方把 MaxClaw 定位为 official cloud AI agent platform，并明确写 built on the open-source OpenClaw framework。",
+      bestFor: "适合关注 OpenClaw 托管云产品和零代码部署路线的人。",
+      caution: "这是非常典型的商业化 cloud claw，但闭源托管意味着它不适合和开源 core 统一计分。",
+      highlight: "零代码部署、长期记忆、IM 连接、自动化、官方云托管。",
+      tags: ["minimax", "cloud-agent", "zero-code", "memory", "commercial"],
+      sources: [
+        siteSource("https://agent.minimax.io/activity/max-claw")
+      ]
+    },
+    repoStats: null,
+    inclusionChecks: buildInclusionChecks({
+      "assistant-identity": {
+        passed: true,
+        summary: "官方明确把它定义为 official cloud AI agent platform。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "standalone-entry": {
+        passed: true,
+        summary: "MaxClaw 有独立产品页与部署入口。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "self-hosted-or-local": {
+        passed: false,
+        summary: "官方主叙事是 official cloud-hosted version，不是本地 / 自托管。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "action-layer": {
+        passed: true,
+        summary: "官方公开浏览器、代码执行、文件分析、自动化和多步任务能力。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "official-docs": {
+        passed: true,
+        summary: "MiniMax 官方产品页公开存在并给出 FAQ。",
+        evidenceIds: ["maxclaw-positioning"]
+      }
+    }),
+    capabilityAssessments: buildCapabilityAssessments({
+      "web-or-admin-ui": {
+        status: "yes",
+        summary: "官方强调 visual interface 与 web deployment。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "multi-channel": {
+        status: "yes",
+        summary: "官方明确列出 Telegram、Discord、Slack。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "scheduled-automation": {
+        status: "yes",
+        summary: "官方明确写 scheduled monitoring、automatic report generation 和 recurring workflows。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      extensibility: {
+        status: "partial",
+        summary: "官方强调 built-in AI tools and expert skills，但对开放插件生态公开程度一般。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      memory: {
+        status: "yes",
+        summary: "官方明确支持 long-term memory。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "task-execution": {
+        status: "yes",
+        summary: "官方明确写 complex tasks、browsers、code execution、file analysis。",
+        evidenceIds: ["maxclaw-positioning"]
+      },
+      "docs-onboarding": {
+        status: "yes",
+        summary: "官方产品页包含定位、差异、FAQ 和上手步骤。",
+        evidenceIds: ["maxclaw-positioning"]
+      }
+    }),
+    evidence: [
+      createEvidence(
+        "maxclaw-positioning",
+        "maxclaw",
+        "MaxClaw by MiniMax",
+        "https://agent.minimax.io/activity/max-claw",
+        "MiniMax 官方把 MaxClaw 定位为 official cloud AI agent platform，明确写 built on the open-source OpenClaw framework，并公开了 long-term memory、Slack/Discord/Telegram、多步任务和自动化能力。"
+      )
+    ]
+  },
+  {
+    product: {
       id: "clawx",
       name: "ClawX",
       displayName: "ClawX",

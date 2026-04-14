@@ -12,7 +12,7 @@ export const DISCLOSURES: string[] = [
   "Only core comparable products enter the unified overall ranking.",
   "All inclusion and capability statements in this app are derived from official public sources checked on 2026-04-14.",
   "Products that are clearly not lobster-class are excluded from this app instead of being shown as if they belong to the same product universe.",
-  "Derivative forks, wrappers, and lightweight reimplementations may appear in watch tier, but they do not enter the unified total ranking."
+  "Derivative forks, wrappers, lightweight reimplementations, and commercial claw variants may appear in watch tier, but they do not enter the unified total ranking."
 ];
 
 export const METHODOLOGY: LeaderboardMethodology = {
@@ -26,7 +26,7 @@ export const METHODOLOGY: LeaderboardMethodology = {
   ],
   tierRules: [
     "Core：满足独立 assistant / AI OS 心智，且公开资料能证明它具备本地 / 自托管边界、行动层与官方文档入口，同时足够适合作为主流同类产品统一比较。",
-    "Watch：保留直接衍生物、fork、wrapper、轻量重实现，以及边界型 / 早期型 / 窄场景龙虾类样本，用于观察生态走向，但它们不参与统一总榜。",
+    "Watch：保留直接衍生物、fork、wrapper、轻量重实现、商业化 claw 变体，以及边界型 / 早期型 / 窄场景龙虾类样本，用于观察生态走向，但它们不参与统一总榜。",
     "Exclude：chat UI、workflow platform、workspace、knowledge assistant、suite-native assistant 等非龙虾类产品，直接移出这张榜。"
   ],
   scoringFormula: [
@@ -63,6 +63,7 @@ export const METHODOLOGY: LeaderboardMethodology = {
     "这个榜单更像一套研究型索引，而不是营销式冠军榜。总分只是入口，真正的可信度来自纳入标准、能力矩阵和证据抽屉。",
     "高声量不等于高能力，强能力也不等于强声量，所以页面同时展示公共信号和能力覆盖。",
     "当前版本宁可漏掉边界不清的产品，也不愿意把非龙虾类产品混进来降低可信度。",
+    "中国商业化 claw 变体值得进入 universe，但它们多为闭源托管形态，所以当前默认只进 watch，不进统一总榜。",
     "大厂产品不是天然应该进榜。只要官方主定位更像平台、宿主功能或闭源消费助手，而不是可对称比较的龙虾类主产品，就会被公开记名排除。"
   ]
 };
@@ -79,5 +80,9 @@ export const CHANGE_LOG: ChangeLogEntry[] = [
   {
     date: "2026-04-14",
     summary: "继续收紧 core：把 Sentient、OpenDAN、zclaw 降到 watch，并把腾讯元器、通义 APP、有道云笔记 AI 工具列为已审查但排除样本。"
+  },
+  {
+    date: "2026-04-14",
+    summary: "补充中国商业化 claw 变体到 watch：WorkBuddy、QClaw、ArkClaw、Kimi Claw、AutoClaw、MaxClaw。"
   }
 ];

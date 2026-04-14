@@ -63,6 +63,12 @@
 - Sentient
 - OpenDAN
 - zclaw
+- WorkBuddy
+- QClaw
+- ArkClaw
+- Kimi Claw
+- AutoClaw
+- MaxClaw
 - ClawX
 - OpenLobster
 - n8nClaw
@@ -80,7 +86,7 @@
 规则：
 
 - `core`：必须满足“独立入口 + assistant / AI OS 心智”，并且足够适合作为主流同类产品统一比较
-- `watch`：保留直接衍生物、fork、wrapper、轻量重实现，以及边界型 / 早期型 / 窄场景样本
+- `watch`：保留直接衍生物、fork、wrapper、轻量重实现、商业化 claw 变体，以及边界型 / 早期型 / 窄场景样本
 - 证据不足或形态不清时，宁可保守降级，也不硬进总榜
 
 ## 评分模型

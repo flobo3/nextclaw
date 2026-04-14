@@ -26,6 +26,12 @@
   - `Sentient`
   - `OpenDAN`
   - `zclaw`
+  - `WorkBuddy`
+  - `QClaw`
+  - `ArkClaw`
+  - `Kimi Claw`
+  - `AutoClaw`
+  - `MaxClaw`
   - `ClawX`
   - `OpenLobster`
   - `n8nClaw`
