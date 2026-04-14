@@ -4,6 +4,7 @@ import { buildWorkspaceProjectContextSection, DEFAULT_BOOTSTRAP_CONTEXT_CONFIG }
 import {
   buildActiveSkillsSystemSection,
   buildAvailableSkillsSystemSection,
+  buildSkillLearningSystemSection,
   buildRequestedSkillsSystemSection
 } from "./skill-context.js";
 import { SkillsLoader } from "./skills-loader.js";
@@ -132,6 +133,8 @@ export class ContextBuilder {
     if (availableSkillsSection) {
       parts.push(availableSkillsSection);
     }
+
+    parts.push(buildSkillLearningSystemSection());
 
     for (const section of additionalSystemSections ?? []) {
       const trimmed = section.trim();

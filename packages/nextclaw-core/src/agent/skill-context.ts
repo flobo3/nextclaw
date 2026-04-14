@@ -4,6 +4,22 @@ function wrapSkillTag(tagName: string, manifest: string): string {
   return [`<${tagName}>`, manifest, `</${tagName}>`].join("\n");
 }
 
+const SKILL_LEARNING_SYSTEM_LINES = [
+  "# Skill Learning Loop",
+  "After non-trivial work, run a brief review before your final answer.",
+  "- Summarize the reusable lesson, not the full transcript.",
+  "- Decide exactly one outcome: `no_skill_change`, `patch_existing_skill`, or `create_new_skill`.",
+  "- Prefer patching an existing skill when the lesson extends or corrects it; only create a new skill when the trigger and workflow are genuinely distinct.",
+  "- Promote a lesson into a skill only when it has a clear trigger, repeatable steps, and failure signals/checks.",
+  "- Do not create skills for one-off facts, narrow local quirks, or work that is not likely to recur.",
+  "- Keep the review concise and action-oriented. Do not add user-visible review text unless it materially helps or the user asks for it.",
+];
+
+const SKILL_LEARNING_USER_LINES = [
+  "## Skill Learning",
+  "Before finishing non-trivial work, do a brief review: extract the reusable lesson, decide whether it means `no_skill_change`, `patch_existing_skill`, or `create_new_skill`, and only promote it when the trigger, steps, and failure checks are clear.",
+];
+
 function buildSelectedSkillsBlock(skills: SkillsLoader, skillSelectors: string[]): string {
   const manifest = skills.buildSkillsManifest(skillSelectors);
   if (!manifest) {
@@ -77,4 +93,12 @@ export function buildAvailableSkillsSystemSection(skills: SkillsLoader): string 
     summary,
     "</available_skills>",
   ].join("\n");
+}
+
+export function buildSkillLearningSystemSection(): string {
+  return SKILL_LEARNING_SYSTEM_LINES.join("\n");
+}
+
+export function buildSkillLearningUserPromptSection(): string {
+  return SKILL_LEARNING_USER_LINES.join("\n\n");
 }

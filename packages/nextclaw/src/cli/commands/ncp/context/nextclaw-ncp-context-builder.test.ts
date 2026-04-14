@@ -6,6 +6,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { ConfigSchema, SessionManager } from "@nextclaw/core";
 import { LocalAssetStore } from "@nextclaw/ncp-agent-runtime";
 import { NextclawNcpContextBuilder } from "../nextclaw-ncp-context-builder.js";
+import {
+  createNcpTestConfig,
+  writeSkillFixture,
+} from "./nextclaw-ncp-context-builder.test-support.js";
 
 const tempWorkspaces: string[] = [];
 const originalNextclawHome = process.env.NEXTCLAW_HOME;
@@ -42,23 +46,7 @@ afterEach(() => {
 
 it("injects runtime tool definitions into the system prompt", () => {
     const { workspace } = createWorkspace();
-    const config = ConfigSchema.parse({
-      agents: {
-        defaults: {
-          workspace,
-          model: "gpt-5.4",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
-      },
-      providers: {
-        openai: {
-          enabled: true,
-          apiKey: "test-openai-key",
-          models: ["gpt-5.4"],
-        },
-      },
-    });
+    const config = createNcpTestConfig(workspace);
     const prepareForRun = vi.fn();
     const builder = new NextclawNcpContextBuilder({
       sessionManager: new SessionManager(workspace),
@@ -102,22 +90,8 @@ it("injects runtime tool definitions into the system prompt", () => {
 
 it("injects session orchestration guidance into the NCP system prompt", () => {
     const { workspace } = createWorkspace();
-    const config = ConfigSchema.parse({
-      agents: {
-        defaults: {
-          workspace,
-          model: "dashscope/qwen3.5-plus",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
-      },
-      providers: {
-        openai: {
-          enabled: true,
-          apiKey: "test-openai-key",
-          models: ["gpt-5.4"],
-        },
-      },
+    const config = createNcpTestConfig(workspace, {
+      model: "dashscope/qwen3.5-plus",
     });
     const builder = new NextclawNcpContextBuilder({
       sessionManager: new SessionManager(workspace),
@@ -161,26 +135,69 @@ it("injects session orchestration guidance into the NCP system prompt", () => {
     expect(systemPrompt).toContain("`sessions_request.target` must be an object shaped like");
   });
 
+it("preserves requested skill refs and learning guidance in the NCP prompt", () => {
+    const { workspace } = createWorkspace();
+    const projectRoot = join(workspace, "project-alpha");
+    mkdirSync(projectRoot, { recursive: true });
+    const hostSkillDir = writeSkillFixture({
+      rootDir: join(workspace, "skills"),
+      skillName: "shared-skill",
+      description: "Host shared skill",
+      body: "Host skill body.",
+    });
+    const projectSkillDir = writeSkillFixture({
+      rootDir: join(projectRoot, ".agents", "skills"),
+      skillName: "shared-skill",
+      description: "Project shared skill",
+      body: "Project skill body.",
+    });
+
+    const config = createNcpTestConfig(workspace);
+    const sessionManager = new SessionManager(workspace);
+    const sessionId = `session-${randomUUID()}`;
+    sessionManager.getOrCreate(sessionId).metadata.project_root = projectRoot;
+    const prepareForRun = vi.fn();
+    const builder = new NextclawNcpContextBuilder({
+      sessionManager,
+      toolRegistry: {
+        prepareForRun,
+        getToolDefinitions: () => [],
+      } as never,
+      getConfig: () => config,
+    });
+
+    const projectSkillRef = `project:${projectSkillDir}`;
+    const hostSkillRef = `workspace:${hostSkillDir}`;
+    const prepared = builder.prepare({
+      sessionId,
+      messages: [
+        {
+          role: "user",
+          timestamp: new Date("2026-03-25T10:00:00.000Z").toISOString(),
+          parts: [{ type: "text", text: "hello" }],
+          metadata: {
+            requested_skill_refs: [projectSkillRef, hostSkillRef],
+          },
+        },
+      ],
+      metadata: {},
+    } as never);
+
+    const systemPrompt = String(prepared.messages[0]?.content ?? "");
+    const userPrompt = String(prepared.messages[prepared.messages.length - 1]?.content ?? "");
+
+    expect(systemPrompt).toContain(projectSkillRef);
+    expect(systemPrompt).toContain(hostSkillRef);
+    expect(systemPrompt).toContain("# Skill Learning Loop");
+    expect(userPrompt).toContain(`[Requested skills for this turn: ${projectSkillRef}, ${hostSkillRef}]`);
+  });
+
 it("prefers session project_root over the default workspace for tool context", () => {
     const { workspace } = createWorkspace();
     const projectRoot = join(workspace, "project-alpha");
     mkdirSync(projectRoot, { recursive: true });
-    const config = ConfigSchema.parse({
-      agents: {
-        defaults: {
-          workspace,
-          model: "dashscope/qwen3.5-plus",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
-      },
-      providers: {
-        openai: {
-          enabled: true,
-          apiKey: "test-openai-key",
-          models: ["gpt-5.4"],
-        },
-      },
+    const config = createNcpTestConfig(workspace, {
+      model: "dashscope/qwen3.5-plus",
     });
     const sessionManager = new SessionManager(workspace);
     const sessionId = `session-${randomUUID()}`;
@@ -218,14 +235,10 @@ it("selects the stored session agent profile before request metadata", () => {
     const { workspace } = createWorkspace();
     const engineerWorkspace = join(workspace, "engineer-home");
     mkdirSync(engineerWorkspace, { recursive: true });
-    const config = ConfigSchema.parse({
+    const config = createNcpTestConfig(workspace, {
+      model: "default-model",
+    }, {
       agents: {
-        defaults: {
-          workspace,
-          model: "default-model",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
         list: [
           {
             id: "engineer",
@@ -233,13 +246,6 @@ it("selects the stored session agent profile before request metadata", () => {
             model: "engineer-model",
           },
         ],
-      },
-      providers: {
-        openai: {
-          enabled: true,
-          apiKey: "test-openai-key",
-          models: ["gpt-5.4"],
-        },
       },
     });
     const sessionManager = new SessionManager(workspace);
@@ -283,14 +289,10 @@ it("uses request metadata agent_id when the session has no stored agent owner ye
     const { workspace } = createWorkspace();
     const reviewerWorkspace = join(workspace, "reviewer-home");
     mkdirSync(reviewerWorkspace, { recursive: true });
-    const config = ConfigSchema.parse({
+    const config = createNcpTestConfig(workspace, {
+      model: "default-model",
+    }, {
       agents: {
-        defaults: {
-          workspace,
-          model: "default-model",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
         list: [
           {
             id: "reviewer",
@@ -298,13 +300,6 @@ it("uses request metadata agent_id when the session has no stored agent owner ye
             model: "reviewer-model",
           },
         ],
-      },
-      providers: {
-        openai: {
-          enabled: true,
-          apiKey: "test-openai-key",
-          models: ["gpt-5.4"],
-        },
       },
     });
     const prepareForRun = vi.fn();
@@ -346,27 +341,17 @@ it("keeps host workspace context and skills when a session is bound to a project
     mkdirSync(projectRoot, { recursive: true });
     writeFileSync(join(workspace, "AGENTS.md"), "Host workspace guidance.\n");
     writeFileSync(join(projectRoot, "AGENTS.md"), "Project workspace guidance.\n");
-    mkdirSync(join(workspace, "skills", "host-helper"), { recursive: true });
-    writeFileSync(
-      join(workspace, "skills", "host-helper", "SKILL.md"),
-      [
-        "---",
-        "name: host-helper",
-        "description: Host workspace helper",
-        "---",
-        "",
-        "Use the host workspace helper instructions.",
-      ].join("\n"),
-    );
+    writeSkillFixture({
+      rootDir: join(workspace, "skills"),
+      skillName: "host-helper",
+      description: "Host workspace helper",
+      body: "Use the host workspace helper instructions.",
+    });
 
-    const config = ConfigSchema.parse({
+    const config = createNcpTestConfig(workspace, {
+      model: "dashscope/qwen3.5-plus",
+    }, {
       agents: {
-        defaults: {
-          workspace,
-          model: "dashscope/qwen3.5-plus",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
         context: {
           bootstrap: {
             files: ["AGENTS.md"],
@@ -375,13 +360,6 @@ it("keeps host workspace context and skills when a session is bound to a project
             perFileChars: 1000,
             totalChars: 3000,
           },
-        },
-      },
-      providers: {
-        openai: {
-          enabled: true,
-          apiKey: "test-openai-key",
-          models: ["gpt-5.4"],
         },
       },
     });

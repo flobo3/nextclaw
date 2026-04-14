@@ -59,6 +59,12 @@ describe("ContextBuilder tool catalog", () => {
 
     expect(prompt).toContain("<name>demo-skill</name>");
     expect(prompt).toContain("<description>Demo skill for routing tests</description>");
+    expect(prompt).toContain("<available_skills>");
+    expect(prompt).toContain("# Active Skills");
+    expect(prompt).toContain("<active_skills>");
+    expect(prompt).toContain("# Skill Learning Loop");
+    expect(prompt).toContain("Decide exactly one outcome");
+    expect(prompt).toContain("clear trigger, repeatable steps, and failure signals/checks");
   });
 
   it("tells the agent to check current time before converting relative schedules", () => {

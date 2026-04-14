@@ -316,6 +316,14 @@ If you used `--examples`, delete any placeholder files that are not needed for t
 
 **Writing Guidelines:** Always use imperative/infinitive form.
 
+When a skill comes from a post-task review instead of a direct user request, first extract the reusable lesson before writing anything. Only turn the review into a skill when all of the following are clear:
+
+- The trigger or situation that should activate the skill
+- The repeatable workflow or decision sequence
+- The checks, failure signals, or stop conditions
+
+If any of those are still fuzzy, improve an existing skill or keep the lesson as a note instead of creating a vague new skill.
+
 ##### Frontmatter
 
 Write the YAML frontmatter with `name` and `description`:

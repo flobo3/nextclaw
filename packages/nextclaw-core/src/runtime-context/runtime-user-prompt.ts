@@ -1,5 +1,8 @@
 import type { Config } from "../config/schema.js";
-import { buildRequestedSkillsUserPrompt } from "../agent/skill-context.js";
+import {
+  buildRequestedSkillsUserPrompt,
+  buildSkillLearningUserPromptSection,
+} from "../agent/skill-context.js";
 import { SkillsLoader } from "../agent/skills-loader.js";
 import { buildMinimalRuntimeExecutionPrompt } from "../agent/execution-prompt.utils.js";
 import {
@@ -183,13 +186,14 @@ export class RuntimeUserPromptBuilder {
       userMessage,
     );
     const executionPrompt = buildMinimalRuntimeExecutionPrompt(model);
+    const skillLearningPrompt = buildSkillLearningUserPromptSection();
     const contextSection = buildWorkspaceProjectContextSection({
       projectContext,
       contextConfig,
       sessionKey,
     });
 
-    return [contextSection, executionPrompt, requestedSkillsPrompt]
+    return [contextSection, executionPrompt, skillLearningPrompt, requestedSkillsPrompt]
       .filter(Boolean)
       .join("\n\n");
   };

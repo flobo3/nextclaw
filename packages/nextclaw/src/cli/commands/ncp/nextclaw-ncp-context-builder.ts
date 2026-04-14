@@ -4,6 +4,7 @@ import {
   ContextBuilder,
   findEffectiveAgentProfile,
   InputBudgetPruner,
+  RequestedSkillsMetadataReader,
   getWorkspacePath,
   parseThinkingLevel,
   readSessionProjectRoot,
@@ -88,27 +89,7 @@ function mergeInputMetadata(input: NcpAgentRunInput): Record<string, unknown> {
   };
 }
 
-function resolveRequestedSkillNames(metadata: Record<string, unknown>): string[] {
-  const rawValue = metadata.requested_skills ?? metadata.requestedSkills;
-  const values: string[] = [];
-  if (Array.isArray(rawValue)) {
-    for (const item of rawValue) {
-      const normalized = normalizeString(item);
-      if (normalized) {
-        values.push(normalized);
-      }
-    }
-  } else if (typeof rawValue === "string") {
-    values.push(
-      ...rawValue
-        .split(/[,\s]+/g)
-        .map((item) => item.trim())
-        .filter(Boolean),
-    );
-  }
-
-  return Array.from(new Set(values)).slice(0, 8);
-}
+const REQUESTED_SKILLS_METADATA_READER = new RequestedSkillsMetadataReader();
 
 function resolveRequestedToolNames(metadata: Record<string, unknown>): string[] {
   const rawValue = metadata.requested_tools ?? metadata.requestedTools;
@@ -196,11 +177,11 @@ function appendTimeHintForPrompt(content: string, timestamp: Date): string {
   return `${content}\n\n[time_hint_local_minute] ${buildMinutePrecisionTimeHint(date)}`;
 }
 
-function prependRequestedSkills(content: string, requestedSkillNames: string[]): string {
-  if (requestedSkillNames.length === 0) {
+function prependRequestedSkills(content: string, requestedSkillSelectors: string[]): string {
+  if (requestedSkillSelectors.length === 0) {
     return content;
   }
-  return `[Requested skills for this turn: ${requestedSkillNames.join(", ")}]\n\n${content}`;
+  return `[Requested skills for this turn: ${requestedSkillSelectors.join(", ")}]\n\n${content}`;
 }
 
 function buildSessionOrchestrationSection(): string {
@@ -273,14 +254,14 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
       requestMetadata,
     });
 
-    const requestedSkillNames = resolveRequestedSkillNames(requestMetadata);
+    const requestedSkills = REQUESTED_SKILLS_METADATA_READER.readSelection(requestMetadata);
     const requestedToolNames = resolveRequestedToolNames(requestMetadata);
     const currentTurn = buildCurrentTurnState({
       input,
       currentModel: effectiveModel,
       formatPrompt: ({ text, timestamp }) =>
         appendTimeHintForPrompt(
-          prependRequestedSkills(text, requestedSkillNames),
+          prependRequestedSkills(text, requestedSkills.selectors),
           timestamp,
         ),
       assetStore: this.options.assetStore,
@@ -342,7 +323,7 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
       chatId,
       sessionKey: input.sessionId,
       thinkingLevel: runtimeThinking,
-      skillNames: requestedSkillNames,
+      skillNames: requestedSkills.selectors,
       messageToolHints,
       availableTools: buildToolCatalogEntries(toolDefinitions),
       additionalSystemSections,

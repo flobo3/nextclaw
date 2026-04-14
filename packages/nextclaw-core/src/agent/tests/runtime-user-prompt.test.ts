@@ -63,6 +63,8 @@ describe("buildBootstrapAwareUserPrompt", () => {
     expect(prompt).toContain("<name>demo-skill</name>");
     expect(prompt).toContain("<ref>workspace:");
     expect(prompt).toContain("`$weather`");
+    expect(prompt).toContain("## Skill Learning");
+    expect(prompt).toContain("decide whether it means `no_skill_change`, `patch_existing_skill`, or `create_new_skill`");
     expect(prompt).toContain("## User Message");
     expect(prompt).toContain("hello");
     expect(prompt).not.toContain("Use the demo skill instructions.");
