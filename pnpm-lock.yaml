@@ -42,6 +42,49 @@ importers:
         specifier: ^8.18.0
         version: 8.19.0
 
+  apps/competitive-leaderboard:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^1.19.9
+        version: 1.19.9(hono@4.11.9)
+      '@tanstack/react-query':
+        specifier: ^5.90.21
+        version: 5.90.21(react@18.3.1)
+      hono:
+        specifier: ^4.11.9
+        version: 4.11.9
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
+      '@types/react':
+        specifier: ^18.3.28
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.7
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.1
+        version: 6.0.1(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.8.1)(@types/node@25.5.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
+      playwright:
+        specifier: ^1.52.0
+        version: 1.58.2
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.3
+        version: 8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.8.1)(@types/node@25.5.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2)
+
   apps/desktop:
     dependencies:
       '@nextclaw/channel-plugin-dingtalk':
@@ -511,41 +554,6 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.3
-
-  packages/extensions/nextclaw-engine-plugin-claude-agent-sdk:
-    dependencies:
-      '@anthropic-ai/claude-agent-sdk':
-        specifier: ^0.2.63
-        version: 0.2.63(zod@4.3.6)
-      '@nextclaw/core':
-        specifier: ^0.12.0
-        version: 0.12.0(ws@8.19.0)
-      zod:
-        specifier: ^4.0.0
-        version: 4.3.6
-    devDependencies:
-      '@types/node':
-        specifier: ^20.17.6
-        version: 20.19.33
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.3
-
-  packages/extensions/nextclaw-engine-plugin-codex-sdk:
-    dependencies:
-      '@nextclaw/core':
-        specifier: ^0.12.0
-        version: 0.12.0(ws@8.19.0)
-      '@openai/codex-sdk':
-        specifier: ^0.107.0
-        version: 0.107.0
-    devDependencies:
-      '@types/node':
-        specifier: ^20.17.6
-        version: 20.19.33
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
@@ -2500,12 +2508,6 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
-
-  '@nextclaw/core@0.12.0':
-    resolution: {integrity: sha512-FeGgY+1syG3OblYRyPg6MwvhtE/XY7KydthAgUkqLk0kYLKNwSzOcgmoLYV6dg+WONAX9j9EkHYqTZPo0JWd8Q==}
-
-  '@nextclaw/feishu-core@0.2.2':
-    resolution: {integrity: sha512-7chm3aBTvbVqaCrRQ3HtBwMhG7Nx2kBj+E0thpXNO+aXLTGef2wjOKL2i1hbZXB7zzgePdNTYuzjfHbb3iZ+4A==}
 
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
@@ -9270,35 +9272,6 @@ snapshots:
       '@emnapi/runtime': 1.8.1
       '@tybys/wasm-util': 0.10.1
     optional: true
-
-  '@nextclaw/core@0.12.0(ws@8.19.0)':
-    dependencies:
-      '@nextclaw/feishu-core': 0.2.2
-      chokidar: 3.6.0
-      commander: 12.1.0
-      cron-parser: 4.9.0
-      dotenv: 16.6.1
-      openai: 4.104.0(encoding@0.1.13)(ws@8.19.0)(zod@3.25.76)
-      pino: 9.14.0
-      socket.io-msgpack-parser: 3.0.2
-      undici: 6.23.0
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.1(zod@3.25.76)
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - utf-8-validate
-      - ws
-
-  '@nextclaw/feishu-core@0.2.2':
-    dependencies:
-      '@larksuiteoapi/node-sdk': 1.59.0
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - utf-8-validate
 
   '@noble/curves@1.9.7':
     dependencies:
