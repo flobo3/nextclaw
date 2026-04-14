@@ -430,7 +430,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
           fetch-depth: 0
 
       - name: Download desktop artifacts
@@ -503,7 +503,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
           fetch-depth: 0
 
       - name: Setup Node
